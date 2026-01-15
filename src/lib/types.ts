@@ -60,3 +60,25 @@ export interface PortfolioSummary {
   totalFutureCost: number;
   details: ChildSimulationResult[];
 }
+export interface BudgetInput {
+  name: string;
+  age: number;
+  fixedIncome: number;    // Gaji Tetap
+  variableIncome: number; // Bonus/Freelance
+}
+
+export interface BudgetAllocation {
+  label: string;
+  percentage: number; // 20, 15, 10, dll
+  amount: number;     // Nilai Rupiah
+  type: "NEEDS" | "DEBT_PROD" | "DEBT_CONS" | "INSURANCE" | "SAVING" | "SURPLUS";
+  description: string;
+  colorClass: string; // Utk styling (bg-red-100, dll)
+}
+
+export interface BudgetResult {
+  safeToSpend: number; // 45% untuk Hidup
+  allocations: BudgetAllocation[];
+  totalFixedAllocated: number; // Total yang "diambil" sistem (55%)
+  surplus: number;     // Variable Income
+}

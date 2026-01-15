@@ -1,338 +1,346 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { 
-  Wallet, TrendingUp, TrendingDown, Save, 
-  AlertCircle, AlertTriangle, Info,
-  ShieldCheck, PiggyBank, Briefcase, CreditCard, ShoppingBag
+  Calculator, Wallet, BadgePercent, TrendingUp, 
+  AlertTriangle, ShieldCheck, PiggyBank, RefreshCcw, Save, Download,
+  CalendarDays, CalendarRange
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import api from "@/lib/axios"; // Pastikan file axios.ts sudah ada
+import { calculateSmartBudget, formatRupiah } from "@/lib/financial-math";
+import { generateBudgetPDF } from "@/lib/pdf-generator";
+import { BudgetResult } from "@/lib/types";
 
-// --- 1. HELPER FUNCTIONS (Di Luar Component) ---
-const formatNumber = (num: number) => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-};
-
-const parseNumber = (str: string) => {
-  const cleanStr = str.replace(/\./g, ""); 
-  return parseInt(cleanStr) || 0;
-};
-
-// --- 2. SUB-COMPONENT (Di Luar Page agar Focus Aman) ---
-const BudgetInput = ({ 
-  label, value, field, setter, icon, placeholder, desc, 
-  limitPercent, isMinLimit = false, fixedIncome 
-}: any) => {
-  
-  // Hitung Limit Nominal
-  const limitAmount = (fixedIncome * limitPercent) / 100;
-  
-  // Cek Pelanggaran Rule
-  const isViolation = isMinLimit ? value < limitAmount : value > limitAmount;
-  
-  const suggestionText = isMinLimit 
-    ? `Min: ${limitPercent}% (${formatNumber(limitAmount)})`
-    : `Max: ${limitPercent}% (${formatNumber(limitAmount)})`;
-
-  return (
-    <div className="space-y-1.5 group">
-       <div className="flex justify-between items-end">
-         <label className="text-xs font-bold text-slate-600 ml-1 uppercase tracking-tight">{label}</label>
-         
-         {/* Badge Indikator Cerdas */}
-         <span className={cn(
-           "text-[10px] font-bold transition-all px-2 py-0.5 rounded-md border",
-           fixedIncome === 0 ? "hidden" : "",
-           isViolation 
-             ? "text-orange-700 border-orange-200 bg-orange-50 animate-pulse" 
-             : "text-green-700 border-green-200 bg-green-50"
-         )}>
-           {isViolation && <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5" />}
-           {suggestionText}
-         </span>
-       </div>
-
-       <Input 
-          icon={icon}
-          type="text"
-          inputMode="numeric"
-          value={formatNumber(value)}
-          onChange={(e) => {
-            const val = parseNumber(e.target.value);
-            setter((prev: any) => ({ ...prev, [field]: val }));
-          }}
-          className={cn(
-             "transition-all duration-200 h-11 md:h-12 font-medium",
-             isViolation && fixedIncome > 0 
-                ? "border-orange-300 ring-2 ring-orange-50 bg-orange-50/10 focus-visible:ring-orange-200" 
-                : "focus-visible:ring-blue-100"
-          )}
-          placeholder={placeholder}
-       />
-       
-       <div className="flex justify-between items-start px-1">
-          <p className="text-[10px] text-slate-400 italic">{desc}</p>
-          {isViolation && fixedIncome > 0 && (
-            <p className="text-[10px] text-orange-600 font-bold text-right">
-              {isMinLimit ? "⚠️ Belum Target" : "⚠️ Over Budget"}
-            </p>
-          )}
-       </div>
-    </div>
-  );
-};
-
-// --- 3. MAIN PAGE COMPONENT ---
 export default function BudgetPage() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // --- STATE INPUT ---
+  const [name, setName] = useState("");
+  const [age, setAge] = useState("");
+  const [fixedIncome, setFixedIncome] = useState("");
+  const [variableIncome, setVariableIncome] = useState("");
 
-  const [income, setIncome] = useState({
-    fixed: 8400000, // Default bisa 0 atau angka dummy
-    variable: 1500000 
-  });
+  // --- STATE RESULT (DUAL VIEW) ---
+  const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
+  const [results, setResults] = useState<{
+    monthly: BudgetResult | null;
+    annual: BudgetResult | null;
+  }>({ monthly: null, annual: null });
 
-  const [expenses, setExpenses] = useState({
-    productiveDebt: 1000000,
-    consumptiveDebt: 500000,
-    insurance: 500000,
-    saving: 1000000,
-    living: 3000000,
-  });
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Memoize Total Expense
-  const totalExpense = useMemo(() => {
-    return Object.values(expenses).reduce((a, b) => a + b, 0);
-  }, [expenses]);
+  // --- 1. LOAD FROM LOCALSTORAGE ---
+  useEffect(() => {
+    const savedData = localStorage.getItem("budget_data_v2"); // Ganti key v2 biar fresh
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      setName(parsed.name || "");
+      setAge(parsed.age || "");
+      setFixedIncome(parsed.fixedIncome || "");
+      setVariableIncome(parsed.variableIncome || "");
+      
+      // Auto Calculate jika data lengkap
+      if (parsed.fixedIncome) {
+        const fixed = parseInt(parsed.fixedIncome.replace(/\./g, "")) || 0;
+        const variable = parseInt(parsed.variableIncome.replace(/\./g, "")) || 0;
+        if (fixed > 0) {
+          setResults({
+            monthly: calculateSmartBudget(fixed, variable),
+            annual: calculateSmartBudget(fixed * 12, variable * 12)
+          });
+        }
+      }
+    }
+    setIsLoaded(true);
+  }, []);
 
-  const totalIncome = income.fixed + income.variable;
-  const balance = totalIncome - totalExpense;
-  const usagePercentage = income.fixed > 0 ? Math.round((totalExpense / income.fixed) * 100) : 0;
+  // --- 2. SAVE TO LOCALSTORAGE ---
+  useEffect(() => {
+    if (!isLoaded) return;
+    const data = { name, age, fixedIncome, variableIncome };
+    localStorage.setItem("budget_data_v2", JSON.stringify(data));
+  }, [name, age, fixedIncome, variableIncome, isLoaded]);
 
-  const formatRupiah = (val: number) => 
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
+  // --- HANDLERS ---
+  const handleCalculate = () => {
+    const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
+    const variable = parseInt(variableIncome.replace(/\./g, "")) || 0;
 
-  // --- FUNGSI SAVE KE BACKEND ---
-  const handleSave = async () => {
-    if (income.fixed <= 0) {
-      setError("Gaji Tetap wajib diisi dan tidak boleh 0!");
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (fixed === 0) {
+      alert("Masukkan Pemasukkan Tetap terlebih dahulu.");
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    // HITUNG DUA KALI (BULANAN & TAHUNAN)
+    const monthly = calculateSmartBudget(fixed, variable);
+    const annual = calculateSmartBudget(fixed * 12, variable * 12);
 
-    try {
-      // 1. Siapkan Payload (Data yang akan dikirim)
-      const payload = {
-        month: new Date().getMonth() + 1, // Bulan sekarang (1-12)
-        year: new Date().getFullYear(),   // Tahun sekarang
-        fixedIncome: income.fixed,
-        variableIncome: income.variable,
-        productiveDebt: expenses.productiveDebt,
-        consumptiveDebt: expenses.consumptiveDebt,
-        insurance: expenses.insurance,
-        saving: expenses.saving,
-        livingCost: expenses.living,
-      };
+    setResults({ monthly, annual });
+  };
 
-      // 2. Tembak API Backend
-      await api.post("/financial/budget", payload);
-      
-      // 3. Sukses
-      alert("Anggaran Berhasil Disimpan & Dianalisa!");
-      router.push("/"); // Kembali ke Dashboard
-
-    } catch (err: any) {
-      console.error(err);
-      const msg = err.response?.data?.message || "Gagal menyimpan data ke server.";
-      setError(Array.isArray(msg) ? msg[0] : msg);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } finally {
-      setIsLoading(false);
+  const handleReset = () => {
+    if(confirm("Reset data form?")) {
+      setFixedIncome("");
+      setVariableIncome("");
+      setResults({ monthly: null, annual: null });
+      localStorage.removeItem("budget_data_v2");
     }
   };
 
-  return (
-    <div className="px-5 pt-4 pb-24 min-h-full font-sans max-w-5xl mx-auto">
+  const handleDownload = () => {
+    // Pastikan kedua data sudah ada sebelum download
+    if (results.monthly && results.annual) {
+      const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
       
-      {/* HEADER & SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-center">
-        <div className="space-y-1">
-           <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Atur Anggaran</h1>
-           <p className="text-sm text-slate-600 font-medium">
-             Perencanaan 5 Pos Anggaran (Financial Health Rule).
-           </p>
-           {error && (
-             <div className="flex items-center gap-2 text-red-600 bg-red-50 p-2 rounded-lg text-xs font-bold w-fit animate-pulse border border-red-100">
-                <AlertTriangle className="w-4 h-4" /> {error}
-             </div>
-           )}
-        </div>
+      generateBudgetPDF(
+        results.monthly, 
+        results.annual, 
+        { name, age, fixedIncome: fixed }
+      );
+    } else {
+      alert("Silakan tekan tombol 'Analisa Sekarang' terlebih dahulu.");
+    }
+  };
 
-        {/* SUMMARY CARD */}
-        <div className={cn(
-            "rounded-[2rem] p-6 shadow-2xl text-white transition-all duration-500 relative overflow-hidden group",
-            balance >= 0 ? "bg-blue-600 shadow-blue-200" : "bg-red-600 shadow-red-200"
-        )}>
-           <div className="relative z-10 flex justify-between items-start mb-2">
-              <div>
-                 <p className="text-blue-100 text-[10px] font-bold uppercase tracking-widest">
-                   {balance >= 0 ? "Cashflow Positif" : "Defisit Anggaran"}
-                 </p>
-                 <h2 className="text-3xl font-black tracking-tighter mt-1">
-                   {formatRupiah(balance)}
-                 </h2>
-              </div>
-              <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-                 <Wallet className="w-6 h-6 text-white" />
-              </div>
-           </div>
-           
-           <div className="mt-4 relative z-10">
-              <div className="flex justify-between text-[10px] font-bold text-blue-50 mb-1.5">
-                 <span>UTILISASI: {usagePercentage}% DARI GAJI TETAP</span>
-                 <span>TARGET: 100%</span>
-              </div>
-              <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden">
-                 <div 
-                   className={cn("h-full rounded-full transition-all duration-1000", usagePercentage > 100 ? "bg-red-300" : "bg-green-300")} 
-                   style={{ width: `${Math.min(usagePercentage, 100)}%` }}
-                 ></div>
-              </div>
-           </div>
-        </div>
+  // Helper Input Currency
+  const handleMoneyInput = (val: string, setter: (v: string) => void) => {
+    const num = val.replace(/\D/g, "");
+    setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+  };
+
+  // --- DATA DISPLAY HELPER ---
+  // Ambil data sesuai Tab yang aktif
+  const currentResult = viewMode === "MONTHLY" ? results.monthly : results.annual;
+
+  if (!isLoaded) return null;
+
+  return (
+    <div className="min-h-screen w-full bg-slate-50/50 pb-24 md:pb-12">
+      
+      {/* Header Decoration */}
+      <div className="bg-emerald-600 h-48 md:h-64 w-full absolute top-0 left-0 rounded-b-[2.5rem] md:rounded-b-[4rem] shadow-xl z-0 overflow-hidden">
+         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+         <div className="absolute bottom-0 left-0 w-48 h-48 bg-yellow-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="relative z-10 max-w-5xl mx-auto px-5 pt-8 md:pt-16">
         
-        {/* A. PENDAPATAN (Left / Top) */}
-        <section className="lg:col-span-4 space-y-4">
-           <div className="flex items-center gap-2 px-1">
-              <div className="p-1.5 bg-green-100 rounded-lg text-green-600">
-                 <TrendingUp className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-700 uppercase">Pendapatan</h3>
+        {/* Title */}
+        <div className="text-center text-white mb-8">
+           <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 mb-3">
+              <Calculator className="w-4 h-4 text-emerald-100" />
+              <span className="text-xs font-bold text-emerald-50 tracking-wider uppercase">Smart Budgeting</span>
            </div>
-           
-           <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-[2rem] p-6 shadow-sm space-y-5">
+           <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-2">Checkup Anggaran</h1>
+           <p className="text-emerald-100 text-sm md:text-base max-w-lg mx-auto">
+             Analisa kesehatan finansial Anda dalam perspektif Bulanan & Tahunan.
+           </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          
+          {/* LEFT: INPUT FORM */}
+          <Card className="md:col-span-5 p-6 md:p-8 rounded-[2rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-emerald-600" /> Data Keuangan
+            </h3>
+            
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                   <label className="text-xs font-bold text-slate-500 ml-1">Nama</label>
+                   <Input 
+                     placeholder="Nama Anda" 
+                     value={name} onChange={e => setName(e.target.value)}
+                     className="bg-slate-50 border-slate-200"
+                   />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-xs font-bold text-slate-500 ml-1">Usia</label>
+                   <Input 
+                     type="number" placeholder="25" 
+                     value={age} onChange={e => setAge(e.target.value)}
+                     className="bg-slate-50 border-slate-200"
+                   />
+                 </div>
+              </div>
+
               <div className="space-y-1">
-                 <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Gaji Tetap</label>
-                 <Input 
-                    type="text"
-                    inputMode="numeric"
-                    value={formatNumber(income.fixed)}
-                    onChange={(e: any) => {
-                      const val = parseNumber(e.target.value);
-                      setIncome(prev => ({ ...prev, fixed: val }));
-                      if (val > 0) setError(null);
-                    }}
-                    className={cn(
-                      "font-bold text-green-700 bg-white h-12 text-lg rounded-xl",
-                      income.fixed === 0 ? "border-red-300 ring-2 ring-red-100" : "border-green-200 focus-visible:ring-green-400"
-                    )}
-                 />
-                 {income.fixed === 0 && <p className="text-[9px] text-red-500 font-bold ml-1">*Wajib diisi sebagai acuan.</p>}
+                 <label className="text-xs font-bold text-slate-600 ml-1 uppercase">Pemasukkan Tetap (Gaji)</label>
+                 <div className="relative">
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rp</span>
+                   <Input 
+                     className="pl-12 h-12 text-lg font-bold bg-white border-emerald-200 focus:ring-emerald-500"
+                     placeholder="0"
+                     value={fixedIncome}
+                     onChange={e => handleMoneyInput(e.target.value, setFixedIncome)}
+                   />
+                 </div>
+                 <p className="text-[10px] text-slate-400 ml-1">*Input gaji bulanan Anda di sini.</p>
               </div>
 
               <div className="space-y-1">
-                 <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Bonus / Sampingan</label>
-                 <Input 
-                    type="text"
-                    inputMode="numeric"
-                    value={formatNumber(income.variable)}
-                    onChange={(e: any) => {
-                      const val = parseNumber(e.target.value);
-                      setIncome(prev => ({ ...prev, variable: val }));
-                    }}
-                    className="bg-slate-50 border-slate-200 text-slate-600 h-12 rounded-xl"
-                 />
+                 <label className="text-xs font-bold text-slate-600 ml-1 uppercase">Pemasukkan Tidak Tetap</label>
+                 <div className="relative">
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rp</span>
+                   <Input 
+                     className="pl-12 h-12 text-lg font-bold bg-white border-blue-200 focus:ring-blue-500"
+                     placeholder="0"
+                     value={variableIncome}
+                     onChange={e => handleMoneyInput(e.target.value, setVariableIncome)}
+                   />
+                 </div>
+                 <p className="text-[10px] text-slate-400 ml-1">*Rata-rata bonus per bulan (Opsional).</p>
               </div>
-           </div>
-        </section>
 
-        {/* B. PENGELUARAN (Right / Bottom) */}
-        <section className="lg:col-span-8 space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-           <div className="flex items-center gap-2 px-1">
-              <div className="p-1.5 bg-red-100 rounded-lg text-red-600">
-                 <TrendingDown className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-700 uppercase">5 Pos Anggaran (Rules)</h3>
-           </div>
-           
-           <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-[2rem] p-6 shadow-sm">
-             {/* Grid Layout untuk Desktop biar tidak kepanjangan */}
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                
-                <BudgetInput 
-                  label="1. Hutang Produktif" field="productiveDebt" value={expenses.productiveDebt}
-                  setter={setExpenses} icon={<Briefcase className="w-4 h-4" />}
-                  placeholder="0" desc="KPR, Modal Usaha." 
-                  limitPercent={20} fixedIncome={income.fixed}
-                />
+              <Button 
+                onClick={handleCalculate}
+                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 font-bold text-lg shadow-lg shadow-emerald-200 mt-2 rounded-xl"
+              >
+                Analisa Sekarang
+              </Button>
+            </div>
+          </Card>
 
-                <BudgetInput 
-                  label="2. Hutang Konsumtif" field="consumptiveDebt" value={expenses.consumptiveDebt}
-                  setter={setExpenses} icon={<CreditCard className="w-4 h-4" />}
-                  placeholder="0" desc="Paylater, Kartu Kredit." 
-                  limitPercent={15} fixedIncome={income.fixed}
-                />
+          {/* RIGHT: RESULT DISPLAY */}
+          <div className="md:col-span-7 space-y-6">
+             {!currentResult ? (
+               <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center opacity-60 p-8 border-2 border-dashed border-emerald-200/50 rounded-[2rem]">
+                  <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                     <BadgePercent className="w-10 h-10 text-emerald-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-emerald-900">Menunggu Data</h3>
+                  <p className="text-emerald-700 text-sm">Masukkan gaji Anda di samping untuk melihat resep pembagian anggaran.</p>
+               </div>
+             ) : (
+               <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
+                  
+                  {/* --- TAB SWITCHER (NEW) --- */}
+                  <div className="bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl flex gap-2 shadow-sm border border-white/40 w-fit mx-auto md:mx-0">
+                     <button
+                        onClick={() => setViewMode("MONTHLY")}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                          viewMode === "MONTHLY" 
+                            ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200" 
+                            : "text-slate-500 hover:bg-slate-100"
+                        )}
+                     >
+                        <CalendarDays className="w-4 h-4" /> Mode Bulanan
+                     </button>
+                     <button
+                        onClick={() => setViewMode("ANNUAL")}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                          viewMode === "ANNUAL" 
+                            ? "bg-blue-600 text-white shadow-lg shadow-blue-200" 
+                            : "text-slate-500 hover:bg-slate-100"
+                        )}
+                     >
+                        <CalendarRange className="w-4 h-4" /> Proyeksi Tahunan
+                     </button>
+                  </div>
 
-                <BudgetInput 
-                  label="3. Asuransi & Proteksi" field="insurance" value={expenses.insurance}
-                  setter={setExpenses} icon={<ShieldCheck className="w-4 h-4" />}
-                  placeholder="0" desc="Kesehatan, Jiwa." 
-                  limitPercent={10} isMinLimit fixedIncome={income.fixed}
-                />
+                  {/* 1. SAFE TO SPEND CARD */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className={cn(
+                      "text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden border-0 flex flex-col justify-center",
+                      viewMode === "MONTHLY" ? "bg-gradient-to-br from-emerald-600 to-teal-700" : "bg-gradient-to-br from-blue-600 to-indigo-700"
+                    )}>
+                       <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                       <p className="text-emerald-100 font-bold uppercase tracking-widest text-[10px] mb-1">
+                         {viewMode === "MONTHLY" ? "Biaya Hidup (Bulan Ini)" : "Biaya Hidup (Setahun)"}
+                       </p>
+                       <h2 className="text-3xl font-black mb-1">
+                          {formatRupiah(currentResult.safeToSpend)}
+                       </h2>
+                       <p className="text-[10px] text-emerald-50 opacity-90 leading-relaxed">
+                          {viewMode === "MONTHLY" 
+                            ? "Batas aman untuk Makan, Transport, & Gaya Hidup bulan ini."
+                            : "Total uang yang akan Anda habiskan untuk hidup dalam satu tahun."}
+                       </p>
+                    </Card>
 
-                <BudgetInput 
-                  label="4. Tabungan & Investasi" field="saving" value={expenses.saving}
-                  setter={setExpenses} icon={<PiggyBank className="w-4 h-4" />}
-                  placeholder="0" desc="Dana Darurat, Pensiun." 
-                  limitPercent={10} isMinLimit fixedIncome={income.fixed}
-                />
+                    {/* CSS DONUT CHART */}
+                    <Card className="p-4 rounded-[2rem] bg-white border border-slate-100 flex items-center gap-4">
+                       <div className="relative w-24 h-24 rounded-full flex-shrink-0" 
+                            style={{ 
+                              background: "conic-gradient(#10b981 0% 45%, #f97316 45% 65%, #ef4444 65% 80%, #3b82f6 80% 90%, #22c55e 90% 100%)" 
+                            }}>
+                          <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center flex-col">
+                             <span className="text-[10px] font-bold text-slate-400">Total</span>
+                             <span className="text-xs font-black text-slate-800">100%</span>
+                          </div>
+                       </div>
+                       <div className="space-y-1 text-[9px] font-bold text-slate-500">
+                          <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"/> Hidup (45%)</div>
+                          <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-500"/> Hutang P (20%)</div>
+                          <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"/> Hutang K (15%)</div>
+                          <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500"/> Asuransi (10%)</div>
+                          <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"/> Investasi (10%)</div>
+                       </div>
+                    </Card>
+                  </div>
 
-                <div className="md:col-span-2">
-                  <BudgetInput 
-                    label="5. Biaya Hidup" field="living" value={expenses.living}
-                    setter={setExpenses} icon={<ShoppingBag className="w-4 h-4" />}
-                    placeholder="0" desc="Makan, Listrik, Transport, Gaya Hidup." 
-                    limitPercent={45} fixedIncome={income.fixed}
-                  />
-                </div>
-             </div>
-           </div>
-        </section>
+                  {/* 2. ALLOCATION GRID */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     {currentResult.allocations.map((item, idx) => (
+                       <div key={idx} className={cn("p-4 rounded-2xl border flex flex-col justify-between h-full bg-white transition-all hover:scale-[1.02]", item.colorClass)}>
+                          <div>
+                             <div className="flex justify-between items-start mb-2">
+                                <span className="text-[10px] font-black uppercase tracking-wider opacity-70 border border-current px-2 py-0.5 rounded-full">
+                                  {item.percentage}%
+                                </span>
+                                {item.type === "DEBT_PROD" && <TrendingUp className="w-4 h-4" />}
+                                {item.type === "DEBT_CONS" && <AlertTriangle className="w-4 h-4" />}
+                                {item.type === "INSURANCE" && <ShieldCheck className="w-4 h-4" />}
+                                {item.type === "SAVING" && <PiggyBank className="w-4 h-4" />}
+                             </div>
+                             <h4 className="font-bold text-sm mb-0.5">{item.label}</h4>
+                             <p className="text-xs opacity-80 leading-tight mb-3 min-h-[2.5em]">{item.description}</p>
+                          </div>
+                          <p className="text-lg font-black">
+                             {formatRupiah(item.amount)}
+                          </p>
+                       </div>
+                     ))}
+                  </div>
 
+                  {/* 3. SURPLUS CARD */}
+                  {currentResult.surplus > 0 && (
+                    <Card className="bg-blue-50 border-blue-100 p-5 rounded-2xl flex items-center justify-between">
+                       <div>
+                          <p className="text-xs font-bold text-blue-600 uppercase mb-1">
+                            {viewMode === "MONTHLY" ? "Surplus Bulanan" : "Surplus Tahunan"}
+                          </p>
+                          <h3 className="text-2xl font-black text-blue-800">{formatRupiah(currentResult.surplus)}</h3>
+                          <p className="text-[10px] text-blue-500 mt-1">Dari Pemasukkan Tidak Tetap (Wajib 100% Ditabung)</p>
+                       </div>
+                       <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                          <PiggyBank className="w-6 h-6" />
+                       </div>
+                    </Card>
+                  )}
+
+                  {/* ACTIONS */}
+                  <div className="flex gap-3 pt-2">
+                     <Button variant="outline" onClick={handleReset} className="flex-1 rounded-xl h-11 border-slate-300">
+                       <RefreshCcw className="w-4 h-4 mr-2" /> Reset
+                     </Button>
+                     <Button 
+                       className="flex-[2] rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl" 
+                       onClick={handleDownload}
+                     >
+                       <Download className="w-4 h-4 mr-2" /> Unduh Laporan PDF
+                     </Button>
+                  </div>
+               </div>
+             )}
+          </div>
+
+        </div>
       </div>
-
-      {/* FOOTER ACTION */}
-      <div className="mt-8 pb-4 space-y-4 max-w-lg mx-auto lg:max-w-none">
-         <Button 
-            fullWidth size="lg" onClick={handleSave}
-            disabled={isLoading || income.fixed === 0}
-            className={cn(
-               "shadow-2xl rounded-2xl h-14 text-base font-black transition-all",
-               income.fixed === 0 ? "bg-slate-300 text-slate-500" : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
-            )}
-         >
-            {isLoading ? "MENYIMPAN DATA..." : "SIMPAN & ANALISA"}
-         </Button>
-         
-         <div className="flex items-center justify-center gap-2 opacity-50">
-            <Info className="w-3 h-3 text-slate-400" />
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-               Enterprise Financial Logic
-            </p>
-         </div>
-      </div>
-
     </div>
   );
 }

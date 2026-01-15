@@ -22,10 +22,10 @@ const FINANCE_MENUS = [
         style: "bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-600 group-hover:text-white group-hover:border-orange-600"
       },
       { 
-        label: "Rencana Rumah", 
+        label: "Perencanaan Khusus", 
         emoji: "🏠", 
-        href: "/calculator/house", 
-        desc: "Simulasi KPR", 
+        href: "/calculator/lain", 
+        desc: "Cicilan kendaraan, biaya ibadah, dll", 
         style: "bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600"
       },
       { 
@@ -43,10 +43,10 @@ const FINANCE_MENUS = [
         style: "bg-rose-50 text-rose-600 border-rose-100 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600"
       },
       { 
-        label: "Cek Kesehatan", 
+        label: "Cek Kesehatan Keuangan", 
         emoji: "🩺", 
         href: "/calculator/checkup", 
-        desc: "Medical checkup", 
+        desc: "Financial checkup", 
         style: "bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-600 group-hover:text-white group-hover:border-cyan-600"
       },
     ]
@@ -122,44 +122,49 @@ export default function FinancePage() {
   );
 }
 
-// --- REUSABLE COMPONENT (Optimized for both) ---
 function FeatureCard({ item }: { item: any }) {
   return (
-    <Link href={item.href} className="group relative block h-full">
-      <div 
+    <Link href={item.href} className="group block h-full focus:outline-none">
+      <div
         className={cn(
-            "relative overflow-hidden bg-white/90 backdrop-blur-sm border border-slate-100",
-            // Mobile: h-28 (agak tinggi dikit). Desktop: Aspect Square (kotak sempurna) atau h-40
-            "rounded-2xl p-4 flex flex-col justify-between h-28 md:h-40 md:justify-center md:items-center md:text-center",
-            "shadow-sm transition-all duration-300 ease-out",
-            // Hover Effects (Desktop mainly)
-            "hover:shadow-xl hover:shadow-blue-200/50 hover:-translate-y-1 hover:border-blue-100",
-            "active:scale-95"
+          "relative h-28 md:h-44 rounded-2xl border bg-white/80 backdrop-blur",
+          "flex flex-col justify-between md:justify-center md:items-center md:text-center p-4",
+          "transition-all duration-300 ease-out",
+          "border-slate-100 shadow-sm",
+          "hover:shadow-lg hover:-translate-y-0.5 hover:border-blue-100",
+          "focus-visible:ring-2 focus-visible:ring-blue-500/40"
         )}
       >
-          {/* Icon Box */}
-          <div className={cn(
-              // Mobile: Kiri atas. Desktop: Tengah, lebih besar
-              "w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-3xl shadow-sm transition-all duration-300 border mb-2 md:mb-4",
-              item.style 
-          )}>
-             {item.emoji}
-          </div>
+        {/* Icon */}
+        <div
+          className={cn(
+            "w-11 h-11 md:w-16 md:h-16 rounded-xl md:rounded-2xl",
+            "flex items-center justify-center text-xl md:text-3xl border shadow-sm",
+            "transition-transform duration-300",
+            "group-hover:scale-105",
+            item.style
+          )}
+        >
+          {item.emoji}
+        </div>
 
-          {/* Text Content */}
-          <div className="z-10">
-             <h4 className="text-xs md:text-sm font-bold text-slate-800 leading-tight group-hover:text-blue-700 transition-colors">
-               {item.label}
-             </h4>
-             <p className="text-[10px] md:text-xs text-slate-500 font-medium mt-0.5 md:mt-2 opacity-80 group-hover:opacity-100">
-               {item.desc}
-             </p>
-          </div>
-          
-          {/* Desktop Only: Arrow Icon on Hover */}
-          <div className="hidden md:flex absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -translate-x-2 group-hover:translate-x-0 text-slate-300">
-            <ArrowRight className="w-4 h-4" />
-          </div>
+        {/* Text */}
+        <div className="mt-2 md:mt-4 z-10">
+          <h4 className="text-xs md:text-sm font-bold text-slate-800 transition-colors group-hover:text-blue-700">
+            {item.label}
+          </h4>
+          <p className="mt-0.5 md:mt-2 text-[10px] md:text-xs text-slate-500 font-medium leading-snug">
+            {item.desc}
+          </p>
+        </div>
+
+        {/* Arrow (desktop hint) */}
+        <ArrowRight
+          className="hidden md:block absolute top-4 right-4 w-4 h-4
+                     text-slate-300 opacity-0
+                     transition-all duration-300
+                     group-hover:opacity-100 group-hover:translate-x-1"
+        />
       </div>
     </Link>
   )

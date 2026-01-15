@@ -1,4 +1,5 @@
 import { ChildProfile, EducationStage, PlanInput, PortfolioSummary, StageResult, ChildSimulationResult } from "./types";
+import { BudgetResult, BudgetAllocation } from "./types";
 
 // --- DATABASE JENJANG (Diupdate dengan Payment Frequency) ---
 export const STAGES_DB: EducationStage[] = [
@@ -175,5 +176,64 @@ export const calculatePortfolio = (
     grandTotalMonthlySaving: grandTotalSaving,
     totalFutureCost: totalPortfolioCost,
     details
+  };
+};
+
+// --- BUDGETING ENGINE (50/30/20 MODIFIED) ---
+
+export const calculateSmartBudget = (fixedIncome: number, variableIncome: number): BudgetResult => {
+  
+  // 1. Hitung Alokasi Wajib (55% Total)
+  const prodDebt = fixedIncome * 0.20;  // 20% Hutang Produktif
+  const consDebt = fixedIncome * 0.15;  // 15% Hutang Konsumtif
+  const insurance = fixedIncome * 0.10; // 10% Asuransi
+  const investment = fixedIncome * 0.10;// 10% Tabungan/Invest
+
+  const totalAllocated = prodDebt + consDebt + insurance + investment;
+
+  // 2. Hitung Sisa untuk Hidup (45%)
+  const safeToSpend = fixedIncome - totalAllocated;
+
+  // 3. Susun Detail Alokasi
+  const allocations: BudgetAllocation[] = [
+    {
+      label: "Hutang Produktif",
+      percentage: 20,
+      amount: prodDebt,
+      type: "DEBT_PROD",
+      description: "Maksimal cicilan KPR/Modal Usaha.",
+      colorClass: "bg-orange-100 text-orange-700 border-orange-200"
+    },
+    {
+      label: "Hutang Konsumtif",
+      percentage: 15,
+      amount: consDebt,
+      type: "DEBT_CONS",
+      description: "Limit cicilan HP/Kendaraan/Paylater.",
+      colorClass: "bg-red-100 text-red-700 border-red-200"
+    },
+    {
+      label: "Asuransi / Proteksi",
+      percentage: 10,
+      amount: insurance,
+      type: "INSURANCE",
+      description: "BPJS + Asuransi Swasta.",
+      colorClass: "bg-blue-100 text-blue-700 border-blue-200"
+    },
+    {
+      label: "Tabungan Masa Depan",
+      percentage: 10,
+      amount: investment,
+      type: "SAVING",
+      description: "Investasi minimal (Wajib).",
+      colorClass: "bg-green-100 text-green-700 border-green-200"
+    }
+  ];
+
+  return {
+    safeToSpend,
+    allocations,
+    totalFixedAllocated: totalAllocated,
+    surplus: variableIncome // 100% Masuk Surplus
   };
 };
