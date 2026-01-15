@@ -5,18 +5,25 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Keuanganku PWA",
-  manifest: "/manifest.json",
+  title: "KeuanganKu - PAM JAYA",
+  description: "Aplikasi Perencanaan Keuangan Karyawan",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "KeuanganKu",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
-// [UPDATE PENTING]: Konfigurasi Viewport Mobile-Native
 export const viewport: Viewport = {
   themeColor: "#0056b3",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // Mencegah zoom cubit (biar kayak app asli)
-  viewportFit: "cover", // Agar konten tembus sampai area poni/notch
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -26,8 +33,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      {/* Tambahkan h-[100dvh] dan overflow-hidden di sini */}
-      <body className={`${inter.className} bg-slate-50 text-slate-900 antialiased h-[10dvh] w-screen overflow-hidden overscroll-none`}>
+      {/* REVISI: 
+          1. Hapus 'overflow-hidden' agar bisa scroll lagi.
+          2. Hapus 'h-[100dvh]' ganti jadi 'min-h-screen' (standar web).
+          3. Hapus 'w-screen' (biarkan default width auto).
+      */}
+      <body className={`${inter.className} bg-slate-50 text-slate-900 antialiased min-h-screen overscroll-none`}>
         {children}
       </body>
     </html>

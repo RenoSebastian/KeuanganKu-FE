@@ -1,4 +1,5 @@
-import BottomNav from "@/components/shared/bottom-nav";
+import { BottomNav } from "@/components/shared/bottom-nav";
+import { Sidebar } from "@/components/layout/sidebar"; // Import Sidebar baru
 import Image from "next/image";
 
 export default function DashboardLayout({
@@ -7,15 +8,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    // CONTAINER UTAMA: Full Height (100dvh)
-    <div className="flex justify-center w-full h-[100dvh] bg-slate-900 overflow-hidden">
+    // 1. CONTAINER UTAMA (Flex Row di Desktop)
+    <div className="flex min-h-screen bg-slate-50">
       
-      {/* MOBILE WRAPPER: Max 480px */}
-      <div className="w-full max-w-md h-full relative flex flex-col bg-slate-100 shadow-2xl">
+      {/* 2. SIDEBAR (Hanya muncul di Desktop via logic di dalam komponennya) */}
+      <Sidebar />
+
+      {/* 3. MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col relative min-h-screen w-full">
         
-        {/* --- [LOGIC FITUR 1]: BACKGROUND GLOBAL --- */}
-        {/* Dipasang di sini agar mengisi layar XR/S20 meskipun kontennya pendek */}
-        <div className="absolute inset-0 z-0">
+        {/* Background Decoration (Optional - Shared) */}
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-50 md:opacity-30">
           <Image 
             src="/images/bg1.png" 
             alt="Background"
@@ -23,22 +26,20 @@ export default function DashboardLayout({
             className="object-cover object-top"
             priority
           />
-          {/* Overlay Putih Gradasi */}
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-white/60 to-slate-50/95 top-[25%]"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-50/80 via-slate-50/95 to-slate-50"></div>
         </div>
 
-        {/* --- [LOGIC FITUR 2]: SCROLLABLE AREA --- */}
-        {/* flex-1: Memaksa area ini mengambil SISA RUANG yang tersedia */}
-        {/* z-10: Agar di atas background image */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative z-10 scroll-smooth hide-scrollbar">
-          {children}
+        {/* Content Wrapper */}
+        {/* pb-28 di mobile (untuk nav), pb-0 di desktop */}
+        <main className="flex-1 relative z-10 p-4 md:p-8 pb-28 md:pb-8 overflow-y-auto">
+          {/* Container pembatas agar konten tidak terlalu lebar di layar super wide */}
+          <div className="max-w-5xl mx-auto w-full">
+            {children}
+          </div>
         </main>
 
-        {/* --- [LOGIC FITUR 3]: NAVBAR DI BAWAH --- */}
-        {/* Tidak fixed, tapi karena flex-col, dia pasti di bawah main */}
-        <div className="flex-shrink-0 relative z-20">
-          <BottomNav />
-        </div>
+        {/* 4. BOTTOM NAV (Hanya muncul di Mobile via logic di dalam komponennya) */}
+        <BottomNav />
         
       </div>
     </div>

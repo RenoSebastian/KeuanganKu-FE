@@ -91,3 +91,38 @@ export const MENU_ITEMS = [
     bg: "bg-white"
   },
 ];
+
+export const HISTORY_DATA = [
+  {
+    id: "H-001",
+    date: "24 April 2024",
+    score: 81,
+    status: "Sehat",
+    summary: "Cashflow positif, dana darurat aman.",
+    file: "laporan-apr-2024.pdf"
+  },
+  {
+    id: "H-002",
+    date: "12 Januari 2024",
+    score: 65,
+    status: "Waspada",
+    summary: "Cicilan hutang melebihi 30% gaji.",
+    file: "laporan-jan-2024.pdf"
+  },
+  {
+    id: "H-003",
+    date: "10 Oktober 2023",
+    score: 45,
+    status: "Risiko",
+    summary: "Defisit bulanan, tidak ada tabungan.",
+    file: "laporan-okt-2023.pdf"
+  },
+  {
+    id: "H-004",
+    date: "05 Agustus 2023",
+    score: 70,
+    status: "Waspada",
+    summary: "Dana darurat belum ideal.",
+    file: "laporan-ags-2023.pdf"
+  }
+];
