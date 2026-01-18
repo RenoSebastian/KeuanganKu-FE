@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,12 +26,9 @@ export default function PensionPage() {
   const [returnRate, setReturnRate] = useState(12);   
 
   const [result, setResult] = useState<PensionResult | null>(null);
-  
-  // State untuk Error Validation (UX Improvement)
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // --- VALIDATION LOGIC ---
-  // Cek validitas data secara real-time untuk visual feedback
   const validateInputs = () => {
     const newErrors: Record<string, string> = {};
     const cAge = parseInt(currentAge) || 0;
@@ -55,38 +52,22 @@ export default function PensionPage() {
   };
 
   // --- HANDLERS ---
-  
-  // 1. Handler Tahun/Umur: Mencegah input "0" di awal & karakter aneh
   const handleYearInput = (val: string, setter: (v: string) => void) => {
-    // Hanya ambil angka
     let clean = val.replace(/\D/g, "");
-    
-    // Cegah angka 0 di depan (kecuali mau nulis 10, 20 dst)
-    // Jika user nulis "0", ubah jadi kosong biar dia ngetik ulang yg bener
-    if (clean === "0") clean = "";
-    
-    // Limit panjang (misal max 3 digit buat umur/tahun)
+    if (clean.length > 1 && clean.startsWith("0")) clean = clean.substring(1);
     if (clean.length > 3) return;
-
     setter(clean);
-    
-    // Reset error jika user mulai mengetik
     if (result) setResult(null); 
   };
 
-  // 2. Handler Uang
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
     const num = val.replace(/\D/g, "");
-    // Cegah 0 di depan untuk uang juga (kecuali angka 0 itu sendiri, tapi usually expense > 0)
-    // Kita biarkan 0 untuk saldo awal (karena bisa jadi emang 0)
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
     if (result) setResult(null);
   };
 
   const handleCalculate = () => {
-    if (!validateInputs()) {
-      return; // Stop jika ada error, UI sudah merah
-    }
+    if (!validateInputs()) return;
 
     const cAge = parseInt(currentAge) || 0;
     const rAge = parseInt(retirementAge) || 0;
@@ -156,7 +137,7 @@ export default function PensionPage() {
            </div>
            <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-2">Dana Pensiun</h1>
            <p className="text-indigo-100 text-sm md:text-base max-w-lg mx-auto">
-             Rencanakan masa depan sejahtera dengan kekuatan dana Anda saat ini.
+             Rencanakan masa depan sejahtera dengan metode Real Rate (Daya Beli).
            </p>
         </div>
 
@@ -202,11 +183,10 @@ export default function PensionPage() {
                </div>
             </div>
             
-            {/* Error Message for Age Logic */}
-            {(errors.currentAge || errors.retirementAge) && (
+            {(errors.currentAge || errors.retirementAge || errors.retirementDuration) && (
                <div className="text-[10px] text-red-500 font-bold flex items-center gap-1 bg-red-50 p-2 rounded-lg -mt-2">
                   <AlertCircle className="w-3 h-3" /> 
-                  {errors.currentAge === "Harus lebih muda" ? "Usia kini harus lebih kecil dari pensiun!" : "Mohon lengkapi data usia."}
+                  {errors.currentAge === "Harus lebih muda" ? "Usia kini harus < pensiun." : "Cek input usia/durasi."}
                </div>
             )}
 
@@ -223,11 +203,11 @@ export default function PensionPage() {
                  />
                </div>
                <p className="text-[10px] text-slate-400 ml-1">
-                 *Nilai uang saat ini (akan disesuaikan inflasi).
+                 *Daya beli yang diharapkan (Real Value).
                </p>
             </div>
 
-            {/* Input Saldo Awal (Optional - No Error State needed usually) */}
+            {/* Input Saldo Awal */}
             <div className="space-y-1 bg-green-50 p-3 rounded-xl border border-green-100">
                <label className="text-xs font-bold text-green-700 uppercase ml-1 flex items-center gap-1">
                  <PiggyBank className="w-3 h-3" /> Saldo JHT / DPLK Saat Ini
@@ -278,7 +258,7 @@ export default function PensionPage() {
                   {/* VISUAL TIMELINE */}
                   <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                      <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                       <Briefcase className="w-4 h-4 text-slate-400" /> Roadmap
+                       <Briefcase className="w-4 h-4 text-slate-400" /> Roadmap Pensiun
                      </h4>
                      <div className="relative pt-6 pb-2">
                        <div className="h-2 bg-slate-100 rounded-full w-full absolute top-1/2 -translate-y-1/2"></div>
@@ -296,7 +276,7 @@ export default function PensionPage() {
                           <div className="text-center">
                              <div className="w-4 h-4 bg-emerald-500 rounded-full mx-auto mb-2 border-4 border-white shadow"></div>
                              <p className="text-[10px] font-bold text-emerald-600">Tercover</p>
-                             <p className="text-xs font-bold text-emerald-700">{result.retirementYears} Th</p>
+                             <p className="text-xs font-bold text-emerald-700">Sampai +{result.retirementYears} Th</p>
                           </div>
                        </div>
                      </div>
@@ -308,7 +288,7 @@ export default function PensionPage() {
                      <div className="relative z-10 space-y-6">
                         <div className="grid grid-cols-2 gap-4 pb-6 border-b border-white/20">
                            <div>
-                              <p className="text-indigo-200 text-[10px] font-bold uppercase mb-1">Target Dana ({result.retirementYears} Th)</p>
+                              <p className="text-indigo-200 text-[10px] font-bold uppercase mb-1">Target Dana (Real Rate)</p>
                               <p className="text-xl font-bold">{formatRupiah(result.totalFundNeeded)}</p>
                            </div>
                            <div className="text-right">
@@ -324,7 +304,7 @@ export default function PensionPage() {
                               {formatRupiah(result.monthlySaving)}
                            </h2>
                            <p className="text-[10px] text-indigo-100 opacity-80 leading-relaxed max-w-sm mx-auto">
-                              Jika Anda menabung nominal ini, dana pensiun Anda aman untuk membiayai hidup selama {result.retirementYears} tahun (sesuai input).
+                              Rutin menabung nominal ini untuk menutup gap dana, dengan asumsi uang tetap diinvestasikan (Real Rate) saat masa pensiun.
                            </p>
                         </div>
                      </div>
@@ -333,9 +313,9 @@ export default function PensionPage() {
                   {/* INFO CARD */}
                   <Card className="p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-orange-400">
                      <div>
-                        <p className="text-xs font-bold text-slate-500">Nilai Masa Depan (FV) Target Pemasukan</p>
+                        <p className="text-xs font-bold text-slate-500">Nilai Nominal Masa Depan (FV)</p>
                         <p className="text-lg font-black text-slate-800">{formatRupiah(result.fvMonthlyExpense)} <span className="text-xs font-normal text-slate-400">/ bulan</span></p>
-                        <p className="text-[10px] text-slate-400 mt-1">Akibat inflasi {inflation}% selama {result.workingYears} tahun.</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Ini nominal uang yang setara dengan daya beli {formatRupiah(parseInt(currentExpense.replace(/\./g, "")))} saat ini (Inflasi {inflation}%).</p>
                      </div>
                      <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
                         <TrendingUp className="w-5 h-5" />

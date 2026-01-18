@@ -46,7 +46,7 @@ export const calculatePMT = (
   return annualPMT / 12;
 };
 
-// --- ADVANCED CALCULATION ENGINE (CASHFLOW MATCHING) ---
+// --- ADVANCED CALCULATION ENGINE (EDUCATION) ---
 
 const calculateStageGranular = (
   input: PlanInput, 
@@ -69,6 +69,7 @@ const calculateStageGranular = (
   const targetEntryAge = refStage.entryAge + gradeOffset;
   let yearsUntilEntry = targetEntryAge - childAge;
   
+  // Validasi: Jangan sampai negatif
   if (yearsUntilEntry < 0) yearsUntilEntry = 0;
 
   let totalFutureCost = 0;
@@ -239,14 +240,13 @@ export const calculateSmartBudget = (fixedIncome: number, variableIncome: number
   };
 };
 
-// --- PENSION ENGINE (AWP MATCH READY) ---
+// --- PENSION ENGINE (FIXED: MATCH AWP ACADEMY) ---
 
 export const calculatePension = (input: PensionInput): PensionResult => {
-  // 1. Hitung Periode Kerja (N)
+  // 1. Periode Menabung
   const workingYears = input.retirementAge - input.currentAge;
   
-  // 2. Ambil Durasi Pensiun dari Input User (Agar Dinamis)
-  // Tidak lagi hardcode 20 tahun. User bisa input 1 tahun.
+  // 2. Durasi Pensiun
   const retirementYears = input.retirementDuration;
 
   if (workingYears <= 0) {
@@ -261,34 +261,54 @@ export const calculatePension = (input: PensionInput): PensionResult => {
     };
   }
 
-  // 3. Hitung FV Pengeluaran (Biaya Hidup di Masa Depan)
-  // Rate: Inflasi (Merah)
+  // 1. FV Pengeluaran (Biaya hidup saat mulai pensiun, akibat inflasi)
+  // Ini tetap ditampilkan ke user sebagai 'Insight', tapi TIDAK DIPAKAI untuk menghitung target dana (agar tidak bengkak)
   const fvMonthlyExpense = calculateFV(input.currentExpense, input.inflationRate, workingYears);
 
-  // 4. Hitung Total Kebutuhan Dana (Corpus)
-  // Logic: Biaya Tahunan Masa Depan x Durasi Pensiun
-  // Jika user isi durasi 1 tahun (seperti AWP), maka targetnya = Biaya 1 tahun saja.
-  const annualExpenseAtRetirement = fvMonthlyExpense * 12;
-  const totalFundNeeded = annualExpenseAtRetirement * retirementYears;
+  // 2. Hitung TOTAL DANA PENSIUN (CORPUS)
+  // PERUBAHAN UTAMA: Kita gunakan 'currentExpense' MENTAH (tanpa inflasi) sebagai basis daya beli.
+  // Dan kita gunakan Real Rate of Return.
+  
+  const annualExpenseBase = input.currentExpense * 12;
 
-  // 5. Hitung FV Saldo Awal (Existing Fund Power)
-  // Dana JHT/DPLK yang ada sekarang didiamkan tumbuh sampai pensiun (Rate Investasi)
+  // Real Rate = Selisih Investasi dan Inflasi
+  const investRate = input.investmentRate / 100;
+  const inflRate = input.inflationRate / 100;
+  const realRate = ((1 + investRate) / (1 + inflRate)) - 1;
+
+  let totalFundNeeded = 0;
+
+  if (retirementYears === 1) {
+      // Jika user pilih 1 tahun (seperti kasus AWP)
+      // Cukup 1x biaya tahunan (Lumpsum)
+      totalFundNeeded = annualExpenseBase; 
+  } else {
+      // Jika > 1 tahun, gunakan rumus PV Annuity dengan Real Rate
+      // Artinya uang diinvestasikan kembali saat pensiun
+      if (Math.abs(realRate) < 0.0001) {
+         totalFundNeeded = annualExpenseBase * retirementYears;
+      } else {
+         const factor = (1 - Math.pow(1 + realRate, -retirementYears)) / realRate;
+         totalFundNeeded = annualExpenseBase * factor;
+      }
+  }
+
+  // 3. FV Saldo Awal (Existing Fund) 
+  // Dana awal tetap tumbuh dengan Rate Investasi Nominal (12%)
   const fvExistingFund = calculateFV(input.currentFund, input.investmentRate, workingYears);
 
-  // 6. Hitung Kekurangan (Shortfall)
-  // Target Corpus - Uang yang sudah siap nanti
+  // 4. Kekurangan (Shortfall)
   let shortfall = totalFundNeeded - fvExistingFund;
-  if (shortfall < 0) shortfall = 0; // Surplus, tabungan bulanan jadi 0
+  if (shortfall < 0) shortfall = 0;
 
-  // 7. Hitung Tabungan Bulanan (PMT)
-  // Target: Shortfall
-  // Rate: Investasi (Hijau)
+  // 5. Tabungan Bulanan
+  // Gunakan Rate Investasi Nominal untuk mengejar Shortfall
   const monthlySaving = calculatePMT(shortfall, input.investmentRate, workingYears);
 
   return {
     workingYears,
     retirementYears,
-    fvMonthlyExpense,
+    fvMonthlyExpense, // Tetap dikirim untuk info "Biaya Nanti" (sekedar info)
     fvExistingFund,
     totalFundNeeded,
     shortfall,

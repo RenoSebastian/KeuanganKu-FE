@@ -227,7 +227,7 @@ export const generateBudgetPDF = (
   doc.save(`Financial_Checkup_${profile.name}.pdf`);
 };
 
-// --- 3. PDF DANA PENSIUN (UPDATE: DYNAMIC DURATION) ---
+// --- 3. PDF DANA PENSIUN (UPDATE: REAL RATE ADJUSTMENT) ---
 export const generatePensionPDF = (
   input: PensionInput,
   result: PensionResult,
@@ -255,13 +255,12 @@ export const generatePensionPDF = (
   doc.setFont("helvetica", "bold");
   doc.text("Profil & Asumsi Dasar", 14, finalY);
   
-  // Tampilkan Jangka Waktu Pensiun sesuai input user (bukan lagi hardcode 20 tahun)
+  // Update tabel: Tampilkan "Target Pemasukan" bukan "Pengeluaran Kini"
   const tableData = [
     ["Usia Sekarang", `${input.currentAge} Tahun`, "Asumsi Inflasi", `${input.inflationRate}% / tahun`],
     ["Usia Pensiun", `${input.retirementAge} Tahun`, "Return Investasi", `${input.investmentRate}% / tahun`],
-    // UPDATE: Tampilkan Saldo Awal dan Lama Pensiun (Dinamis dari input)
     ["Saldo Awal Pensiun", formatRupiah(input.currentFund), "Lama Masa Pensiun", `${input.retirementDuration} Tahun`],
-    ["Target Pemasukan", formatRupiah(input.currentExpense), "Masa Menabung", `${result.workingYears} Tahun`]
+    ["Target Pemasukan (Real)", formatRupiah(input.currentExpense), "Masa Menabung", `${result.workingYears} Tahun`]
   ];
 
   autoTable(doc, {
@@ -296,13 +295,12 @@ export const generatePensionPDF = (
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.setFont("helvetica", "normal");
-  // UPDATE: Narasi Survival Period (sesuai input)
-  doc.text(`Dana ini diproyeksikan cukup untuk membiayai gaya hidup Anda selama ${input.retirementDuration} tahun pasca pensiun.`, 20, finalY + 35);
+  doc.text(`Target dana ini menggunakan asumsi 'Uang Terus Bekerja' (Real Rate) selama ${input.retirementDuration} tahun masa pensiun.`, 20, finalY + 35);
   
-  // Biaya Hidup FV
+  // Biaya Hidup FV (Info Tambahan)
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
-  doc.text(`Nilai masa depan (FV) target pemasukan bulanan:`, pageWidth / 2, finalY + 15);
+  doc.text(`Nilai Nominal (FV) dari Target Pemasukan:`, pageWidth / 2, finalY + 15);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text(formatRupiah(result.fvMonthlyExpense), pageWidth / 2, finalY + 25);
@@ -336,7 +334,7 @@ export const generatePensionPDF = (
 
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text(`Simulasi ini memperhitungkan saldo awal (Existing Fund) dan target masa pensiun ${input.retirementDuration} tahun.`, 14, doc.internal.pageSize.height - 10);
+  doc.text(`Simulasi ini menggunakan metode Real Rate of Return (Net Investasi - Inflasi) sesuai standar perencanaan keuangan.`, 14, doc.internal.pageSize.height - 10);
 
   doc.save(`Rencana_Pensiun_${userName}.pdf`);
 };
