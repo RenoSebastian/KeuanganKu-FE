@@ -231,11 +231,11 @@ export default function InsurancePage() {
                         <div className="bg-slate-50 p-4 rounded-xl space-y-6 border border-slate-100">
                             <Slider 
                                 label="Asumsi Inflasi Tahunan" valueLabel={`${inflation}%`}
-                                value={inflation} onChange={setInflation} min={3} max={10} step={0.5} colorClass="accent-red-500"
+                                value={inflation} onChange={setInflation} min={0} max={20} step={0.5} colorClass="accent-red-500"
                             />
                             <Slider 
                                 label="Target Return Investasi" valueLabel={`${returnRate}%`}
-                                value={returnRate} onChange={setReturnRate} min={3} max={12} step={0.5} colorClass="accent-emerald-500"
+                                value={returnRate} onChange={setReturnRate} min={0} max={20} step={0.5} colorClass="accent-emerald-500"
                             />
                             <p className="text-[9px] text-slate-400 italic leading-tight">
                                 *Sistem akan menghitung "Nett Rate" (Selisih Investasi - Inflasi) untuk menentukan modal yang dibutuhkan.
@@ -298,7 +298,8 @@ export default function InsurancePage() {
                                         </span>
                                     </div>
                                     
-                                    <h2 className="text-3xl md:text-5xl font-black mb-2 text-white">
+                                    {/* Responsive Font Size for Big Number */}
+                                    <h2 className="text-3xl lg:text-4xl xl:text-5xl font-black mb-2 text-white break-words tracking-tight">
                                         {formatRupiah(result.shortfall)}
                                     </h2>
                                     <p className="text-[10px] text-white/80 opacity-90 leading-relaxed max-w-sm mx-auto">
@@ -312,11 +313,15 @@ export default function InsurancePage() {
                                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
                                     <div>
                                         <p className="text-white/60 text-[10px] font-bold uppercase mb-1">Total Dana Dibutuhkan</p>
-                                        <p className="text-lg font-bold">{formatRupiah(result.totalFundNeeded)}</p>
+                                        <p className="text-base lg:text-lg font-bold truncate" title={formatRupiah(result.totalFundNeeded)}>
+                                            {formatRupiah(result.totalFundNeeded)}
+                                        </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-white/60 text-[10px] font-bold uppercase mb-1">Asuransi Lama</p>
-                                        <p className="text-lg font-bold text-white">{formatRupiah(existingInsurance ? parseInt(existingInsurance.replace(/\./g, "")) : 0)}</p>
+                                        <p className="text-base lg:text-lg font-bold text-white truncate" title={formatRupiah(existingInsurance ? parseInt(existingInsurance.replace(/\./g, "")) : 0)}>
+                                            {formatRupiah(existingInsurance ? parseInt(existingInsurance.replace(/\./g, "")) : 0)}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
