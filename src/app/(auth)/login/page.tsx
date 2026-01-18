@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link"; // Tambahkan ini buat link ke Register
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { LogIn, AlertCircle } from "lucide-react";
-import api from "@/lib/axios"; // Import Helper Axios kita tadi
+import api from "@/lib/axios";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,20 +29,30 @@ export default function LoginPage() {
       // 1. Tembak API Backend
       const response = await api.post("/auth/login", formData);
       
-      // 2. Ambil Token & User Data
+      // 2. Ambil Token & User Data dari Backend
+      // Pastikan Backend mengirim object user lengkap (termasuk age & fixedIncome)
       const { access_token, user } = response.data;
 
-      // 3. Simpan ke LocalStorage (Sederhana & Efektif)
+      // 3. Simpan ke LocalStorage
       localStorage.setItem("token", access_token);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // 4. Redirect ke Dashboard
-      router.push("/");
+      // --- LOGIC BARU: SMART REDIRECT ---
+      // Cek apakah profil user sudah lengkap (Usia & Gaji)
+      // Jika belum lengkap (baru register), lempar ke halaman Profile
+      const isProfileIncomplete = !user.age || !user.fixedIncome || user.fixedIncome === 0;
+
+      if (isProfileIncomplete) {
+        // Redirect ke Profile dengan pesan alert
+        router.push("/profile?alert=incomplete");
+      } else {
+        // Redirect Normal ke Dashboard
+        router.push("/");
+      }
       
     } catch (err: any) {
-      // Handle Error dari Backend
       const msg = err.response?.data?.message || "Login gagal. Periksa koneksi Anda.";
-      setError(Array.isArray(msg) ? msg[0] : msg); // Kadang message berupa array
+      setError(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setIsLoading(false);
     }
@@ -111,6 +122,16 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
+        
+        {/* LINK KE REGISTER (Hanya ini tambahan UI-nya, di bawah tombol Login) */}
+        <div className="mt-6 text-center">
+          <p className="text-xs text-slate-500">
+            Belum punya akun?{" "}
+            <Link href="/register" className="text-blue-700 font-bold hover:underline">
+              Daftar Pegawai Baru
+            </Link>
+          </p>
+        </div>
 
         <p className="text-center text-[10px] text-slate-400 mt-8 font-medium">
           &copy; 2026 PAM JAYA. All Rights Reserved.

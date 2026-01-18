@@ -41,6 +41,7 @@ export default function ProfilePage() {
 
   // Backup Data (Untuk fitur Cancel)
   const [backupData, setBackupData] = useState(formData);
+  
 
   // --- 1. FETCH DATA (GET /users/me) ---
   useEffect(() => {
@@ -86,6 +87,13 @@ export default function ProfilePage() {
     };
 
     fetchProfile();
+  }, []);
+
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("alert") === "incomplete") {
+    alert("⚠️ MOHON PERHATIAN!\n\nData profil Anda belum lengkap. Silakan isi Usia dan Gaji Tetap agar fitur Kalkulator bisa berfungsi.");
+  }
   }, []);
 
   // --- 2. HANDLERS ---

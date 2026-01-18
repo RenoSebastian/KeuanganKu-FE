@@ -1,13 +1,13 @@
-import { ChildProfile, EducationStage, PlanInput, PortfolioSummary, StageResult, ChildSimulationResult } from "./types";
 import { BudgetResult, BudgetAllocation } from "./types";
+import { ChildProfile, EducationStage, PlanInput, PortfolioSummary, StageResult, ChildSimulationResult } from "./types";
 
-// --- DATABASE JENJANG (Diupdate dengan Payment Frequency) ---
+// --- DATABASE JENJANG (Tetap Sesuai Request Sebelumnya) ---
 export const STAGES_DB: EducationStage[] = [
-  { id: "TK", label: "TK / PAUD", entryAge: 4, duration: 2, paymentFrequency: "MONTHLY" },
-  { id: "SD", label: "Sekolah Dasar", entryAge: 6, duration: 6, paymentFrequency: "MONTHLY" },
-  { id: "SMP", label: "SMP", entryAge: 12, duration: 3, paymentFrequency: "MONTHLY" },
-  { id: "SMA", label: "SMA", entryAge: 15, duration: 3, paymentFrequency: "MONTHLY" },
-  { id: "KULIAH", label: "Universitas", entryAge: 18, duration: 4, paymentFrequency: "SEMESTER" },
+  { id: "TK", label: "TK / PAUD", entryAge: 5, duration: 2, paymentFrequency: "MONTHLY" },
+  { id: "SD", label: "Sekolah Dasar", entryAge: 7, duration: 6, paymentFrequency: "MONTHLY" },
+  { id: "SMP", label: "SMP", entryAge: 13, duration: 3, paymentFrequency: "MONTHLY" },
+  { id: "SMA", label: "SMA", entryAge: 16, duration: 3, paymentFrequency: "MONTHLY" },
+  { id: "KULIAH", label: "Universitas", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
 ];
 
 // --- BASIC HELPERS ---
@@ -21,15 +21,29 @@ export const calculateAge = (dob: string): number => {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 };
 
-export const calculateFV = (pv: number, rate: number, years: number): number => {
-  return pv * Math.pow(1 + rate / 100, years);
+// 1. Rumus FV (Future Value)
+// Aturan Merah: Rate = Inflasi
+export const calculateFV = (pv: number, inflationRate: number, years: number): number => {
+  return pv * Math.pow(1 + inflationRate / 100, years);
 };
 
-export const calculatePMT = (fv: number, annualReturn: number, months: number): number => {
-  if (months <= 0) return fv; // Jika waktu habis/negatif, harus bayar lunas sekarang
-  const monthlyReturn = (annualReturn / 100) / 12;
-  if (monthlyReturn === 0) return fv / months;
-  return (fv * monthlyReturn) / (Math.pow(1 + monthlyReturn, months) - 1);
+// 2. Rumus PMT (Payment / Tabungan Rutin)
+// Aturan Hijau: Rate = Investasi (Murni)
+export const calculatePMT = (
+  fv: number, 
+  investmentRate: number, // Pake Rate Investasi full
+  years: number
+): number => {
+  if (years <= 0) return fv;
+
+  const rate = investmentRate / 100;
+
+  // Rumus PMT Tahunan (Sesuai Struktur Dokumen PAM: Tahunan dibagi 12)
+  // PMT = FV * i / ((1 + i)^n - 1)
+  const annualPMT = (fv * rate) / (Math.pow(1 + rate, years) - 1);
+
+  // Bagi 12 untuk dapat angka bulanan
+  return annualPMT / 12;
 };
 
 // --- ADVANCED CALCULATION ENGINE (CASHFLOW MATCHING) ---
@@ -44,30 +58,26 @@ const calculateStageGranular = (
   const refStage = STAGES_DB.find(s => s.id === input.stageId);
   if (!refStage) return null;
 
-  // 1. Tentukan Titik Awal (Tahun keberapa anak masuk?)
-  // Jika startGrade = 1, masuk sesuai entryAge normal.
-  // Jika startGrade = 3, berarti masuknya telat 2 tahun (entryAge + 2).
-  // Jarak Waktu (n) = Target Usia - Usia Sekarang.
+  // Hitung Jarak Waktu (N)
   const gradeOffset = input.startGrade - 1;
   const targetEntryAge = refStage.entryAge + gradeOffset;
   let yearsUntilEntry = targetEntryAge - childAge;
+  
   if (yearsUntilEntry < 0) yearsUntilEntry = 0;
 
-  // Variabel Penampung Total
   let totalFutureCost = 0;
   let totalMonthlySaving = 0;
   const breakdownDetails: any[] = [];
 
-  // --- KOMPONEN A: UANG PANGKAL (ENTRY FEE) ---
-  // Hanya dihitung jika anak masuk dari Kelas 1 (startGrade === 1)
-  // Asumsi: Kalau pindahan/lanjut kelas tengah, uang pangkal dianggap sudah lunas/beda skema.
+  // --- KOMPONEN A: UANG PANGKAL ---
   if (input.startGrade === 1 && input.costNow.entryFee > 0) {
-    const timeDistance = yearsUntilEntry; // Jarak waktu (Tahun)
+    const timeDistance = yearsUntilEntry;
+    
+    // FV pakai Inflasi
     const fvEntry = calculateFV(input.costNow.entryFee, inflation, timeDistance);
     
-    // Hitung PMT untuk item ini
-    const monthsToSave = timeDistance * 12;
-    const savingReq = calculatePMT(fvEntry, returnRate, monthsToSave);
+    // PMT pakai Return Investasi
+    const savingReq = calculatePMT(fvEntry, returnRate, timeDistance);
 
     totalFutureCost += fvEntry;
     totalMonthlySaving += savingReq;
@@ -81,36 +91,28 @@ const calculateStageGranular = (
   }
 
   // --- KOMPONEN B: BIAYA PERIODIK (SPP / UKT) ---
-  // Dihitung per tahun ajaran
   const remainingDuration = refStage.duration - gradeOffset;
 
   for (let i = 0; i < remainingDuration; i++) {
-    // Jarak waktu pembayaran untuk tahun ke-i
-    // Tahun 1 jaraknya = yearsUntilEntry
-    // Tahun 2 jaraknya = yearsUntilEntry + 1, dst.
     const timeDistance = yearsUntilEntry + i;
     
-    // Tentukan Base Cost per Tahun
     let yearlyBaseCost = 0;
     let labelItem = "";
 
     if (refStage.paymentFrequency === "MONTHLY") {
-      yearlyBaseCost = input.costNow.monthlyFee * 12; // SPP x 12 bulan
+      yearlyBaseCost = input.costNow.monthlyFee * 12; 
       labelItem = `SPP Tahun ke-${i + 1}`;
     } else {
-      yearlyBaseCost = input.costNow.monthlyFee * 2; // UKT x 2 semester
+      yearlyBaseCost = input.costNow.monthlyFee * 2; 
       labelItem = `UKT Tahun ke-${i + 1}`;
     }
 
     if (yearlyBaseCost > 0) {
-      // 1. Hitung Inflasi untuk tahun ke-i
+      // FV pakai Inflasi
       const fvYearly = calculateFV(yearlyBaseCost, inflation, timeDistance);
       
-      // 2. Hitung PMT (Menabung sampai tahun ke-i)
-      // Logic: Kita punya waktu menabung sampai tagihan tahun ke-i datang.
-      // Jadi beban SPP kelas 6 SD, bisa dicicil selama 6 tahun, bukan 1 tahun.
-      const monthsToSave = timeDistance * 12;
-      const savingReq = calculatePMT(fvYearly, returnRate, monthsToSave);
+      // PMT pakai Return Investasi
+      const savingReq = calculatePMT(fvYearly, returnRate, timeDistance);
 
       totalFutureCost += fvYearly;
       totalMonthlySaving += savingReq;
