@@ -1,13 +1,13 @@
-import { BudgetResult, BudgetAllocation } from "./types";
-import { ChildProfile, EducationStage, PlanInput, PortfolioSummary, StageResult, ChildSimulationResult } from "./types";
+import { BudgetResult, BudgetAllocation, ChildProfile, EducationStage, PlanInput, PortfolioSummary, StageResult, ChildSimulationResult, PensionInput, PensionResult } from "./types";
 
-// --- DATABASE JENJANG (Tetap Sesuai Request Sebelumnya) ---
+// --- DATABASE JENJANG (REVISI: S1, S2, & Label TK) ---
 export const STAGES_DB: EducationStage[] = [
   { id: "TK", label: "TK / PAUD", entryAge: 5, duration: 2, paymentFrequency: "MONTHLY" },
   { id: "SD", label: "Sekolah Dasar", entryAge: 7, duration: 6, paymentFrequency: "MONTHLY" },
   { id: "SMP", label: "SMP", entryAge: 13, duration: 3, paymentFrequency: "MONTHLY" },
   { id: "SMA", label: "SMA", entryAge: 16, duration: 3, paymentFrequency: "MONTHLY" },
-  { id: "KULIAH", label: "Universitas", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
+  { id: "KULIAH", label: "Sarjana (S1)", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
+  { id: "S2", label: "Magister (S2)", entryAge: 23, duration: 2, paymentFrequency: "SEMESTER" },
 ];
 
 // --- BASIC HELPERS ---
@@ -58,8 +58,14 @@ const calculateStageGranular = (
   const refStage = STAGES_DB.find(s => s.id === input.stageId);
   if (!refStage) return null;
 
-  // Hitung Jarak Waktu (N)
-  const gradeOffset = input.startGrade - 1;
+  // Logic Offset Tahun
+  let gradeOffset = 0;
+  if (refStage.paymentFrequency === "SEMESTER") {
+    gradeOffset = Math.floor((input.startGrade - 1) / 2);
+  } else {
+    gradeOffset = input.startGrade - 1;
+  }
+
   const targetEntryAge = refStage.entryAge + gradeOffset;
   let yearsUntilEntry = targetEntryAge - childAge;
   
@@ -69,14 +75,10 @@ const calculateStageGranular = (
   let totalMonthlySaving = 0;
   const breakdownDetails: any[] = [];
 
-  // --- KOMPONEN A: UANG PANGKAL ---
+  // KOMPONEN A: UANG PANGKAL
   if (input.startGrade === 1 && input.costNow.entryFee > 0) {
     const timeDistance = yearsUntilEntry;
-    
-    // FV pakai Inflasi
     const fvEntry = calculateFV(input.costNow.entryFee, inflation, timeDistance);
-    
-    // PMT pakai Return Investasi
     const savingReq = calculatePMT(fvEntry, returnRate, timeDistance);
 
     totalFutureCost += fvEntry;
@@ -90,7 +92,7 @@ const calculateStageGranular = (
     });
   }
 
-  // --- KOMPONEN B: BIAYA PERIODIK (SPP / UKT) ---
+  // KOMPONEN B: BIAYA PERIODIK (SPP / UKT)
   const remainingDuration = refStage.duration - gradeOffset;
 
   for (let i = 0; i < remainingDuration; i++) {
@@ -101,17 +103,21 @@ const calculateStageGranular = (
 
     if (refStage.paymentFrequency === "MONTHLY") {
       yearlyBaseCost = input.costNow.monthlyFee * 12; 
-      labelItem = `SPP Tahun ke-${i + 1}`;
+      
+      if (refStage.id === "TK") {
+        const effectiveGrade = input.startGrade + i;
+        labelItem = effectiveGrade === 1 ? "SPP TK A" : "SPP TK B";
+      } else {
+        labelItem = `SPP Tahun ke-${i + 1}`;
+      }
+
     } else {
       yearlyBaseCost = input.costNow.monthlyFee * 2; 
       labelItem = `UKT Tahun ke-${i + 1}`;
     }
 
     if (yearlyBaseCost > 0) {
-      // FV pakai Inflasi
       const fvYearly = calculateFV(yearlyBaseCost, inflation, timeDistance);
-      
-      // PMT pakai Return Investasi
       const savingReq = calculatePMT(fvYearly, returnRate, timeDistance);
 
       totalFutureCost += fvYearly;
@@ -137,9 +143,6 @@ const calculateStageGranular = (
   };
 };
 
-/**
- * ENGINE UTAMA: Menghitung Portfolio Seluruh Anak
- */
 export const calculatePortfolio = (
   children: ChildProfile[], 
   inflation: number, 
@@ -181,22 +184,18 @@ export const calculatePortfolio = (
   };
 };
 
-// --- BUDGETING ENGINE (50/30/20 MODIFIED) ---
+// --- BUDGETING ENGINE ---
 
 export const calculateSmartBudget = (fixedIncome: number, variableIncome: number): BudgetResult => {
   
-  // 1. Hitung Alokasi Wajib (55% Total)
-  const prodDebt = fixedIncome * 0.20;  // 20% Hutang Produktif
-  const consDebt = fixedIncome * 0.15;  // 15% Hutang Konsumtif
-  const insurance = fixedIncome * 0.10; // 10% Asuransi
-  const investment = fixedIncome * 0.10;// 10% Tabungan/Invest
+  const prodDebt = fixedIncome * 0.20;
+  const consDebt = fixedIncome * 0.15;
+  const insurance = fixedIncome * 0.10;
+  const investment = fixedIncome * 0.10;
 
   const totalAllocated = prodDebt + consDebt + insurance + investment;
-
-  // 2. Hitung Sisa untuk Hidup (45%)
   const safeToSpend = fixedIncome - totalAllocated;
 
-  // 3. Susun Detail Alokasi
   const allocations: BudgetAllocation[] = [
     {
       label: "Hutang Produktif",
@@ -236,6 +235,63 @@ export const calculateSmartBudget = (fixedIncome: number, variableIncome: number
     safeToSpend,
     allocations,
     totalFixedAllocated: totalAllocated,
-    surplus: variableIncome // 100% Masuk Surplus
+    surplus: variableIncome
+  };
+};
+
+// --- PENSION ENGINE (AWP MATCH READY) ---
+
+export const calculatePension = (input: PensionInput): PensionResult => {
+  // 1. Hitung Periode Kerja (N)
+  const workingYears = input.retirementAge - input.currentAge;
+  
+  // 2. Ambil Durasi Pensiun dari Input User (Agar Dinamis)
+  // Tidak lagi hardcode 20 tahun. User bisa input 1 tahun.
+  const retirementYears = input.retirementDuration;
+
+  if (workingYears <= 0) {
+    return {
+      workingYears: 0,
+      retirementYears,
+      fvMonthlyExpense: 0,
+      fvExistingFund: 0,
+      totalFundNeeded: 0,
+      shortfall: 0,
+      monthlySaving: 0
+    };
+  }
+
+  // 3. Hitung FV Pengeluaran (Biaya Hidup di Masa Depan)
+  // Rate: Inflasi (Merah)
+  const fvMonthlyExpense = calculateFV(input.currentExpense, input.inflationRate, workingYears);
+
+  // 4. Hitung Total Kebutuhan Dana (Corpus)
+  // Logic: Biaya Tahunan Masa Depan x Durasi Pensiun
+  // Jika user isi durasi 1 tahun (seperti AWP), maka targetnya = Biaya 1 tahun saja.
+  const annualExpenseAtRetirement = fvMonthlyExpense * 12;
+  const totalFundNeeded = annualExpenseAtRetirement * retirementYears;
+
+  // 5. Hitung FV Saldo Awal (Existing Fund Power)
+  // Dana JHT/DPLK yang ada sekarang didiamkan tumbuh sampai pensiun (Rate Investasi)
+  const fvExistingFund = calculateFV(input.currentFund, input.investmentRate, workingYears);
+
+  // 6. Hitung Kekurangan (Shortfall)
+  // Target Corpus - Uang yang sudah siap nanti
+  let shortfall = totalFundNeeded - fvExistingFund;
+  if (shortfall < 0) shortfall = 0; // Surplus, tabungan bulanan jadi 0
+
+  // 7. Hitung Tabungan Bulanan (PMT)
+  // Target: Shortfall
+  // Rate: Investasi (Hijau)
+  const monthlySaving = calculatePMT(shortfall, input.investmentRate, workingYears);
+
+  return {
+    workingYears,
+    retirementYears,
+    fvMonthlyExpense,
+    fvExistingFund,
+    totalFundNeeded,
+    shortfall,
+    monthlySaving
   };
 };

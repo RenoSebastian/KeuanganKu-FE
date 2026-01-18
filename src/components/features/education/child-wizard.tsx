@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ChildProfile, PlanInput } from "@/lib/types";
 import { STAGES_DB, calculateAge } from "@/lib/financial-math";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Check, ChevronRight, GraduationCap, AlertCircle } from "lucide-react";
+import { Check, ChevronRight, GraduationCap, AlertCircle } from "lucide-react";
 
 // Helper generate ID
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -30,6 +30,11 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
 
   // Step 3: Input Costs
   const [costs, setCosts] = useState<Record<string, { entry: number; monthly: number }>>({});
+
+  // --- LOGIC VALIDASI UMUR (Max 21 Tahun) ---
+  const today = new Date();
+  const minDate = new Date(today.getFullYear() - 21, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+  const maxDate = new Date().toISOString().split('T')[0]; // Tidak boleh lahir di masa depan
 
   // --- HANDLERS ---
   const handleToggleStage = (id: string) => {
@@ -96,6 +101,27 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
   // Helper Format input
   const formatNum = (n: number) => n?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") || "";
 
+  // Helper untuk Generate Opsi Dropdown (TK A/B, Semester 1-8)
+  const getGradeOptions = (stage: typeof STAGES_DB[0]) => {
+    // 1. Jika Semester (Kuliah/S2), loop Duration x 2 (4 thn -> 8 semester)
+    const count = stage.paymentFrequency === "SEMESTER" ? stage.duration * 2 : stage.duration;
+    
+    return Array.from({ length: count }, (_, i) => {
+      const val = i + 1;
+      let label = "";
+      
+      if (stage.id === "TK") {
+        label = val === 1 ? "TK A" : "TK B";
+      } else if (stage.paymentFrequency === "SEMESTER") {
+        label = `Semester ${val}`;
+      } else {
+        label = `Kelas ${val}`;
+      }
+      
+      return { val, label };
+    });
+  };
+
   return (
     <div className="space-y-6">
       
@@ -133,9 +159,13 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                <label className="text-xs font-bold text-slate-600 ml-1">Tanggal Lahir</label>
                <Input 
                  type="date" 
-                 value={dob} onChange={e => setDob(e.target.value)} 
+                 value={dob} 
+                 onChange={e => setDob(e.target.value)} 
                  className="h-12"
+                 min={minDate} // Validasi Umur Max 21
+                 max={maxDate}
                />
+               <p className="text-[10px] text-slate-400 ml-1">Maksimal usia 21 tahun.</p>
              </div>
              <div className="space-y-1">
                <label className="text-xs font-bold text-slate-600 ml-1">Jenis Kelamin</label>
@@ -167,6 +197,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
               
               const isSelected = selectedStageIds.includes(stage.id);
               const currentGrade = startGrades[stage.id] || 1;
+              const options = getGradeOptions(stage); // Generate Options (TK A/B, Smt 1-8)
 
               return (
                 <div 
@@ -184,7 +215,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-800">{stage.label}</h4>
-                            <p className="text-xs text-slate-500">Usia standar {stage.entryAge} tahun</p>
+                            <p className="text-xs text-slate-500">Estimasi masuk usia {stage.entryAge} tahun</p>
                           </div>
                        </div>
                        
@@ -202,10 +233,8 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                           value={currentGrade}
                           onChange={(e) => handleGradeChange(stage.id, parseInt(e.target.value))}
                         >
-                          {Array.from({ length: stage.duration }, (_, i) => i + 1).map((g) => (
-                            <option key={g} value={g}>
-                               {stage.id === "KULIAH" ? `Semester ${g}` : `Kelas ${g}`}
-                            </option>
+                          {options.map((opt) => (
+                            <option key={opt.val} value={opt.val}>{opt.label}</option>
                           ))}
                         </select>
                      </div>
@@ -237,7 +266,11 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
 
                // Label Dinamis
                const monthlyLabel = stage?.paymentFrequency === "SEMESTER" ? "UKT per Semester" : "SPP Bulanan";
-               const gradeLabel = stage?.id === "KULIAH" ? `Semester ${currentGrade}` : `Kelas ${currentGrade}`;
+               
+               let gradeLabel = "";
+               if (id === "TK") gradeLabel = currentGrade === 1 ? "TK A" : "TK B";
+               else if (stage?.paymentFrequency === "SEMESTER") gradeLabel = `Semester ${currentGrade}`;
+               else gradeLabel = `Kelas ${currentGrade}`;
 
                return (
                  <div key={id} className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">

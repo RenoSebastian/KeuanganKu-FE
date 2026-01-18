@@ -60,6 +60,9 @@ export interface PortfolioSummary {
   totalFutureCost: number;
   details: ChildSimulationResult[];
 }
+
+// --- BUDGETING TYPES ---
+
 export interface BudgetInput {
   name: string;
   age: number;
@@ -81,4 +84,28 @@ export interface BudgetResult {
   allocations: BudgetAllocation[];
   totalFixedAllocated: number; // Total yang "diambil" sistem (55%)
   surplus: number;     // Variable Income
+}
+
+// --- PENSION TYPES (UPDATED) ---
+
+export interface PensionInput {
+  currentAge: number;       // Usia Sekarang
+  retirementAge: number;    // Usia Pensiun
+  retirementDuration: number; // NEW: Jangka Waktu Penerimaan (Bisa 1 th, 5 th, 20 th, dll)
+  currentExpense: number;   // Pengeluaran Bulanan Saat Ini / Target Pemasukan
+  currentFund: number;      // NEW: Saldo JHT/DPLK/Tabungan Saat Ini
+  inflationRate: number;    // Asumsi Inflasi (%)
+  investmentRate: number;   // Asumsi Return Investasi (%)
+}
+
+export interface PensionResult {
+  workingYears: number;     // Masa Kerja (n)
+  retirementYears: number;  // Masa Pensiun (Sesuai input retirementDuration)
+  fvMonthlyExpense: number; // Biaya Hidup/Bulan saat Pensiun (Future Value)
+  
+  fvExistingFund: number;   // NEW: Nilai masa depan dari saldo awal (currentFund)
+  totalFundNeeded: number;  // Total Dana yang Dibutuhkan saat Pensiun (Corpus)
+  shortfall: number;        // NEW: Kekurangan dana (Total - Existing)
+  
+  monthlySaving: number;    // Tabungan Bulanan yang Harus Disisihkan Sekarang
 }

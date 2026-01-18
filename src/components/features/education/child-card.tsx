@@ -1,12 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah, calculateAge } from "@/lib/financial-math";
 import { ChildProfile, ChildSimulationResult } from "@/lib/types";
-import { Baby, Trash2, GraduationCap, ChevronDown, ChevronUp } from "lucide-react";
+import { Baby, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 interface ChildCardProps {
   profile: ChildProfile;
@@ -19,6 +19,25 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
   const age = calculateAge(profile.dob);
   
   const avatarBg = profile.gender === "L" ? "bg-blue-100 text-blue-600" : "bg-pink-100 text-pink-600";
+
+  // --- HELPER LOGIC LABEL ---
+  const getBadgeLabel = (stageId: string, grade: number) => {
+    // 1. Logic Khusus TK
+    if (stageId === "TK") {
+        return ` (Mulai TK ${grade === 1 ? 'A' : 'B'})`;
+    }
+
+    // 2. Logic Khusus Kuliah (S1 / S2)
+    // Cek ID string karena plan tidak punya info paymentFrequency
+    if (["KULIAH", "S2"].includes(stageId)) {
+        // Tampilkan badge semester jika mulai bukan dari semester 1
+        return grade > 1 ? ` (Mulai Smt ${grade})` : "";
+    }
+
+    // 3. Logic Sekolah Umum (SD, SMP, SMA)
+    // Tampilkan hanya jika loncat kelas (Misal mulai kelas 3)
+    return grade > 1 ? ` (Mulai Kls ${grade})` : "";
+  };
 
   return (
     <Card className="group relative bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 rounded-3xl overflow-hidden">
@@ -54,19 +73,12 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
 
           {/* Tags (Ringkasan Jenjang) */}
           <div className="flex flex-wrap gap-2 mb-4">
-             {profile.plans.map(plan => {
-               // Logic label kelas
-               const isKuliah = plan.stageId === "KULIAH";
-               const gradeLabel = plan.startGrade > 1 
-                 ? ` (Mulai ${isKuliah ? 'Smt' : 'Kls'} ${plan.startGrade})` 
-                 : "";
-               
-               return (
-                 <Badge key={plan.stageId} variant="secondary" className="bg-slate-50 text-slate-600 border-slate-100 text-[10px] font-semibold">
-                   {plan.stageId}{gradeLabel}
-                 </Badge>
-               )
-             })}
+             {profile.plans.map(plan => (
+               <Badge key={plan.stageId} variant="secondary" className="bg-slate-50 text-slate-600 border-slate-100 text-[10px] font-semibold">
+                 {plan.stageId}
+                 {getBadgeLabel(plan.stageId, plan.startGrade)}
+               </Badge>
+             ))}
           </div>
 
           {/* Result Section (Footer) */}
@@ -92,22 +104,34 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                 )}
              </div>
 
-             {/* DETAIL DROPDOWN (NEW) */}
+             {/* DETAIL DROPDOWN */}
              {isOpen && result && (
                <div className="px-4 pb-4 animate-in slide-in-from-top-2">
                  <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-3">
-                    {result.stages.map((stage) => (
-                      <div key={stage.stageId} className="text-xs">
-                         <div className="flex justify-between font-bold text-slate-700 mb-1">
-                            <span>{stage.label}</span>
-                            <span>{formatRupiah(stage.monthlySaving)}/bln</span>
-                         </div>
-                         <div className="text-[10px] text-slate-400 flex justify-between">
-                            <span>Mulai {stage.paymentFrequency === "SEMESTER" ? "Semester" : "Kelas"} {stage.startGrade}</span>
-                            <span>Target: {formatRupiah(stage.totalFutureCost)}</span>
-                         </div>
-                      </div>
-                    ))}
+                    {result.stages.map((stage) => {
+                      // Logic Label Detail (Disamakan dengan Badge)
+                      let startLabel = "";
+                      if (stage.stageId === "TK") {
+                         startLabel = stage.startGrade === 1 ? "Mulai TK A" : "Mulai TK B";
+                      } else if (stage.paymentFrequency === "SEMESTER") {
+                         startLabel = `Mulai Smt ${stage.startGrade}`;
+                      } else {
+                         startLabel = `Mulai Kls ${stage.startGrade}`;
+                      }
+
+                      return (
+                        <div key={stage.stageId} className="text-xs">
+                           <div className="flex justify-between font-bold text-slate-700 mb-1">
+                              <span>{stage.label}</span>
+                              <span>{formatRupiah(stage.monthlySaving)}/bln</span>
+                           </div>
+                           <div className="text-[10px] text-slate-400 flex justify-between">
+                              <span>{startLabel}</span>
+                              <span>Target: {formatRupiah(stage.totalFutureCost)}</span>
+                           </div>
+                        </div>
+                      );
+                    })}
                  </div>
                </div>
              )}

@@ -1,9 +1,9 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatRupiah } from "./financial-math";
-import { PortfolioSummary, BudgetResult } from "./types";
+import { PortfolioSummary, BudgetResult, PensionInput, PensionResult } from "./types";
 
-// --- PDF PENDIDIKAN (TETAP SAMA - JANGAN DIHAPUS) ---
+// --- 1. PDF PENDIDIKAN (TETAP) ---
 export const generateEducationPDF = (
   portfolio: PortfolioSummary, 
   assumptions: { inflation: number, returnRate: number }
@@ -11,16 +11,13 @@ export const generateEducationPDF = (
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
 
-  // Header Background
+  // Header
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 0, pageWidth, 40, "F");
-  
-  // Title
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   doc.text("Rencana Pendidikan Anak", 14, 20);
-
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text(`KeuanganKu Enterprise • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
@@ -66,17 +63,33 @@ export const generateEducationPDF = (
       doc.setFontSize(11);
       doc.setTextColor(60, 60, 60);
       doc.setFont("helvetica", "bold");
-      const gradeInfo = stage.startGrade > 1 
-        ? `(Mulai ${stage.paymentFrequency === "SEMESTER" ? "Semester" : "Kelas"} ${stage.startGrade})`
-        : "";
+      
+      let gradeInfo = "";
+      if (stage.startGrade > 1) {
+        if (stage.stageId === "TK") gradeInfo = "(Mulai TK B)";
+        else if (stage.paymentFrequency === "SEMESTER") gradeInfo = `(Mulai Smt ${stage.startGrade})`;
+        else gradeInfo = `(Mulai Kls ${stage.startGrade})`;
+      }
+      
       doc.text(`• ${stage.label} ${gradeInfo}`, 14, finalY);
 
-      const tableBody = stage.details?.map(item => [
-        item.item,
-        `${item.dueYear} Tahun`,
-        formatRupiah(item.futureCost),
-        formatRupiah(item.requiredSaving)
-      ]) || [];
+      const tableBody = stage.details?.map((item, i) => {
+        let label = item.item;
+        if (stage.stageId === "TK" && item.item.toLowerCase().includes("spp")) {
+             const currentGrade = stage.startGrade + i;
+             label = currentGrade === 1 ? "SPP TK A" : "SPP TK B";
+        } else if (stage.paymentFrequency === "SEMESTER" && item.item.toLowerCase().includes("ukt")) {
+             const startSem = stage.startGrade + (i * 2);
+             const endSem = startSem + 1;
+             label = `Biaya Semester ${startSem} - ${endSem}`;
+        }
+        return [
+          label,
+          `${item.dueYear} Tahun`,
+          formatRupiah(item.futureCost),
+          formatRupiah(item.requiredSaving)
+        ];
+      }) || [];
 
       tableBody.push([
         { content: "Subtotal Jenjang", colSpan: 3, styles: { fontStyle: "bold", halign: "right" } },
@@ -101,10 +114,10 @@ export const generateEducationPDF = (
     finalY += 15;
   });
 
-  doc.save(`Rencana_Pendidikan_Lengkap.pdf`);
+  doc.save(`Rencana_Pendidikan.pdf`);
 };
 
-// --- PDF BUDGET (DUAL VIEW UPDATE) ---
+// --- 2. PDF BUDGET (TETAP) ---
 export const generateBudgetPDF = (
   monthly: BudgetResult,
   annual: BudgetResult,
@@ -113,9 +126,8 @@ export const generateBudgetPDF = (
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
 
-  // --- HEADER (Shared) ---
   const drawHeader = (title: string) => {
-    doc.setFillColor(16, 185, 129); // Emerald-500
+    doc.setFillColor(16, 185, 129); // Emerald
     doc.rect(0, 0, pageWidth, 40, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
@@ -126,59 +138,39 @@ export const generateBudgetPDF = (
     doc.text(`Klien: ${profile.name || "Pengguna"} (${profile.age} Th) • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
   };
 
-  // ==========================
-  // HALAMAN 1: STRATEGI BULANAN
-  // ==========================
+  // Hal 1: Bulanan
   drawHeader("Financial Checkup: Bulanan");
-  
   let finalY = 50;
 
-  // Ringkasan Gaji Bulanan
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text("Pemasukkan Tetap (Gaji Bulan Ini)", 14, finalY);
-  
   finalY += 5;
-  doc.setFillColor(236, 253, 245); // Emerald-50
+  doc.setFillColor(236, 253, 245);
   doc.setDrawColor(16, 185, 129);
   doc.roundedRect(14, finalY, pageWidth - 28, 20, 2, 2, "FD");
-  
   doc.setFontSize(14);
-  doc.setTextColor(6, 78, 59); // Emerald-900
+  doc.setTextColor(6, 78, 59);
   doc.text(formatRupiah(profile.fixedIncome), 20, finalY + 13);
-  
   finalY += 35;
 
-  // Safe To Spend Bulanan
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(12);
   doc.text("Batas Aman Biaya Hidup (45%)", 14, finalY);
-  
   finalY += 8;
   doc.setFontSize(26);
   doc.setTextColor(16, 185, 129);
   doc.setFont("helvetica", "bold");
   doc.text(formatRupiah(monthly.safeToSpend), 14, finalY);
-  
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.setFont("helvetica", "normal");
-  doc.text("Gunakan dana ini untuk operasional bulan ini (Makan, Transport, Listrik).", 14, finalY + 8);
-
+  doc.text("Gunakan dana ini untuk operasional bulan ini.", 14, finalY + 8);
   finalY += 20;
 
-  // Tabel Alokasi Bulanan
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Rincian Pos Wajib (Bulanan)", 14, finalY);
-
   let tableBody = monthly.allocations.map(item => [
-    item.label,
-    `${item.percentage}%`,
-    formatRupiah(item.amount),
-    item.description
+    item.label, `${item.percentage}%`, formatRupiah(item.amount), item.description
   ]);
 
   autoTable(doc, {
@@ -187,38 +179,19 @@ export const generateBudgetPDF = (
     body: tableBody,
     theme: "striped",
     headStyles: { fillColor: [6, 95, 70] },
-    columnStyles: { 2: { fontStyle: "bold" } },
     margin: { left: 14, right: 14 }
   });
 
-  // Surplus Bulanan
-  finalY = (doc as any).lastAutoTable.finalY + 15;
-  if (monthly.surplus > 0) {
-    doc.setFillColor(239, 246, 255);
-    doc.setDrawColor(59, 130, 246);
-    doc.roundedRect(14, finalY, pageWidth - 28, 20, 2, 2, "FD");
-    doc.setFontSize(11);
-    doc.setTextColor(30, 58, 138);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Surplus Bulanan (Dana Dingin): ${formatRupiah(monthly.surplus)}`, 20, finalY + 12);
-  }
-
-  // ==========================
-  // HALAMAN 2: PROYEKSI TAHUNAN
-  // ==========================
+  // Hal 2: Tahunan
   doc.addPage();
   drawHeader("Financial Checkup: Proyeksi Tahunan");
-
   finalY = 50;
-
-  // Intro
+  
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(11);
-  doc.text("Berikut adalah potensi akumulasi kekayaan Anda jika disiplin selama 12 bulan:", 14, finalY);
+  doc.text("Potensi akumulasi kekayaan jika disiplin 12 bulan:", 14, finalY);
   finalY += 15;
 
-  // Highlights Card (Tahunan)
-  // 1. Total Gaji Setahun
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(14, finalY, (pageWidth - 35) / 2, 25, 2, 2, "F");
   doc.setFontSize(10);
@@ -227,7 +200,6 @@ export const generateBudgetPDF = (
   doc.setTextColor(6, 78, 59);
   doc.text(formatRupiah(profile.fixedIncome * 12), 20, finalY + 18);
 
-  // 2. Total Gaya Hidup
   doc.setFillColor(255, 241, 242);
   doc.roundedRect(14 + (pageWidth - 35) / 2 + 7, finalY, (pageWidth - 35) / 2, 25, 2, 2, "F");
   doc.setTextColor(40, 40, 40);
@@ -238,17 +210,9 @@ export const generateBudgetPDF = (
   doc.text(formatRupiah(annual.safeToSpend), 20 + (pageWidth - 35) / 2 + 7, finalY + 18);
 
   finalY += 40;
-
-  // Tabel Proyeksi Tahunan
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.text("Rincian Akumulasi Setahun", 14, finalY);
-
+  
   tableBody = annual.allocations.map(item => [
-    item.label,
-    `${item.percentage}%`,
-    formatRupiah(item.amount),
-    "Akumulasi 12 Bulan"
+    item.label, `${item.percentage}%`, formatRupiah(item.amount), "Akumulasi 12 Bulan"
   ]);
 
   autoTable(doc, {
@@ -256,15 +220,123 @@ export const generateBudgetPDF = (
     head: [["Pos Alokasi", "Porsi", "Proyeksi Tahunan", "Catatan"]],
     body: tableBody,
     theme: "grid",
-    headStyles: { fillColor: [59, 130, 246] }, // Blue Header for Annual
-    columnStyles: { 2: { fontStyle: "bold", textColor: [30, 58, 138] } },
+    headStyles: { fillColor: [59, 130, 246] },
     margin: { left: 14, right: 14 }
   });
 
-  // Footer Disclaimer
+  doc.save(`Financial_Checkup_${profile.name}.pdf`);
+};
+
+// --- 3. PDF DANA PENSIUN (UPDATE: DYNAMIC DURATION) ---
+export const generatePensionPDF = (
+  input: PensionInput,
+  result: PensionResult,
+  userName: string
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+
+  // Header
+  doc.setFillColor(79, 70, 229); // Indigo-600
+  doc.rect(0, 0, pageWidth, 40, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Rencana Dana Pensiun", 14, 20);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Disiapkan untuk: ${userName} • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
+
+  let finalY = 55;
+
+  // Profil & Asumsi
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Profil & Asumsi Dasar", 14, finalY);
+  
+  // Tampilkan Jangka Waktu Pensiun sesuai input user (bukan lagi hardcode 20 tahun)
+  const tableData = [
+    ["Usia Sekarang", `${input.currentAge} Tahun`, "Asumsi Inflasi", `${input.inflationRate}% / tahun`],
+    ["Usia Pensiun", `${input.retirementAge} Tahun`, "Return Investasi", `${input.investmentRate}% / tahun`],
+    // UPDATE: Tampilkan Saldo Awal dan Lama Pensiun (Dinamis dari input)
+    ["Saldo Awal Pensiun", formatRupiah(input.currentFund), "Lama Masa Pensiun", `${input.retirementDuration} Tahun`],
+    ["Target Pemasukan", formatRupiah(input.currentExpense), "Masa Menabung", `${result.workingYears} Tahun`]
+  ];
+
+  autoTable(doc, {
+    startY: finalY + 5,
+    head: [],
+    body: tableData,
+    theme: "grid",
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: {
+      0: { fontStyle: "bold", fillColor: [243, 244, 246] },
+      2: { fontStyle: "bold", fillColor: [243, 244, 246] }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  finalY = (doc as any).lastAutoTable.finalY + 20;
+
+  // Analisa Corpus
+  doc.setFillColor(238, 242, 255); // Indigo-50
+  doc.setDrawColor(79, 70, 229);
+  doc.roundedRect(14, finalY, pageWidth - 28, 45, 3, 3, "FD");
+
+  doc.setTextColor(55, 48, 163); // Indigo-900
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Total Dana Pensiun (Corpus)", 20, finalY + 12);
+
+  doc.setFontSize(28);
+  doc.setTextColor(79, 70, 229);
+  doc.text(formatRupiah(result.totalFundNeeded), 20, finalY + 25);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont("helvetica", "normal");
+  // UPDATE: Narasi Survival Period (sesuai input)
+  doc.text(`Dana ini diproyeksikan cukup untuk membiayai gaya hidup Anda selama ${input.retirementDuration} tahun pasca pensiun.`, 20, finalY + 35);
+  
+  // Biaya Hidup FV
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  doc.text(`Nilai masa depan (FV) target pemasukan bulanan:`, pageWidth / 2, finalY + 15);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatRupiah(result.fvMonthlyExpense), pageWidth / 2, finalY + 25);
+
+  finalY += 60;
+
+  // Action Plan
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Rencana Aksi (Action Plan)", 14, finalY);
+
+  finalY += 5;
+  doc.setFillColor(236, 253, 245); // Emerald-50
+  doc.setDrawColor(16, 185, 129);
+  doc.roundedRect(14, finalY, pageWidth - 28, 30, 3, 3, "FD");
+
+  doc.setTextColor(6, 78, 59); // Emerald-900
+  doc.setFontSize(11);
+  doc.text("Investasi Bulanan yang Diperlukan:", 20, finalY + 10);
+  
+  doc.setFontSize(20);
+  doc.setTextColor(5, 150, 105);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatRupiah(result.monthlySaving), 20, finalY + 22);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(6, 78, 59);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Rutin selama ${result.workingYears} tahun ke depan pada instrumen return ${input.investmentRate}%.`, pageWidth / 2, finalY + 18);
+
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text("Metode: Financial Health Checkup (20/15/10/10). Konsistensi adalah kunci.", 14, doc.internal.pageSize.height - 10);
+  doc.text(`Simulasi ini memperhitungkan saldo awal (Existing Fund) dan target masa pensiun ${input.retirementDuration} tahun.`, 14, doc.internal.pageSize.height - 10);
 
-  doc.save(`Financial_Checkup_Lengkap_${profile.name}.pdf`);
+  doc.save(`Rencana_Pensiun_${userName}.pdf`);
 };
