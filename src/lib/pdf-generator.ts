@@ -1,7 +1,10 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatRupiah } from "./financial-math";
-import { PortfolioSummary, BudgetResult, PensionInput, PensionResult, InsuranceInput, InsuranceResult } from "./types";
+import { 
+  PortfolioSummary, BudgetResult, PensionInput, PensionResult, 
+  InsuranceInput, InsuranceResult, SpecialGoalInput, SpecialGoalResult 
+} from "./types";
 
 // --- 1. PDF PENDIDIKAN (TETAP) ---
 export const generateEducationPDF = (
@@ -441,4 +444,107 @@ export const generateInsurancePDF = (
   doc.text("Perhitungan Dana Pengganti Penghasilan menggunakan metode Present Value Annuity Due (Kebutuhan di awal periode).", 14, doc.internal.pageSize.height - 10);
 
   doc.save(`Perencanaan_Asuransi_${userName}.pdf`);
+};
+
+// --- 5. PDF SPECIAL GOALS (MENU 6) ---
+export const generateSpecialGoalPDF = (
+  input: SpecialGoalInput,
+  result: SpecialGoalResult,
+  userName: string
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+
+  // Header - Violet Theme
+  doc.setFillColor(124, 58, 237); // Violet-600
+  doc.rect(0, 0, pageWidth, 40, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Perencanaan Tujuan Khusus", 14, 20);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`KeuanganKu Enterprise • ${userName} • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
+
+  let finalY = 55;
+
+  // Section 1: Parameter Tujuan
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Parameter Tujuan Finansial", 14, finalY);
+
+  const tableData = [
+    ["Jenis Tujuan", input.goalType, "Biaya Saat Ini", formatRupiah(input.currentCost)],
+    ["Target Waktu", `${input.duration} Tahun`, "Asumsi Inflasi", `${input.inflationRate}% / tahun`],
+    ["Return Investasi", `${input.investmentRate}% / tahun`, "", ""]
+  ];
+
+  autoTable(doc, {
+    startY: finalY + 5,
+    head: [],
+    body: tableData,
+    theme: "grid",
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: {
+      0: { fontStyle: "bold", fillColor: [245, 243, 255] }, // Violet-50
+      2: { fontStyle: "bold", fillColor: [245, 243, 255] }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  finalY = (doc as any).lastAutoTable.finalY + 20;
+
+  // Section 2: Hasil Analisa
+  doc.setFillColor(245, 243, 255); // Violet-50
+  doc.setDrawColor(124, 58, 237);
+  doc.roundedRect(14, finalY, pageWidth - 28, 50, 3, 3, "FD");
+
+  doc.setTextColor(76, 29, 149); // Violet-900
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Target Dana di Masa Depan", 20, finalY + 12);
+
+  doc.setFontSize(26);
+  doc.setTextColor(124, 58, 237); // Violet-600
+  doc.text(formatRupiah(result.futureValue), 20, finalY + 25);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nilai ini memperhitungkan kenaikan harga (inflasi) sebesar ${input.inflationRate}% selama ${input.duration} tahun.`, 20, finalY + 35);
+
+  finalY += 60;
+
+  // Section 3: Rekomendasi Tabungan
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Rekomendasi Strategi Menabung", 14, finalY);
+
+  finalY += 5;
+  doc.setFillColor(236, 253, 245); // Emerald-50
+  doc.setDrawColor(16, 185, 129);
+  doc.roundedRect(14, finalY, pageWidth - 28, 35, 3, 3, "FD");
+
+  doc.setTextColor(6, 78, 59); // Emerald-900
+  doc.setFontSize(11);
+  doc.text("Setoran Rutin Bulanan:", 20, finalY + 10);
+
+  doc.setFontSize(22);
+  doc.setTextColor(5, 150, 105); // Emerald-600
+  doc.setFont("helvetica", "bold");
+  doc.text(formatRupiah(result.monthlySaving), 20, finalY + 23);
+
+  doc.setFontSize(9);
+  doc.setTextColor(6, 78, 59);
+  doc.setFont("helvetica", "normal");
+  doc.text(`*Asumsi dana diinvestasikan dengan return ${input.investmentRate}% per tahun.`, 20, finalY + 30);
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  doc.text("Perhitungan menggunakan metode Future Value (Compound Interest) dan Sinking Fund.", 14, doc.internal.pageSize.height - 10);
+
+  doc.save(`Rencana_${input.goalType}_${userName}.pdf`);
 };

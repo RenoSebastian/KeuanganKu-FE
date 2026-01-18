@@ -2,7 +2,8 @@ import {
   BudgetResult, BudgetAllocation, ChildProfile, EducationStage, 
   PlanInput, PortfolioSummary, StageResult, ChildSimulationResult, 
   PensionInput, PensionResult, 
-  InsuranceInput, InsuranceResult 
+  InsuranceInput, InsuranceResult,
+  SpecialGoalInput, SpecialGoalResult // Pastikan import ini ada
 } from "./types";
 
 // --- DATABASE JENJANG ---
@@ -40,6 +41,9 @@ export const calculatePMT = (
   if (years <= 0) return fv;
 
   const rate = investmentRate / 100;
+  // Jika rate 0, pembagian biasa
+  if (rate === 0) return fv / years / 12;
+
   const annualPMT = (fv * rate) / (Math.pow(1 + rate, years) - 1);
   return annualPMT / 12;
 };
@@ -194,14 +198,14 @@ export const calculatePension = (input: PensionInput): PensionResult => {
     return { workingYears: 0, retirementYears, fvMonthlyExpense: 0, fvExistingFund: 0, totalFundNeeded: 0, shortfall: 0, monthlySaving: 0 };
   }
 
-  // FV Pengeluaran (Visualisasi)
+  // FV Pengeluaran
   const fvMonthlyExpense = calculateFV(input.currentExpense, input.inflationRate, workingYears);
 
-  // Hitung Corpus dengan Real Rate
+  // Corpus dengan Simple Spread (AWP)
   const annualExpenseBase = input.currentExpense * 12;
   const investRate = input.investmentRate / 100;
   const inflRate = input.inflationRate / 100;
-  const realRate = ((1 + investRate) / (1 + inflRate)) - 1;
+  const realRate = investRate - inflRate;
 
   let totalFundNeeded = 0;
 
@@ -216,10 +220,8 @@ export const calculatePension = (input: PensionInput): PensionResult => {
       }
   }
 
-  // FV Saldo Awal
   const fvExistingFund = calculateFV(input.currentFund, input.investmentRate, workingYears);
 
-  // Shortfall & Monthly Saving
   let shortfall = totalFundNeeded - fvExistingFund;
   if (shortfall < 0) shortfall = 0;
   const monthlySaving = calculatePMT(shortfall, input.investmentRate, workingYears);
@@ -235,10 +237,9 @@ export const calculatePension = (input: PensionInput): PensionResult => {
   };
 };
 
-// --- INSURANCE ENGINE (FIXED: NO TAX) ---
+// --- INSURANCE ENGINE ---
 
 export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
-  // 1. Hitung Total Utang (Component A)
   const totalDebt = 
     input.debtKPR + 
     input.debtKPM + 
@@ -246,12 +247,10 @@ export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
     input.debtConsumptive + 
     input.debtOther;
 
-  // 2. Hitung Nilai Penggantian Penghasilan (Income Replacement - Component B)
   const investRate = input.investmentRate / 100;
   const inflRate = input.inflationRate / 100;
+  const realRate = investRate - inflRate;
   
-  // Real Rate (Bunga Riil)
-  const realRate = ((1 + investRate) / (1 + inflRate)) - 1;
   const n = input.protectionDuration;
   const pmt = input.annualIncome;
 
@@ -259,20 +258,15 @@ export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
 
   if (n > 0) {
     if (Math.abs(realRate) < 0.0001) {
-      // Jika Real Rate 0
       incomeReplacementValue = pmt * n;
     } else {
-      // Rumus PV Annuity Due
       const factor = (1 - Math.pow(1 + realRate, -n)) / realRate;
       incomeReplacementValue = pmt * factor * (1 + realRate);
     }
   }
 
-  // 3. Hitung Total Kebutuhan (Total Needs)
-  // Utang + Income Replacement + Biaya Duka (TANPA Pajak sesuai koreksi)
   const totalFundNeeded = totalDebt + incomeReplacementValue + input.finalExpense;
 
-  // 4. Hitung Kekurangan (Shortfall)
   let shortfall = totalFundNeeded - input.existingInsurance;
   if (shortfall < 0) shortfall = 0; 
 
@@ -281,5 +275,27 @@ export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
     incomeReplacementValue,
     totalFundNeeded,
     shortfall
+  };
+};
+
+// --- SPECIAL GOAL ENGINE (MENU 6) ---
+
+export const calculateSpecialGoal = (input: SpecialGoalInput): SpecialGoalResult => {
+  const { currentCost, inflationRate, investmentRate, duration } = input;
+
+  // 1. Hitung Target Dana Masa Depan (FV)
+  // Rumus: PV * (1 + i)^n
+  // i = Inflasi
+  const futureValue = calculateFV(currentCost, inflationRate, duration);
+
+  // 2. Hitung Tabungan Bulanan (PMT)
+  // Rumus: PMT = FV * i / ((1 + i)^n - 1)
+  // i = Investasi
+  // Hasil dibagi 12 untuk bulanan
+  const monthlySaving = calculatePMT(futureValue, investmentRate, duration);
+
+  return {
+    futureValue,
+    monthlySaving
   };
 };

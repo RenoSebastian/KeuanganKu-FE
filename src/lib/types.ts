@@ -141,3 +141,20 @@ export interface InsuranceResult {
   totalFundNeeded: number;        // Total Kebutuhan (Utang + Income + Duka)
   shortfall: number;              // Kekurangan UP (Total Kebutuhan - Asuransi Lama)
 }
+
+// --- SPECIAL GOAL TYPES (MENU 6) ---
+
+export type GoalType = "IBADAH" | "LIBURAN" | "PERNIKAHAN" | "LAINNYA";
+
+export interface SpecialGoalInput {
+  goalType: GoalType;       // 1) Ibadah, 2) Liburan, 3) Pernikahan, 4) Lainnya
+  currentCost: number;      // 6.3 Dana yang dibutuhkan sekarang (PV)
+  inflationRate: number;    // 6.4 Perkiraan inflasi (%)
+  investmentRate: number;   // 6.5 Harapan tingkat investasi (%)
+  duration: number;         // 6.6 Jangka waktu (n tahun)
+}
+
+export interface SpecialGoalResult {
+  futureValue: number;      // FVn: Nilai dana di masa depan
+  monthlySaving: number;    // PMT: Tabungan per bulan
+}
