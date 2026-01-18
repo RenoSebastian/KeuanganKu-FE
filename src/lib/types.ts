@@ -86,7 +86,7 @@ export interface BudgetResult {
   surplus: number;     // Variable Income
 }
 
-// --- PENSION TYPES (UPDATED) ---
+// --- PENSION TYPES ---
 
 export interface PensionInput {
   currentAge: number;       // Usia Sekarang
@@ -108,4 +108,36 @@ export interface PensionResult {
   shortfall: number;        // NEW: Kekurangan dana (Total - Existing)
   
   monthlySaving: number;    // Tabungan Bulanan yang Harus Disisihkan Sekarang
+}
+
+// --- INSURANCE TYPES (FIXED: NO TAX) ---
+
+export interface InsuranceInput {
+  // 4.A Dana Melunasi Utang (Liabilities)
+  debtKPR: number;          // Sisa Utang KPR
+  debtKPM: number;          // Sisa Utang Kendaraan (Mobil/Motor)
+  debtProductive: number;   // Utang Produktif / Modal Usaha
+  debtConsumptive: number;  // Utang Konsumtif (Kartu Kredit, Paylater)
+  debtOther: number;        // Utang Lainnya (Arisan, Pinjam Teman)
+
+  // 4.B Dana Penggantian Penghasilan (Income Replacement)
+  annualIncome: number;     // Penghasilan Bersih per Tahun
+  protectionDuration: number; // Masa Perlindungan (Tahun) - n
+  inflationRate: number;    // Asumsi Inflasi (%)
+  investmentRate: number;   // Asumsi Return Investasi (%)
+
+  // 4.C Biaya Duka (Final Expenses)
+  finalExpense: number;     // Biaya Pemakaman & RS Terakhir
+  
+  // (Pajak dihapus sesuai Menu 4)
+
+  // 4.D Asuransi Lama
+  existingInsurance: number; // Total UP Asuransi Jiwa yang sudah dimiliki
+}
+
+export interface InsuranceResult {
+  totalDebt: number;              // Total Kewajiban (Sum of 4.A)
+  incomeReplacementValue: number; // Nilai Pertanggungan Penghasilan (PVAD calculation)
+  totalFundNeeded: number;        // Total Kebutuhan (Utang + Income + Duka)
+  shortfall: number;              // Kekurangan UP (Total Kebutuhan - Asuransi Lama)
 }

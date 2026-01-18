@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatRupiah } from "./financial-math";
-import { PortfolioSummary, BudgetResult, PensionInput, PensionResult } from "./types";
+import { PortfolioSummary, BudgetResult, PensionInput, PensionResult, InsuranceInput, InsuranceResult } from "./types";
 
 // --- 1. PDF PENDIDIKAN (TETAP) ---
 export const generateEducationPDF = (
@@ -227,7 +227,7 @@ export const generateBudgetPDF = (
   doc.save(`Financial_Checkup_${profile.name}.pdf`);
 };
 
-// --- 3. PDF DANA PENSIUN (UPDATE: DYNAMIC DURATION) ---
+// --- 3. PDF DANA PENSIUN (UPDATE: REAL RATE) ---
 export const generatePensionPDF = (
   input: PensionInput,
   result: PensionResult,
@@ -255,13 +255,11 @@ export const generatePensionPDF = (
   doc.setFont("helvetica", "bold");
   doc.text("Profil & Asumsi Dasar", 14, finalY);
   
-  // Tampilkan Jangka Waktu Pensiun sesuai input user (bukan lagi hardcode 20 tahun)
   const tableData = [
     ["Usia Sekarang", `${input.currentAge} Tahun`, "Asumsi Inflasi", `${input.inflationRate}% / tahun`],
     ["Usia Pensiun", `${input.retirementAge} Tahun`, "Return Investasi", `${input.investmentRate}% / tahun`],
-    // UPDATE: Tampilkan Saldo Awal dan Lama Pensiun (Dinamis dari input)
     ["Saldo Awal Pensiun", formatRupiah(input.currentFund), "Lama Masa Pensiun", `${input.retirementDuration} Tahun`],
-    ["Target Pemasukan", formatRupiah(input.currentExpense), "Masa Menabung", `${result.workingYears} Tahun`]
+    ["Target Pemasukan (Real)", formatRupiah(input.currentExpense), "Masa Menabung", `${result.workingYears} Tahun`]
   ];
 
   autoTable(doc, {
@@ -296,13 +294,12 @@ export const generatePensionPDF = (
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.setFont("helvetica", "normal");
-  // UPDATE: Narasi Survival Period (sesuai input)
-  doc.text(`Dana ini diproyeksikan cukup untuk membiayai gaya hidup Anda selama ${input.retirementDuration} tahun pasca pensiun.`, 20, finalY + 35);
+  doc.text(`Target dana ini menggunakan asumsi 'Uang Terus Bekerja' (Real Rate) selama ${input.retirementDuration} tahun masa pensiun.`, 20, finalY + 35);
   
   // Biaya Hidup FV
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
-  doc.text(`Nilai masa depan (FV) target pemasukan bulanan:`, pageWidth / 2, finalY + 15);
+  doc.text(`Nilai Nominal (FV) dari Target Pemasukan:`, pageWidth / 2, finalY + 15);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text(formatRupiah(result.fvMonthlyExpense), pageWidth / 2, finalY + 25);
@@ -336,7 +333,112 @@ export const generatePensionPDF = (
 
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text(`Simulasi ini memperhitungkan saldo awal (Existing Fund) dan target masa pensiun ${input.retirementDuration} tahun.`, 14, doc.internal.pageSize.height - 10);
+  doc.text(`Simulasi ini menggunakan metode Real Rate of Return (Net Investasi - Inflasi) sesuai standar perencanaan keuangan.`, 14, doc.internal.pageSize.height - 10);
 
   doc.save(`Rencana_Pensiun_${userName}.pdf`);
+};
+
+// --- 4. PDF ASURANSI JIWA (MENU 4) ---
+export const generateInsurancePDF = (
+  input: InsuranceInput,
+  result: InsuranceResult,
+  userName: string
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+
+  // Header
+  doc.setFillColor(225, 29, 72); // Rose-600
+  doc.rect(0, 0, pageWidth, 40, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Perencanaan Asuransi Jiwa", 14, 20);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Proteksi Keluarga untuk: ${userName} • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
+
+  let finalY = 55;
+
+  // Profil & Asumsi
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Data Finansial Saat Ini", 14, finalY);
+  
+  const tableData = [
+    ["Penghasilan Tahunan", formatRupiah(input.annualIncome), "Masa Perlindungan", `${input.protectionDuration} Tahun`],
+    ["Asumsi Inflasi", `${input.inflationRate}%`, "Return Investasi (Low Risk)", `${input.investmentRate}%`],
+    ["Total Utang Saat Ini", formatRupiah(result.totalDebt), "Asuransi Sudah Dimiliki", formatRupiah(input.existingInsurance)]
+  ];
+
+  autoTable(doc, {
+    startY: finalY + 5,
+    head: [],
+    body: tableData,
+    theme: "grid",
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: {
+      0: { fontStyle: "bold", fillColor: [255, 241, 242] }, // Rose-50
+      2: { fontStyle: "bold", fillColor: [255, 241, 242] }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  finalY = (doc as any).lastAutoTable.finalY + 20;
+
+  // Rincian Perhitungan
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Analisa Kebutuhan Uang Pertanggungan (UP)", 14, finalY);
+
+  const breakdownData = [
+    ["1. Dana Pelunasan Utang", formatRupiah(result.totalDebt), "Membersihkan kewajiban agar keluarga bebas beban."],
+    ["2. Dana Pengganti Penghasilan", formatRupiah(result.incomeReplacementValue), `Modal untuk mengganti gaji ${formatRupiah(input.annualIncome)} selama ${input.protectionDuration} tahun (Metode PVAD).`],
+    ["3. Biaya Akhir Hayat", formatRupiah(input.finalExpense), "Biaya pemakaman, upacara, dan administrasi."],
+    ["TOTAL KEBUTUHAN", formatRupiah(result.totalFundNeeded), "Total dana tunai yang harus tersedia jika risiko terjadi."],
+    ["DIKURANGI: Asuransi Lama", `(${formatRupiah(input.existingInsurance)})`, "UP dari polis yang sudah aktif saat ini."]
+  ];
+
+  autoTable(doc, {
+    startY: finalY + 5,
+    head: [["Komponen", "Nilai", "Keterangan"]],
+    body: breakdownData,
+    theme: "striped",
+    headStyles: { fillColor: [225, 29, 72] },
+    bodyStyles: { fontSize: 10 },
+    columnStyles: { 
+      1: { fontStyle: "bold", halign: "right" },
+      0: { fontStyle: "bold" } 
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  finalY = (doc as any).lastAutoTable.finalY + 25;
+
+  // Result Box
+  doc.setFillColor(255, 241, 242); // Rose-50
+  doc.setDrawColor(225, 29, 72);
+  doc.roundedRect(14, finalY, pageWidth - 28, 40, 3, 3, "FD");
+
+  doc.setTextColor(159, 18, 57); // Rose-900
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Asuransi Tambahan yg Dibutuhkan", 20, finalY + 12);
+
+  doc.setFontSize(24);
+  doc.setTextColor(225, 29, 72);
+  doc.text(formatRupiah(result.shortfall), 20, finalY + 25);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont("helvetica", "normal");
+  doc.text("Ini adalah nilai pertanggungan polis asuransi jiwa BARU yang disarankan untuk Anda miliki.", 20, finalY + 35);
+
+  // Footer Disclaimer
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  doc.text("Perhitungan Dana Pengganti Penghasilan menggunakan metode Present Value Annuity Due (Kebutuhan di awal periode).", 14, doc.internal.pageSize.height - 10);
+
+  doc.save(`Perencanaan_Asuransi_${userName}.pdf`);
 };
