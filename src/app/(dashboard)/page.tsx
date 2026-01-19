@@ -8,7 +8,7 @@ import { HealthGauge } from "@/components/features/dashboard/health-gauge";
 import { Sparkles, TrendingUp, Calendar, ArrowRight, Bell, Info, AlertCircle } from "lucide-react";
 import Image from "next/image"; 
 import { cn } from "@/lib/utils";
-import api from "@/lib/axios"; // Pastikan file ini ada (Step 1 Integrasi)
+import api from "@/lib/axios";
 
 // Helper format uang
 const formatMoney = (val: number) => 
@@ -25,13 +25,24 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Ambil User dari LocalStorage (Agar nama muncul instan)
+        // 1. Ambil User dari LocalStorage
         const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
         if (storedUser) setUserData(JSON.parse(storedUser));
 
-        // 2. Ambil Data Checkup Terakhir dari Backend
-        const response = await api.get("/financial/checkup/latest");
-        setFinancialData(response.data);
+        // 2. Ambil Data Checkup Terakhir dari Backend (Simulasi)
+        // const response = await api.get("/financial/checkup/latest");
+        // setFinancialData(response.data);
+        
+        // Mock Data sementara jika API belum ready
+        setFinancialData({
+            score: 75,
+            status: "SEHAT",
+            recommendation: "Kondisi keuangan cukup baik. Pertimbangkan menambah dana darurat.",
+            incomeSnapshot: 15000000,
+            expenseSnapshot: 8500000,
+            checkDate: new Date().toISOString()
+        });
+
       } catch (error) {
         console.error("Gagal memuat data dashboard:", error);
       } finally {
@@ -48,7 +59,6 @@ export default function DashboardPage() {
   const status = hasData ? financialData.status : "BELUM DATA";
   const recommendation = hasData ? financialData.recommendation : "Halo! Silakan input anggaran pertama Anda untuk melihat analisa kesehatan finansial.";
   
-  // Konversi string angka dari DB ke Number
   const income = hasData ? Number(financialData.incomeSnapshot) : 0;
   const expense = hasData ? Number(financialData.expenseSnapshot) : 0;
   const balance = income - expense;
@@ -64,7 +74,7 @@ export default function DashboardPage() {
         
         {/* =========================================
             HEADER SECTION (Mobile vs Desktop) 
-           ========================================= */}
+            ========================================= */}
         
         {/* [MOBILE HEADER]: Compact */}
         <div className="flex flex-col items-center mb-5 md:hidden"> 
@@ -108,7 +118,7 @@ export default function DashboardPage() {
 
         {/* =========================================
             MAIN CONTENT GRID
-           ========================================= */}
+            ========================================= */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
           
           {/* --- LEFT COLUMN (Mobile: Stack, Desktop: Span 8) --- */}
@@ -178,20 +188,20 @@ export default function DashboardPage() {
 
                   {/* Right Content (The Premium Dynamic Gauge) */}
                   <div className="flex-shrink-0 relative flex justify-center items-center py-6 md:py-0 md:pr-8 group">
-                     
-                     {/* 1. DYNAMIC AMBIENT GLOW */}
-                     <div className={cn(
+                      
+                      {/* 1. DYNAMIC AMBIENT GLOW */}
+                      <div className={cn(
                         "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full blur-[60px] opacity-30 transition-all duration-1000 ease-in-out",
                         score >= 80 ? "bg-green-400" : score >= 60 ? "bg-yellow-400" : "bg-red-500"
-                     )}></div>
+                      )}></div>
 
-                     {/* 2. GLASS MEDALLION CONTAINER */}
-                     <div className={cn(
+                      {/* 2. GLASS MEDALLION CONTAINER */}
+                      <div className={cn(
                         "relative z-10 backdrop-blur-xl p-2 rounded-full border transition-all duration-500 shadow-2xl",
                         score >= 80 ? "bg-green-500/10 border-green-200/50 shadow-green-900/10" : 
                         score >= 60 ? "bg-yellow-500/10 border-yellow-200/50 shadow-yellow-900/10" : 
                         "bg-red-500/10 border-red-200/50 shadow-red-900/10"
-                     )}>
+                      )}>
                         
                         {/* Inner White Plate */}
                         <div className="bg-gradient-to-b from-white to-slate-50 rounded-full p-4 border border-white shadow-inner relative">
@@ -203,25 +213,25 @@ export default function DashboardPage() {
                         {/* 3. DYNAMIC STATUS BADGE */}
                         <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 animate-in zoom-in duration-500">
                            <div className={cn(
-                              "flex items-center gap-1.5 px-4 py-1.5 rounded-full shadow-xl border text-[10px] md:text-xs font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all duration-500",
-                              score >= 80 ? "bg-green-500 text-white border-green-400" : 
-                              score >= 60 ? "bg-yellow-500 text-white border-yellow-400" : 
-                              "bg-red-600 text-white border-red-500"
+                             "flex items-center gap-1.5 px-4 py-1.5 rounded-full shadow-xl border text-[10px] md:text-xs font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all duration-500",
+                             score >= 80 ? "bg-green-500 text-white border-green-400" : 
+                             score >= 60 ? "bg-yellow-500 text-white border-yellow-400" : 
+                             "bg-red-600 text-white border-red-500"
                            )}>
-                              {score >= 80 ? (
-                                <Sparkles className="w-3 h-3 text-yellow-200 animate-pulse" />
-                              ) : score >= 60 ? (
-                                <Info className="w-3 h-3 text-white" />
-                              ) : (
-                                <AlertCircle className="w-3 h-3 text-white animate-bounce" />
-                              )}
-                              {status}
+                             {score >= 80 ? (
+                               <Sparkles className="w-3 h-3 text-yellow-200 animate-pulse" />
+                             ) : score >= 60 ? (
+                               <Info className="w-3 h-3 text-white" />
+                             ) : (
+                               <AlertCircle className="w-3 h-3 text-white animate-bounce" />
+                             )}
+                             {status}
                            </div>
                         </div>
-                     </div>
+                      </div>
 
-                     {/* 4. SCORE INDICATOR GLOW (Desktop Only) */}
-                     <div className="hidden md:block absolute -top-2 -right-2">
+                      {/* 4. SCORE INDICATOR GLOW (Desktop Only) */}
+                      <div className="hidden md:block absolute -top-2 -right-2">
                         <div className={cn(
                            "w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border-4 border-white shadow-lg rotate-12 transition-transform duration-500 group-hover:rotate-0",
                            score >= 80 ? "bg-green-500 text-white" : 
@@ -230,12 +240,12 @@ export default function DashboardPage() {
                         )}>
                            {score}
                         </div>
-                     </div>
+                      </div>
                   </div>
                </div>
             </Card>
 
-            {/* 2. MENU CEPAT */}
+            {/* 2. MENU CEPAT (UPDATED ROUTING) */}
             <div className="space-y-4">
                <div className="flex items-center justify-between px-1">
                   <h3 className="text-sm md:text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -246,31 +256,38 @@ export default function DashboardPage() {
                   </Button>
                </div>
                
-               <div className="grid grid-cols-4 gap-2 md:gap-4">
+               <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
                   <MenuCard 
-                    title="Anggaran" 
+                    title="Rancang Anggaran" 
                     emoji="🧮" 
                     onClick={() => router.push('/calculator/budget')} 
                   />
-                  
-                  {/* [UPDATE]: Link mengarah ke folder baru */}
                   <MenuCard 
-                    title="Pendidikan" 
+                    title="Rencana Dana Pendidikan" 
                     emoji="🎓" 
                     onClick={() => router.push('/calculator/education')} 
-                  /> 
-                  
+                  />
                   <MenuCard 
-                    title="Rumah" 
-                    emoji="🏠" 
-                    onClick={() => alert('Fitur KPR Coming Soon!')} 
+                    title="Rancang Proteksi" 
+                    emoji="🛡️" 
+                    onClick={() => router.push('/calculator/insurance')} 
+                  />
+                  <MenuCard 
+                    title="Rencana Dana Hari Tua" 
+                    emoji="👴" 
+                    onClick={() => router.push('/calculator/pension')} 
+                  />
+                  <MenuCard 
+                    title="Rancang Tujuan Khusus Lainnya" 
+                    emoji="🎯" 
+                    onClick={() => router.push('/calculator/goals')} 
                   />
                   <MenuCard 
                     title="Riwayat" 
                     emoji="📋" 
                     onClick={() => router.push('/history')} 
                   />
-                </div>
+               </div>
             </div>
 
           </div>
@@ -318,7 +335,7 @@ export default function DashboardPage() {
                    </div>
                    <h4 className="font-bold text-lg mb-2">Tips Hari Ini</h4>
                    <p className="text-sm text-indigo-100 leading-relaxed">
-                      "Pastikan dana darurat Anda mencukupi minimal 6 kali pengeluaran bulanan sebelum memulai investasi agresif."
+                     "Pastikan dana darurat Anda mencukupi minimal 6 kali pengeluaran bulanan sebelum memulai investasi agresif."
                    </p>
                 </div>
             </div>
@@ -372,9 +389,13 @@ function StatCard({ title, value, iconPlaceholder, trend, subtitle, isHighlight 
   )
 }
 
-function MenuCard({ title, emoji }: any) {
+// FIXED: Added onClick to props and div
+function MenuCard({ title, emoji, onClick }: any) {
    return (
-      <div className="group bg-white/80 backdrop-blur-sm border border-white/60 rounded-2xl p-2 md:p-4 shadow-sm flex flex-col items-center justify-center text-center h-24 md:h-32 hover:bg-white hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1 transition-all duration-300 active:scale-95 cursor-pointer">
+      <div 
+        onClick={onClick}
+        className="group bg-white/80 backdrop-blur-sm border border-white/60 rounded-2xl p-2 md:p-4 shadow-sm flex flex-col items-center justify-center text-center h-24 md:h-32 hover:bg-white hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1 transition-all duration-300 active:scale-95 cursor-pointer"
+      >
          <div className="w-10 h-10 md:w-14 md:h-14 mb-1.5 md:mb-3 grid place-items-center text-2xl md:text-4xl group-hover:scale-110 transition-transform bg-slate-50 rounded-2xl border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-100">
             {emoji}
          </div>

@@ -33,7 +33,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
 
   // --- LOGIC VALIDASI UMUR (Max 21 Tahun) ---
   const today = new Date();
-  const minDate = new Date(today.getFullYear() - 21, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+  const minDate = new Date(today.getFullYear() - 23, today.getMonth(), today.getDate()).toISOString().split('T')[0];
   const maxDate = new Date().toISOString().split('T')[0]; // Tidak boleh lahir di masa depan
 
   // --- HANDLERS ---

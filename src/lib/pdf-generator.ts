@@ -288,7 +288,7 @@ export const generatePensionPDF = (
   doc.setTextColor(55, 48, 163); // Indigo-900
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Total Dana Pensiun (Corpus)", 20, finalY + 12);
+  doc.text("Total Dana Pensiun", 20, finalY + 12);
 
   doc.setFontSize(28);
   doc.setTextColor(79, 70, 229);

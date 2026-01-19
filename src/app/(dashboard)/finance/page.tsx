@@ -8,43 +8,43 @@ const FINANCE_MENUS = [
     title: "Perencanaan & Kalkulator",
     items: [
       { 
-        label: "Atur Anggaran", 
+        label: "Rancang Anggaran", 
         emoji: "🧮", 
         href: "/calculator/budget", 
         desc: "Kelola cashflow", 
         style: "bg-blue-50 text-blue-600 border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600"
       },
       { 
-        label: "Dana Pendidikan", 
+        label: "Rencana Dana Pendidikan", 
         emoji: "🎓", 
         href: "/calculator/education", 
         desc: "Biaya sekolah", 
         style: "bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-600 group-hover:text-white group-hover:border-orange-600"
       },
       { 
-        label: "Perencanaan Khusus", 
-        emoji: "🏠", 
-        href: "/calculator/lain", 
+        label: "Rancang Tujuan Khusus", 
+        emoji: "🎯", 
+        href: "/calculator/goals", 
         desc: "Cicilan kendaraan, biaya ibadah, dll", 
         style: "bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600"
       },
       { 
-        label: "Dana Pensiun", 
+        label: "Rencana Dana Hari Tua", 
         emoji: "☂️", 
         href: "/calculator/pension", 
         desc: "Siapkan hari tua", 
         style: "bg-purple-50 text-purple-600 border-purple-100 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600"
       },
       { 
-        label: "Proteksi Diri", 
+        label: "Rancang Proteksi", 
         emoji: "🛡️", 
         href: "/calculator/insurance", 
         desc: "Asuransi jiwa", 
         style: "bg-rose-50 text-rose-600 border-rose-100 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600"
       },
       { 
-        label: "Cek Kesehatan Keuangan", 
-        emoji: "🩺", 
+        label: "Catatan Keuangan Pribadi", 
+        emoji: "📝", 
         href: "/calculator/checkup", 
         desc: "Financial checkup", 
         style: "bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-600 group-hover:text-white group-hover:border-cyan-600"

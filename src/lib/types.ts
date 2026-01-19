@@ -158,3 +158,57 @@ export interface SpecialGoalResult {
   futureValue: number;      // FVn: Nilai dana di masa depan
   monthlySaving: number;    // PMT: Tabungan per bulan
 }
+
+// --- ADMIN DASHBOARD TYPES ---
+
+export interface AdminDashboardStats {
+  totalUsers: number;       // Jumlah semua user yang terdaftar
+  activeUsers: number;      // Jumlah user dengan status aktif
+  inactiveUsers: number;    // Jumlah user non-aktif/suspended
+  totalUnits: number;       // Jumlah Unit Kerja/Bidang yang terdaftar
+  systemHealth: "Normal" | "Maintenance" | "Degraded"; // Status kesehatan sistem
+}
+
+// --- USER MANAGEMENT TYPES ---
+
+export type UserRole = "USER" | "ADMIN" | "DIRECTOR" | "UNIT_HEAD";
+
+export interface AdminUser {
+  id: string;
+  fullName: string;
+  email: string;
+  nip: string;              // Nomor Induk Pegawai
+  unitId: string;           // ID Unit Kerja (Relasi ke Master Data)
+  unitName?: string;        // Nama Unit Kerja (untuk display di tabel)
+  role: UserRole;           // Role akses
+  isActive: boolean;        // Status akun (True = Aktif, False = Non-Aktif/Resign)
+  lastLogin?: string;       // Tanggal login terakhir (ISO String)
+  createdAt: string;        // Tanggal pembuatan akun
+}
+
+// --- MASTER DATA TYPES (UPDATED: FLAT STRUCTURE) ---
+
+export interface UnitKerja {
+  id: string;
+  name: string;             // Nama Bidang/Divisi (Misal: "Bidang Keuangan")
+  code: string;             // Kode Unit (Misal: "FIN-01")
+  userCount?: number;       // Optional: Jumlah karyawan di unit ini (untuk display)
+}
+
+// --- NEW MASTER DATA (JABATAN) ---
+
+export interface Jabatan {
+  id: string;
+  name: string;             // Nama Jabatan (Misal: "Manajer", "Staf")
+  level: number;            // Level/Golongan (Misal: 1, 2, 3) - Untuk sorting
+  userCount?: number;       // Jumlah karyawan dengan jabatan ini
+}
+
+// --- SYSTEM SETTINGS ---
+
+export interface SystemSettings {
+  defaultInflationRate: number; // Default Inflasi (%)
+  defaultInvestmentRate: number; // Default Return Investasi (%)
+  companyName: string;          // Nama Perusahaan (Configurable)
+  maintenanceMode: boolean;     // Status Maintenance
+}
