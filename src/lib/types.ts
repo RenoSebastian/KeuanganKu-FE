@@ -212,3 +212,83 @@ export interface SystemSettings {
   companyName: string;          // Nama Perusahaan (Configurable)
   maintenanceMode: boolean;     // Status Maintenance
 }
+
+// --- FINANCIAL HEALTH CHECKUP TYPES (REVISED & DETAILED) ---
+
+export interface FinancialRecord {
+  // STEP 1: DATA DIRI (PERSONAL)
+  fullName: string;
+  age: number;
+  maritalStatus: "SINGLE" | "MARRIED";
+  dependents: number; // Jumlah Tanggungan
+
+  // STEP 2: NERACA ASET (BALANCE SHEET - ASSETS)
+  // 1. Aset Likuid
+  assetCash: number;        // Kas & Tabungan
+  assetDeposit: number;     // Deposito
+
+  // 2. Aset Investasi
+  assetGold: number;        // Logam Mulia
+  assetMutualFund: number;  // Reksadana
+  assetStocks: number;      // Saham
+  assetPropertyInv: number; // Properti Investasi (Sewa/Tanah)
+  assetOtherInv: number;    // Barang Koleksi Investasi
+
+  // 3. Aset Personal
+  assetHome: number;        // Rumah yang ditempati
+  assetVehicle: number;     // Mobil/Motor yang dipakai
+  assetJewelry: number;     // Perhiasan dipakai
+  assetPersonalOther: number; // Barang koleksi dinikmati
+
+  // STEP 3: NERACA UTANG (BALANCE SHEET - LIABILITIES)
+  // 1. Utang Jangka Pendek
+  debtCC: number;           // Kartu Kredit / Paylater
+  debtPersonal: number;     // Utang ke Teman/Keluarga
+  
+  // 2. Utang Jangka Panjang
+  debtKPR: number;          // Sisa Pokok KPR
+  debtKPM: number;          // Sisa Pokok KPM (Kendaraan)
+  debtBusiness: number;     // Utang Modal Usaha
+  
+  // STEP 4: ARUS KAS (CASHFLOW)
+  // 1. Arus Kas Masuk (Income)
+  incomeFixed: number;      // Penghasilan Tetap (Gaji) - Tahunan
+  incomeVariable: number;   // Penghasilan Tidak Tetap (Bonus/Freelance) - Tahunan
+
+  // 2. Arus Kas Keluar (Expenses)
+  expenseLiving: number;    // Pengeluaran Rutin Bulanan (Makan, Listrik, dll)
+  expenseInsurance: number; // Premi Asuransi (Tahunan)
+  
+  // 3. Cicilan Utang (Outflow - Debt Service)
+  installmentKPR: number;       // Cicilan Rumah (Tahunan)
+  installmentKPM: number;       // Cicilan Kendaraan (Tahunan)
+  installmentCC: number;        // Cicilan Kartu Kredit/Paylater (Tahunan)
+  installmentBusiness: number;  // Cicilan Modal Usaha (Tahunan)
+  installmentOther: number;     // Cicilan Lainnya (Tahunan)
+
+  // 4. Saving & Invest (Outflow - Future)
+  savingRoutine: number;    // Tabungan Rutin Bulanan (Pendidikan, Hari Tua)
+  investRoutine: number;    // Investasi Rutin Bulanan (Reksadana, dll)
+
+  // META
+  previousNetWorth?: number; // Kekayaan Bersih Tahun Lalu (Opsional)
+}
+
+export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA";
+
+export interface RatioDetail {
+  id: string;
+  label: string;
+  value: number;
+  benchmark: string;
+  status: HealthStatus;
+  recommendation: string;
+}
+
+export interface HealthAnalysisResult {
+  score: number;
+  globalStatus: HealthStatus;
+  ratios: RatioDetail[];
+  netWorth: number;
+  generatedAt: string;
+}

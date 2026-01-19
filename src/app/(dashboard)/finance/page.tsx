@@ -45,7 +45,7 @@ const FINANCE_MENUS = [
       { 
         label: "Catatan Keuangan Pribadi", 
         emoji: "📝", 
-        href: "/calculator/checkup", 
+        href: "/finance/checkup", 
         desc: "Financial checkup", 
         style: "bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-600 group-hover:text-white group-hover:border-cyan-600"
       },
