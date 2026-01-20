@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { 
-  CheckCircle2, AlertTriangle, XCircle, 
+  CheckCircle2, AlertTriangle, XCircle, AlertOctagon,
   Save, RefreshCcw, FileText, ChevronDown, ChevronUp, Share2,
   TrendingUp, Shield, Activity
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { HealthAnalysisResult, HealthStatus } from "@/lib/types";
+import { HealthAnalysisResult, RatioDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface CheckupResultProps {
@@ -30,30 +30,43 @@ export function CheckupResult({ data, onReset }: CheckupResultProps) {
     setSaved(true);
   };
 
-  const getStatusColor = (status: HealthStatus) => {
-    switch(status) {
-      case "SEHAT": return "border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50";
-      case "WASPADA": return "border-amber-500 bg-amber-50/50 hover:bg-amber-50";
-      case "BAHAYA": return "border-red-500 bg-red-50/50 hover:bg-red-50";
+  // --- HELPER UNTUK MAPPING WARNA STATUS ---
+  const getStatusColor = (statusColor: string) => {
+    switch(statusColor) {
+      case "GREEN_DARK": return "border-emerald-600 bg-emerald-50/60 hover:bg-emerald-100";
+      case "GREEN_LIGHT": return "border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50";
+      case "YELLOW": return "border-amber-400 bg-amber-50/50 hover:bg-amber-50";
+      case "RED": return "border-red-500 bg-red-50/50 hover:bg-red-50";
       default: return "border-slate-200 bg-white";
     }
   };
 
-  const getStatusIcon = (status: HealthStatus) => {
-    switch(status) {
-      case "SEHAT": return <CheckCircle2 className="w-5 h-5 text-emerald-600" />;
-      case "WASPADA": return <AlertTriangle className="w-5 h-5 text-amber-600" />;
-      case "BAHAYA": return <XCircle className="w-5 h-5 text-red-600" />;
+  const getStatusIcon = (statusColor: string) => {
+    switch(statusColor) {
+      case "GREEN_DARK": return <CheckCircle2 className="w-5 h-5 text-emerald-700" />;
+      case "GREEN_LIGHT": return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
+      case "YELLOW": return <AlertTriangle className="w-5 h-5 text-amber-500" />;
+      case "RED": return <XCircle className="w-5 h-5 text-red-600" />;
+      default: return <Activity className="w-5 h-5 text-slate-400" />;
     }
   };
 
-  const getStatusBadge = (status: HealthStatus) => {
-    switch(status) {
-        case "SEHAT": return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0">SEHAT</Badge>;
-        case "WASPADA": return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-0">WASPADA</Badge>;
-        case "BAHAYA": return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-0">BAHAYA</Badge>;
+  const getStatusBadge = (statusColor: string) => {
+    switch(statusColor) {
+        case "GREEN_DARK": return <Badge className="bg-emerald-700 hover:bg-emerald-800 text-white border-0">Sangat Sehat</Badge>;
+        case "GREEN_LIGHT": return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200">Sehat</Badge>;
+        case "YELLOW": return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200">Waspada</Badge>;
+        case "RED": return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">Bahaya</Badge>;
+        default: return null;
     }
   };
+
+  // --- HELPER GLOBAL STATUS ---
+  const getGlobalStatusColor = (score: number) => {
+      if (score >= 80) return "text-emerald-600";
+      if (score >= 50) return "text-amber-500";
+      return "text-red-600";
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -75,7 +88,7 @@ export function CheckupResult({ data, onReset }: CheckupResultProps) {
                   {/* Progress */}
                   <circle 
                     cx="50" cy="50" r="42" fill="none" 
-                    stroke={data.score >= 80 ? "#10b981" : data.score >= 50 ? "#f59e0b" : "#ef4444"} 
+                    stroke={data.score >= 80 ? "#059669" : data.score >= 50 ? "#d97706" : "#dc2626"} 
                     strokeWidth="8" 
                     strokeDasharray={`${data.score * 2.64} 264`} // ~264 is circum
                     strokeLinecap="round"
@@ -83,23 +96,20 @@ export function CheckupResult({ data, onReset }: CheckupResultProps) {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className={cn("text-5xl font-black tracking-tighter", 
-                        data.score >= 80 ? "text-emerald-600" : data.score >= 50 ? "text-amber-500" : "text-red-500"
-                    )}>{data.score}</span>
+                    <span className={cn("text-5xl font-black tracking-tighter", getGlobalStatusColor(data.score))}>
+                        {data.score}
+                    </span>
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Health Score</span>
                 </div>
              </div>
 
              <div className="text-center">
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                    Status: <span className={cn(
-                        data.globalStatus === "SEHAT" ? "text-emerald-600" : 
-                        data.globalStatus === "WASPADA" ? "text-amber-600" : "text-red-600"
-                    )}>{data.globalStatus}</span>
+                    Status: <span className={getGlobalStatusColor(data.score)}>{data.globalStatus}</span>
                 </h2>
                 <p className="text-sm text-slate-500 leading-relaxed px-4">
-                    {data.globalStatus === "SEHAT" ? "Kondisi keuangan Anda prima! Pertahankan performa ini." : 
-                     data.globalStatus === "WASPADA" ? "Ada beberapa indikator yang perlu perhatian khusus." : 
+                    {data.score >= 80 ? "Kondisi keuangan Anda prima! Pertahankan performa ini." : 
+                     data.score >= 50 ? "Ada beberapa indikator yang perlu perhatian khusus." : 
                      "Kondisi kritis. Segera lakukan perbaikan struktur keuangan."}
                 </p>
              </div>
@@ -112,35 +122,43 @@ export function CheckupResult({ data, onReset }: CheckupResultProps) {
              <div className="absolute bottom-0 left-0 p-32 bg-blue-500/10 rounded-full blur-[60px] -ml-16 -mb-16 pointer-events-none" />
              <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.05]" />
              
-             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-white/10 pb-6">
+             <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-white/10 pb-6">
                  <div>
                      <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                         <TrendingUp className="w-4 h-4" />
-                        Total Kekayaan Bersih (Net Worth)
+                        Kekayaan Bersih (Net Worth)
                      </div>
-                     <div className="text-4xl md:text-5xl font-mono font-bold tracking-tight text-white">
+                     <div className="text-3xl font-mono font-bold tracking-tight text-white truncate">
                         {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(data.netWorth)}
                      </div>
                  </div>
-                 <div className="hidden md:block">
-                    <Shield className="w-12 h-12 text-emerald-500/20" />
+                 <div>
+                     <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                        <Activity className="w-4 h-4" />
+                        Surplus / Defisit Tahunan
+                     </div>
+                     <div className={cn("text-3xl font-mono font-bold tracking-tight truncate", 
+                        data.surplusDeficit >= 0 ? "text-emerald-400" : "text-red-400"
+                     )}>
+                        {data.surplusDeficit >= 0 ? "+" : ""}
+                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(data.surplusDeficit)}
+                     </div>
                  </div>
              </div>
              
              <div className="relative z-10 bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-md">
                 <div className="flex gap-4">
                     <div className="p-3 bg-emerald-500/20 rounded-xl h-fit shrink-0">
-                        <Activity className="w-6 h-6 text-emerald-400" />
+                        <FileText className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
                         <h4 className="font-bold text-emerald-100 text-lg mb-2">Diagnosa Dokter Keuangan</h4>
                         <p className="text-slate-300 text-sm leading-relaxed">
-                            "Berdasarkan analisa 8 rasio, Anda memiliki <strong className="text-emerald-400">{data.ratios.filter(r => r.status === "SEHAT").length} indikator SEHAT</strong>, 
-                            <strong className="text-amber-400"> {data.ratios.filter(r => r.status === "WASPADA").length} WASPADA</strong>, dan 
-                            <strong className="text-red-400"> {data.ratios.filter(r => r.status === "BAHAYA").length} BAHAYA</strong>. 
-                            Prioritas utama perbaikan Anda saat ini adalah pada sektor 
-                            <span className="text-white border-b border-dashed border-slate-500 pb-0.5 ml-1">
-                                {data.ratios.find(r => r.status === "BAHAYA" || r.status === "WASPADA")?.label || "Pertumbuhan Aset"}
+                            "Berdasarkan analisa 8 rasio, Anda memiliki <strong className="text-emerald-400">{data.ratios.filter(r => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length} indikator SEHAT</strong>, 
+                            <strong className="text-amber-400"> {data.ratios.filter(r => r.statusColor === "YELLOW").length} WASPADA</strong>, dan 
+                            <strong className="text-red-400"> {data.ratios.filter(r => r.statusColor === "RED").length} BAHAYA</strong>. 
+                            Prioritas perbaikan ada pada sektor <span className="text-white border-b border-dashed border-slate-500 pb-0.5 ml-1">
+                                {data.ratios.find(r => r.statusColor === "RED" || r.statusColor === "YELLOW")?.label || "Pertumbuhan Aset"}
                             </span>."
                         </p>
                     </div>
@@ -165,20 +183,20 @@ export function CheckupResult({ data, onReset }: CheckupResultProps) {
                     key={ratio.id}
                     className={cn(
                         "group relative rounded-2xl p-5 border-l-4 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 bg-white",
-                        getStatusColor(ratio.status),
+                        getStatusColor(ratio.statusColor),
                         expandedCard === ratio.id ? "col-span-1 md:col-span-2 lg:col-span-2 row-span-2 ring-2 ring-indigo-500/20 z-10" : ""
                     )}
                     onClick={() => setExpandedCard(expandedCard === ratio.id ? null : ratio.id)}
                 >
                     <div className="flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
-                            {getStatusBadge(ratio.status)}
-                            {getStatusIcon(ratio.status)}
+                            {getStatusBadge(ratio.statusColor)}
+                            {getStatusIcon(ratio.statusColor)}
                         </div>
                         
                         <h4 className="font-bold text-xs uppercase tracking-wide text-slate-500 mb-1">{ratio.label}</h4>
                         <div className="text-2xl font-bold text-slate-800 mb-2 truncate">
-                            {ratio.id === "liquidity_ratio" ? `${ratio.value}x` : `${ratio.value}%`}
+                            {ratio.id === "emergency_fund" || ratio.id === "liquidity_ratio" ? `${ratio.value}x` : `${ratio.value}%`}
                         </div>
                         
                         <div className="flex items-center gap-2 text-xs text-slate-400 mb-4">
@@ -189,7 +207,7 @@ export function CheckupResult({ data, onReset }: CheckupResultProps) {
                         {/* Expandable Section */}
                         <div className={cn(
                             "mt-auto pt-4 border-t border-slate-200/60 transition-all duration-500 ease-in-out overflow-hidden",
-                            expandedCard === ratio.id ? "opacity-100 max-h-40" : "opacity-0 max-h-0 lg:opacity-100 lg:max-h-20" // On desktop show snippet, mobile hide
+                            expandedCard === ratio.id ? "opacity-100 max-h-40" : "opacity-0 max-h-0 lg:opacity-100 lg:max-h-20" 
                         )}>
                             <p className="text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
                                 <FileText className="w-3 h-3" /> Rekomendasi:

@@ -211,82 +211,131 @@ export interface SystemSettings {
   maintenanceMode: boolean;     // Status Maintenance
 }
 
-// --- FINANCIAL HEALTH CHECKUP TYPES (REVISED & DETAILED) ---
+// ============================================================================
+// FINANCIAL HEALTH CHECK UP TYPES (FIXED & GRANULAR)
+// Sesuai Dokumen Revisi (A-Q)
+// ============================================================================
 
-export interface FinancialRecord {
-  // STEP 1: DATA DIRI (PERSONAL)
-  fullName: string;
-  age: number;
-  maritalStatus: "SINGLE" | "MARRIED";
-  dependents: number; // Jumlah Tanggungan
-
-  // STEP 2: NERACA ASET (BALANCE SHEET - ASSETS)
-  // 1. Aset Likuid
-  assetCash: number;        // Kas & Tabungan
-  assetDeposit: number;     // Deposito
-
-  // 2. Aset Investasi
-  assetGold: number;        // Logam Mulia
-  assetMutualFund: number;  // Reksadana
-  assetStocks: number;      // Saham
-  assetPropertyInv: number; // Properti Investasi (Sewa/Tanah)
-  assetOtherInv: number;    // Barang Koleksi Investasi
-
-  // 3. Aset Personal
-  assetHome: number;        // Rumah yang ditempati
-  assetVehicle: number;     // Mobil/Motor yang dipakai
-  assetJewelry: number;     // Perhiasan dipakai
-  assetPersonalOther: number; // Barang koleksi dinikmati
-
-  // STEP 3: NERACA UTANG (BALANCE SHEET - LIABILITIES)
-  // 1. Utang Jangka Pendek
-  debtCC: number;           // Kartu Kredit / Paylater
-  debtPersonal: number;     // Utang ke Teman/Keluarga
-  
-  // 2. Utang Jangka Panjang
-  debtKPR: number;          // Sisa Pokok KPR
-  debtKPM: number;          // Sisa Pokok KPM (Kendaraan)
-  debtBusiness: number;     // Utang Modal Usaha
-  
-  // STEP 4: ARUS KAS (CASHFLOW)
-  // 1. Arus Kas Masuk (Income)
-  incomeFixed: number;      // Penghasilan Tetap (Gaji) - Tahunan
-  incomeVariable: number;   // Penghasilan Tidak Tetap (Bonus/Freelance) - Tahunan
-
-  // 2. Arus Kas Keluar (Expenses)
-  expenseLiving: number;    // Pengeluaran Rutin Bulanan (Makan, Listrik, dll)
-  expenseInsurance: number; // Premi Asuransi (Tahunan)
-  
-  // 3. Cicilan Utang (Outflow - Debt Service)
-  installmentKPR: number;       // Cicilan Rumah (Tahunan)
-  installmentKPM: number;       // Cicilan Kendaraan (Tahunan)
-  installmentCC: number;        // Cicilan Kartu Kredit/Paylater (Tahunan)
-  installmentBusiness: number;  // Cicilan Modal Usaha (Tahunan)
-  installmentOther: number;     // Cicilan Lainnya (Tahunan)
-
-  // 4. Saving & Invest (Outflow - Future)
-  savingRoutine: number;    // Tabungan Rutin Bulanan (Pendidikan, Hari Tua)
-  investRoutine: number;    // Investasi Rutin Bulanan (Reksadana, dll)
-
-  // META
-  previousNetWorth?: number; // Kekayaan Bersih Tahun Lalu (Opsional)
+// 1. Data Diri & Metadata
+export interface PersonalInfo {
+  name: string;
+  dob: string;                // Date YYYY-MM-DD
+  gender: "L" | "P";
+  ethnicity: string;          // Suku Bangsa
+  religion: string;           // Agama
+  maritalStatus: "SINGLE" | "MARRIED" | "DIVORCED";
+  childrenCount: number;      // Jumlah Anak
+  dependentParents: number;   // Orang tua yang ditanggung
+  occupation: string;         // Pekerjaan
+  city: string;               // Kota Tempat Tinggal
 }
 
-export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA";
+export interface FinancialRecord {
+  expenseLifestyle: number;
+
+  debtPersonal: number;
+  investRoutine: number;
+  assetOtherInv: number;
+  assetPropertyInv: number;
+  savingRoutine: any;
+  // --- 1. METADATA ---
+  userProfile: PersonalInfo;
+  spouseProfile?: PersonalInfo;
+
+  // --- 2. NERACA ASET (HARTA) ---
+  
+  // A. Aset Likuid
+  assetCash: number;          // 1. Kas / setara kas
+
+  // B. Aset Personal
+  assetHome: number;          // 2. Rumah / tanah
+  assetVehicle: number;       // 3. Kendaraan
+  assetJewelry: number;       // 4. Emas Perhiasan
+  assetAntique: number;       // 5. Barang antik / koleksi
+  assetPersonalOther: number; // 6. Aset personal lain
+
+  // C. Aset Investasi
+  assetInvHome: number;       // 1. Rumah / tanah (Inv)
+  assetInvVehicle: number;    // 2. Kendaraan (Inv)
+  assetGold: number;          // 3. Logam mulia
+  assetInvAntique: number;    // 4. Barang antik (Inv)
+  assetStocks: number;        // 5. Saham
+  assetMutualFund: number;    // 6. Reksadana
+  assetBonds: number;         // 7. Obligasi
+  assetDeposit: number;       // 8. Deposito jangka panjang
+  assetInvOther: number;      // 9. Aset investasi lain
+
+  // --- 3. NERACA UTANG (KEWAJIBAN) - Sisa Pokok ---
+
+  // E. Utang Konsumtif
+  debtKPR: number;            // 1. KPR
+  debtKPM: number;            // 2. KPM
+  debtCC: number;             // 3. Kartu Kredit
+  debtCoop: number;           // 4. Koperasi
+  debtConsumptiveOther: number; // 5. Utang Lainnya
+
+  // F. Utang Usaha
+  debtBusiness: number;       // 1. Utang usaha / UMKM
+
+  // --- 4. ARUS KAS (CASHFLOW) - PER TAHUN ---
+
+  // I. Penghasilan
+  incomeFixed: number;        // 1. Pendapatan tetap
+  incomeVariable: number;     // 2. Pendapatan tidak tetap
+
+  // --- PENGELUARAN (Input Bulanan x 12 atau Tahunan) ---
+
+  // K. Cicilan Utang
+  installmentKPR: number;                 // 1.a
+  installmentKPM: number;                 // 1.b
+  installmentCC: number;                  // 1.c
+  installmentCoop: number;                // 1.d
+  installmentConsumptiveOther: number;    // 1.e
+  installmentBusiness: number;            // 1.f
+
+  // L. Premi Asuransi
+  insuranceLife: number;      // 2.a
+  insuranceHealth: number;    // 2.b
+  insuranceHome: number;      // 2.c
+  insuranceVehicle: number;   // 2.d
+  insuranceBPJS: number;      // 2.e
+  insuranceOther: number;     // 2.f
+
+  // M. Tabungan/Investasi
+  savingEducation: number;    // 3.a
+  savingRetirement: number;   // 3.b
+  savingPilgrimage: number;   // 3.c (Ibadah)
+  savingHoliday: number;      // 3.d (Liburan)
+  savingEmergency: number;    // 3.e (Darurat)
+  savingOther: number;        // 3.f (Lainnya)
+
+  // N. Belanja Keluarga
+  expenseFood: number;        // 4.a Makan Keluarga
+  expenseSchool: number;      // 4.b Uang Sekolah
+  expenseTransport: number;   // 4.c Transportasi
+  expenseCommunication: number; // 4.d Telepon & internet
+  expenseHelpers: number;     // 4.e ART / Supir
+  expenseTax: number;         // 4.f Pajak (PBB/PKB)
+  expenseHouseholdOther: number; // 4.g Belanja rumah tangga lainnya
+}
+
+export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL"; 
 
 export interface RatioDetail {
+  status: string;
   id: string;
   label: string;
   value: number;
   benchmark: string;
-  status: HealthStatus;
+  statusColor: "GREEN_DARK" | "GREEN_LIGHT" | "YELLOW" | "RED";
   recommendation: string;
 }
 
 export interface HealthAnalysisResult {
   score: number;
-  globalStatus: HealthStatus;
+  globalStatus: string;
   ratios: RatioDetail[];
-  netWorth: number;
+  netWorth: number;         // H. Kekayaan Bersih
+  surplusDeficit: number;   // Q. Surplus/Defisit
   generatedAt: string;
 }

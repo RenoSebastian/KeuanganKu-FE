@@ -349,325 +349,272 @@ export const calculateSpecialGoal = (input: SpecialGoalInput): SpecialGoalResult
 };
 
 // ============================================================================
-// FINANCIAL HEALTH CHECK UP ENGINE
+// FINANCIAL HEALTH CHECK UP ENGINE (FINAL REVISION)
 // Logic by: Formula Financial Health Check Up Document
-// Updated for Granular Data Input
+// Updated for Granular Data Input 2026
 // ============================================================================
 
 export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisResult => {
   // --- 1. AGGREGATION (PENGGABUNGAN DATA) ---
   
   // A. Total Aset
-  const totalLiquid = data.assetCash + data.assetDeposit;
+  const totalLiquid = data.assetCash; // Hanya kas/setara kas (Sesuai Dokumen Revisi Poin 2.A)
   
-  const totalInvestment = 
-    data.assetGold + 
-    data.assetMutualFund + 
-    data.assetStocks + 
-    data.assetPropertyInv + 
-    data.assetOtherInv;
-    
+  // Aset Personal (B)
   const totalPersonal = 
     data.assetHome + 
     data.assetVehicle + 
     data.assetJewelry + 
+    data.assetAntique + 
     data.assetPersonalOther;
 
-  const totalAssets = totalLiquid + totalInvestment + totalPersonal;
+  // Aset Investasi (C)
+  const totalInvestment = 
+    data.assetInvHome +
+    data.assetInvVehicle +
+    data.assetGold + 
+    data.assetInvAntique +
+    data.assetStocks + 
+    data.assetMutualFund + 
+    data.assetBonds +
+    data.assetDeposit +
+    data.assetInvOther;
+
+  // Total Aset (D)
+  const totalAssets = totalLiquid + totalPersonal + totalInvestment;
 
   // B. Total Utang (Saldo Pokok)
-  const totalShortTermDebt = data.debtCC + data.debtPersonal;
-  const totalLongTermDebt = data.debtKPR + data.debtKPM + data.debtBusiness;
-  const totalDebt = totalShortTermDebt + totalLongTermDebt;
+  // Utang Konsumtif (E)
+  const totalConsumptiveDebt = 
+    data.debtKPR + 
+    data.debtKPM + 
+    data.debtCC + 
+    data.debtCoop + 
+    data.debtConsumptiveOther;
 
-  // C. Kekayaan Bersih (Net Worth)
+  // Utang Usaha (F)
+  const totalBusinessDebt = data.debtBusiness;
+
+  // Total Utang (G)
+  const totalDebt = totalConsumptiveDebt + totalBusinessDebt;
+
+  // C. Kekayaan Bersih (H)
   const netWorth = totalAssets - totalDebt;
 
   // D. Arus Kas (Tahunan)
+  // Total Penghasilan (I)
   const totalAnnualIncome = data.incomeFixed + data.incomeVariable;
   
-  // E. Cicilan Utang (Tahunan)
-  // Total Cicilan (Semua jenis utang)
-  const totalAnnualInstallment = 
+  // E. Pengeluaran Tahunan
+  // Cicilan Utang Konsumtif (J)
+  const totalConsumptiveInstallment = 
     data.installmentKPR + 
     data.installmentKPM + 
     data.installmentCC + 
-    data.installmentBusiness + 
-    data.installmentOther;
-  
-  // Cicilan Konsumtif (Strict Definition: KPM + CC + Personal/Other)
-  // KPR dan Modal Usaha biasanya dianggap Produktif (Asset Backed / Income Generating)
-  const consumptiveAnnualInstallment = 
-    data.installmentKPM + 
-    data.installmentCC + 
-    data.installmentOther;
+    data.installmentCoop + 
+    data.installmentConsumptiveOther;
 
-  // F. Tabungan & Investasi (Tahunan)
-  // Input di form adalah bulanan, jadi dikali 12
-  const totalAnnualSaving = (data.savingRoutine * 12) + (data.investRoutine * 12);
+  // Total Cicilan Utang (K) = J + Cicilan Usaha
+  const totalAnnualInstallment = totalConsumptiveInstallment + data.installmentBusiness;
 
-  // --- 2. CONFIG & INIT ---
-  let totalScore = 0;
+  // Total Premi Asuransi (L)
+  const totalInsurance = 
+    data.insuranceLife + 
+    data.insuranceHealth + 
+    data.insuranceHome + 
+    data.insuranceVehicle + 
+    data.insuranceBPJS + 
+    data.insuranceOther;
+
+  // Total Tabungan/Investasi (M) - Dikali 12 karena input bulanan
+  const totalAnnualSaving = 
+    (data.savingEducation + 
+     data.savingRetirement + 
+     data.savingPilgrimage + 
+     data.savingHoliday + 
+     data.savingEmergency + 
+     data.savingOther) * 12;
+
+  // Total Belanja Keluarga (N) - Dikali 12 karena input bulanan (Kecuali Pajak biasanya tahunan, tapi asumsi input disamakan)
+  const totalFamilyExpense = 
+    (data.expenseFood + 
+     data.expenseSchool + 
+     data.expenseTransport + 
+     data.expenseCommunication + 
+     data.expenseHelpers + 
+     data.expenseLifestyle) * 12 + data.expenseTax; // Tax biasanya tahunan
+
+  // Total Pengeluaran (O)
+  const totalAnnualExpense = totalAnnualInstallment + totalInsurance + totalAnnualSaving + totalFamilyExpense;
+
+  // Pengeluaran Bulanan (P)
+  const monthlyExpense = totalAnnualExpense / 12;
+
+  // Surplus/Defisit (Q)
+  const surplusDeficit = totalAnnualIncome - totalAnnualExpense;
+
+  // --- 2. PERHITUNGAN 8 RASIO SESUAI REVISI ---
   const ratios: RatioDetail[] = [];
-  const MAX_POINT = 12.5; // 100 poin dibagi 8 indikator
+  let passedRatios = 0; // Untuk scoring sederhana
 
-  // --- 3. PERHITUNGAN 8 RASIO ---
-
-  // #1. RASIO DANA DARURAT (LIQUIDITY RATIO)
-  // Rumus: Aset Likuid / Pengeluaran Rutin Bulanan
+  // #1. RASIO DANA DARURAT (A / P)
   // Benchmark: 3 - 6 kali
-  const liquidityRatio = data.expenseLiving > 0 ? totalLiquid / data.expenseLiving : 0;
+  const r1 = monthlyExpense > 0 ? totalLiquid / monthlyExpense : 0;
+  let s1: any = "RED";
+  let rec1 = "Dana darurat sangat kurang (< 3 bulan). Risiko tinggi!";
   
-  let status1: HealthStatus = "BAHAYA";
-  let rec1 = "";
-  let score1 = 0;
+  if (r1 >= 3 && r1 <= 6) { s1 = "GREEN_DARK"; rec1 = "Ideal (3-6 bulan)."; passedRatios++; }
+  else if (r1 >= 7 && r1 <= 12) { s1 = "GREEN_LIGHT"; rec1 = "Aman, tapi agak berlebih (7-12 bulan)."; passedRatios++; }
+  else if (r1 > 12) { s1 = "YELLOW"; rec1 = "Terlalu banyak uang menganggur (> 12 bulan). Investasikan."; }
+  else { s1 = "RED"; } // < 3
 
-  if (liquidityRatio >= 6) {
-    status1 = "SEHAT"; score1 = MAX_POINT;
-    rec1 = "Dana darurat sangat kuat (> 6 bulan). Anda aman dari risiko jangka pendek.";
-  } else if (liquidityRatio >= 3) {
-    status1 = "SEHAT"; score1 = MAX_POINT;
-    rec1 = "Dana darurat ideal (3-6 bulan). Pertahankan.";
-  } else if (liquidityRatio >= 1) {
-    status1 = "WASPADA"; score1 = MAX_POINT / 2;
-    rec1 = "Dana darurat tipis (1-3 bulan). Risiko tinggi jika terjadi kondisi darurat.";
-  } else {
-    status1 = "BAHAYA"; score1 = 0;
-    rec1 = "Kritis! Dana darurat < 1 bulan. Segera sisihkan uang tunai secepatnya.";
-  }
-  
-  ratios.push({ 
-    id: "liquidity_ratio", 
-    label: "Rasio Dana Darurat", 
-    value: parseFloat(liquidityRatio.toFixed(1)), 
-    benchmark: "3 - 6 kali", 
-    status: status1, 
-    recommendation: rec1 
+  ratios.push({
+    id: "emergency_fund", label: "Rasio Dana Darurat",
+    value: parseFloat(r1.toFixed(1)), benchmark: "3 - 6 kali",
+    statusColor: s1, recommendation: rec1,
+    status: ""
   });
 
-  // #2. RASIO LIKUIDITAS TERHADAP NET WORTH
-  // Rumus: Aset Likuid / Kekayaan Bersih
+  // #2. RASIO LIKUIDITAS vs KEKAYAAN BERSIH (A / H)
   // Benchmark: 15% - 20%
-  const liquidityNW = netWorth > 0 ? (totalLiquid / netWorth) * 100 : 0;
-  
-  let status2: HealthStatus = "BAHAYA";
-  let rec2 = "";
-  let score2 = 0;
+  const r2 = netWorth > 0 ? (totalLiquid / netWorth) * 100 : 0;
+  let s2: any = "RED";
+  let rec2 = "Aset likuid terlalu sedikit (< 15%). Susah cairkan uang.";
 
-  if (liquidityNW >= 15 && liquidityNW <= 20) {
-    status2 = "SEHAT"; score2 = MAX_POINT; 
-    rec2 = "Komposisi uang tunai ideal (15-20% dari kekayaan).";
-  } else if (liquidityNW > 20) {
-    status2 = "WASPADA"; score2 = MAX_POINT * 0.75; 
-    rec2 = "Cash terlalu banyak (>20%). Uang Anda 'menganggur' terkena inflasi. Investasikan segera.";
-  } else {
-    status2 = "BAHAYA"; score2 = 0; 
-    rec2 = "Likuiditas terlalu kecil (<15%). Anda 'Kaya Aset tapi Miskin Tunai'. Susah jika butuh uang cepat.";
-  }
-  
-  ratios.push({ 
-    id: "liquidity_nw", 
-    label: "Likuiditas Net Worth", 
-    value: parseFloat(liquidityNW.toFixed(1)), 
-    benchmark: "15% - 20%", 
-    status: status2, 
-    recommendation: rec2 
+  if (r2 > 50) { s2 = "GREEN_DARK"; rec2 = "Sangat likuid (> 50%)."; passedRatios++; }
+  else if (r2 >= 20) { s2 = "GREEN_LIGHT"; rec2 = "Cukup likuid (20-50%)."; passedRatios++; }
+  else if (r2 >= 15) { s2 = "YELLOW"; rec2 = "Agak ketat (15-20%)."; }
+  else { s2 = "RED"; } // < 15
+
+  ratios.push({
+    id: "liq_networth", label: "Likuiditas vs Net Worth",
+    value: parseFloat(r2.toFixed(1)), benchmark: "15% - 20%",
+    statusColor: s2, recommendation: rec2,
+    status: ""
   });
 
-  // #3. RASIO MENABUNG (SAVING RATIO)
-  // Rumus: (Tabungan + Investasi Tahunan) / Total Pendapatan Tahunan
+  // #3. RASIO TABUNGAN (M / I)
   // Benchmark: Min 10%
-  const savingRatio = totalAnnualIncome > 0 ? (totalAnnualSaving / totalAnnualIncome) * 100 : 0;
-  
-  let status3: HealthStatus = "BAHAYA";
-  let rec3 = "";
-  let score3 = 0;
+  const r3 = totalAnnualIncome > 0 ? (totalAnnualSaving / totalAnnualIncome) * 100 : 0;
+  let s3: any = "RED";
+  let rec3 = "Kurang menabung (< 10%). Masa depan terancam.";
 
-  if (savingRatio >= 20) {
-    status3 = "SEHAT"; score3 = MAX_POINT; 
-    rec3 = "Excellent! Menabung > 20%. Masa depan cerah.";
-  } else if (savingRatio >= 10) {
-    status3 = "SEHAT"; score3 = MAX_POINT; 
-    rec3 = "Baik. Sudah memenuhi standar minimal menabung (10%).";
-  } else {
-    status3 = "BAHAYA"; score3 = 0; 
-    rec3 = "Kurang menabung (<10%). Kurangi gaya hidup, paksa sisihkan di awal gajian.";
-  }
+  if (r3 >= 30) { s3 = "GREEN_DARK"; rec3 = "Excellent! Menabung > 30%."; passedRatios++; }
+  else if (r3 >= 20) { s3 = "GREEN_LIGHT"; rec3 = "Sangat baik (20-30%)."; passedRatios++; }
+  else if (r3 >= 10) { s3 = "YELLOW"; rec3 = "Cukup (10-20%). Tingkatkan lagi."; passedRatios++; } // Logic warna sesuai request
+  else { s3 = "RED"; } // < 10
 
-  ratios.push({ 
-    id: "saving_ratio", 
-    label: "Rasio Menabung", 
-    value: parseFloat(savingRatio.toFixed(1)), 
-    benchmark: "Min 10%", 
-    status: status3, 
-    recommendation: rec3 
+  ratios.push({
+    id: "saving_ratio", label: "Rasio Tabungan",
+    value: parseFloat(r3.toFixed(1)), benchmark: "Min 10%",
+    statusColor: s3, recommendation: rec3,
+    status: ""
   });
 
-  // #4. RASIO UTANG TERHADAP ASET (SOLVENCY)
-  // Rumus: Total Utang / Total Aset
+  // #4. RASIO UTANG vs ASET (G / D)
   // Benchmark: Maks 50%
-  const solvencyRatio = totalAssets > 0 ? (totalDebt / totalAssets) * 100 : 0;
-  
-  let status4: HealthStatus = "BAHAYA";
-  let rec4 = "";
-  let score4 = 0;
+  const r4 = totalAssets > 0 ? (totalDebt / totalAssets) * 100 : 0;
+  let s4: any = "RED";
+  let rec4 = "Bahaya! Utang > 50% Aset. Risiko kebangkrutan.";
 
-  if (solvencyRatio < 30) {
-    status4 = "SEHAT"; score4 = MAX_POINT; 
-    rec4 = "Sangat sehat. Aset jauh lebih besar dari utang.";
-  } else if (solvencyRatio <= 50) {
-    status4 = "WASPADA"; score4 = MAX_POINT / 2; 
-    rec4 = "Hati-hati. Utang mendekati 50% aset. Jangan tambah utang lagi.";
-  } else {
-    status4 = "BAHAYA"; score4 = 0; 
-    rec4 = "Bahaya! Utang > 50% Aset. Secara teknis kondisi keuangan tidak sehat.";
-  }
+  if (r4 < 15) { s4 = "GREEN_DARK"; rec4 = "Sangat sehat. Utang sangat kecil (< 15%)."; passedRatios++; }
+  else if (r4 < 35) { s4 = "GREEN_LIGHT"; rec4 = "Wajar (15-35%)."; passedRatios++; }
+  else if (r4 <= 50) { s4 = "YELLOW"; rec4 = "Hati-hati. Utang mendekati batas aman (35-50%)."; }
+  else { s4 = "RED"; } // > 50
 
-  ratios.push({ 
-    id: "solvency_ratio", 
-    label: "Rasio Utang Aset", 
-    value: parseFloat(solvencyRatio.toFixed(1)), 
-    benchmark: "Maks 50%", 
-    status: status4, 
-    recommendation: rec4 
+  ratios.push({
+    id: "debt_asset_ratio", label: "Rasio Utang vs Aset",
+    value: parseFloat(r4.toFixed(1)), benchmark: "Maks 50%",
+    statusColor: s4, recommendation: rec4,
+    status: ""
   });
 
-  // #5. RASIO CICILAN UTANG (DEBT SERVICE RATIO)
-  // Rumus: Total Cicilan Tahunan / Total Pendapatan Tahunan
+  // #5. RASIO CICILAN UTANG (K / I)
   // Benchmark: Maks 35%
-  const dsr = totalAnnualIncome > 0 ? (totalAnnualInstallment / totalAnnualIncome) * 100 : 0;
-  
-  let status5: HealthStatus = "BAHAYA";
-  let rec5 = "";
-  let score5 = 0;
+  const r5 = totalAnnualIncome > 0 ? (totalAnnualInstallment / totalAnnualIncome) * 100 : 0;
+  let s5: any = "RED";
+  let rec5 = "Overleverage! Cicilan > 35% penghasilan.";
 
-  if (dsr < 30) {
-    status5 = "SEHAT"; score5 = MAX_POINT; 
-    rec5 = "Beban cicilan ringan. Cashflow aman.";
-  } else if (dsr <= 35) {
-    status5 = "WASPADA"; score5 = MAX_POINT / 2; 
-    rec5 = "Waspada. Cicilan sudah di batas maksimal aman (35%).";
-  } else {
-    status5 = "BAHAYA"; score5 = 0; 
-    rec5 = "Overleverage! Gaji habis buat bayar cicilan (>35%). Lakukan pelunasan atau restrukturisasi.";
-  }
+  if (r5 < 10) { s5 = "GREEN_DARK"; rec5 = "Beban cicilan sangat ringan (< 10%)."; passedRatios++; }
+  else if (r5 < 15) { s5 = "GREEN_LIGHT"; rec5 = "Ringan (10-15%)."; passedRatios++; }
+  else if (r5 <= 35) { s5 = "YELLOW"; rec5 = "Waspada (15-35%). Jangan tambah utang."; }
+  else { s5 = "RED"; } // > 35
 
-  ratios.push({ 
-    id: "dsr", 
-    label: "Rasio Cicilan Total", 
-    value: parseFloat(dsr.toFixed(1)), 
-    benchmark: "Maks 35%", 
-    status: status5, 
-    recommendation: rec5 
+  ratios.push({
+    id: "debt_service_ratio", label: "Rasio Cicilan Utang",
+    value: parseFloat(r5.toFixed(1)), benchmark: "Maks 35%",
+    statusColor: s5, recommendation: rec5,
+    status: ""
   });
 
-  // #6. RASIO UTANG KONSUMTIF
-  // Rumus: Cicilan Konsumtif Tahunan / Total Pendapatan Tahunan
+  // #6. RASIO CICILAN KONSUMTIF (J / I)
   // Benchmark: Maks 15%
-  const consRatio = totalAnnualIncome > 0 ? (consumptiveAnnualInstallment / totalAnnualIncome) * 100 : 0;
-  
-  let status6: HealthStatus = "BAHAYA";
-  let rec6 = "";
-  let score6 = 0;
+  const r6 = totalAnnualIncome > 0 ? (totalConsumptiveInstallment / totalAnnualIncome) * 100 : 0;
+  let s6: any = "RED";
+  let rec6 = "Boros! Cicilan konsumtif > 15%. Stop hutang baru.";
 
-  if (consRatio < 10) {
-    status6 = "SEHAT"; score6 = MAX_POINT; 
-    rec6 = "Utang konsumtif sangat rendah. Bagus.";
-  } else if (consRatio <= 15) {
-    status6 = "WASPADA"; score6 = MAX_POINT / 2; 
-    rec6 = "Hati-hati. Utang konsumtif sudah di ambang batas (15%). Stop Paylater/CC.";
-  } else {
-    status6 = "BAHAYA"; score6 = 0; 
-    rec6 = "Boros! Terlalu banyak cicilan barang konsumtif (>15%). Hentikan gaya hidup kredit.";
-  }
+  if (r6 < 5) { s6 = "GREEN_DARK"; rec6 = "Sangat hemat. Cicilan konsumtif < 5%."; passedRatios++; }
+  else if (r6 < 10) { s6 = "GREEN_LIGHT"; rec6 = "Terkendali (5-10%)."; passedRatios++; }
+  else if (r6 <= 15) { s6 = "YELLOW"; rec6 = "Batas wajar (10-15%)."; }
+  else { s6 = "RED"; } // > 15
 
-  ratios.push({ 
-    id: "cons_debt", 
-    label: "Rasio Cicilan Konsumtif", 
-    value: parseFloat(consRatio.toFixed(1)), 
-    benchmark: "Maks 15%", 
-    status: status6, 
-    recommendation: rec6 
+  ratios.push({
+    id: "consumptive_ratio", label: "Rasio Cicilan Konsumtif",
+    value: parseFloat(r6.toFixed(1)), benchmark: "Maks 15%",
+    statusColor: s6, recommendation: rec6,
+    status: ""
   });
 
-  // #7. RASIO ASET INVESTASI TERHADAP NET WORTH
-  // Rumus: Aset Investasi / Kekayaan Bersih
+  // #7. RASIO ASET INVESTASI vs KEKAYAAN BERSIH (C / H)
   // Benchmark: Min 50%
-  const invRatio = netWorth > 0 ? (totalInvestment / netWorth) * 100 : 0;
-  
-  let status7: HealthStatus = "BAHAYA";
-  let rec7 = "";
-  let score7 = 0;
+  const r7 = netWorth > 0 ? (totalInvestment / netWorth) * 100 : 0;
+  let s7: any = "RED";
+  let rec7 = "Aset mayoritas konsumtif/mati. Tingkatkan investasi.";
 
-  if (invRatio >= 50) {
-    status7 = "SEHAT"; score7 = MAX_POINT; 
-    rec7 = "Portofolio produktif dominan (>50%). Kekayaan Anda bekerja untuk Anda.";
-  } else if (invRatio >= 30) {
-    status7 = "WASPADA"; score7 = MAX_POINT / 2; 
-    rec7 = "Cukup. Tingkatkan lagi aset investasi dibanding aset konsumtif.";
-  } else {
-    status7 = "BAHAYA"; score7 = 0; 
-    rec7 = "Aset mayoritas 'mati' (Rumah/Mobil) atau Tunai. Kurang produktif melawan inflasi.";
-  }
+  if (r7 > 50) { s7 = "GREEN_DARK"; rec7 = "Portofolio produktif (> 50%)."; passedRatios++; }
+  else if (r7 >= 25) { s7 = "GREEN_LIGHT"; rec7 = "Cukup (25-50%)."; passedRatios++; }
+  else if (r7 >= 10) { s7 = "YELLOW"; rec7 = "Kurang (10-25%)."; }
+  else { s7 = "RED"; } // < 10
 
-  ratios.push({ 
-    id: "inv_ratio", 
-    label: "Rasio Aset Investasi", 
-    value: parseFloat(invRatio.toFixed(1)), 
-    benchmark: "Min 50%", 
-    status: status7, 
-    recommendation: rec7 
+  ratios.push({
+    id: "invest_asset_ratio", label: "Rasio Aset Investasi",
+    value: parseFloat(r7.toFixed(1)), benchmark: "Min 50%",
+    statusColor: s7, recommendation: rec7,
+    status: ""
   });
 
-  // #8. PERTUMBUHAN KEKAYAAN BERSIH
-  // Rumus: (NW Sekarang - NW Tahun Lalu) / NW Tahun Lalu
-  // Benchmark: > 0%
-  let growthStatus: HealthStatus = "SEHAT";
-  let growthScore = MAX_POINT;
-  let growthVal = 0;
-  let growthRec = "Data tahun lalu tidak tersedia. Diasumsikan positif.";
+  // #8. RASIO SOLVABILITAS (H / D)
+  // Benchmark: Min 50%
+  const r8 = totalAssets > 0 ? (netWorth / totalAssets) * 100 : 0;
+  let s8: any = "RED";
+  let rec8 = "Risiko kebangkrutan tinggi! Modal sendiri < 25%.";
 
-  if (data.previousNetWorth) {
-    // Handle division by zero or negative base logic if needed
-    growthVal = ((netWorth - data.previousNetWorth) / Math.abs(data.previousNetWorth)) * 100;
-    
-    if (growthVal > 10) {
-      growthStatus = "SEHAT"; growthScore = MAX_POINT;
-      growthRec = "Pertumbuhan kekayaan signifikan (>10%). Strategi sudah benar.";
-    } else if (growthVal > 0) {
-      growthStatus = "SEHAT"; growthScore = MAX_POINT;
-      growthRec = "Kekayaan tumbuh positif. Lanjutkan.";
-    } else if (growthVal === 0) {
-      growthStatus = "WASPADA"; growthScore = MAX_POINT / 2;
-      growthRec = "Kekayaan stagnan. Evaluasi pengeluaran.";
-    } else {
-      growthStatus = "BAHAYA"; growthScore = 0;
-      growthRec = "Kekayaan menurun! Cek kebocoran anggaran atau penurunan nilai aset.";
-    }
-  }
+  if (r8 > 75) { s8 = "GREEN_DARK"; rec8 = "Sangat kuat (> 75% modal sendiri)."; passedRatios++; }
+  else if (r8 >= 50) { s8 = "GREEN_LIGHT"; rec8 = "Sehat (50-75%)."; passedRatios++; }
+  else if (r8 >= 25) { s8 = "YELLOW"; rec8 = "Rentan (25-50%)."; }
+  else { s8 = "RED"; } // < 25
 
-  ratios.push({ 
-    id: "growth", 
-    label: "Pertumbuhan Kekayaan", 
-    value: parseFloat(growthVal.toFixed(1)), 
-    benchmark: "> 0%", 
-    status: growthStatus, 
-    recommendation: growthRec 
+  ratios.push({
+    id: "solvency_ratio", label: "Rasio Solvabilitas",
+    value: parseFloat(r8.toFixed(1)), benchmark: "Min 50%",
+    statusColor: s8, recommendation: rec8,
+    status: ""
   });
 
-  // --- 4. FINAL RESULT ---
-  totalScore = score1 + score2 + score3 + score4 + score5 + score6 + score7 + growthScore;
+  // --- FINAL SCORE (SIMPLIFIED) ---
+  // Skor 0-100 berdasarkan persentase rasio yang lulus (GREEN/YELLOW dianggap lulus parsial)
+  const score = Math.round((passedRatios / 8) * 100);
   
-  let globalStatus: HealthStatus = "BAHAYA";
-  if (totalScore >= 80) globalStatus = "SEHAT";
-  else if (totalScore >= 50) globalStatus = "WASPADA";
-  else globalStatus = "BAHAYA";
-
+  let globalStatus = "BAHAYA";
+  if (score >= 80) globalStatus = "SEHAT";
+  else if (score >= 50) globalStatus = "WASPADA";
+  
   return {
-    score: Math.round(totalScore),
+    score,
     globalStatus,
     ratios,
     netWorth,
+    surplusDeficit, // Q
     generatedAt: new Date().toISOString()
   };
 };
