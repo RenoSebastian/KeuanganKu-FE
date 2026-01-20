@@ -468,9 +468,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r1 > 12) { s1 = "YELLOW"; rec1 = "Terlalu banyak uang menganggur (> 12 bulan). Investasikan."; }
   else { s1 = "RED"; } // < 3
 
-  ratios.push({
-    id: "emergency_fund", label: "Rasio Dana Darurat",
-    value: parseFloat(r1.toFixed(1)), benchmark: "3 - 6 kali",
+  ratios.push({ 
+    id: "emergency_fund", label: "Rasio Dana Darurat", 
+    value: parseFloat(r1.toFixed(1)), benchmark: "3 - 6 kali", 
     statusColor: s1, recommendation: rec1,
     status: ""
   });
@@ -486,9 +486,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r2 >= 15) { s2 = "YELLOW"; rec2 = "Agak ketat (15-20%)."; }
   else { s2 = "RED"; } // < 15
 
-  ratios.push({
-    id: "liq_networth", label: "Likuiditas vs Net Worth",
-    value: parseFloat(r2.toFixed(1)), benchmark: "15% - 20%",
+  ratios.push({ 
+    id: "liq_networth", label: "Likuiditas vs Net Worth", 
+    value: parseFloat(r2.toFixed(1)), benchmark: "15% - 20%", 
     statusColor: s2, recommendation: rec2,
     status: ""
   });
@@ -504,9 +504,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r3 >= 10) { s3 = "YELLOW"; rec3 = "Cukup (10-20%). Tingkatkan lagi."; passedRatios++; } // Logic warna sesuai request
   else { s3 = "RED"; } // < 10
 
-  ratios.push({
-    id: "saving_ratio", label: "Rasio Tabungan",
-    value: parseFloat(r3.toFixed(1)), benchmark: "Min 10%",
+  ratios.push({ 
+    id: "saving_ratio", label: "Rasio Tabungan", 
+    value: parseFloat(r3.toFixed(1)), benchmark: "Min 10%", 
     statusColor: s3, recommendation: rec3,
     status: ""
   });
@@ -522,9 +522,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r4 <= 50) { s4 = "YELLOW"; rec4 = "Hati-hati. Utang mendekati batas aman (35-50%)."; }
   else { s4 = "RED"; } // > 50
 
-  ratios.push({
-    id: "debt_asset_ratio", label: "Rasio Utang vs Aset",
-    value: parseFloat(r4.toFixed(1)), benchmark: "Maks 50%",
+  ratios.push({ 
+    id: "debt_asset_ratio", label: "Rasio Utang vs Aset", 
+    value: parseFloat(r4.toFixed(1)), benchmark: "Maks 50%", 
     statusColor: s4, recommendation: rec4,
     status: ""
   });
@@ -540,9 +540,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r5 <= 35) { s5 = "YELLOW"; rec5 = "Waspada (15-35%). Jangan tambah utang."; }
   else { s5 = "RED"; } // > 35
 
-  ratios.push({
-    id: "debt_service_ratio", label: "Rasio Cicilan Utang",
-    value: parseFloat(r5.toFixed(1)), benchmark: "Maks 35%",
+  ratios.push({ 
+    id: "debt_service_ratio", label: "Rasio Cicilan Utang", 
+    value: parseFloat(r5.toFixed(1)), benchmark: "Maks 35%", 
     statusColor: s5, recommendation: rec5,
     status: ""
   });
@@ -558,9 +558,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r6 <= 15) { s6 = "YELLOW"; rec6 = "Batas wajar (10-15%)."; }
   else { s6 = "RED"; } // > 15
 
-  ratios.push({
-    id: "consumptive_ratio", label: "Rasio Cicilan Konsumtif",
-    value: parseFloat(r6.toFixed(1)), benchmark: "Maks 15%",
+  ratios.push({ 
+    id: "consumptive_ratio", label: "Rasio Cicilan Konsumtif", 
+    value: parseFloat(r6.toFixed(1)), benchmark: "Maks 15%", 
     statusColor: s6, recommendation: rec6,
     status: ""
   });
@@ -576,9 +576,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r7 >= 10) { s7 = "YELLOW"; rec7 = "Kurang (10-25%)."; }
   else { s7 = "RED"; } // < 10
 
-  ratios.push({
-    id: "invest_asset_ratio", label: "Rasio Aset Investasi",
-    value: parseFloat(r7.toFixed(1)), benchmark: "Min 50%",
+  ratios.push({ 
+    id: "invest_asset_ratio", label: "Rasio Aset Investasi", 
+    value: parseFloat(r7.toFixed(1)), benchmark: "Min 50%", 
     statusColor: s7, recommendation: rec7,
     status: ""
   });
@@ -594,9 +594,9 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
   else if (r8 >= 25) { s8 = "YELLOW"; rec8 = "Rentan (25-50%)."; }
   else { s8 = "RED"; } // < 25
 
-  ratios.push({
-    id: "solvency_ratio", label: "Rasio Solvabilitas",
-    value: parseFloat(r8.toFixed(1)), benchmark: "Min 50%",
+  ratios.push({ 
+    id: "solvency_ratio", label: "Rasio Solvabilitas", 
+    value: parseFloat(r8.toFixed(1)), benchmark: "Min 50%", 
     statusColor: s8, recommendation: rec8,
     status: ""
   });

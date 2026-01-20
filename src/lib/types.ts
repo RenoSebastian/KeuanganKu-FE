@@ -231,13 +231,6 @@ export interface PersonalInfo {
 }
 
 export interface FinancialRecord {
-  expenseLifestyle: number;
-
-  debtPersonal: number;
-  investRoutine: number;
-  assetOtherInv: number;
-  assetPropertyInv: number;
-  savingRoutine: any;
   // --- 1. METADATA ---
   userProfile: PersonalInfo;
   spouseProfile?: PersonalInfo;
@@ -316,19 +309,19 @@ export interface FinancialRecord {
   expenseCommunication: number; // 4.d Telepon & internet
   expenseHelpers: number;     // 4.e ART / Supir
   expenseTax: number;         // 4.f Pajak (PBB/PKB)
-  expenseHouseholdOther: number; // 4.g Belanja rumah tangga lainnya
+  expenseLifestyle: number; // 4.g Belanja rumah tangga lainnya
 }
 
 export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL"; 
 
 export interface RatioDetail {
-  status: string;
   id: string;
   label: string;
   value: number;
   benchmark: string;
   statusColor: "GREEN_DARK" | "GREEN_LIGHT" | "YELLOW" | "RED";
   recommendation: string;
+  status?: string; // Optional for backward compatibility if needed, or remove
 }
 
 export interface HealthAnalysisResult {
