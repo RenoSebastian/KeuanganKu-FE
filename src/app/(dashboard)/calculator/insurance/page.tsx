@@ -160,7 +160,7 @@ export default function InsurancePage() {
                 {/* Card 1: Kewajiban / Utang */}
                 <Card className="p-6 rounded-[2rem] shadow-md border-slate-100 bg-white/95 backdrop-blur-xl">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
-                        <BadgeDollarSign className="w-5 h-5 text-rose-600" /> 1. Lunasi Utang Keluarga
+                        <BadgeDollarSign className="w-5 h-5 text-rose-600" /> 1. Sisa Utang Keluarga
                     </h3>
                     <p className="text-xs text-slate-500 mb-4 -mt-2">Masukkan sisa utang berjalan agar keluarga tidak terbebani cicilan.</p>
                     
@@ -247,7 +247,7 @@ export default function InsurancePage() {
                 {/* Card 3: Lainnya */}
                 <Card className="p-6 rounded-[2rem] shadow-md border-slate-100 bg-white/95 backdrop-blur-xl">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
-                        <Landmark className="w-5 h-5 text-rose-600" /> 3. Dana Darurat & Aset
+                        <Landmark className="w-5 h-5 text-rose-600" /> 3. Biaya Duka & Asuransi
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">

@@ -1,7 +1,7 @@
 import { 
   BudgetResult, BudgetAllocation, ChildProfile, EducationStage, 
   PlanInput, PortfolioSummary, StageResult, ChildSimulationResult, 
-  PensionInput, PensionResult, 
+  PensionInput, PensionResult,
   InsuranceInput, InsuranceResult,
   SpecialGoalInput, SpecialGoalResult,
   FinancialRecord, HealthAnalysisResult, 
@@ -190,43 +190,89 @@ export const calculateSmartBudget = (fixedIncome: number, variableIncome: number
   return { safeToSpend, allocations, totalFixedAllocated: totalAllocated, surplus: variableIncome };
 };
 
-// --- PENSION ENGINE ---
+// --- PENSION ENGINE (MATCHING EXCEL LOGIC) ---
 
 export const calculatePension = (input: PensionInput): PensionResult => {
   const workingYears = input.retirementAge - input.currentAge;
   const retirementYears = input.retirementDuration;
 
+  // Safety Check
   if (workingYears <= 0) {
-    return { workingYears: 0, retirementYears, fvMonthlyExpense: 0, fvExistingFund: 0, totalFundNeeded: 0, shortfall: 0, monthlySaving: 0 };
+    return { 
+        workingYears: 0, 
+        retirementYears, 
+        fvMonthlyExpense: 0, 
+        fvExistingFund: 0, 
+        totalFundNeeded: 0, 
+        shortfall: 0, 
+        monthlySaving: 0 
+    };
   }
 
-  // FV Pengeluaran
-  const fvMonthlyExpense = calculateFV(input.currentExpense, input.inflationRate, workingYears);
+  // --- 1. PREPARE RATES ---
+  // Excel menggunakan persentase integer (4, 8) dikonversi ke desimal
+  const annualInflRate = input.inflationRate / 100;
+  const annualInvestRate = input.investmentRate / 100;
+  
+  // Real Rate (Excel Logic: Invest - Inflasi)
+  // Note: Ini simplifikasi Excel. Kalau mau strict Fisher Equation: ((1+i)/(1+f))-1
+  const realRate = annualInvestRate - annualInflRate;
 
-  // Corpus dengan Simple Spread (AWP)
-  const annualExpenseBase = input.currentExpense * 12;
-  const investRate = input.investmentRate / 100;
-  const inflRate = input.inflationRate / 100;
-  const realRate = investRate - inflRate;
+  // --- 2. FUTURE VALUE OF EXPENSE (LIFESTYLE) ---
+  // Step A: Hitung biaya hidup tahunan SEKARANG
+  const currentAnnualExpense = input.currentExpense * 12;
 
+  // Step B: Inflasikan biaya tersebut ke masa depan (saat pensiun)
+  // Excel Cell 1.1: PV * (1 + f)^n
+  const futureAnnualExpense = currentAnnualExpense * Math.pow(1 + annualInflRate, workingYears);
+  
+  // Output untuk UI (Bulanan di masa depan)
+  const fvMonthlyExpense = futureAnnualExpense / 12;
+
+  // --- 3. CORPUS NEEDED (TOTAL DANA DIBUTUHKAN) ---
+  // Excel Cell 1.2: Present Value of Annuity Due (PVAD)
+  // Kita butuh dana di AWAL tahun, jadi dikali (1 + r)
   let totalFundNeeded = 0;
 
   if (retirementYears === 1) {
-      totalFundNeeded = annualExpenseBase; 
+      totalFundNeeded = futureAnnualExpense;
   } else {
-      if (Math.abs(realRate) < 0.0001) {
-         totalFundNeeded = annualExpenseBase * retirementYears;
+      // Handle jika Real Rate 0 (Investasi == Inflasi)
+      if (Math.abs(realRate) < 0.0000001) {
+          totalFundNeeded = futureAnnualExpense * retirementYears;
       } else {
-         const factor = (1 - Math.pow(1 + realRate, -retirementYears)) / realRate;
-         totalFundNeeded = annualExpenseBase * factor;
+          // Rumus: PMT * [ (1 - (1+r)^-n) / r ] * (1+r)
+          // PMT di sini adalah futureAnnualExpense (kebutuhan per tahun di masa depan)
+          const annuityFactor = (1 - Math.pow(1 + realRate, -retirementYears)) / realRate;
+          const annuityDueAdjustment = 1 + realRate; // Adjustment untuk Beginning of Period
+          
+          totalFundNeeded = futureAnnualExpense * annuityFactor * annuityDueAdjustment;
       }
   }
 
-  const fvExistingFund = calculateFV(input.currentFund, input.investmentRate, workingYears);
+  // --- 4. FUTURE VALUE OF EXISTING ASSET ---
+  // Excel Cell 1.3: Aset tumbuh dengan full investment rate
+  const fvExistingFund = input.currentFund * Math.pow(1 + annualInvestRate, workingYears);
 
+  // --- 5. GAP ANALYSIS ---
   let shortfall = totalFundNeeded - fvExistingFund;
   if (shortfall < 0) shortfall = 0;
-  const monthlySaving = calculatePMT(shortfall, input.investmentRate, workingYears);
+
+  // --- 6. MONTHLY SAVING CALCULATION ---
+  // Excel Logic: Hitung Tabungan TAHUNAN dulu, baru bagi 12.
+  // Rumus Sinking Fund: PMT = FV * i / ((1+i)^n - 1)
+  
+  let annualSaving = 0;
+  if (shortfall > 0) {
+      if (annualInvestRate === 0) {
+          annualSaving = shortfall / workingYears;
+      } else {
+          const compoundFactor = Math.pow(1 + annualInvestRate, workingYears) - 1;
+          annualSaving = (shortfall * annualInvestRate) / compoundFactor;
+      }
+  }
+
+  const monthlySaving = annualSaving / 12;
 
   return {
     workingYears,

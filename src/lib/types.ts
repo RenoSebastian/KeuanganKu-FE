@@ -89,25 +89,23 @@ export interface BudgetResult {
 // --- PENSION TYPES ---
 
 export interface PensionInput {
-  currentAge: number;       // Usia Sekarang
-  retirementAge: number;    // Usia Pensiun
-  retirementDuration: number; // NEW: Jangka Waktu Penerimaan (Bisa 1 th, 5 th, 20 th, dll)
-  currentExpense: number;   // Pengeluaran Bulanan Saat Ini / Target Pemasukan
-  currentFund: number;      // NEW: Saldo JHT/DPLK/Tabungan Saat Ini
-  inflationRate: number;    // Asumsi Inflasi (%)
-  investmentRate: number;   // Asumsi Return Investasi (%)
+  currentAge: number;
+  retirementAge: number;
+  retirementDuration: number;
+  currentExpense: number; // Monthly Expense
+  currentFund: number;
+  inflationRate: number; // Percentage (e.g. 4)
+  investmentRate: number; // Percentage (e.g. 8)
 }
 
 export interface PensionResult {
-  workingYears: number;     // Masa Kerja (n)
-  retirementYears: number;  // Masa Pensiun (Sesuai input retirementDuration)
-  fvMonthlyExpense: number; // Biaya Hidup/Bulan saat Pensiun (Future Value)
-  
-  fvExistingFund: number;   // NEW: Nilai masa depan dari saldo awal (currentFund)
-  totalFundNeeded: number;  // Total Dana yang Dibutuhkan saat Pensiun (Corpus)
-  shortfall: number;        // NEW: Kekurangan dana (Total - Existing)
-  
-  monthlySaving: number;    // Tabungan Bulanan yang Harus Disisihkan Sekarang
+  workingYears: number;
+  retirementYears: number;
+  fvMonthlyExpense: number;
+  fvExistingFund: number;
+  totalFundNeeded: number;
+  shortfall: number;
+  monthlySaving: number;
 }
 
 // --- INSURANCE TYPES (FIXED: NO TAX) ---
