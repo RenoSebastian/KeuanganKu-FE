@@ -66,21 +66,19 @@ export const financialService = {
   },
 
   // D. Pendidikan Anak (LENGKAP: CRUD)
-  // Ini jembatan utama untuk Tahap 2 dan 3 nanti
+  // Pastikan 3 fungsi ini ada agar tidak error "is not a function"
   
-  // 1. Simpan & Hitung (Create)
   saveEducationPlan: async (data: EducationPayload) => {
     const response = await api.post<EducationPlanResponse>("/financial/calculator/education", data);
     return response.data;
   },
 
-  // 2. Ambil Daftar Rencana (Read List) - Untuk Dashboard Page
   getEducationPlans: async () => {
-    const response = await api.get<EducationPlanResponse[]>("/financial/calculator/education");
-    return response.data;
-  },
+  // Ini sudah benar method-nya GET, pastikan URL sama persis dengan Controller
+  const response = await api.get<EducationPlanResponse[]>("/financial/calculator/education");
+  return response.data;
+},
 
-  // 3. Hapus Rencana (Delete) - Untuk Child Card
   deleteEducationPlan: async (id: string) => {
     const response = await api.delete(`/financial/calculator/education/${id}`);
     return response.data;

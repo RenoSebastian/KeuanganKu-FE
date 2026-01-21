@@ -2,9 +2,8 @@
 
 import { Card } from "@/components/ui/card";
 import { formatRupiah } from "@/lib/financial-math";
-import { PortfolioSummary } from "@/lib/types"; // Import type yang sudah ada di types.ts
-import { Wallet, TrendingUp, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { PortfolioSummary } from "@/lib/types";
+import { Wallet, Info, Sparkles, PiggyBank } from "lucide-react";
 
 interface SummaryBoardProps {
   summary: PortfolioSummary | null;
@@ -17,62 +16,85 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
   const totalFutureCost = summary?.totalFutureCost || 0;
 
   return (
-    <Card className="bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 text-white border-0 shadow-2xl rounded-[2rem] p-6 md:p-8 relative overflow-hidden">
+    <Card className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 text-white border-0 shadow-2xl shadow-blue-900/30 rounded-[2.5rem] p-6 md:p-10 group">
       
-      {/* Background Decorations */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+      {/* --- BACKGROUND DECORATION --- */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+          {/* Glowing Orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/3" />
+          
+          {/* Subtle Grid Texture */}
+          <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-[0.05]" />
+      </div>
 
-      <div className="relative z-10 flex flex-col md:flex-row justify-between gap-8 items-center">
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         
-        {/* Left: Total Monthly Saving */}
-        <div className="flex-1 text-center md:text-left space-y-2">
-           <div className="flex items-center justify-center md:justify-start gap-2 text-blue-200 text-sm font-bold uppercase tracking-widest mb-1">
-              <Wallet className="w-5 h-5" />
-              <span>Total Tabungan Bulanan</span>
+        {/* --- LEFT: TOTAL MONTHLY SAVING (MAIN HERO) --- */}
+        <div className="lg:col-span-7 text-center lg:text-left space-y-4">
+           
+           {/* Badge */}
+           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 mx-auto lg:mx-0 animate-in fade-in slide-in-from-bottom-2">
+              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-blue-100">Rekomendasi AI</span>
            </div>
            
-           {isLoading ? (
-             <div className="h-12 w-48 bg-white/10 animate-pulse rounded-lg mx-auto md:mx-0" />
-           ) : (
-             <h2 className="text-4xl md:text-5xl font-black tracking-tight">
-               {formatRupiah(totalSaving)}
-               <span className="text-lg md:text-2xl font-medium text-blue-300">/bln</span>
-             </h2>
-           )}
+           <div className="space-y-1">
+             <div className="flex items-center justify-center lg:justify-start gap-2 text-blue-200/80 text-sm font-bold uppercase tracking-wide">
+                <Wallet className="w-5 h-5" />
+                <span>Total Tabungan Bulanan</span>
+             </div>
+             
+             {isLoading ? (
+               <div className="h-16 w-3/4 bg-white/10 animate-pulse rounded-2xl mx-auto lg:mx-0" />
+             ) : (
+               <h2 className="text-5xl md:text-6xl font-black tracking-tight drop-shadow-lg">
+                 {formatRupiah(totalSaving)}
+                 <span className="text-xl md:text-2xl font-medium text-blue-300/60 ml-2">/bln</span>
+               </h2>
+             )}
+           </div>
            
-           <p className="text-xs md:text-sm text-blue-200 max-w-md leading-relaxed">
-             Ini adalah jumlah uang yang harus Anda sisihkan <b>setiap bulan</b> mulai hari ini untuk meng-cover biaya pendidikan semua anak Anda (metode Sinking Fund).
+           <p className="text-sm md:text-base text-blue-100/80 max-w-lg leading-relaxed mx-auto lg:mx-0 font-medium">
+             Nominal ini adalah akumulasi <i>Sinking Fund</i> untuk <b>seluruh anak</b> agar dana pendidikan tersedia tepat waktu tanpa hutang.
            </p>
         </div>
 
-        {/* Right: Divider & Future Cost */}
-        <div className="hidden md:block w-px h-24 bg-gradient-to-b from-transparent via-blue-500/50 to-transparent" />
+        {/* --- DIVIDER (DESKTOP ONLY) --- */}
+        <div className="hidden lg:block lg:col-span-1 h-32 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent mx-auto" />
 
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/10 min-w-[280px]">
-           <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-red-500/20 rounded-lg text-red-300">
-                 <TrendingUp className="w-5 h-5" />
+        {/* --- RIGHT: FUTURE COST (SECONDARY STATS) --- */}
+        <div className="lg:col-span-4">
+           <div className="bg-white/5 backdrop-blur-md rounded-[1.5rem] p-6 border border-white/10 hover:bg-white/10 transition-colors duration-300 relative overflow-hidden">
+              {/* Card Accent */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500" />
+              
+              <div className="flex items-start gap-4 mb-4">
+                 <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl shadow-lg shadow-indigo-500/30">
+                    <PiggyBank className="w-6 h-6 text-white" />
+                 </div>
+                 <div>
+                    <p className="text-[10px] uppercase font-bold text-blue-200 mb-1">Total Kebutuhan Dana</p>
+                    <p className="text-[9px] text-blue-300/80 leading-tight">Estimasi Biaya Masa Depan + Inflasi</p>
+                 </div>
               </div>
-              <div>
-                 <p className="text-[10px] uppercase font-bold text-blue-200">Total Dana Dibutuhkan</p>
-                 <p className="text-[10px] text-blue-300">(Estimasi Masa Depan + Inflasi)</p>
+              
+              {isLoading ? (
+                <div className="h-10 w-full bg-white/10 animate-pulse rounded-xl mb-3" />
+              ) : (
+                <div className="mb-4">
+                  <p className="text-2xl md:text-3xl font-black text-white tracking-tight">
+                     {formatRupiah(totalFutureCost)}
+                  </p>
+                </div>
+              )}
+              
+              <div className="pt-4 border-t border-white/10 flex gap-3">
+                 <Info className="w-4 h-4 text-blue-300 flex-shrink-0 mt-0.5" />
+                 <p className="text-[10px] text-blue-200/70 italic leading-relaxed">
+                    Mencakup total biaya masuk (Uang Pangkal) dan biaya rutin (SPP/UKT) hingga lulus kuliah.
+                 </p>
               </div>
-           </div>
-           
-           {isLoading ? (
-             <div className="h-8 w-32 bg-white/10 animate-pulse rounded-lg" />
-           ) : (
-             <p className="text-2xl font-black text-white">
-                {formatRupiah(totalFutureCost)}
-             </p>
-           )}
-           
-           <div className="mt-3 flex gap-2">
-              <Info className="w-3 h-3 text-blue-300 flex-shrink-0 mt-0.5" />
-              <p className="text-[10px] text-blue-200 italic leading-tight">
-                 Angka ini adalah akumulasi Uang Pangkal + SPP seluruh anak hingga lulus kuliah nanti.
-              </p>
            </div>
         </div>
 
