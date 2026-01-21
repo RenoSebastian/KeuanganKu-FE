@@ -6,21 +6,7 @@ import { Card } from "@/components/ui/card";
 import { GraduationCap, Plus } from "lucide-react";
 import { ChildWizard } from "@/components/features/education/child-wizard";
 import { SimulationResult, SimulationResultData } from "@/components/features/education/simulation-result";
-
-// --- PERBAIKAN DI SINI ---
-// Kita buat interface sementara untuk respon API jika belum ada di types.ts
-// Atau gunakan 'any' jika ingin cepat, tapi lebih baik kita definisikan.
-interface ApiResult {
-  plan: {
-    childName: string;
-    inflationRate: string | number; // Bisa string dari JSON desimal
-    returnRate: string | number;
-  };
-  calculation: {
-    totalFutureCost: number;
-    monthlySaving: number;
-  };
-}
+import { EducationPlanResponse } from "@/lib/types"; // Import tipe yang sudah kita buat
 
 export default function EducationPage() {
   const [view, setView] = useState<"WELCOME" | "WIZARD" | "RESULT">("WELCOME");
@@ -31,21 +17,23 @@ export default function EducationPage() {
   // --- HANDLERS ---
   
   // Dipanggil ketika Wizard selesai mengirim data ke Backend
-  const handleSuccess = (result: ApiResult) => {
-    // Mapping respon Backend ke format SimulationResultData
+  const handleSuccess = (result: EducationPlanResponse) => {
+    // Mapping respon Backend ke format SimulationResultData yang dibutuhkan UI
     
-    // Pastikan angka desimal di-parse dengan benar (kadang BE kirim string Decimal)
+    // Konversi data angka (jika backend mengirim decimal sebagai string)
     const totalFV = Number(result.calculation.totalFutureCost);
     const monthlySaving = Number(result.calculation.monthlySaving);
-    const inflation = Number(result.plan.inflationRate);
-    const returnRate = Number(result.plan.returnRate);
+    const inflation = Number(result.plan.inflationRate || 10);
+    const returnRate = Number(result.plan.returnRate || 12);
 
     setSimulationResult({
       childName: result.plan.childName,
       totalFutureCost: totalFV,
       monthlySaving: monthlySaving,
       inflationRate: inflation,
-      returnRate: returnRate
+      returnRate: returnRate,
+      // INI KUNCINYA: Pass data granular ke komponen visual
+      stagesBreakdown: result.calculation.stagesBreakdown 
     });
 
     setView("RESULT");
@@ -115,7 +103,7 @@ export default function EducationPage() {
               <SimulationResult 
                 data={simulationResult}
                 onReset={handleReset}
-                onSave={() => alert("Data sudah tersimpan di database!")}
+                onSave={() => alert("Data sudah tersimpan otomatis di database!")}
               />
            </Card>
         )}

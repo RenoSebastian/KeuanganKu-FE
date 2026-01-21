@@ -5,7 +5,8 @@ import {
   PensionPayload,
   InsurancePayload,
   GoalPayload,
-  EducationPayload
+  EducationPayload,
+  EducationPlanResponse // Added: Import tipe response agar autocomplete jalan di UI
 } from "@/lib/types";
 
 export const financialService = {
@@ -64,9 +65,11 @@ export const financialService = {
     return response.data;
   },
 
-  // D. Pendidikan Anak
+  // D. Pendidikan Anak (UPDATED)
+  // Payload 'data' sekarang sudah berisi array 'stages' lengkap dari ChildWizard.
+  // Response akan berisi 'calculation.stagesBreakdown' untuk drill-down.
   saveEducationPlan: async (data: EducationPayload) => {
-    const response = await api.post("/financial/calculator/education", data);
+    const response = await api.post<EducationPlanResponse>("/financial/calculator/education", data);
     return response.data;
   }
 };

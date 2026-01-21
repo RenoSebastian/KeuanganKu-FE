@@ -5,12 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah, calculateAge } from "@/lib/financial-math";
 import { ChildProfile, ChildSimulationResult } from "@/lib/types";
-import { Baby, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Baby, Trash2, ChevronDown, ChevronUp, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Interface Props
 interface ChildCardProps {
   profile: ChildProfile;
-  result?: ChildSimulationResult; 
+  result?: any; // Menggunakan 'any' sementara agar fleksibel menerima structure baru (stagesBreakdown)
   onDelete: (id: string) => void;
 }
 
@@ -20,24 +21,9 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
   
   const avatarBg = profile.gender === "L" ? "bg-blue-100 text-blue-600" : "bg-pink-100 text-pink-600";
 
-  // --- HELPER LOGIC LABEL ---
-  const getBadgeLabel = (stageId: string, grade: number) => {
-    // 1. Logic Khusus TK
-    if (stageId === "TK") {
-        return ` (Mulai TK ${grade === 1 ? 'A' : 'B'})`;
-    }
-
-    // 2. Logic Khusus Kuliah (S1 / S2)
-    // Cek ID string karena plan tidak punya info paymentFrequency
-    if (["KULIAH", "S2"].includes(stageId)) {
-        // Tampilkan badge semester jika mulai bukan dari semester 1
-        return grade > 1 ? ` (Mulai Smt ${grade})` : "";
-    }
-
-    // 3. Logic Sekolah Umum (SD, SMP, SMA)
-    // Tampilkan hanya jika loncat kelas (Misal mulai kelas 3)
-    return grade > 1 ? ` (Mulai Kls ${grade})` : "";
-  };
+  // Data breakdown bisa datang dari 'stages' (legacy) atau 'stagesBreakdown' (new granular)
+  // Kita normalisasi di sini
+  const stagesData = result?.stagesBreakdown || result?.stages || [];
 
   return (
     <Card className="group relative bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 rounded-3xl overflow-hidden">
@@ -65,20 +51,10 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
              
              <button 
                onClick={() => onDelete(profile.id)}
-               className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors"
+               className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors z-10"
              >
                <Trash2 className="w-4 h-4" />
              </button>
-          </div>
-
-          {/* Tags (Ringkasan Jenjang) */}
-          <div className="flex flex-wrap gap-2 mb-4">
-             {profile.plans.map(plan => (
-               <Badge key={plan.stageId} variant="secondary" className="bg-slate-50 text-slate-600 border-slate-100 text-[10px] font-semibold">
-                 {plan.stageId}
-                 {getBadgeLabel(plan.stageId, plan.startGrade)}
-               </Badge>
-             ))}
           </div>
 
           {/* Result Section (Footer) */}
@@ -87,13 +63,13 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                 <div>
                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Tabungan</p>
                    <p className="text-xl font-black text-slate-800">
-                      {result ? formatRupiah(result.totalMonthlySaving) : "Rp 0"}
+                      {result ? formatRupiah(result.monthlySaving || result.totalMonthlySaving) : "Rp 0"}
                       <span className="text-xs font-medium text-slate-500">/bln</span>
                    </p>
                 </div>
                 
                 {/* Expand Toggle */}
-                {result && (
+                {result && stagesData.length > 0 && (
                   <button 
                     onClick={() => setIsOpen(!isOpen)}
                     className="flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors"
@@ -104,34 +80,62 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                 )}
              </div>
 
-             {/* DETAIL DROPDOWN */}
+             {/* DETAIL DROPDOWN (GRANULAR TABLE) */}
              {isOpen && result && (
-               <div className="px-4 pb-4 animate-in slide-in-from-top-2">
-                 <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-3">
-                    {result.stages.map((stage) => {
-                      // Logic Label Detail (Disamakan dengan Badge)
-                      let startLabel = "";
-                      if (stage.stageId === "TK") {
-                         startLabel = stage.startGrade === 1 ? "Mulai TK A" : "Mulai TK B";
-                      } else if (stage.paymentFrequency === "SEMESTER") {
-                         startLabel = `Mulai Smt ${stage.startGrade}`;
-                      } else {
-                         startLabel = `Mulai Kls ${stage.startGrade}`;
-                      }
+               <div className="animate-in slide-in-from-top-2 border-t border-slate-100">
+                 <table className="w-full text-left">
+                    <thead className="bg-slate-100/50 text-[10px] text-slate-500 uppercase font-bold">
+                      <tr>
+                        <th className="px-4 py-2">Jenjang</th>
+                        <th className="px-4 py-2 text-right">Biaya Nanti</th>
+                        <th className="px-4 py-2 text-right">Nabung</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs">
+                      {stagesData.map((item: any, idx: number) => {
+                        // Normalisasi Field (Handle legacy vs new props)
+                        const level = item.level || item.stageId;
+                        const typeLabel = item.costType === "ENTRY" ? "Pangkal" : "SPP";
+                        const typeColor = item.costType === "ENTRY" ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600";
+                        const years = item.yearsToStart !== undefined ? item.yearsToStart : item.dueYear;
+                        
+                        // FV & PMT
+                        const fv = item.futureCost || item.totalFutureCost;
+                        const pmt = item.monthlySaving;
 
-                      return (
-                        <div key={stage.stageId} className="text-xs">
-                           <div className="flex justify-between font-bold text-slate-700 mb-1">
-                              <span>{stage.label}</span>
-                              <span>{formatRupiah(stage.monthlySaving)}/bln</span>
-                           </div>
-                           <div className="text-[10px] text-slate-400 flex justify-between">
-                              <span>{startLabel}</span>
-                              <span>Target: {formatRupiah(stage.totalFutureCost)}</span>
-                           </div>
-                        </div>
-                      );
-                    })}
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                             <td className="px-4 py-3">
+                                <div className="font-bold text-slate-700">{level}</div>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {/* Badge Tipe Biaya */}
+                                  <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-bold", typeColor)}>
+                                    {typeLabel}
+                                  </span>
+                                  {/* Badge Waktu */}
+                                  <span className="text-[9px] text-slate-400 flex items-center gap-0.5 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    <Clock className="w-2.5 h-2.5" /> {years} thn
+                                  </span>
+                                </div>
+                             </td>
+                             <td className="px-4 py-3 text-right font-medium text-slate-500">
+                                {formatRupiah(fv)}
+                             </td>
+                             <td className="px-4 py-3 text-right font-bold text-green-600">
+                                {formatRupiah(pmt)}
+                             </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                 </table>
+                 
+                 {/* Tips Footer */}
+                 <div className="p-3 bg-yellow-50 text-[10px] text-yellow-700 flex gap-2 items-start border-t border-yellow-100">
+                    <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Angka tabungan di atas dihitung <b>terpisah per jenjang</b> (Sinking Fund) agar dana tersedia tepat waktu saat anak masuk sekolah.
+                    </p>
                  </div>
                </div>
              )}

@@ -14,7 +14,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    nip: "", // <-- Tambahan Field NIP
+    nip: "", 
     name: "",
     email: "",
     password: "",
@@ -36,22 +36,32 @@ export default function RegisterPage() {
     }
 
     try {
-      // Kirim NIP ke Backend
-      await api.post("/auth/register", {
-        nip: formData.nip, // <-- Dikirim disini
-        name: formData.name,
+      // --- PERBAIKAN DISINI ---
+      // Mapping data agar sesuai DTO Backend (RegisterDto)
+      const payload = {
+        nip: formData.nip,
+        fullName: formData.name, // BE minta 'fullName', bukan 'name'
         email: formData.email,
         password: formData.password,
-        role: "PEGAWAI", 
-      });
+        // Karena belum ada dropdown Unit Kerja, kita hardcode dulu biar lolos validasi
+        unitKerjaId: "KANTOR_PUSAT", 
+      };
+
+      await api.post("/auth/register", payload);
 
       alert("Registrasi Berhasil! Silakan login.");
       router.push("/login");
 
     } catch (error: any) {
       console.error("Register Error:", error);
-      const msg = error.response?.data?.message || "Gagal mendaftar. Cek kembali data Anda.";
-      alert(msg);
+      // Menangkap pesan error spesifik dari Class Validator NestJS
+      const msg = error.response?.data?.message 
+        ? (Array.isArray(error.response.data.message) 
+            ? error.response.data.message.join(", ") 
+            : error.response.data.message)
+        : "Gagal mendaftar. Cek kembali data Anda.";
+      
+      alert(`Gagal: ${msg}`);
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +85,7 @@ export default function RegisterPage() {
         <Card className="p-8 border-slate-200 shadow-xl bg-white/80 backdrop-blur-xl">
           <form onSubmit={handleRegister} className="space-y-4">
             
-            {/* INPUT NIP (BARU) */}
+            {/* INPUT NIP */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-600 uppercase ml-1">Nomor Induk Pegawai (NIP)</label>
               <div className="relative">

@@ -1,17 +1,17 @@
-// --- TIPE DATA UTAMA (EXISTING) ---
+// --- TIPE DATA UTAMA (EXISTING - UI STATE) ---
 
 export interface EducationStage {
   id: string;       // "TK", "SD", "KULIAH", dll
   label: string;
   entryAge: number; // Usia masuk default
   duration: number; // Lama sekolah (tahun)
-  paymentFrequency: "MONTHLY" | "SEMESTER"; // Baru: Pembeda SPP vs UKT
+  paymentFrequency: "MONTHLY" | "SEMESTER"; // Pembeda SPP vs UKT
 }
 
-// Data input user (Lama - untuk UI Client Side)
+// Data input user (Client Side - digunakan di Wizard)
 export interface PlanInput {
   stageId: string;
-  startGrade: number; // Baru: Default 1. Bisa 2, 3, dst.
+  startGrade: number; // Default 1
   costNow: {
     entryFee: number;   
     monthlyFee: number; // SPP (x12) atau UKT (x2)
@@ -27,8 +27,9 @@ export interface ChildProfile {
   plans: PlanInput[];
 }
 
-// --- PAYLOAD TYPE DEFINITIONS (UNTUK API BACKEND) ---
-// Ini yang harus sama persis dengan DTO di Backend
+
+// --- PAYLOAD TYPE DEFINITIONS (REQ KE API BACKEND) ---
+// Structure ini harus mirror dengan DTO di Backend
 
 export interface PensionPayload {
   currentAge: number;
@@ -57,9 +58,10 @@ export interface GoalPayload {
   returnRate?: number;
 }
 
+// --- EDUCATION PAYLOAD (REQ) ---
 export interface EducationStagePayload {
-  level: "TK" | "SD" | "SMP" | "SMA" | "PT";
-  costType: "ENTRY" | "ANNUAL";
+  level: "TK" | "SD" | "SMP" | "SMA" | "PT"; // Enum SchoolLevel
+  costType: "ENTRY" | "ANNUAL";             // Enum CostType
   currentCost: number;
   yearsToStart: number;
 }
@@ -70,41 +72,55 @@ export interface EducationPayload {
   method?: "ARITHMETIC" | "GEOMETRIC";
   inflationRate?: number;
   returnRate?: number;
-  stages: EducationStagePayload[];
+  stages: EducationStagePayload[]; // Array of granular stages
 }
 
-// --- TIPE DATA HASIL (OUTPUT) ---
 
-export interface StageResult {
-  stageId: string;
-  label: string;
-  startGrade: number; 
-  paymentFrequency: string; 
+// --- API RESPONSE TYPES (RES DARI API BACKEND) ---
+
+export interface StageBreakdownItem {
+  level: "TK" | "SD" | "SMP" | "SMA" | "PT";
+  costType: "ENTRY" | "ANNUAL";
+  currentCost: number;
+  yearsToStart: number;
   
-  // Hasil Perhitungan
-  totalFutureCost: number; 
-  monthlySaving: number;   
-  
-  details?: {
-    item: string;
-    dueYear: number;
-    futureCost: number;
-    requiredSaving: number;
-  }[];
+  // Hasil Hitungan Backend
+  futureCost: number;      // FV Item Ini
+  monthlySaving: number;   // Tabungan Item Ini
 }
 
-export interface ChildSimulationResult {
-  childId: string;
-  childName: string;
-  stages: StageResult[];
-  totalMonthlySaving: number; 
-}
-
-export interface PortfolioSummary {
-  grandTotalMonthlySaving: number;
+export interface EducationCalculationResult {
   totalFutureCost: number;
-  details: ChildSimulationResult[];
+  monthlySaving: number; // Total Saving (Sum of items)
+  stagesBreakdown: StageBreakdownItem[]; // Data Rincian Granular (Drill Down)
 }
+
+export interface EducationPlanResponse {
+  plan: {
+    id: string;
+    userId: string;
+    childName: string;
+    childDob: string;
+    createdAt: string;
+    // Tambahan field agar sesuai dengan Backend & UI Page
+    inflationRate: number;
+    returnRate: number;
+    method?: string;
+  };
+  calculation: EducationCalculationResult; // Object hasil hitungan
+}
+
+// Tipe Data untuk UI Card (Gabungan atau Adapter)
+export interface ChildSimulationResult {
+  childId?: string;
+  childName?: string;
+  totalMonthlySaving: number; 
+  // Support data granular baru
+  stagesBreakdown?: StageBreakdownItem[];
+  // Support legacy data (opsional)
+  stages?: any[]; 
+}
+
 
 // --- BUDGETING TYPES ---
 
@@ -242,7 +258,7 @@ export interface SystemSettings {
 }
 
 // ============================================================================
-// FINANCIAL HEALTH CHECK UP TYPES (FIXED & GRANULAR)
+// FINANCIAL HEALTH CHECK UP TYPES
 // ============================================================================
 
 export interface PersonalInfo {
