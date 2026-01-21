@@ -102,6 +102,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
         const startGrade = startGrades[id] || 1;
         
         // Hitung "Years To Start" dasar
+        // Rumus: (Usia Masuk + (KelasMulai - 1)) - UsiaAnak
         const baseEntryYears = (stageInfo.entryAge + (startGrade - 1)) - childAge;
 
         // 1. PUSH UANG PANGKAL (One-time cost)
@@ -114,7 +115,8 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
           });
         }
 
-        // 2. PUSH BIAYA BULANAN (Recurring cost) -> EXPAND LOOP
+        // 2. PUSH BIAYA BULANAN (Recurring cost) -> EXPAND LOOP PER TAHUN
+        // Backend butuh data granular tahunan (ANNUAL)
         if (cost.monthly > 0) {
           const isSemester = stageInfo.paymentFrequency === "SEMESTER";
           const annualCost = isSemester ? cost.monthly * 2 : cost.monthly * 12;

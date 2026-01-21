@@ -8,7 +8,7 @@ import {
   RatioDetail, HealthStatus,
 } from "./types";
 
-// --- DATABASE JENJANG ---
+// --- DATABASE JENJANG (DIKEMBALIKAN SESUAI BRANCH SEMENTARA_1) ---
 export const STAGES_DB: EducationStage[] = [
   { id: "TK", label: "TK / PAUD", entryAge: 5, duration: 2, paymentFrequency: "MONTHLY" },
   { id: "SD", label: "Sekolah Dasar", entryAge: 7, duration: 6, paymentFrequency: "MONTHLY" },
@@ -50,7 +50,9 @@ export const calculatePMT = (
   return annualPMT / 12;
 };
 
-// --- ADVANCED CALCULATION ENGINE (EDUCATION) ---
+// --- ADVANCED CALCULATION ENGINE (EDUCATION - CLIENT SIDE) ---
+// Engine ini tetap ada untuk kalkulasi instan di UI jika diperlukan
+// (Walaupun save data akan menembak API Backend)
 
 const calculateStageGranular = (
   input: PlanInput, 

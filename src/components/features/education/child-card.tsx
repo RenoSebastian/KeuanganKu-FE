@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah, calculateAge } from "@/lib/financial-math";
-import { ChildProfile, ChildSimulationResult } from "@/lib/types";
+import { ChildProfile, ChildSimulationResult } from "@/lib/types"; // Pastikan types sudah diupdate
 import { Baby, Trash2, ChevronDown, ChevronUp, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Interface Props
 interface ChildCardProps {
   profile: ChildProfile;
-  result?: any; // Menggunakan 'any' sementara agar fleksibel menerima structure baru (stagesBreakdown)
+  result?: any; // Menggunakan 'any' sementara agar fleksibel menerima structure baru (stagesBreakdown) maupun lama
   onDelete: (id: string) => void;
 }
 
@@ -22,7 +22,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
   const avatarBg = profile.gender === "L" ? "bg-blue-100 text-blue-600" : "bg-pink-100 text-pink-600";
 
   // Data breakdown bisa datang dari 'stages' (legacy) atau 'stagesBreakdown' (new granular)
-  // Kita normalisasi di sini
+  // Kita normalisasi di sini agar UI tidak error
   const stagesData = result?.stagesBreakdown || result?.stages || [];
 
   return (
@@ -68,7 +68,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                    </p>
                 </div>
                 
-                {/* Expand Toggle */}
+                {/* Expand Toggle (Hanya muncul jika ada data rincian) */}
                 {result && stagesData.length > 0 && (
                   <button 
                     onClick={() => setIsOpen(!isOpen)}
@@ -100,8 +100,8 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                         const years = item.yearsToStart !== undefined ? item.yearsToStart : item.dueYear;
                         
                         // FV & PMT
-                        const fv = item.futureCost || item.totalFutureCost;
-                        const pmt = item.monthlySaving;
+                        const fv = item.futureCost || item.totalFutureCost || 0;
+                        const pmt = item.monthlySaving || 0;
 
                         return (
                           <tr key={idx} className="hover:bg-slate-50 transition-colors">
@@ -114,7 +114,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                                   </span>
                                   {/* Badge Waktu */}
                                   <span className="text-[9px] text-slate-400 flex items-center gap-0.5 bg-slate-100 px-1.5 py-0.5 rounded">
-                                    <Clock className="w-2.5 h-2.5" /> {years} thn
+                                    <Clock className="w-2.5 h-2.5" /> {years} thn lagi
                                   </span>
                                 </div>
                              </td>

@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { formatRupiah } from "@/lib/financial-math";
-import { PortfolioSummary } from "@/lib/types";
+import { PortfolioSummary } from "@/lib/types"; // Import type yang sudah ada di types.ts
 import { Wallet, TrendingUp, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ interface SummaryBoardProps {
 }
 
 export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
+  // Ambil data dari props, berikan default 0 jika null
   const totalSaving = summary?.grandTotalMonthlySaving || 0;
   const totalFutureCost = summary?.totalFutureCost || 0;
 
@@ -41,7 +42,7 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
            )}
            
            <p className="text-xs md:text-sm text-blue-200 max-w-md leading-relaxed">
-             Ini adalah jumlah uang yang harus Anda sisihkan <b>setiap bulan</b> mulai hari ini untuk meng-cover biaya pendidikan semua anak Anda.
+             Ini adalah jumlah uang yang harus Anda sisihkan <b>setiap bulan</b> mulai hari ini untuk meng-cover biaya pendidikan semua anak Anda (metode Sinking Fund).
            </p>
         </div>
 
@@ -55,7 +56,7 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
               </div>
               <div>
                  <p className="text-[10px] uppercase font-bold text-blue-200">Total Dana Dibutuhkan</p>
-                 <p className="text-[10px] text-blue-300">(Masa Depan + Inflasi)</p>
+                 <p className="text-[10px] text-blue-300">(Estimasi Masa Depan + Inflasi)</p>
               </div>
            </div>
            
@@ -70,7 +71,7 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
            <div className="mt-3 flex gap-2">
               <Info className="w-3 h-3 text-blue-300 flex-shrink-0 mt-0.5" />
               <p className="text-[10px] text-blue-200 italic leading-tight">
-                 Angka ini adalah akumulasi Uang Pangkal + SPP seluruh anak hingga lulus.
+                 Angka ini adalah akumulasi Uang Pangkal + SPP seluruh anak hingga lulus kuliah nanti.
               </p>
            </div>
         </div>

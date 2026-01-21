@@ -1,4 +1,6 @@
-// --- TIPE DATA UTAMA (EXISTING - UI STATE) ---
+// ============================================================================
+// 1. UI STATE TYPES (FROM BRANCH SEMENTARA_1)
+// ============================================================================
 
 export interface EducationStage {
   id: string;       // "TK", "SD", "KULIAH", dll
@@ -6,6 +8,27 @@ export interface EducationStage {
   entryAge: number; // Usia masuk default
   duration: number; // Lama sekolah (tahun)
   paymentFrequency: "MONTHLY" | "SEMESTER"; // Pembeda SPP vs UKT
+}
+
+// Add this to src/lib/types.ts
+
+// Represents the calculation result for a single education stage (e.g., TK)
+export interface StageResult {
+  stageId: string;
+  label: string;
+  startGrade: number;
+  paymentFrequency: "MONTHLY" | "SEMESTER";
+  totalFutureCost: number;
+  monthlySaving: number;
+  // Optional: Detailed breakdown if your logic supports it
+  details?: any[]; 
+}
+
+// Represents the summary of calculations for all children
+export interface PortfolioSummary {
+  grandTotalMonthlySaving: number;
+  totalFutureCost: number;
+  details: ChildSimulationResult[]; // Reusing your existing ChildSimulationResult
 }
 
 // Data input user (Client Side - digunakan di Wizard)
@@ -28,8 +51,9 @@ export interface ChildProfile {
 }
 
 
-// --- PAYLOAD TYPE DEFINITIONS (REQ KE API BACKEND) ---
-// Structure ini harus mirror dengan DTO di Backend
+// ============================================================================
+// 2. API PAYLOAD TYPES (REQ KE BACKEND)
+// ============================================================================
 
 export interface PensionPayload {
   currentAge: number;
@@ -58,7 +82,7 @@ export interface GoalPayload {
   returnRate?: number;
 }
 
-// --- EDUCATION PAYLOAD (REQ) ---
+// --- EDUCATION PAYLOAD (GRANULAR) ---
 export interface EducationStagePayload {
   level: "TK" | "SD" | "SMP" | "SMA" | "PT"; // Enum SchoolLevel
   costType: "ENTRY" | "ANNUAL";             // Enum CostType
@@ -76,7 +100,9 @@ export interface EducationPayload {
 }
 
 
-// --- API RESPONSE TYPES (RES DARI API BACKEND) ---
+// ============================================================================
+// 3. API RESPONSE TYPES (RES DARI BACKEND)
+// ============================================================================
 
 export interface StageBreakdownItem {
   level: "TK" | "SD" | "SMP" | "SMA" | "PT";
@@ -102,7 +128,6 @@ export interface EducationPlanResponse {
     childName: string;
     childDob: string;
     createdAt: string;
-    // Tambahan field agar sesuai dengan Backend & UI Page
     inflationRate: number;
     returnRate: number;
     method?: string;
@@ -110,19 +135,23 @@ export interface EducationPlanResponse {
   calculation: EducationCalculationResult; // Object hasil hitungan
 }
 
-// Tipe Data untuk UI Card (Gabungan atau Adapter)
+// --- ADAPTER TYPE (PENTING AGAR UI TIDAK ERROR) ---
+// Tipe ini menjembatani data UI (ChildProfile) dengan data Backend (EducationPlanResponse)
+// Digunakan di ChildCard & SimulationResult
 export interface ChildSimulationResult {
   childId?: string;
   childName?: string;
   totalMonthlySaving: number; 
-  // Support data granular baru
+  // Support data granular baru dari Backend
   stagesBreakdown?: StageBreakdownItem[];
-  // Support legacy data (opsional)
+  // Support legacy data (opsional, jaga-jaga)
   stages?: any[]; 
 }
 
 
-// --- BUDGETING TYPES ---
+// ============================================================================
+// 4. EXISTING TYPES (BUDGET, PENSION, ETC - TIDAK BERUBAH)
+// ============================================================================
 
 export interface BudgetInput {
   name: string;
@@ -258,7 +287,7 @@ export interface SystemSettings {
 }
 
 // ============================================================================
-// FINANCIAL HEALTH CHECK UP TYPES
+// 5. FINANCIAL HEALTH CHECK UP TYPES
 // ============================================================================
 
 export interface PersonalInfo {

@@ -6,21 +6,22 @@ import { Card } from "@/components/ui/card";
 import { GraduationCap, Plus } from "lucide-react";
 import { ChildWizard } from "@/components/features/education/child-wizard";
 import { SimulationResult, SimulationResultData } from "@/components/features/education/simulation-result";
-import { EducationPlanResponse } from "@/lib/types"; // Import tipe yang sudah kita buat
+import { EducationPlanResponse } from "@/lib/types"; // Import tipe response API yang sudah kita buat
 
 export default function EducationPage() {
+  // State untuk mengontrol tampilan (Welcome Screen / Form Wizard / Result)
   const [view, setView] = useState<"WELCOME" | "WIZARD" | "RESULT">("WELCOME");
   
-  // State untuk menampung hasil perhitungan dari Backend
+  // State untuk menampung hasil perhitungan yang dikembalikan oleh Backend
   const [simulationResult, setSimulationResult] = useState<SimulationResultData | null>(null);
 
   // --- HANDLERS ---
   
-  // Dipanggil ketika Wizard selesai mengirim data ke Backend
+  // Handler ini dipanggil ketika ChildWizard berhasil menyimpan data ke API
   const handleSuccess = (result: EducationPlanResponse) => {
-    // Mapping respon Backend ke format SimulationResultData yang dibutuhkan UI
+    // Mapping respon Backend ke format data visual yang dibutuhkan komponen SimulationResult
     
-    // Konversi data angka (jika backend mengirim decimal sebagai string)
+    // Pastikan konversi tipe data aman (Number() untuk jaga-jaga jika string desimal)
     const totalFV = Number(result.calculation.totalFutureCost);
     const monthlySaving = Number(result.calculation.monthlySaving);
     const inflation = Number(result.plan.inflationRate || 10);
@@ -32,10 +33,11 @@ export default function EducationPage() {
       monthlySaving: monthlySaving,
       inflationRate: inflation,
       returnRate: returnRate,
-      // INI KUNCINYA: Pass data granular ke komponen visual
+      // Pass data rincian granular ke komponen visual (Drill Down)
       stagesBreakdown: result.calculation.stagesBreakdown 
     });
 
+    // Pindah ke tampilan hasil
     setView("RESULT");
   };
 
@@ -47,7 +49,7 @@ export default function EducationPage() {
   return (
     <div className="min-h-screen w-full bg-slate-50/50 pb-24 md:pb-12">
       
-      {/* Header Decoration */}
+      {/* Header Decoration (Sesuai UI sementara_1) */}
       <div className="bg-blue-600 h-48 md:h-64 w-full absolute top-0 left-0 rounded-b-[2.5rem] md:rounded-b-[4rem] shadow-xl z-0 overflow-hidden">
          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
          <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
@@ -64,7 +66,7 @@ export default function EducationPage() {
               </div>
               <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-2">Perencanaan Pendidikan</h1>
               <p className="text-blue-100 text-sm md:text-base max-w-lg leading-relaxed">
-                Simulasi dana pendidikan presisi dengan metode <i>Cashflow Matching</i> untuk seluruh jenjang.
+                Simulasi dana pendidikan presisi dengan metode <i>Cashflow Matching</i> untuk seluruh jenjang sekolah anak Anda.
               </p>
            </div>
         </div>
@@ -77,7 +79,7 @@ export default function EducationPage() {
               </div>
               <h3 className="text-2xl font-black text-slate-700 mb-2">Mulai Perencanaan</h3>
               <p className="text-slate-500 max-w-sm mb-8 leading-relaxed">
-                Tambahkan data anak Anda untuk menghitung biaya pendidikan dari TK hingga Kuliah secara detail.
+                Tambahkan data anak Anda untuk menghitung biaya pendidikan dari TK hingga Kuliah secara detail dan akurat.
               </p>
               <Button onClick={() => setView("WIZARD")} size="lg" className="bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-200 rounded-xl h-12 px-8 text-base">
                  <Plus className="w-5 h-5 mr-2" /> Buat Rencana Baru
