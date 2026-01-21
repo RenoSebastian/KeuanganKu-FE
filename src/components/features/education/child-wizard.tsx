@@ -3,21 +3,21 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChildProfile, PlanInput } from "@/lib/types";
 import { STAGES_DB, calculateAge } from "@/lib/financial-math";
 import { cn } from "@/lib/utils";
-import { Check, ChevronRight, GraduationCap, AlertCircle } from "lucide-react";
+import { Check, ChevronRight, GraduationCap, AlertCircle, Loader2 } from "lucide-react";
+import { financialService } from "@/services/financial.service";
+import { EducationPayload, EducationStagePayload } from "@/lib/types";
 
-// Helper generate ID
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
+// --- PERBAIKAN DI SINI ---
 interface ChildWizardProps {
-  onSave: (data: ChildProfile) => void;
+  onSave: (result: any) => void; // Menerima data result dari API
   onCancel: () => void;
 }
 
 export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
   const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Step 1: Profile
   const [name, setName] = useState("");
@@ -31,10 +31,10 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
   // Step 3: Input Costs
   const [costs, setCosts] = useState<Record<string, { entry: number; monthly: number }>>({});
 
-  // --- LOGIC VALIDASI UMUR (Max 21 Tahun) ---
+  // --- LOGIC VALIDASI UMUR ---
   const today = new Date();
   const minDate = new Date(today.getFullYear() - 23, today.getMonth(), today.getDate()).toISOString().split('T')[0];
-  const maxDate = new Date().toISOString().split('T')[0]; // Tidak boleh lahir di masa depan
+  const maxDate = new Date().toISOString().split('T')[0];
 
   // --- HANDLERS ---
   const handleToggleStage = (id: string) => {
@@ -52,14 +52,14 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
       setSelectedStageIds(prev => [...prev, id]);
       // Init default values
       setCosts(prev => ({ ...prev, [id]: { entry: 0, monthly: 0 } }));
-      setStartGrades(prev => ({ ...prev, [id]: 1 })); // Default kelas 1
+      setStartGrades(prev => ({ ...prev, [id]: 1 })); 
     }
   };
 
   const handleGradeChange = (id: string, grade: number) => {
     setStartGrades(prev => ({ ...prev, [id]: grade }));
     
-    // Auto reset entry fee if grade > 1 (Asumsi pindahan/lanjutan tidak bayar pangkal penuh/sudah lunas)
+    // Auto reset entry fee if grade > 1 (Asumsi pindahan tidak bayar pangkal)
     if (grade > 1) {
       setCosts(prev => ({
         ...prev,
@@ -76,48 +76,97 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
     }));
   };
 
-  const handleFinish = () => {
-    const plans: PlanInput[] = selectedStageIds.map(id => ({
-      stageId: id,
-      startGrade: startGrades[id] || 1, // Include startGrade
-      costNow: {
-        entryFee: costs[id]?.entry || 0,
-        monthlyFee: costs[id]?.monthly || 0
-      }
-    }));
-
-    const newChild: ChildProfile = {
-      id: generateId(),
-      name,
-      dob,
-      gender,
-      avatarColor: gender === "L" ? "blue" : "pink",
-      plans
-    };
-
-    onSave(newChild);
+  // --- MAPPER HELPER ---
+  const mapLevel = (id: string): "TK" | "SD" | "SMP" | "SMA" | "PT" => {
+    if (id === "TK") return "TK";
+    if (id === "SD") return "SD";
+    if (id === "SMP") return "SMP";
+    if (id === "SMA") return "SMA";
+    if (id === "KULIAH") return "PT";
+    return "TK"; // Fallback
   };
 
-  // Helper Format input
+  // --- SUBMIT LOGIC (INTEGRASI BE) ---
+  const handleFinish = async () => {
+    setIsLoading(true);
+    try {
+      const stagesPayload: EducationStagePayload[] = [];
+      const childAge = calculateAge(dob); // Umur anak saat ini
+
+      // Loop setiap stage yang dipilih
+      selectedStageIds.forEach(id => {
+        const stageInfo = STAGES_DB.find(s => s.id === id);
+        if (!stageInfo) return;
+
+        const cost = costs[id];
+        const startGrade = startGrades[id] || 1;
+        
+        // Hitung "Years To Start" dasar
+        const baseEntryYears = (stageInfo.entryAge + (startGrade - 1)) - childAge;
+
+        // 1. PUSH UANG PANGKAL (One-time cost)
+        if (cost.entry > 0) {
+          stagesPayload.push({
+            level: mapLevel(id),
+            costType: "ENTRY",
+            currentCost: cost.entry,
+            yearsToStart: Math.max(0, baseEntryYears) 
+          });
+        }
+
+        // 2. PUSH BIAYA BULANAN (Recurring cost) -> EXPAND LOOP
+        if (cost.monthly > 0) {
+          const isSemester = stageInfo.paymentFrequency === "SEMESTER";
+          const annualCost = isSemester ? cost.monthly * 2 : cost.monthly * 12;
+          
+          const remainingDuration = stageInfo.duration - (startGrade - 1);
+
+          for (let i = 0; i < remainingDuration; i++) {
+            stagesPayload.push({
+              level: mapLevel(id),
+              costType: "ANNUAL", 
+              currentCost: annualCost,
+              yearsToStart: Math.max(0, baseEntryYears + i) 
+            });
+          }
+        }
+      });
+
+      // Construct Final Payload
+      const payload: EducationPayload = {
+        childName: name,
+        childDob: dob,
+        method: "GEOMETRIC", // Default
+        inflationRate: 10,   // Default 10% 
+        returnRate: 12,      // Default 12%
+        stages: stagesPayload
+      };
+
+      // Call API
+      const response = await financialService.saveEducationPlan(payload);
+      
+      // --- PERBAIKAN DI SINI ---
+      onSave(response); // Kirim data response ke parent
+
+    } catch (error) {
+      console.error("Gagal menyimpan rencana pendidikan:", error);
+      alert("Terjadi kesalahan saat menyimpan data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper UI
   const formatNum = (n: number) => n?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") || "";
 
-  // Helper untuk Generate Opsi Dropdown (TK A/B, Semester 1-8)
   const getGradeOptions = (stage: typeof STAGES_DB[0]) => {
-    // 1. Jika Semester (Kuliah/S2), loop Duration x 2 (4 thn -> 8 semester)
     const count = stage.paymentFrequency === "SEMESTER" ? stage.duration * 2 : stage.duration;
-    
     return Array.from({ length: count }, (_, i) => {
       const val = i + 1;
       let label = "";
-      
-      if (stage.id === "TK") {
-        label = val === 1 ? "TK A" : "TK B";
-      } else if (stage.paymentFrequency === "SEMESTER") {
-        label = `Semester ${val}`;
-      } else {
-        label = `Kelas ${val}`;
-      }
-      
+      if (stage.id === "TK") label = val === 1 ? "TK A" : "TK B";
+      else if (stage.paymentFrequency === "SEMESTER") label = `Semester ${val}`;
+      else label = `Kelas ${val}`;
       return { val, label };
     });
   };
@@ -162,7 +211,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                  value={dob} 
                  onChange={e => setDob(e.target.value)} 
                  className="h-12"
-                 min={minDate} // Validasi Umur Max 21
+                 min={minDate}
                  max={maxDate}
                />
                <p className="text-[10px] text-slate-400 ml-1">Maksimal usia 21 tahun.</p>
@@ -197,7 +246,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
               
               const isSelected = selectedStageIds.includes(stage.id);
               const currentGrade = startGrades[stage.id] || 1;
-              const options = getGradeOptions(stage); // Generate Options (TK A/B, Smt 1-8)
+              const options = getGradeOptions(stage);
 
               return (
                 <div 
@@ -224,7 +273,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                        </div>
                    </div>
 
-                   {/* Dropdown Kelas (Muncul jika selected) */}
+                   {/* Dropdown Kelas */}
                    {isSelected && !isTotallyPassed && (
                      <div className="mt-3 pt-3 border-t border-blue-100 flex items-center justify-between animate-in slide-in-from-top-2">
                         <span className="text-xs font-bold text-slate-600">Mulai dari:</span>
@@ -262,9 +311,8 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
              {selectedStageIds.map((id) => {
                const stage = STAGES_DB.find(s => s.id === id);
                const currentGrade = startGrades[id] || 1;
-               const isEntryFeeDisabled = currentGrade > 1; // Jika bukan kelas 1, uang pangkal disable
+               const isEntryFeeDisabled = currentGrade > 1;
 
-               // Label Dinamis
                const monthlyLabel = stage?.paymentFrequency === "SEMESTER" ? "UKT per Semester" : "SPP Bulanan";
                
                let gradeLabel = "";
@@ -285,7 +333,6 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
-                       {/* Uang Pangkal */}
                        <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                             Uang Pangkal
@@ -302,7 +349,6 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                           </div>
                        </div>
 
-                       {/* SPP / UKT */}
                        <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase">{monthlyLabel}</label>
                           <Input 
@@ -330,9 +376,9 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
       {/* FOOTER ACTIONS */}
       <div className="flex gap-3 pt-4 border-t border-slate-100">
          {step === 1 ? (
-           <Button variant="outline" onClick={onCancel} className="flex-1 h-11">Batal</Button>
+           <Button variant="outline" onClick={onCancel} className="flex-1 h-11" disabled={isLoading}>Batal</Button>
          ) : (
-           <Button variant="outline" onClick={() => setStep(prev => prev - 1)} className="flex-1 h-11">Kembali</Button>
+           <Button variant="outline" onClick={() => setStep(prev => prev - 1)} className="flex-1 h-11" disabled={isLoading}>Kembali</Button>
          )}
 
          {step < 3 ? (
@@ -344,8 +390,9 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
              Lanjut <ChevronRight className="w-4 h-4 ml-1" />
            </Button>
          ) : (
-           <Button onClick={handleFinish} className="flex-1 bg-green-600 hover:bg-green-700 h-11 font-bold shadow-lg shadow-green-100">
-             Simpan Data Anak <Check className="w-4 h-4 ml-1" />
+           <Button onClick={handleFinish} disabled={isLoading} className="flex-1 bg-green-600 hover:bg-green-700 h-11 font-bold shadow-lg shadow-green-100">
+             {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 ml-1 mr-2" />}
+             Simpan Data Anak
            </Button>
          )}
       </div>

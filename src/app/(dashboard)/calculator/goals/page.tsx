@@ -8,12 +8,13 @@ import { Slider } from "@/components/ui/slider";
 import { 
   Target, Plane, Heart, Star, 
   RefreshCcw, Download, CalendarDays, Coins, 
-  TrendingUp, Wallet, ArrowRight
+  TrendingUp, Wallet, ArrowRight, Loader2 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { calculateSpecialGoal, formatRupiah } from "@/lib/financial-math";
+import { formatRupiah } from "@/lib/financial-math"; 
 import { SpecialGoalResult, GoalType } from "@/lib/types";
 import { generateSpecialGoalPDF } from "@/lib/pdf-generator";
+import { financialService } from "@/services/financial.service"; // Import Service API
 
 // Konfigurasi Tema per Tujuan
 const GOAL_OPTIONS: { id: GoalType; label: string; icon: any; color: string; gradient: string; desc: string }[] = [
@@ -60,6 +61,7 @@ export default function GoalsPage() {
   const [investmentRate, setInvestmentRate] = useState(6);
 
   const [result, setResult] = useState<SpecialGoalResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // State Loading
 
   // --- HANDLERS ---
   const handleMoneyInput = (val: string) => {
@@ -69,7 +71,8 @@ export default function GoalsPage() {
     if (result) setResult(null);
   };
 
-  const handleCalculate = () => {
+  // --- API INTEGRATION ---
+  const handleCalculate = async () => {
     const cost = parseInt(currentCost.replace(/\./g, "")) || 0;
     const years = parseInt(duration) || 0;
 
@@ -78,15 +81,37 @@ export default function GoalsPage() {
       return;
     }
 
-    const calc = calculateSpecialGoal({
-      goalType: selectedGoal,
-      currentCost: cost,
-      duration: years,
-      inflationRate: inflation,
-      investmentRate: investmentRate
-    });
+    setIsLoading(true);
 
-    setResult(calc);
+    try {
+      // 1. Generate Target Date (Hari ini + X Tahun)
+      const targetDate = new Date();
+      targetDate.setFullYear(targetDate.getFullYear() + years);
+      const dateString = targetDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
+
+      // 2. Call API Backend
+      const response = await financialService.saveGoalPlan({
+        goalName: selectedGoal, 
+        targetAmount: cost,
+        targetDate: dateString,
+        inflationRate: inflation,
+        returnRate: investmentRate
+      });
+
+      const calc = response.calculation;
+
+      // 3. Map Response to UI
+      setResult({
+        futureValue: calc.futureTargetAmount, // Nilai masa depan dari BE
+        monthlySaving: calc.monthlySaving     // Rekomendasi tabungan dari BE
+      });
+
+    } catch (error) {
+      console.error("Gagal menghitung goals:", error);
+      alert("Terjadi kesalahan saat menghitung data. Coba lagi.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -210,7 +235,7 @@ export default function GoalsPage() {
                     </div>
 
                     <div className="space-y-6 pt-4 border-t border-slate-100">
-                        {/* Inflation Slider - Fixed Type Error */}
+                        {/* Inflation Slider */}
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase">Asumsi Inflasi (Kenaikan Harga)</label>
@@ -224,7 +249,7 @@ export default function GoalsPage() {
                             />
                         </div>
 
-                        {/* Investment Slider - Fixed Type Error */}
+                        {/* Investment Slider */}
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase">Estimasi Return Investasi</label>
@@ -241,12 +266,17 @@ export default function GoalsPage() {
 
                     <Button 
                         onClick={handleCalculate}
+                        disabled={isLoading}
                         className={cn(
-                            "w-full h-12 text-lg font-bold shadow-lg rounded-xl text-white transition-all active:scale-95 bg-gradient-to-r",
+                            "w-full h-12 text-lg font-bold shadow-lg rounded-xl text-white transition-all active:scale-95 bg-gradient-to-r disabled:opacity-70 disabled:cursor-not-allowed",
                             currentTheme.gradient
                         )}
                     >
-                        Hitung Strategi Menabung
+                        {isLoading ? (
+                            <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menghitung...</>
+                        ) : (
+                            "Hitung Strategi Menabung"
+                        )}
                     </Button>
                 </Card>
             </div>

@@ -4,30 +4,36 @@ import { TrendingUp, Wallet, Info, RefreshCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/financial-math";
 
+// Sesuaikan interface dengan data yang dikirim dari Parent (Page)
+export interface SimulationResultData {
+  childName: string;
+  totalFutureCost: number; // Total FV dari semua stage
+  monthlySaving: number;   // Total PMT
+  inflationRate: number;
+  returnRate: number;
+}
+
 interface SimulationResultProps {
-  data: {
-    childName: string;
-    targetLevel: string;
-    yearsToGo: number;
-    inflation: number;
-    returnRate: number;
-    presentValue: number;
-    futureValue: number;
-    monthlySaving: number;
-  };
+  data: SimulationResultData;
   onReset: () => void;
-  onSave: () => void;
+  onSave?: () => void; // Opsional jika tombol save ada di sini
 }
 
 export function SimulationResult({ data, onReset, onSave }: SimulationResultProps) {
+  
+  // Hitung "Biaya Sekarang" (Present Value Total) secara kasar untuk perbandingan
+  // FV = PV * (1+r)^n  => PV = FV / (1+r)^n
+  // Karena 'n' berbeda tiap stage, kita pakai simplifikasi atau ambil selisihnya
+  // Tapi untuk UX, menampilkan "Biaya Nanti" vs "Tabungan Bulanan" sudah cukup kuat.
+  
   return (
     <div className="space-y-8 animate-in zoom-in-95 duration-500">
        
        {/* Result Header */}
        <div className="text-center">
-          <h2 className="text-2xl font-black text-slate-800">Hasil Simulasi {data.targetLevel}</h2>
+          <h2 className="text-2xl font-black text-slate-800">Hasil Simulasi Pendidikan</h2>
           <p className="text-slate-500 font-medium">
-            Untuk Ananda <span className="text-blue-600 font-bold">{data.childName}</span> ({data.yearsToGo} tahun lagi)
+            Rencana Dana Pendidikan untuk Ananda <span className="text-blue-600 font-bold">{data.childName}</span>
           </p>
        </div>
 
@@ -39,16 +45,12 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
              <div className="p-3 bg-white rounded-full shadow-sm mb-2 z-10 group-hover:scale-110 transition-transform">
                 <TrendingUp className="w-6 h-6 text-red-500" />
              </div>
-             <p className="text-xs font-bold text-red-400 uppercase tracking-widest z-10">Estimasi Biaya Nanti</p>
+             <p className="text-xs font-bold text-red-400 uppercase tracking-widest z-10">Total Estimasi Biaya Nanti</p>
              <h3 className="text-2xl md:text-4xl font-black text-slate-800 z-10">
-               {formatRupiah(data.futureValue)}
+               {formatRupiah(data.totalFutureCost)}
              </h3>
-             <div className="flex items-center gap-2 text-xs font-medium bg-white/60 px-3 py-1 rounded-full text-slate-500 mt-2 z-10">
-                <span>Biaya Sekarang:</span>
-                <span className="line-through decoration-red-400 decoration-2">{formatRupiah(data.presentValue)}</span>
-             </div>
              <p className="text-[10px] text-slate-400 mt-2 max-w-xs mx-auto z-10">
-               *Dihitung dengan asumsi inflasi pendidikan {data.inflation}% per tahun selama {data.yearsToGo} tahun.
+               *Total akumulasi biaya (TK s/d Kuliah) yang sudah memperhitungkan inflasi pendidikan sebesar {data.inflationRate}% per tahun.
              </p>
           </div>
 
@@ -90,13 +92,16 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
              onClick={onReset}
              className="flex-1 h-12 rounded-xl font-bold border-slate-300 text-slate-600 hover:bg-slate-100"
            >
-             <RefreshCcw className="w-4 h-4 mr-2" /> Hitung Ulang
+             <RefreshCcw className="w-4 h-4 mr-2" /> Hitung Anak Lain
            </Button>
+           
+           {/* Tombol Simpan biasanya sudah di-handle di Wizard, 
+               tapi jika mau fitur "Download PDF" bisa ditaruh di sini */}
            <Button 
-             className="flex-1 h-12 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
-             onClick={onSave}
+             className="flex-1 h-12 rounded-xl font-bold bg-slate-800 hover:bg-slate-900 shadow-lg text-white"
+             onClick={() => alert("Fitur Download PDF segera hadir!")}
            >
-             <Save className="w-4 h-4 mr-2" /> Simpan Rencana
+             <Save className="w-4 h-4 mr-2" /> Download PDF
            </Button>
         </div>
     </div>

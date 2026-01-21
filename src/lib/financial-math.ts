@@ -433,7 +433,7 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
      data.savingPilgrimage + 
      data.savingHoliday + 
      data.savingEmergency + 
-     data.savingOther) * 12;
+     data.savingOther);
 
   // Total Belanja Keluarga (N) - Dikali 12 karena input bulanan (Kecuali Pajak biasanya tahunan, tapi asumsi input disamakan)
   const totalFamilyExpense = 
@@ -442,7 +442,7 @@ export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisR
      data.expenseTransport + 
      data.expenseCommunication + 
      data.expenseHelpers + 
-     data.expenseLifestyle) * 12 + data.expenseTax; // Tax biasanya tahunan
+     data.expenseLifestyle) + data.expenseTax; // Tax biasanya tahunan
 
   // Total Pengeluaran (O)
   const totalAnnualExpense = totalAnnualInstallment + totalInsurance + totalAnnualSaving + totalFamilyExpense;

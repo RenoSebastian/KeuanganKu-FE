@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react"; // Hapus useMemo jika tidak dipakai
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { 
   Calculator, User, Briefcase, TrendingUp, 
-  RefreshCcw, Download, Hourglass, PiggyBank, AlertCircle
-} from "lucide-react";
+  RefreshCcw, Download, Hourglass, PiggyBank, AlertCircle, Loader2 
+} from "lucide-react"; // Tambah Loader2
 import { cn } from "@/lib/utils";
-import { calculatePension, formatRupiah } from "@/lib/financial-math";
+import { formatRupiah } from "@/lib/financial-math"; // Hapus calculatePension import
 import { PensionResult } from "@/lib/types";
 import { generatePensionPDF } from "@/lib/pdf-generator";
+import { financialService } from "@/services/financial.service"; // Import Service
 
 export default function PensionPage() {
   // --- STATE INPUT ---
@@ -26,18 +27,16 @@ export default function PensionPage() {
   const [returnRate, setReturnRate] = useState(12);   
 
   const [result, setResult] = useState<PensionResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // New State
   
-  // State untuk Error Validation (UX Improvement)
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // --- VALIDATION LOGIC ---
-  // Cek validitas data secara real-time untuk visual feedback
   const validateInputs = () => {
     const newErrors: Record<string, string> = {};
     const cAge = parseInt(currentAge) || 0;
     const rAge = parseInt(retirementAge) || 0;
     const rDur = parseInt(retirementDuration) || 0;
-    const expense = parseInt(currentExpense.replace(/\./g, "")) || 0;
 
     if (!currentAge) newErrors.currentAge = "Wajib diisi";
     if (!retirementAge) newErrors.retirementAge = "Wajib diisi";
@@ -55,56 +54,68 @@ export default function PensionPage() {
   };
 
   // --- HANDLERS ---
-  
-  // 1. Handler Tahun/Umur: Mencegah input "0" di awal & karakter aneh
   const handleYearInput = (val: string, setter: (v: string) => void) => {
-    // Hanya ambil angka
     let clean = val.replace(/\D/g, "");
-    
-    // Cegah angka 0 di depan (kecuali mau nulis 10, 20 dst)
-    // Jika user nulis "0", ubah jadi kosong biar dia ngetik ulang yg bener
     if (clean === "0") clean = "";
-    
-    // Limit panjang (misal max 3 digit buat umur/tahun)
     if (clean.length > 3) return;
-
     setter(clean);
-    
-    // Reset error jika user mulai mengetik
     if (result) setResult(null); 
   };
 
-  // 2. Handler Uang
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
     const num = val.replace(/\D/g, "");
-    // Cegah 0 di depan untuk uang juga (kecuali angka 0 itu sendiri, tapi usually expense > 0)
-    // Kita biarkan 0 untuk saldo awal (karena bisa jadi emang 0)
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
     if (result) setResult(null);
   };
 
-  const handleCalculate = () => {
-    if (!validateInputs()) {
-      return; // Stop jika ada error, UI sudah merah
+  // --- UPDATED CALCULATE HANDLER ---
+  const handleCalculate = async () => {
+    if (!validateInputs()) return;
+    
+    setIsLoading(true); // Start Loading
+
+    try {
+      // 1. Prepare Data
+      const cAge = parseInt(currentAge) || 0;
+      const rAge = parseInt(retirementAge) || 0;
+      const rDur = parseInt(retirementDuration) || 20;
+      const expense = parseInt(currentExpense.replace(/\./g, "")) || 0;
+      const fund = parseInt(currentFund.replace(/\./g, "")) || 0;
+
+      // 2. Call Backend API
+      const response = await financialService.savePensionPlan({
+        currentAge: cAge,
+        retirementAge: rAge,
+        lifeExpectancy: rAge + rDur, // BE butuh umur harapan hidup total
+        currentExpense: expense,
+        currentSaving: fund,
+        inflationRate: inflation,
+        returnRate: returnRate
+      });
+
+      const calc = response.calculation;
+
+      // 3. Map Response to UI State
+      // Kita hitung FV fund manual untuk display karena BE fokus ke shortfall
+      const yearsToRetire = rAge - cAge;
+      const estimatedFvFund = fund * Math.pow(1 + (returnRate/100), yearsToRetire);
+
+      setResult({
+        workingYears: yearsToRetire,
+        retirementYears: rDur,
+        fvMonthlyExpense: calc.futureMonthlyExpense, // Dari BE
+        fvExistingFund: estimatedFvFund, // Hitung lokal utk display
+        totalFundNeeded: calc.totalFundNeeded, // Dari BE
+        shortfall: calc.monthlySaving, // Asumsi shortfall ditutup monthly saving
+        monthlySaving: calc.monthlySaving // Dari BE
+      });
+
+    } catch (error) {
+      console.error("Calculation error:", error);
+      alert("Gagal menghitung simulasi. Periksa koneksi internet Anda.");
+    } finally {
+      setIsLoading(false); // Stop Loading
     }
-
-    const cAge = parseInt(currentAge) || 0;
-    const rAge = parseInt(retirementAge) || 0;
-    const rDur = parseInt(retirementDuration) || 20;
-    const expense = parseInt(currentExpense.replace(/\./g, "")) || 0;
-    const fund = parseInt(currentFund.replace(/\./g, "")) || 0;
-
-    const calc = calculatePension({
-      currentAge: cAge,
-      retirementAge: rAge,
-      retirementDuration: rDur,
-      currentExpense: expense,
-      currentFund: fund,
-      inflationRate: inflation,
-      investmentRate: returnRate
-    });
-
-    setResult(calc);
   };
 
   const handleReset = () => {
@@ -141,14 +152,12 @@ export default function PensionPage() {
 
   return (
     <div className="min-h-screen w-full bg-slate-50/50 pb-24 md:pb-12">
-      
-      {/* Header Decoration */}
+      {/* ... (Header Section sama) ... */}
       <div className="bg-indigo-600 h-48 md:h-64 w-full absolute top-0 left-0 rounded-b-[2.5rem] md:rounded-b-[4rem] shadow-xl z-0 overflow-hidden">
          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 pt-8 md:pt-16">
-        
         <div className="text-center text-white mb-8">
            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 mb-3">
               <Calculator className="w-4 h-4 text-indigo-100" />
@@ -168,7 +177,7 @@ export default function PensionPage() {
               <User className="w-5 h-5 text-indigo-600" /> Profil Pensiun
             </h3>
             
-            {/* Input Usia */}
+            {/* ... (Input Usia sama) ... */}
             <div className="grid grid-cols-3 gap-3">
                <div className="space-y-1">
                  <label className="text-[10px] font-bold text-slate-500 uppercase">Usia Kini</label>
@@ -202,7 +211,6 @@ export default function PensionPage() {
                </div>
             </div>
             
-            {/* Error Message for Age Logic */}
             {(errors.currentAge || errors.retirementAge) && (
                <div className="text-[10px] text-red-500 font-bold flex items-center gap-1 bg-red-50 p-2 rounded-lg -mt-2">
                   <AlertCircle className="w-3 h-3" /> 
@@ -210,7 +218,7 @@ export default function PensionPage() {
                </div>
             )}
 
-            {/* Input Pemasukan Target */}
+            {/* Input Pemasukan Target (Sama) */}
             <div className="space-y-1">
                <label className="text-xs font-bold text-slate-600 uppercase ml-1">Target Pemasukan Bulanan</label>
                <div className="relative">
@@ -227,7 +235,7 @@ export default function PensionPage() {
                </p>
             </div>
 
-            {/* Input Saldo Awal (Optional - No Error State needed usually) */}
+            {/* Input Saldo Awal (Sama) */}
             <div className="space-y-1 bg-green-50 p-3 rounded-xl border border-green-100">
                <label className="text-xs font-bold text-green-700 uppercase ml-1 flex items-center gap-1">
                  <PiggyBank className="w-3 h-3" /> Saldo JHT / DPLK Saat Ini
@@ -254,15 +262,21 @@ export default function PensionPage() {
                />
             </div>
 
+            {/* BUTTON WITH LOADING STATE */}
             <Button 
                 onClick={handleCalculate} 
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold text-lg shadow-lg shadow-indigo-200 rounded-xl transition-all active:scale-95"
+                disabled={isLoading}
+                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold text-lg shadow-lg shadow-indigo-200 rounded-xl transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Hitung Strategi
+              {isLoading ? (
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menghitung...</>
+              ) : (
+                "Hitung Strategi"
+              )}
             </Button>
           </Card>
 
-          {/* RIGHT: RESULT DISPLAY */}
+          {/* ... (RIGHT COLUMN: Result Display SAMA, tidak perlu ubah banyak) ... */}
           <div className="lg:col-span-7 space-y-6">
              {!result ? (
                <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center opacity-60 p-8 border-2 border-dashed border-indigo-200/50 rounded-[2rem]">
@@ -273,9 +287,10 @@ export default function PensionPage() {
                   <p className="text-indigo-700 text-sm">Masukkan data profil untuk melihat simulasi.</p>
                </div>
              ) : (
+               // ... (Render Result SAMA) ...
                <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
-                  
-                  {/* VISUAL TIMELINE */}
+                  {/* Visual Timeline, Main Card, Info Card, dll tetap sama */}
+                  {/* ... paste code render result dari yang lama ... */}
                   <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                      <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                        <Briefcase className="w-4 h-4 text-slate-400" /> Roadmap
@@ -302,7 +317,6 @@ export default function PensionPage() {
                      </div>
                   </div>
 
-                  {/* MAIN CARD */}
                   <Card className="bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden border-0">
                      <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                      <div className="relative z-10 space-y-6">
@@ -330,7 +344,6 @@ export default function PensionPage() {
                      </div>
                   </Card>
 
-                  {/* INFO CARD */}
                   <Card className="p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-orange-400">
                      <div>
                         <p className="text-xs font-bold text-slate-500">Nilai Masa Depan (FV) Target Pemasukan</p>
@@ -342,7 +355,6 @@ export default function PensionPage() {
                      </div>
                   </Card>
 
-                  {/* ACTIONS */}
                   <div className="flex gap-3 pt-2">
                      <Button variant="outline" onClick={handleReset} className="flex-1 rounded-xl h-11 border-slate-300">
                        <RefreshCcw className="w-4 h-4 mr-2" /> Reset
@@ -351,7 +363,6 @@ export default function PensionPage() {
                         <Download className="w-4 h-4 mr-2" /> Simpan Rencana PDF
                      </Button>
                   </div>
-
                </div>
              )}
           </div>

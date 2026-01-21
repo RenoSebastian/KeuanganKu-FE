@@ -9,25 +9,37 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { HealthAnalysisResult, RatioDetail } from "@/lib/types";
+import { FinancialRecord, HealthAnalysisResult, RatioDetail } from "@/lib/types"; // Import FinancialRecord
 import { cn } from "@/lib/utils";
+import { financialService } from "@/services/financial.service"; // Import service
+// import { useToast } from "@/components/ui/use-toast"; // Uncomment jika sudah setup toast
 
 interface CheckupResultProps {
   data: HealthAnalysisResult;
+  rawData: FinancialRecord; // <--- TAMBAHAN: Data mentah untuk dikirim ke BE
   onReset: () => void;
 }
 
-export function CheckupResult({ data, onReset }: CheckupResultProps) {
+export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  // const { toast } = useToast();
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate API Call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setSaving(false);
-    setSaved(true);
+    try {
+      // Panggil API Backend menggunakan service
+      await financialService.createCheckup(rawData);
+      
+      setSaved(true);
+      // toast({ title: "Berhasil", description: "Laporan kesehatan finansial tersimpan." });
+    } catch (error) {
+      console.error("Gagal menyimpan:", error);
+      // toast({ title: "Gagal", description: "Terjadi kesalahan saat menyimpan data.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // --- HELPER UNTUK MAPPING WARNA STATUS ---

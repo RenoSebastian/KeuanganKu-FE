@@ -8,12 +8,13 @@ import { Slider } from "@/components/ui/slider";
 import { 
   ShieldCheck, HeartPulse, BadgeDollarSign, 
   RefreshCcw, Download, Landmark, Wallet, 
-  TrendingUp, AlertCircle, CheckCircle2
+  TrendingUp, AlertCircle, CheckCircle2, Loader2 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { calculateInsurance, formatRupiah } from "@/lib/financial-math";
+import { formatRupiah } from "@/lib/financial-math"; 
 import { InsuranceResult } from "@/lib/types";
 import { generateInsurancePDF } from "@/lib/pdf-generator";
+import { financialService } from "@/services/financial.service"; // Import Service API
 
 export default function InsurancePage() {
   // --- STATE INPUT ---
@@ -35,6 +36,7 @@ export default function InsurancePage() {
   const [existingInsurance, setExistingInsurance] = useState("");
 
   const [result, setResult] = useState<InsuranceResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // State Loading
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // --- VALIDATION & HANDLERS ---
@@ -74,25 +76,50 @@ export default function InsurancePage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCalculate = () => {
+  // --- API INTEGRATION ---
+  const handleCalculate = async () => {
     if (!validateInputs()) return;
+    setIsLoading(true);
 
-    const input = {
-      debtKPR: parseMoney(debtKPR),
-      debtKPM: parseMoney(debtKPM),
-      debtProductive: parseMoney(debtProductive),
-      debtConsumptive: parseMoney(debtConsumptive),
-      debtOther: parseMoney(debtOther),
-      annualIncome: parseMoney(annualIncome),
-      protectionDuration: parseInt(protectionDuration) || 0,
-      inflationRate: inflation,
-      investmentRate: returnRate,
-      finalExpense: parseMoney(finalExpense),
-      existingInsurance: parseMoney(existingInsurance),
-    };
+    try {
+        const pDebtKPR = parseMoney(debtKPR);
+        const pDebtKPM = parseMoney(debtKPM);
+        const pDebtProd = parseMoney(debtProductive);
+        const pDebtCons = parseMoney(debtConsumptive);
+        const pDebtOther = parseMoney(debtOther);
+        
+        const totalDebt = pDebtKPR + pDebtKPM + pDebtProd + pDebtCons + pDebtOther;
+        const pIncome = parseMoney(annualIncome);
+        const pFinalExpense = parseMoney(finalExpense);
+        const pExisting = parseMoney(existingInsurance);
 
-    const calc = calculateInsurance(input);
-    setResult(calc);
+        // Call API Backend
+        const response = await financialService.saveInsurancePlan({
+            type: "LIFE", 
+            dependentCount: 2, // Default (TODO: Tambah input jumlah tanggungan di UI jika perlu)
+            monthlyExpense: pIncome / 12, // Konversi tahunan ke bulanan
+            existingDebt: totalDebt,
+            existingCoverage: pExisting,
+            protectionDuration: parseInt(protectionDuration) || 10
+        });
+
+        const calc = response.calculation;
+
+        // Map BE Result to UI State
+        setResult({
+            totalDebt: totalDebt,
+            // Income Replacement = Total Kebutuhan - Hutang - Biaya Duka
+            incomeReplacementValue: calc.totalNeeded - totalDebt - pFinalExpense, 
+            totalFundNeeded: calc.totalNeeded,
+            shortfall: calc.coverageGap
+        });
+
+    } catch (error) {
+        console.error("Gagal menghitung asuransi:", error);
+        alert("Terjadi kesalahan saat menghitung data. Silakan coba lagi.");
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -263,9 +290,14 @@ export default function InsurancePage() {
 
                 <Button 
                     onClick={handleCalculate} 
-                    className="w-full h-12 bg-rose-600 hover:bg-rose-700 font-bold text-lg shadow-lg shadow-rose-200 rounded-xl transition-all active:scale-95"
+                    disabled={isLoading}
+                    className="w-full h-12 bg-rose-600 hover:bg-rose-700 font-bold text-lg shadow-lg shadow-rose-200 rounded-xl transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                    Hitung Total Kebutuhan Proteksi
+                    {isLoading ? (
+                        <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menghitung...</>
+                    ) : (
+                        "Hitung Total Kebutuhan Proteksi"
+                    )}
                 </Button>
             </div>
 

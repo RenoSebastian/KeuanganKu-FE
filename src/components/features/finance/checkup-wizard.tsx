@@ -99,9 +99,26 @@ export function CheckupWizard() {
 
   const nextStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.min(prev + 1, 4)); };
   const prevStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.max(prev - 1, 0)); };
-  const handleCalculate = () => { setResult(calculateFinancialHealth(formData)); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  
+  const handleCalculate = () => { 
+    // Hitung hasil di Client-Side untuk Preview Cepat
+    const analysis = calculateFinancialHealth(formData);
+    setResult(analysis); 
+    window.scrollTo({ top: 0, behavior: "smooth" }); 
+  };
 
-  if (result) return <CheckupResult data={result} onReset={() => setResult(null)} />;
+  // --- UPDATE INTEGRASI API ---
+  // Kita passing 'rawData={formData}' agar Result Component bisa kirim data asli ke Backend
+  if (result) {
+    return (
+      <CheckupResult 
+        data={result} 
+        rawData={formData} 
+        onReset={() => setResult(null)} 
+      />
+    );
+  }
+
   if (!isClient) return null;
 
   const steps = [
@@ -138,14 +155,36 @@ export function CheckupWizard() {
 
       <Card className="overflow-hidden border-0 shadow-2xl bg-white/90 backdrop-blur-sm ring-1 ring-slate-900/5 rounded-3xl">
         <div className="bg-slate-50/80 border-b border-slate-100 p-6 md:p-8">
-            <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">
-                {step === 0 && "Identitas & Profil"}
-                {step === 1 && "Neraca Aset (Harta)"}
-                {step === 2 && "Neraca Utang (Kewajiban)"}
-                {step === 3 && "Arus Kas (Cashflow)"}
-                {step === 4 && "Review Data"}
-            </h2>
-            <p className="text-slate-500 text-sm mt-1">Lengkapi data sesuai kondisi keuangan Anda saat ini.</p>
+            <div className="flex items-center gap-4">
+                <div className={cn("p-3.5 rounded-2xl shadow-sm transition-colors duration-500", 
+                    step === 0 ? "bg-blue-100 text-blue-600" :
+                    step === 1 ? "bg-emerald-100 text-emerald-600" :
+                    step === 2 ? "bg-red-100 text-red-600" :
+                    step === 3 ? "bg-amber-100 text-amber-600" : "bg-indigo-100 text-indigo-600"
+                )}>
+                    {step === 0 && <User className="w-6 h-6" />}
+                    {step === 1 && <Wallet className="w-6 h-6" />}
+                    {step === 2 && <CreditCard className="w-6 h-6" />}
+                    {step === 3 && <Banknote className="w-6 h-6" />}
+                    {step === 4 && <Calculator className="w-6 h-6" />}
+                </div>
+                <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">
+                        {step === 0 && "Identitas & Profil"}
+                        {step === 1 && "Neraca Aset (Harta)"}
+                        {step === 2 && "Neraca Utang (Kewajiban)"}
+                        {step === 3 && "Arus Kas Tahunan"}
+                        {step === 4 && "Review Data"}
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-1 font-medium">
+                        {step === 0 && "Lengkapi data diri User dan Pasangan (jika ada)."}
+                        {step === 1 && "Detail aset likuid, investasi, dan personal."}
+                        {step === 2 && "Sisa pokok utang konsumtif dan produktif."}
+                        {step === 3 && "Detail pemasukan, pengeluaran, cicilan, dan tabungan."}
+                        {step === 4 && "Pastikan semua data valid sebelum diagnosa."}
+                    </p>
+                </div>
+            </div>
         </div>
 
         <div className="p-6 md:p-8 space-y-8 min-h-[400px]">
@@ -162,7 +201,7 @@ export function CheckupWizard() {
                             </div>
                             <TextInput label="Suku Bangsa" icon={<Users className="w-4 h-4" />} value={formData.userProfile.ethnicity} onChange={(v) => handleProfileChange("userProfile", "ethnicity", v)} />
                             <SelectInput label="Agama" value={formData.userProfile.religion} onChange={(v) => handleProfileChange("userProfile", "religion", v)} options={[{value: "ISLAM", label: "Islam"}, {value: "KRISTEN", label: "Kristen"}, {value: "KATOLIK", label: "Katolik"}, {value: "HINDU", label: "Hindu"}, {value: "BUDDHA", label: "Buddha"}, {value: "LAINNYA", label: "Lainnya"}]} />
-                            <SelectInput label="Status Perkawinan" value={formData.userProfile.maritalStatus} onChange={(v) => handleProfileChange("userProfile", "maritalStatus", v)} options={[{value: "SINGLE", label: "Belum Menikah"}, {value: "MARRIED", label: "Menikah"}, {value: "DIVORCED", label: "Cerai"}]} />
+                            <SelectInput label="Status Perkawinan" value={formData.userProfile.maritalStatus} onChange={(v) => handleProfileChange("userProfile", "maritalStatus", v)} options={[{value: "SINGLE", label: "Belum Menikah"}, {value: "MARRIED", label: "Menikah"}, {value: "DIVORCED", label: "Pernah Menikah"}]} />
                             <div className="grid grid-cols-2 gap-4">
                                 <TextInput label="Jumlah Anak" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.childrenCount} onChange={(v) => handleProfileChange("userProfile", "childrenCount", parseInt(v) || 0)} />
                                 <TextInput label="Tanggungan Ortu" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.dependentParents} onChange={(v) => handleProfileChange("userProfile", "dependentParents", parseInt(v) || 0)} />
@@ -189,35 +228,35 @@ export function CheckupWizard() {
             {/* STEP 1: ASET */}
             {step === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
-                    <SectionHeader title="A. Aset Likuid" desc="Kas dan setara kas" />
+                    <SectionHeader title="Aset Likuid" desc="Kas dan setara kas" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="1. Kas / Tabungan / Deposito Cair" value={formData.assetCash} onChange={(v) => handleFinancialChange("assetCash", v)} icon={<Wallet className="w-4 h-4" />} />
+                        <InputGroup label="Kas / Tabungan / Deposito Cair" value={formData.assetCash} onChange={(v) => handleFinancialChange("assetCash", v)} icon={<Wallet className="w-4 h-4" />} />
                     </div>
 
                     <div className="border-t border-dashed border-slate-200" />
 
-                    <SectionHeader title="B. Aset Personal" desc="Aset guna pakai (tidak menghasilkan income)" />
+                    <SectionHeader title="Aset Personal" desc="Aset guna pakai (tidak menghasilkan income)" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="2. Rumah / Tanah (Ditempati)" value={formData.assetHome} onChange={(v) => handleFinancialChange("assetHome", v)} icon={<Home className="w-4 h-4" />} />
-                        <InputGroup label="3. Kendaraan Pribadi" value={formData.assetVehicle} onChange={(v) => handleFinancialChange("assetVehicle", v)} icon={<Car className="w-4 h-4" />} />
-                        <InputGroup label="4. Emas Perhiasan" value={formData.assetJewelry} onChange={(v) => handleFinancialChange("assetJewelry", v)} icon={<Gem className="w-4 h-4" />} />
-                        <InputGroup label="5. Barang Antik / Koleksi" value={formData.assetAntique} onChange={(v) => handleFinancialChange("assetAntique", v)} icon={<Coins className="w-4 h-4" />} />
-                        <InputGroup label="6. Aset Personal Lain" value={formData.assetPersonalOther} onChange={(v) => handleFinancialChange("assetPersonalOther", v)} icon={<Wallet className="w-4 h-4" />} />
+                        <InputGroup label="Rumah / Tanah (Ditempati)" value={formData.assetHome} onChange={(v) => handleFinancialChange("assetHome", v)} icon={<Home className="w-4 h-4" />} />
+                        <InputGroup label="Kendaraan Pribadi" value={formData.assetVehicle} onChange={(v) => handleFinancialChange("assetVehicle", v)} icon={<Car className="w-4 h-4" />} />
+                        <InputGroup label="Emas Perhiasan" value={formData.assetJewelry} onChange={(v) => handleFinancialChange("assetJewelry", v)} icon={<Gem className="w-4 h-4" />} />
+                        <InputGroup label="Barang Antik / Koleksi" value={formData.assetAntique} onChange={(v) => handleFinancialChange("assetAntique", v)} icon={<Coins className="w-4 h-4" />} />
+                        <InputGroup label="Aset Personal Lain" value={formData.assetPersonalOther} onChange={(v) => handleFinancialChange("assetPersonalOther", v)} icon={<Wallet className="w-4 h-4" />} />
                     </div>
 
                     <div className="border-t border-dashed border-slate-200" />
 
-                    <SectionHeader title="C. Aset Investasi" desc="Aset yang diharapkan tumbuh nilainya" />
+                    <SectionHeader title="Aset Investasi" desc="Aset yang diharapkan tumbuh nilainya" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="1. Rumah / Tanah (Investasi)" value={formData.assetInvHome} onChange={(v) => handleFinancialChange("assetInvHome", v)} icon={<Building2 className="w-4 h-4" />} />
-                        <InputGroup label="2. Kendaraan (Investasi/Sewa)" value={formData.assetInvVehicle} onChange={(v) => handleFinancialChange("assetInvVehicle", v)} icon={<Car className="w-4 h-4" />} />
-                        <InputGroup label="3. Logam Mulia (Batangan)" value={formData.assetGold} onChange={(v) => handleFinancialChange("assetGold", v)} icon={<Coins className="w-4 h-4" />} />
-                        <InputGroup label="4. Barang Antik (Investasi)" value={formData.assetInvAntique} onChange={(v) => handleFinancialChange("assetInvAntique", v)} icon={<Coins className="w-4 h-4" />} />
-                        <InputGroup label="5. Saham" value={formData.assetStocks} onChange={(v) => handleFinancialChange("assetStocks", v)} icon={<TrendingUp className="w-4 h-4" />} />
-                        <InputGroup label="6. Reksadana" value={formData.assetMutualFund} onChange={(v) => handleFinancialChange("assetMutualFund", v)} icon={<TrendingUp className="w-4 h-4" />} />
-                        <InputGroup label="7. Obligasi / SBN" value={formData.assetBonds} onChange={(v) => handleFinancialChange("assetBonds", v)} icon={<Landmark className="w-4 h-4" />} />
-                        <InputGroup label="8. Deposito Jangka Panjang" value={formData.assetDeposit} onChange={(v) => handleFinancialChange("assetDeposit", v)} icon={<Landmark className="w-4 h-4" />} />
-                        <InputGroup label="9. Aset Investasi Lain" value={formData.assetInvOther} onChange={(v) => handleFinancialChange("assetInvOther", v)} icon={<Briefcase className="w-4 h-4" />} />
+                        <InputGroup label="Rumah / Tanah" value={formData.assetInvHome} onChange={(v) => handleFinancialChange("assetInvHome", v)} icon={<Building2 className="w-4 h-4" />} />
+                        <InputGroup label="Kendaraan " value={formData.assetInvVehicle} onChange={(v) => handleFinancialChange("assetInvVehicle", v)} icon={<Car className="w-4 h-4" />} />
+                        <InputGroup label="Logam Mulia" value={formData.assetGold} onChange={(v) => handleFinancialChange("assetGold", v)} icon={<Coins className="w-4 h-4" />} />
+                        <InputGroup label="Barang Antik " value={formData.assetInvAntique} onChange={(v) => handleFinancialChange("assetInvAntique", v)} icon={<Coins className="w-4 h-4" />} />
+                        <InputGroup label="Saham" value={formData.assetStocks} onChange={(v) => handleFinancialChange("assetStocks", v)} icon={<TrendingUp className="w-4 h-4" />} />
+                        <InputGroup label="Reksadana" value={formData.assetMutualFund} onChange={(v) => handleFinancialChange("assetMutualFund", v)} icon={<TrendingUp className="w-4 h-4" />} />
+                        <InputGroup label="Obligasi" value={formData.assetBonds} onChange={(v) => handleFinancialChange("assetBonds", v)} icon={<Landmark className="w-4 h-4" />} />
+                        <InputGroup label="Deposito Jangka Panjang" value={formData.assetDeposit} onChange={(v) => handleFinancialChange("assetDeposit", v)} icon={<Landmark className="w-4 h-4" />} />
+                        <InputGroup label="Aset Investasi Lain" value={formData.assetInvOther} onChange={(v) => handleFinancialChange("assetInvOther", v)} icon={<Briefcase className="w-4 h-4" />} />
                     </div>
                 </div>
             )}
@@ -225,20 +264,25 @@ export function CheckupWizard() {
             {/* STEP 2: UTANG */}
             {step === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
-                    <SectionHeader title="E. Utang Konsumtif" desc="Sisa Pokok Utang (Outstanding)" />
+                    <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex gap-3 text-red-800 text-sm mb-6">
+                        <AlertCircle className="w-5 h-5 shrink-0" />
+                        <div><p className="font-bold">Penting:</p><p>Masukkan <strong>Sisa Pokok Utang</strong> (Saldo berjalan yang belum lunas), bukan nominal cicilan.</p></div>
+                    </div>
+
+                    <SectionHeader title="Utang Konsumtif" desc="Sisa Pokok Utang (Outstanding)" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="1. KPR" value={formData.debtKPR} onChange={(v) => handleFinancialChange("debtKPR", v)} icon={<Home className="w-4 h-4" />} />
-                        <InputGroup label="2. KPM (Kendaraan)" value={formData.debtKPM} onChange={(v) => handleFinancialChange("debtKPM", v)} icon={<Car className="w-4 h-4" />} />
-                        <InputGroup label="3. Kartu Kredit" value={formData.debtCC} onChange={(v) => handleFinancialChange("debtCC", v)} icon={<CreditCard className="w-4 h-4" />} />
-                        <InputGroup label="4. Koperasi" value={formData.debtCoop} onChange={(v) => handleFinancialChange("debtCoop", v)} icon={<Users className="w-4 h-4" />} />
-                        <InputGroup label="5. Utang Lainnya" value={formData.debtConsumptiveOther} onChange={(v) => handleFinancialChange("debtConsumptiveOther", v)} icon={<User className="w-4 h-4" />} />
+                        <InputGroup label="KPR (Rumah)" value={formData.debtKPR} onChange={(v) => handleFinancialChange("debtKPR", v)} icon={<Home className="w-4 h-4" />} />
+                        <InputGroup label="KPM (Kendaraan)" value={formData.debtKPM} onChange={(v) => handleFinancialChange("debtKPM", v)} icon={<Car className="w-4 h-4" />} />
+                        <InputGroup label="Kartu Kredit" value={formData.debtCC} onChange={(v) => handleFinancialChange("debtCC", v)} icon={<CreditCard className="w-4 h-4" />} />
+                        <InputGroup label="Koperasi" value={formData.debtCoop} onChange={(v) => handleFinancialChange("debtCoop", v)} icon={<Users className="w-4 h-4" />} />
+                        <InputGroup label="Utang Lainnya" value={formData.debtConsumptiveOther} onChange={(v) => handleFinancialChange("debtConsumptiveOther", v)} icon={<User className="w-4 h-4" />} />
                     </div>
 
                     <div className="border-t border-dashed border-slate-200" />
 
-                    <SectionHeader title="F. Utang Usaha" desc="Utang Produktif / Bisnis" />
+                    <SectionHeader title="Utang Usaha" desc="Utang Produktif / Bisnis" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="1. Utang Usaha / UMKM" value={formData.debtBusiness} onChange={(v) => handleFinancialChange("debtBusiness", v)} icon={<Briefcase className="w-4 h-4" />} />
+                        <InputGroup label="Utang Usaha / UMKM" value={formData.debtBusiness} onChange={(v) => handleFinancialChange("debtBusiness", v)} icon={<Briefcase className="w-4 h-4" />} />
                     </div>
                 </div>
             )}
@@ -261,55 +305,55 @@ export function CheckupWizard() {
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 1. CICILAN UTANG */}
-                    <SectionHeader title="1. Cicilan Utang (PER BULAN)" desc="Angsuran yang dibayar tiap bulan" />
+                    <SectionHeader title="1. Cicilan Utang (PER TAHUN)" desc="Total bayar cicilan dalam setahun" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="1.a KPR" value={formData.installmentKPR} onChange={(v) => handleFinancialChange("installmentKPR", v)} icon={<Home className="w-4 h-4" />} />
-                        <InputGroup label="1.b KPM" value={formData.installmentKPM} onChange={(v) => handleFinancialChange("installmentKPM", v)} icon={<Car className="w-4 h-4" />} />
-                        <InputGroup label="1.c Kartu Kredit" value={formData.installmentCC} onChange={(v) => handleFinancialChange("installmentCC", v)} icon={<CreditCard className="w-4 h-4" />} />
-                        <InputGroup label="1.d Koperasi" value={formData.installmentCoop} onChange={(v) => handleFinancialChange("installmentCoop", v)} icon={<Users className="w-4 h-4" />} />
-                        <InputGroup label="1.e Utang Konsumtif Lain" value={formData.installmentConsumptiveOther} onChange={(v) => handleFinancialChange("installmentConsumptiveOther", v)} icon={<User className="w-4 h-4" />} />
-                        <InputGroup label="1.f Utang Usaha/UMKM" value={formData.installmentBusiness} onChange={(v) => handleFinancialChange("installmentBusiness", v)} icon={<Briefcase className="w-4 h-4" />} />
+                        <InputGroup label="KPR" value={formData.installmentKPR} onChange={(v) => handleFinancialChange("installmentKPR", v)} icon={<Home className="w-4 h-4" />} />
+                        <InputGroup label="KPM" value={formData.installmentKPM} onChange={(v) => handleFinancialChange("installmentKPM", v)} icon={<Car className="w-4 h-4" />} />
+                        <InputGroup label="Kartu Kredit" value={formData.installmentCC} onChange={(v) => handleFinancialChange("installmentCC", v)} icon={<CreditCard className="w-4 h-4" />} />
+                        <InputGroup label="Koperasi" value={formData.installmentCoop} onChange={(v) => handleFinancialChange("installmentCoop", v)} icon={<Users className="w-4 h-4" />} />
+                        <InputGroup label="Utang Konsumtif Lain" value={formData.installmentConsumptiveOther} onChange={(v) => handleFinancialChange("installmentConsumptiveOther", v)} icon={<User className="w-4 h-4" />} />
+                        <InputGroup label="Utang Usaha/UMKM" value={formData.installmentBusiness} onChange={(v) => handleFinancialChange("installmentBusiness", v)} icon={<Briefcase className="w-4 h-4" />} />
                     </div>
 
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 2. PREMI ASURANSI */}
-                    <SectionHeader title="2. Premi Asuransi (PER TAHUN)" desc="Total bayar premi dalam setahun" />
+                    <SectionHeader title="2. Premi Asuransi" desc="Total Premi Yang Dibayarkan Untuk Seluruh Anggota Keluarga Selama Satu Tahun" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="2.a Asuransi Jiwa" value={formData.insuranceLife} onChange={(v) => handleFinancialChange("insuranceLife", v)} icon={<Umbrella className="w-4 h-4" />} />
-                        <InputGroup label="2.b Asuransi Kesehatan" value={formData.insuranceHealth} onChange={(v) => handleFinancialChange("insuranceHealth", v)} icon={<Umbrella className="w-4 h-4" />} />
-                        <InputGroup label="2.c Asuransi Rumah" value={formData.insuranceHome} onChange={(v) => handleFinancialChange("insuranceHome", v)} icon={<Home className="w-4 h-4" />} />
-                        <InputGroup label="2.d Asuransi Kendaraan" value={formData.insuranceVehicle} onChange={(v) => handleFinancialChange("insuranceVehicle", v)} icon={<Car className="w-4 h-4" />} />
-                        <InputGroup label="2.e BPJS" value={formData.insuranceBPJS} onChange={(v) => handleFinancialChange("insuranceBPJS", v)} icon={<ShieldCheck className="w-4 h-4" />} desc="Jika bayar bulanan, kalikan 12" />
-                        <InputGroup label="2.f Asuransi Lainnya" value={formData.insuranceOther} onChange={(v) => handleFinancialChange("insuranceOther", v)} icon={<Umbrella className="w-4 h-4" />} />
+                        <InputGroup label="Asuransi Jiwa" value={formData.insuranceLife} onChange={(v) => handleFinancialChange("insuranceLife", v)} icon={<Umbrella className="w-4 h-4" />} />
+                        <InputGroup label="Asuransi Kesehatan" value={formData.insuranceHealth} onChange={(v) => handleFinancialChange("insuranceHealth", v)} icon={<Umbrella className="w-4 h-4" />} />
+                        <InputGroup label="Asuransi Rumah" value={formData.insuranceHome} onChange={(v) => handleFinancialChange("insuranceHome", v)} icon={<Home className="w-4 h-4" />} />
+                        <InputGroup label="Asuransi Kendaraan" value={formData.insuranceVehicle} onChange={(v) => handleFinancialChange("insuranceVehicle", v)} icon={<Car className="w-4 h-4" />} />
+                        <InputGroup label="BPJS" value={formData.insuranceBPJS} onChange={(v) => handleFinancialChange("insuranceBPJS", v)} icon={<ShieldCheck className="w-4 h-4" />} desc="Jika bayar bulanan, kalikan 12" />
+                        <InputGroup label="Asuransi Lainnya" value={formData.insuranceOther} onChange={(v) => handleFinancialChange("insuranceOther", v)} icon={<Umbrella className="w-4 h-4" />} />
                     </div>
 
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 3. TABUNGAN/INVESTASI */}
-                    <SectionHeader title="3. Tabungan/Investasi (PER BULAN)" desc="Rutin disisihkan tiap bulan" />
+                    <SectionHeader title="3. Tabungan/Investasi (PER TAHUN)" desc="Jangan lupa untuk kalikan 12" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="3.a Dana Pendidikan Anak" value={formData.savingEducation} onChange={(v) => handleFinancialChange("savingEducation", v)} icon={<PiggyBank className="w-4 h-4" />} />
-                        <InputGroup label="3.b Dana Hari Tua" value={formData.savingRetirement} onChange={(v) => handleFinancialChange("savingRetirement", v)} icon={<TrendingUp className="w-4 h-4" />} />
-                        <InputGroup label="3.c Dana Ibadah" value={formData.savingPilgrimage} onChange={(v) => handleFinancialChange("savingPilgrimage", v)} icon={<Coins className="w-4 h-4" />} />
-                        <InputGroup label="3.d Dana Liburan" value={formData.savingHoliday} onChange={(v) => handleFinancialChange("savingHoliday", v)} icon={<Plane className="w-4 h-4" />} />
-                        <InputGroup label="3.e Dana Darurat" value={formData.savingEmergency} onChange={(v) => handleFinancialChange("savingEmergency", v)} icon={<ShieldCheck className="w-4 h-4" />} />
-                        <InputGroup label="3.f Dana Lainnya" value={formData.savingOther} onChange={(v) => handleFinancialChange("savingOther", v)} icon={<Wallet className="w-4 h-4" />} />
+                        <InputGroup label="Dana Pendidikan Anak" value={formData.savingEducation} onChange={(v) => handleFinancialChange("savingEducation", v)} icon={<PiggyBank className="w-4 h-4" />} />
+                        <InputGroup label="Dana Hari Tua" value={formData.savingRetirement} onChange={(v) => handleFinancialChange("savingRetirement", v)} icon={<TrendingUp className="w-4 h-4" />} />
+                        <InputGroup label="Dana Ibadah" value={formData.savingPilgrimage} onChange={(v) => handleFinancialChange("savingPilgrimage", v)} icon={<Coins className="w-4 h-4" />} />
+                        <InputGroup label="Dana Liburan" value={formData.savingHoliday} onChange={(v) => handleFinancialChange("savingHoliday", v)} icon={<Plane className="w-4 h-4" />} />
+                        <InputGroup label="Dana Darurat" value={formData.savingEmergency} onChange={(v) => handleFinancialChange("savingEmergency", v)} icon={<ShieldCheck className="w-4 h-4" />} />
+                        <InputGroup label="Dana Lainnya" value={formData.savingOther} onChange={(v) => handleFinancialChange("savingOther", v)} icon={<Wallet className="w-4 h-4" />} />
                     </div>
 
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 4. BELANJA KELUARGA */}
-                    <SectionHeader title="4. Belanja Keluarga (PER BULAN)" desc="Pengeluaran rutin bulanan" />
+                    <SectionHeader title="4. Belanja Keluarga (PER TAHUN)" desc="Pengeluaran rutin bulanan kalikan 12" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputGroup label="4.a Makan Keluarga" value={formData.expenseFood} onChange={(v) => handleFinancialChange("expenseFood", v)} icon={<ShoppingBag className="w-4 h-4" />} />
-                        <InputGroup label="4.b Uang Sekolah" value={formData.expenseSchool} onChange={(v) => handleFinancialChange("expenseSchool", v)} icon={<User className="w-4 h-4" />} />
-                        <InputGroup label="4.c Transportasi" value={formData.expenseTransport} onChange={(v) => handleFinancialChange("expenseTransport", v)} icon={<Car className="w-4 h-4" />} />
-                        <InputGroup label="4.d Telepon & Internet" value={formData.expenseCommunication} onChange={(v) => handleFinancialChange("expenseCommunication", v)} icon={<Phone className="w-4 h-4" />} />
-                        <InputGroup label="4.e ART / Supir" value={formData.expenseHelpers} onChange={(v) => handleFinancialChange("expenseHelpers", v)} icon={<User className="w-4 h-4" />} />
-                        <InputGroup label="4.g Belanja RT Lainnya" value={formData.expenseLifestyle} onChange={(v) => handleFinancialChange("expenseLifestyle", v)} icon={<ShoppingBag className="w-4 h-4" />} />
+                        <InputGroup label="Makan Keluarga" value={formData.expenseFood} onChange={(v) => handleFinancialChange("expenseFood", v)} icon={<ShoppingBag className="w-4 h-4" />} />
+                        <InputGroup label="Uang Sekolah" value={formData.expenseSchool} onChange={(v) => handleFinancialChange("expenseSchool", v)} icon={<User className="w-4 h-4" />} />
+                        <InputGroup label="Transportasi" value={formData.expenseTransport} onChange={(v) => handleFinancialChange("expenseTransport", v)} icon={<Car className="w-4 h-4" />} />
+                        <InputGroup label="Telepon & Internet" value={formData.expenseCommunication} onChange={(v) => handleFinancialChange("expenseCommunication", v)} icon={<Phone className="w-4 h-4" />} />
+                        <InputGroup label="ART / Supir" value={formData.expenseHelpers} onChange={(v) => handleFinancialChange("expenseHelpers", v)} icon={<User className="w-4 h-4" />} />
+                        <InputGroup label="Belanja RT Lainnya" value={formData.expenseLifestyle} onChange={(v) => handleFinancialChange("expenseLifestyle", v)} icon={<ShoppingBag className="w-4 h-4" />} />
                         <div className="md:col-span-2">
-                            <InputGroup label="4.f Pajak (PBB/PKB) - PER TAHUN" value={formData.expenseTax} onChange={(v) => handleFinancialChange("expenseTax", v)} icon={<Landmark className="w-4 h-4" />} desc="Masukkan nominal pajak tahunan" />
+                            <InputGroup label="Pajak (PBB/PKB) - PER TAHUN" value={formData.expenseTax} onChange={(v) => handleFinancialChange("expenseTax", v)} icon={<Landmark className="w-4 h-4" />} desc="Masukkan nominal pajak tahunan" />
                         </div>
                     </div>
                 </div>
@@ -342,15 +386,16 @@ export function CheckupWizard() {
                                 <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Estimasi Arus Kas (Tahunan)</h4>
                                 <ReviewRow label="Total Pemasukan" value={formData.incomeFixed + formData.incomeVariable} highlight />
                                 <ReviewRow label="Total Cicilan Utang" value={
-                                    (formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness) * 12
+                                    // Cicilan per tahun (karena di form user input per tahun)
+                                    formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness
                                 } isNegative />
                                 <ReviewRow label="Total Pengeluaran Lain" value={
-                                    // Insurance
+                                    // Insurance (Tahun)
                                     (formData.insuranceLife + formData.insuranceHealth + formData.insuranceHome + formData.insuranceVehicle + formData.insuranceBPJS + formData.insuranceOther) +
-                                    // Savings (x12)
-                                    ((formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther) * 12) +
-                                    // Expenses (x12) + Tax
-                                    ((formData.expenseFood + formData.expenseSchool + formData.expenseTransport + formData.expenseCommunication + formData.expenseHelpers + formData.expenseLifestyle) * 12 + formData.expenseTax)
+                                    // Savings (Tahun)
+                                    ((formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther)) +
+                                    // Expenses  + Tax (Tahun)
+                                    ((formData.expenseFood + formData.expenseSchool + formData.expenseTransport + formData.expenseCommunication + formData.expenseHelpers + formData.expenseLifestyle) + formData.expenseTax)
                                 } isNegative />
                             </div>
                         </div>
@@ -363,8 +408,8 @@ export function CheckupWizard() {
         <div className="bg-white p-6 md:p-8 border-t border-slate-100 flex justify-between items-center rounded-b-3xl">
             <Button variant="ghost" onClick={prevStep} disabled={step === 0}><ArrowLeft className="w-4 h-4 mr-2" /> Sebelumnya</Button>
             {step < 4 ? 
-                <Button onClick={nextStep} className="bg-slate-900 text-white">Selanjutnya <ArrowRight className="w-4 h-4 ml-2" /></Button> : 
-                <Button onClick={handleCalculate} className="bg-emerald-600 text-white"><Calculator className="w-4 h-4 mr-2" /> Diagnosa Sekarang</Button>
+                <Button onClick={nextStep} className="bg-slate-900 text-white shadow-lg shadow-slate-900/20 px-8 h-12 rounded-xl font-bold transition-all hover:scale-[1.02]">Selanjutnya <ArrowRight className="w-4 h-4 ml-2" /></Button> : 
+                <Button onClick={handleCalculate} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 px-8 h-12 rounded-xl font-bold transition-all hover:scale-[1.02]"><Calculator className="w-4 h-4 mr-2" /> Diagnosa Sekarang</Button>
             }
         </div>
       </Card>
@@ -383,15 +428,7 @@ function SectionHeader({title, desc}: {title: string, desc: string}) {
     );
 }
 
-// Interfaces for component props to avoid 'any' error
-interface TextInputProps {
-    label: string;
-    icon?: React.ReactNode;
-    value: string | number | undefined;
-    onChange: (val: string) => void;
-    type?: string;
-}
-
+interface TextInputProps { label: string; icon?: React.ReactNode; value: string | number | undefined; onChange: (val: string) => void; type?: string; }
 function TextInput({ label, icon, value, onChange, type = "text" }: TextInputProps) {
     return (
         <div className="group space-y-2">
@@ -404,12 +441,7 @@ function TextInput({ label, icon, value, onChange, type = "text" }: TextInputPro
     )
 }
 
-interface DateInputProps {
-    label: string;
-    value: string | undefined;
-    onChange: (val: string) => void;
-}
-
+interface DateInputProps { label: string; value: string | undefined; onChange: (val: string) => void; }
 function DateInput({ label, value, onChange }: DateInputProps) {
     return (
         <div className="group space-y-2">
@@ -419,13 +451,7 @@ function DateInput({ label, value, onChange }: DateInputProps) {
     )
 }
 
-interface SelectInputProps {
-    label: string;
-    value: string | undefined;
-    onChange: (val: string) => void;
-    options: { value: string; label: string }[];
-}
-
+interface SelectInputProps { label: string; value: string | undefined; onChange: (val: string) => void; options: { value: string; label: string }[]; }
 function SelectInput({ label, value, onChange, options }: SelectInputProps) {
     return (
         <div className="group space-y-2">
@@ -437,18 +463,9 @@ function SelectInput({ label, value, onChange, options }: SelectInputProps) {
     )
 }
 
-interface InputGroupProps {
-    icon: React.ReactNode;
-    label: string;
-    desc?: string;
-    value: number;
-    onChange: (val: string) => void;
-}
-
+interface InputGroupProps { icon: React.ReactNode; label: string; desc?: string; value: number; onChange: (val: string) => void; }
 function InputGroup({ icon, label, desc, value, onChange }: InputGroupProps) {
-    // FIX: Pastikan value selalu number, default 0 jika undefined/NaN
     const safeValue = (value === undefined || value === null || isNaN(value)) ? 0 : value;
-
     return (
         <div className="group space-y-1.5">
             <Label className="text-xs font-bold text-slate-500 uppercase tracking-wide group-focus-within:text-emerald-600 transition-colors">{label}</Label>
@@ -458,7 +475,6 @@ function InputGroup({ icon, label, desc, value, onChange }: InputGroupProps) {
                 <div className="absolute left-14 top-1/2 -translate-y-1/2 text-slate-500 font-semibold text-xs">Rp</div>
                 <Input 
                     type="text" 
-                    // FIX: Gunakan safeValue untuk formatting
                     value={safeValue === 0 ? "" : safeValue.toLocaleString("id-ID")} 
                     onChange={(e) => onChange(e.target.value)} 
                     className="pl-20 h-12 bg-slate-50/50 border-slate-200 focus:border-emerald-500 focus:bg-white font-bold text-slate-800 shadow-sm rounded-xl transition-all" 
