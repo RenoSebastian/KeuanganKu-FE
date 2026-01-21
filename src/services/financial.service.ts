@@ -66,6 +66,7 @@ export const financialService = {
   },
 
   // D. Pendidikan Anak (LENGKAP: CRUD)
+  // Ini jembatan utama untuk Tahap 2 dan 3 nanti
   
   // 1. Simpan & Hitung (Create)
   saveEducationPlan: async (data: EducationPayload) => {
@@ -73,14 +74,13 @@ export const financialService = {
     return response.data;
   },
 
-  // 2. Ambil Daftar Rencana (Read List)
+  // 2. Ambil Daftar Rencana (Read List) - Untuk Dashboard Page
   getEducationPlans: async () => {
-    // Asumsi endpoint GET mengembalikan array of EducationPlanResponse
     const response = await api.get<EducationPlanResponse[]>("/financial/calculator/education");
     return response.data;
   },
 
-  // 3. Hapus Rencana (Delete)
+  // 3. Hapus Rencana (Delete) - Untuk Child Card
   deleteEducationPlan: async (id: string) => {
     const response = await api.delete(`/financial/calculator/education/${id}`);
     return response.data;

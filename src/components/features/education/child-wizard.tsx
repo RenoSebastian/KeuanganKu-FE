@@ -9,9 +9,9 @@ import { Check, ChevronRight, GraduationCap, AlertCircle, Loader2 } from "lucide
 import { financialService } from "@/services/financial.service";
 import { EducationPayload, EducationStagePayload } from "@/lib/types";
 
-// --- PERBAIKAN DI SINI ---
+// Interface Props
 interface ChildWizardProps {
-  onSave: (result: any) => void; // Menerima data result dari API
+  onSave: () => void; // Callback tanpa parameter, cukup sinyal untuk refresh
   onCancel: () => void;
 }
 
@@ -40,7 +40,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
   const handleToggleStage = (id: string) => {
     if (selectedStageIds.includes(id)) {
       setSelectedStageIds(prev => prev.filter(s => s !== id));
-      // Cleanup
+      // Cleanup data terkait
       const newCosts = { ...costs };
       delete newCosts[id];
       setCosts(newCosts);
@@ -76,24 +76,24 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
     }));
   };
 
-  // --- MAPPER HELPER ---
+  // Helper Mapper Level untuk Backend Enum
   const mapLevel = (id: string): "TK" | "SD" | "SMP" | "SMA" | "PT" => {
     if (id === "TK") return "TK";
     if (id === "SD") return "SD";
     if (id === "SMP") return "SMP";
     if (id === "SMA") return "SMA";
-    if (id === "KULIAH") return "PT";
+    if (id === "KULIAH" || id === "S2") return "PT";
     return "TK"; // Fallback
   };
 
-  // --- SUBMIT LOGIC (INTEGRASI BE) ---
+  // --- SUBMIT LOGIC (INTEGRASI DATABASE) ---
   const handleFinish = async () => {
     setIsLoading(true);
     try {
       const stagesPayload: EducationStagePayload[] = [];
       const childAge = calculateAge(dob); // Umur anak saat ini
 
-      // Loop setiap stage yang dipilih
+      // Loop setiap stage yang dipilih user
       selectedStageIds.forEach(id => {
         const stageInfo = STAGES_DB.find(s => s.id === id);
         if (!stageInfo) return;
@@ -115,8 +115,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
           });
         }
 
-        // 2. PUSH BIAYA BULANAN (Recurring cost) -> EXPAND LOOP PER TAHUN
-        // Backend butuh data granular tahunan (ANNUAL)
+        // 2. PUSH BIAYA BULANAN (Recurring cost) -> DIJABARKAN PER TAHUN (ANNUAL)
         if (cost.monthly > 0) {
           const isSemester = stageInfo.paymentFrequency === "SEMESTER";
           const annualCost = isSemester ? cost.monthly * 2 : cost.monthly * 12;
@@ -138,27 +137,27 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
       const payload: EducationPayload = {
         childName: name,
         childDob: dob,
-        method: "GEOMETRIC", // Default
-        inflationRate: 10,   // Default 10% 
-        returnRate: 12,      // Default 12%
+        method: "GEOMETRIC", // Default Backend Method
+        inflationRate: 10,   // Default Asumsi (bisa diubah nanti di dashboard)
+        returnRate: 12,      // Default Asumsi
         stages: stagesPayload
       };
 
-      // Call API
-      const response = await financialService.saveEducationPlan(payload);
+      // Call API Backend
+      await financialService.saveEducationPlan(payload);
       
-      // --- PERBAIKAN DI SINI ---
-      onSave(response); // Kirim data response ke parent
+      // Notify Parent & Close Wizard
+      onSave(); 
 
     } catch (error) {
       console.error("Gagal menyimpan rencana pendidikan:", error);
-      alert("Terjadi kesalahan saat menyimpan data.");
+      alert("Terjadi kesalahan saat menyimpan data. Pastikan koneksi aman.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper UI
+  // Helper UI Formatting
   const formatNum = (n: number) => n?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") || "";
 
   const getGradeOptions = (stage: typeof STAGES_DB[0]) => {

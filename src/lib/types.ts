@@ -10,27 +10,6 @@ export interface EducationStage {
   paymentFrequency: "MONTHLY" | "SEMESTER"; // Pembeda SPP vs UKT
 }
 
-// Add this to src/lib/types.ts
-
-// Represents the calculation result for a single education stage (e.g., TK)
-export interface StageResult {
-  stageId: string;
-  label: string;
-  startGrade: number;
-  paymentFrequency: "MONTHLY" | "SEMESTER";
-  totalFutureCost: number;
-  monthlySaving: number;
-  // Optional: Detailed breakdown if your logic supports it
-  details?: any[]; 
-}
-
-// Represents the summary of calculations for all children
-export interface PortfolioSummary {
-  grandTotalMonthlySaving: number;
-  totalFutureCost: number;
-  details: ChildSimulationResult[]; // Reusing your existing ChildSimulationResult
-}
-
 // Data input user (Client Side - digunakan di Wizard)
 export interface PlanInput {
   stageId: string;
@@ -146,6 +125,25 @@ export interface ChildSimulationResult {
   stagesBreakdown?: StageBreakdownItem[];
   // Support legacy data (opsional, jaga-jaga)
   stages?: any[]; 
+}
+
+// Represents the calculation result for a single education stage (e.g., TK)
+export interface StageResult {
+  stageId: string;
+  label: string;
+  startGrade: number;
+  paymentFrequency: "MONTHLY" | "SEMESTER";
+  totalFutureCost: number;
+  monthlySaving: number;
+  // Optional: Detailed breakdown if your logic supports it
+  details?: any[]; 
+}
+
+// Represents the summary of calculations for all children
+export interface PortfolioSummary {
+  grandTotalMonthlySaving: number;
+  totalFutureCost: number;
+  details: ChildSimulationResult[]; // Reusing your existing ChildSimulationResult
 }
 
 
