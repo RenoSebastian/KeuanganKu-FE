@@ -2,6 +2,7 @@ import {
   Calculator, GraduationCap, Home, History, 
   Umbrella, ShieldCheck, Stethoscope 
 } from "lucide-react";
+import { DirectorDashboardStats, RiskyEmployeeDetail, UnitHealthRanking } from "./types";
 
 export const USER_PROFILE = {
   name: "Budi Santoso",
@@ -125,4 +126,52 @@ export const HISTORY_DATA = [
     summary: "Dana darurat belum ideal.",
     file: "laporan-ags-2023.pdf"
   }
+];
+
+// --- DATA DUMMY UNTUK ROLE DIREKSI ---
+
+export const DIRECTOR_STATS_MOCK: DirectorDashboardStats = {
+  totalEmployees: 1450,
+  avgHealthScore: 72,
+  riskyEmployeesCount: 12,
+  totalAssetsManaged: 45000000000, // 45 Miliar
+  monthlyHealthTrend: [65, 68, 70, 72, 71, 72]
+};
+
+export const UNIT_HEALTH_RANKING_MOCK: UnitHealthRanking[] = [
+  { id: "U-1", unitName: "Divisi Teknologi Informasi", avgScore: 85, employeeCount: 45, status: "SEHAT" },
+  { id: "U-2", unitName: "Divisi Keuangan", avgScore: 82, employeeCount: 30, status: "SEHAT" },
+  { id: "U-3", unitName: "Divisi HR & Umum", avgScore: 70, employeeCount: 55, status: "WASPADA" },
+  { id: "U-4", unitName: "Divisi Operasional Lapangan", avgScore: 48, employeeCount: 210, status: "BAHAYA" },
+  { id: "U-5", unitName: "Divisi Pemasaran", avgScore: 76, employeeCount: 40, status: "SEHAT" },
+];
+
+export const RISKY_EMPLOYEES_MOCK: RiskyEmployeeDetail[] = [
+  { 
+    id: "EMP-001", 
+    fullName: "Ahmad Junaedi", 
+    unitName: "Divisi Operasional Lapangan", 
+    healthScore: 30, 
+    debtToIncomeRatio: 72, 
+    lastCheckupDate: "2024-04-20",
+    status: "BAHAYA" 
+  },
+  { 
+    id: "EMP-002", 
+    fullName: "Siti Aminah", 
+    unitName: "Divisi HR & Umum", 
+    healthScore: 42, 
+    debtToIncomeRatio: 58, 
+    lastCheckupDate: "2024-04-18",
+    status: "WASPADA" 
+  },
+  { 
+    id: "EMP-003", 
+    fullName: "Bambang Pamungkas", 
+    unitName: "Divisi Operasional Lapangan", 
+    healthScore: 35, 
+    debtToIncomeRatio: 65, 
+    lastCheckupDate: "2024-04-15",
+    status: "BAHAYA" 
+  },
 ];

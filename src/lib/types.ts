@@ -394,3 +394,49 @@ export interface HealthAnalysisResult {
   surplusDeficit: number;   
   generatedAt: string;
 }
+
+// ============================================================================
+// 6. GOAL SIMULATION TYPES (MENU 6 - PAM JAYA)
+// ============================================================================
+
+export interface GoalSimulationInput {
+  currentCost: number;   // PV: Dana yang dibutuhkan saat ini
+  inflationRate: number; // i: Perkiraan inflasi (%)
+  returnRate: number;    // r: Harapan return investasi (%)
+  years: number;         // n: Jangka waktu (tahun)
+}
+
+export interface GoalSimulationResult {
+  futureCost: number;    // FV: Dana yang dibutuhkan di masa depan
+  monthlySaving: number; // PMT: Tabungan bulanan yang disisihkan
+}
+
+// ============================================================================
+// 7. EXECUTIVE / DIRECTOR DASHBOARD TYPES
+// ============================================================================
+
+export interface DirectorDashboardStats {
+  totalEmployees: number;
+  avgHealthScore: number;     // Rata-rata skor kesehatan satu perusahaan
+  riskyEmployeesCount: number; // Jumlah karyawan status "BAHAYA"
+  totalAssetsManaged: number;  // Estimasi total aset karyawan tercatat
+  monthlyHealthTrend: number[]; // Array data untuk grafik (misal 6 bulan terakhir)
+}
+
+export interface UnitHealthRanking {
+  id: string;
+  unitName: string;
+  avgScore: number;
+  employeeCount: number;
+  status: "SEHAT" | "WASPADA" | "BAHAYA";
+}
+
+export interface RiskyEmployeeDetail {
+  id: string;
+  fullName: string;
+  unitName: string;
+  healthScore: number;
+  debtToIncomeRatio: number; // Indikator utama risiko (dalam persen)
+  lastCheckupDate: string;
+  status: "BAHAYA" | "WASPADA";
+}

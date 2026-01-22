@@ -6,7 +6,9 @@ import {
   InsurancePayload,
   GoalPayload,
   EducationPayload,
-  EducationPlanResponse 
+  EducationPlanResponse,
+  GoalSimulationInput,   // [NEW] Tipe Input Simulasi
+  GoalSimulationResult   // [NEW] Tipe Output Simulasi
 } from "@/lib/types";
 
 export const financialService = {
@@ -65,8 +67,14 @@ export const financialService = {
     return response.data;
   },
 
+  // [NEW] SIMULATOR GOAL (Sesuai Rumus PAM Jaya Menu 6)
+  // Endpoint ini tidak menyimpan ke DB, hanya mengembalikan hasil hitungan
+  simulateGoal: async (data: GoalSimulationInput) => {
+    const response = await api.post<GoalSimulationResult>("/financial/calculator/goals/simulate", data);
+    return response.data;
+  },
+
   // D. Pendidikan Anak (LENGKAP: CRUD)
-  // Pastikan 3 fungsi ini ada agar tidak error "is not a function"
   
   saveEducationPlan: async (data: EducationPayload) => {
     const response = await api.post<EducationPlanResponse>("/financial/calculator/education", data);
@@ -74,10 +82,9 @@ export const financialService = {
   },
 
   getEducationPlans: async () => {
-  // Ini sudah benar method-nya GET, pastikan URL sama persis dengan Controller
-  const response = await api.get<EducationPlanResponse[]>("/financial/calculator/education");
-  return response.data;
-},
+    const response = await api.get<EducationPlanResponse[]>("/financial/calculator/education");
+    return response.data;
+  },
 
   deleteEducationPlan: async (id: string) => {
     const response = await api.delete(`/financial/calculator/education/${id}`);

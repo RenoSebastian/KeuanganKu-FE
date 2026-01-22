@@ -2,7 +2,8 @@
 
 import { 
   Home, Calculator, Wallet, History, User, LogOut, 
-  LayoutDashboard, Users, Database, Settings, ShieldCheck
+  LayoutDashboard, Users, Database, Settings, ShieldCheck,
+  ShieldAlert, BarChart3
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -13,13 +14,22 @@ import { useEffect, useState } from "react";
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  
+  // State untuk Role Management
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDirector, setIsDirector] = useState(false);
 
   useEffect(() => {
-    // --- LOGIKA CEK ROLE ---
-    // Sementara di-hardcode TRUE agar menu Admin terlihat untuk demo/development.
-    // Nanti diganti: const user = JSON.parse(localStorage.getItem("user")); setIsAdmin(user?.role === 'admin');
-    setIsAdmin(true); 
+    // --- LOGIKA CEK ROLE (Tahap 2) ---
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      setIsAdmin(user.role === 'ADMIN');
+      setIsDirector(user.role === 'DIRECTOR');
+    } else {
+      // Fallback untuk Demo/Development: Hardcode salah satu true jika diperlukan
+      // setIsDirector(true); 
+    }
   }, []);
 
   const navItems = [
@@ -35,6 +45,10 @@ export function Sidebar() {
     { label: "Manajemen User", icon: Users, href: "/admin/users" },
     { label: "Data Master", icon: Database, href: "/admin/master-data" },
     { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },
+  ];
+
+  const executiveNavItems = [
+    { label: "Director Panel", icon: ShieldAlert, href: "/director" },
   ];
 
   const handleLogout = () => {
@@ -67,7 +81,7 @@ export function Sidebar() {
       {/* 2. Navigation Links */}
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
         
-        {/* GROUP: MENU UTAMA */}
+        {/* GROUP: MENU UTAMA (Semua User) */}
         <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Menu Utama</p>
         <div className="space-y-1 mb-6">
             {navItems.map((item) => {
@@ -90,7 +104,36 @@ export function Sidebar() {
             })}
         </div>
 
-        {/* GROUP: ADMINISTRATOR (CONDITIONAL) */}
+        {/* GROUP: EXECUTIVE MENU (Khusus Direksi) */}
+        {isDirector && (
+            <>
+                <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <BarChart3 className="w-3 h-3 text-blue-500" /> Executive Menu
+                </p>
+                <div className="space-y-1 mb-6">
+                    {executiveNavItems.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                        <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                            "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group",
+                            isActive
+                            ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        )}
+                        >
+                        <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-900")} />
+                        {item.label}
+                        </Link>
+                    );
+                    })}
+                </div>
+            </>
+        )}
+
+        {/* GROUP: ADMINISTRATOR (Khusus Admin) */}
         {isAdmin && (
             <>
                 <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -98,7 +141,7 @@ export function Sidebar() {
                 </p>
                 <div className="space-y-1">
                     {adminNavItems.map((item) => {
-                    const isActive = pathname.startsWith(item.href); // Auto active untuk sub-routes
+                    const isActive = pathname.startsWith(item.href); 
                     return (
                         <Link
                         key={item.href}

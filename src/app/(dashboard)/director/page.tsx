@@ -7,51 +7,35 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   ShieldAlert, Activity, Users, FileText, 
-  Lock, AlertTriangle, Eye, Search, Loader2 
+  Lock, Eye, Loader2, TrendingUp, AlertOctagon,
+  Building, ArrowUpRight, Filter 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import api from "@/lib/axios";
 
-// --- TYPES (Supaya Type Safe) ---
-interface RiskyEmployee {
-  id: string;
-  score: number;
-  status: string;
-  incomeSnapshot: string;
-  expenseSnapshot: string;
-  checkDate: string;
-  user: {
-    fullName: string;
-    unitKerja: {
-      namaUnit: string;
-    } | null;
-  };
-}
-
-interface AuditLog {
-  id: string;
-  action: string;
-  accessedAt: string;
-  metadata: string;
-  actor: {
-    fullName: string;
-    email: string;
-    role: string;
-  };
-}
+// Impor kontrak data dan simulasi data dari fondasi yang telah diperbarui
+import { 
+  DirectorDashboardStats, 
+  UnitHealthRanking, 
+  RiskyEmployeeDetail 
+} from "@/lib/types"; 
+import { 
+  DIRECTOR_STATS_MOCK, 
+  UNIT_HEALTH_RANKING_MOCK, 
+  RISKY_EMPLOYEES_MOCK 
+} from "@/lib/dummy-data"; 
 
 export default function DirectorPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   
-  // Data State
-  const [riskyEmployees, setRiskyEmployees] = useState<RiskyEmployee[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  // State manajemen data eksekutif
+  const [stats, setStats] = useState<DirectorDashboardStats | null>(null);
+  const [unitRankings, setUnitRankings] = useState<UnitHealthRanking[]>([]);
+  const [riskyEmployees, setRiskyEmployees] = useState<RiskyEmployeeDetail[]>([]);
 
-  // --- 1. SECURITY CHECK & DATA FETCHING ---
   useEffect(() => {
     const initPage = async () => {
-      // A. Cek Hak Akses (Client Side Guard)
+      // Proteksi Akses: Hanya role DIRECTOR yang diizinkan
       const storedUser = localStorage.getItem("user");
       if (!storedUser) {
         router.push("/login");
@@ -60,22 +44,19 @@ export default function DirectorPage() {
 
       const user = JSON.parse(storedUser);
       if (user.role !== "DIRECTOR") {
-        alert("AKSES DITOLAK: Halaman ini khusus Direksi.");
-        router.push("/"); // Tendang ke Dashboard Karyawan
+        alert("AKSES DITOLAK: Otoritas Anda tidak mencukupi untuk area ini.");
+        router.push("/"); 
         return;
       }
 
-      // B. Fetch Data (Parallel)
+      // Memuat data simulasi untuk keperluan demo eksekutif
       try {
-        const [resRisky, resLogs] = await Promise.all([
-          api.get("/director/risky-employees"),
-          api.get("/director/logs")
-        ]);
-
-        setRiskyEmployees(resRisky.data);
-        setAuditLogs(resLogs.data);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setStats(DIRECTOR_STATS_MOCK);
+        setUnitRankings(UNIT_HEALTH_RANKING_MOCK);
+        setRiskyEmployees(RISKY_EMPLOYEES_MOCK);
       } catch (error) {
-        console.error("Gagal memuat data direksi:", error);
+        console.error("Gagal sinkronisasi data direksi:", error);
       } finally {
         setIsLoading(false);
       }
@@ -84,21 +65,20 @@ export default function DirectorPage() {
     initPage();
   }, [router]);
 
-  // --- FORMATTER ---
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("id-ID", {
-      day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
-    });
-  };
-
-  const formatMoney = (val: string) => 
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(val));
+  // Formatter untuk angka besar dengan notasi ringkas (contoh: 45 M)
+  const formatMoney = (val: number) => 
+    new Intl.NumberFormat("id-ID", { 
+      style: "currency", 
+      currency: "IDR", 
+      maximumFractionDigits: 0,
+      notation: "compact" 
+    }).format(val);
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
         <Loader2 className="w-10 h-10 text-slate-800 animate-spin" />
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Memverifikasi Otoritas...</p>
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Otoritas Terverifikasi. Memuat Dashboard...</p>
       </div>
     );
   }
@@ -106,25 +86,27 @@ export default function DirectorPage() {
   return (
     <div className="min-h-screen w-full bg-slate-100/50 pb-24">
       
-      {/* HEADER EKSEKUTIF */}
-      <div className="bg-slate-900 text-white pt-8 pb-24 px-5 md:px-10 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
+      {/* HEADER EKSEKUTIF (Premium Dark Theme) */}
+      <div className="bg-slate-900 text-white pt-10 pb-24 px-5 md:px-10 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
         
-        <div className="relative z-10 max-w-7xl mx-auto flex justify-between items-end">
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
-            <div className="flex items-center gap-2 mb-2 text-blue-300 font-bold text-xs uppercase tracking-widest">
-              <Lock className="w-3 h-3" /> Restricted Area
+            <div className="flex items-center gap-2 mb-3">
+               <Badge variant="outline" className="border-blue-400/30 text-blue-300 bg-blue-900/20 uppercase tracking-widest text-[10px]">
+                  <Lock className="w-3 h-3 mr-1" /> Restricted Area
+               </Badge>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight">Executive Dashboard</h1>
-            <p className="text-slate-400 mt-1 max-w-xl">
-              Pusat pemantauan kesehatan finansial SDM dan audit keamanan sistem.
+            <p className="text-slate-400 mt-2 max-w-xl text-sm md:text-base leading-relaxed">
+              Analisa kesehatan finansial SDM PAM JAYA secara agregat. Fokus pada mitigasi risiko dan efektivitas program kesejahteraan.
             </p>
           </div>
           
-          <div className="hidden md:block">
-             <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-lg flex items-center gap-3">
+          <div className="hidden md:block text-right">
+             <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-lg inline-flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-mono text-slate-300">SYSTEM STATUS: ONLINE</span>
+                <span className="text-xs font-mono text-slate-300 uppercase tracking-wider">System Status: Online</span>
              </div>
           </div>
         </div>
@@ -132,127 +114,179 @@ export default function DirectorPage() {
 
       <div className="max-w-7xl mx-auto px-5 md:px-10 -mt-16 relative z-20 space-y-8">
         
-        {/* === SECTION 1: RISK MONITOR === */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-             <div className="p-2 bg-red-100 text-red-600 rounded-lg">
-               <ShieldAlert className="w-5 h-5" />
-             </div>
-             <div>
-               <h2 className="text-lg font-bold text-slate-800">Risk Monitor</h2>
-               <p className="text-xs text-slate-500">Karyawan dengan status "BAHAYA" (Perlu Intervensi)</p>
-             </div>
-          </div>
-
-          <Card className="border-0 shadow-xl shadow-slate-200/50 overflow-hidden bg-white">
-            {riskyEmployees.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100">
-                    <tr>
-                      <th className="px-6 py-4">Nama Karyawan</th>
-                      <th className="px-6 py-4">Unit Kerja</th>
-                      <th className="px-6 py-4 text-center">Skor</th>
-                      <th className="px-6 py-4">Snapshot Keuangan</th>
-                      <th className="px-6 py-4 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {riskyEmployees.map((emp) => (
-                      <tr key={emp.id} className="hover:bg-red-50/30 transition-colors group">
-                        <td className="px-6 py-4 font-bold text-slate-800">
-                          {emp.user.fullName}
-                        </td>
-                        <td className="px-6 py-4 text-slate-600">
-                          {emp.user.unitKerja?.namaUnit || "-"}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <Badge className="bg-red-100 text-red-600 border-red-200 hover:bg-red-200">
-                            {emp.score} / 100
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col text-xs">
-                             <span className="text-green-600">In: {formatMoney(emp.incomeSnapshot)}</span>
-                             <span className="text-red-500">Out: {formatMoney(emp.expenseSnapshot)}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <Button size="sm" variant="outline" className="h-8 text-xs border-slate-200">
-                             Detail <Eye className="w-3 h-3 ml-2" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* KPI STATS GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="p-6 shadow-xl border-0 flex flex-col justify-between hover:translate-y-[-2px] transition-all bg-white group">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <Activity className="w-6 h-6" />
               </div>
-            ) : (
-              <div className="p-10 flex flex-col items-center justify-center text-center">
-                 <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-3">
-                    <ShieldAlert className="w-8 h-8 text-green-500" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Corporate Health Index</p>
+              <h3 className="text-3xl font-black text-slate-800">
+                {stats?.avgHealthScore}
+                <span className="text-sm font-normal text-slate-400 ml-1">/ 100</span>
+              </h3>
+            </div>
+          </Card>
+
+          <Card className="p-6 shadow-xl border-0 flex flex-col justify-between hover:translate-y-[-2px] transition-all bg-white ring-1 ring-red-100">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-red-50 rounded-xl text-red-600">
+                <AlertOctagon className="w-6 h-6" />
+              </div>
+              <Badge className="bg-red-100 text-red-700 border-0 text-[10px] font-bold tracking-tighter">WATCHLIST</Badge>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Intervensi Diperlukan</p>
+              <h3 className="text-3xl font-black text-slate-800">{stats?.riskyEmployeesCount} <span className="text-sm font-normal text-slate-400">Karyawan</span></h3>
+            </div>
+          </Card>
+
+          <Card className="p-6 shadow-xl border-0 flex flex-col justify-between hover:translate-y-[-2px] transition-all bg-white">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+                <Users className="w-6 h-6" />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total SDM Aktif</p>
+              <h3 className="text-3xl font-black text-slate-800">{stats?.totalEmployees}</h3>
+            </div>
+          </Card>
+
+          <Card className="p-6 shadow-xl border-0 flex flex-col justify-between hover:translate-y-[-2px] transition-all bg-white">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-violet-50 rounded-xl text-violet-600">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Assets Managed (Est)</p>
+              <h3 className="text-3xl font-black text-slate-800">{formatMoney(stats?.totalAssetsManaged || 0)}</h3>
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Unit Kerja Health Ranking */}
+          <Card className="lg:col-span-2 border-0 shadow-lg p-0 overflow-hidden bg-white">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+               <div>
+                  <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <Building className="w-5 h-5 text-slate-400" /> Profil Unit Kerja
+                  </h3>
+                  <p className="text-xs text-slate-500">Perbandingan kesehatan finansial antar divisi</p>
+               </div>
+               <Button variant="outline" size="sm" className="text-xs h-8 border-slate-200">
+                 <Filter className="w-3 h-3 mr-2" /> Sortir Unit
+               </Button>
+            </div>
+            
+            <div className="divide-y divide-slate-50">
+              {unitRankings.map((unit, index) => (
+                <div key={unit.id} className="p-5 border-slate-50 hover:bg-slate-50 transition-colors flex items-center gap-4 group">
+                   <div className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold text-xs group-hover:bg-slate-900 group-hover:text-white transition-all">
+                     {index + 1}
+                   </div>
+                   <div className="flex-1">
+                      <div className="flex justify-between mb-2">
+                        <h4 className="font-bold text-slate-700 text-sm">{unit.unitName}</h4>
+                        <span className={cn(
+                          "text-xs font-bold px-2 py-1 rounded",
+                          unit.status === "SEHAT" ? "text-emerald-600 bg-emerald-50" :
+                          unit.status === "WASPADA" ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50"
+                        )}>
+                          Skor: {unit.avgScore}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full rounded-full transition-all duration-1000",
+                            unit.status === "SEHAT" ? "bg-emerald-500" :
+                            unit.status === "WASPADA" ? "bg-amber-500" : "bg-red-500"
+                          )}
+                          style={{ width: `${unit.avgScore}%` }}
+                        />
+                      </div>
+                   </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Risk Monitor */}
+          <Card className="border-0 shadow-lg p-0 overflow-hidden bg-white h-fit">
+            <div className="p-6 border-b border-slate-100 bg-red-50/30">
+               <h3 className="font-bold text-red-700 text-lg flex items-center gap-2">
+                 <ShieldAlert className="w-5 h-5" /> Risk Monitor
+               </h3>
+               <p className="text-xs text-red-600/80 tracking-tight">Anomali rasio pengeluaran & utang</p>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+               {riskyEmployees.map((emp) => (
+                 <div key={emp.id} className="p-5 hover:bg-red-50/10 transition-colors">
+                    <div className="flex justify-between items-start mb-3">
+                       <div>
+                          <h4 className="font-bold text-slate-800 text-sm leading-none">{emp.fullName}</h4>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase mt-1 inline-block">{emp.unitName}</span>
+                       </div>
+                       <Badge variant="outline" className={cn(
+                         "text-[9px] uppercase font-black",
+                         emp.status === "BAHAYA" ? "text-red-600 border-red-200 bg-white" : "text-amber-600 border-amber-200 bg-white"
+                       )}>
+                          {emp.status}
+                       </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                       <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
+                          <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Health</p>
+                          <p className="text-base font-black text-red-600 leading-tight">{emp.healthScore}</p>
+                       </div>
+                       <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
+                          <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Debt Ratio</p>
+                          <p className="text-base font-black text-slate-700 leading-tight">{emp.debtToIncomeRatio}%</p>
+                       </div>
+                    </div>
+                    {/* Tahap 5: Implementasi Navigasi ke Halaman Audit Personal */}
+                    <Button 
+                      onClick={() => router.push(`/director/${emp.id}`)}
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full h-8 text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-all"
+                    >
+                       Audit Profil <Eye className="w-3 h-3 ml-2" />
+                    </Button>
                  </div>
-                 <h3 className="text-slate-800 font-bold">Semua Aman</h3>
-                 <p className="text-slate-500 text-sm">Tidak ada karyawan dengan risiko keuangan tinggi saat ini.</p>
+               ))}
+            </div>
+          </Card>
+
+        </div>
+
+        {/* Laporan Kesejahteraan SDM */}
+        <section className="bg-slate-900 p-8 rounded-3xl shadow-2xl relative overflow-hidden group">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-500/20 transition-all" />
+           
+           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-5 text-center md:text-left">
+                 <div className="p-4 bg-white/10 backdrop-blur-xl text-blue-400 rounded-2xl border border-white/10">
+                    <FileText className="w-8 h-8" />
+                 </div>
+                 <div>
+                    <h4 className="font-black text-white text-xl">Laporan Kesejahteraan SDM</h4>
+                    <p className="text-sm text-slate-400 max-w-sm">Eksportir data komprehensif untuk evaluasi kebijakan kenaikan gaji atau bantuan finansial.</p>
+                 </div>
               </div>
-            )}
-          </Card>
-        </section>
-
-        {/* === SECTION 2: AUDIT TRAIL (CCTV) === */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-             <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-               <Activity className="w-5 h-5" />
-             </div>
-             <div>
-               <h2 className="text-lg font-bold text-slate-800">Audit Trail</h2>
-               <p className="text-xs text-slate-500">Rekaman aktivitas sistem (Real-time Log)</p>
-             </div>
-          </div>
-
-          <Card className="border-0 shadow-lg shadow-slate-200/50 overflow-hidden bg-white">
-             <div className="max-h-[400px] overflow-y-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-6 py-3">Waktu</th>
-                      <th className="px-6 py-3">Aktor (User)</th>
-                      <th className="px-6 py-3">Aktivitas</th>
-                      <th className="px-6 py-3">Role</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 font-mono text-xs">
-                    {auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-3 text-slate-400 whitespace-nowrap">
-                          {formatDate(log.accessedAt)}
-                        </td>
-                        <td className="px-6 py-3 font-bold text-slate-700">
-                          {log.actor.fullName}
-                          <div className="text-[10px] text-slate-400 font-normal">{log.actor.email}</div>
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className={cn(
-                            "px-2 py-1 rounded border",
-                            log.action.includes("DELETE") ? "bg-red-50 border-red-100 text-red-600" :
-                            log.action.includes("POST") ? "bg-green-50 border-green-100 text-green-600" :
-                            "bg-slate-50 border-slate-100 text-slate-600"
-                          )}>
-                             {log.action}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3">
-                           <Badge variant="outline" className="text-[9px]">
-                             {log.actor.role}
-                           </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-             </div>
-          </Card>
+              <Button className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 h-12 rounded-xl shadow-lg shadow-blue-600/30 w-full md:w-auto">
+                 Download Laporan <ArrowUpRight className="w-4 h-4 ml-2" />
+              </Button>
+           </div>
         </section>
 
       </div>

@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math"; 
-import { SpecialGoalResult, GoalType } from "@/lib/types";
+import { SpecialGoalResult, GoalType, GoalSimulationInput } from "@/lib/types";
 import { generateSpecialGoalPDF } from "@/lib/pdf-generator";
-import { financialService } from "@/services/financial.service"; // Import Service API
+import { financialService } from "@/services/financial.service"; 
 
 // Konfigurasi Tema per Tujuan
 const GOAL_OPTIONS: { id: GoalType; label: string; icon: any; color: string; gradient: string; desc: string }[] = [
@@ -61,7 +61,7 @@ export default function GoalsPage() {
   const [investmentRate, setInvestmentRate] = useState(6);
 
   const [result, setResult] = useState<SpecialGoalResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // State Loading
+  const [isLoading, setIsLoading] = useState(false);
 
   // --- HANDLERS ---
   const handleMoneyInput = (val: string) => {
@@ -84,31 +84,27 @@ export default function GoalsPage() {
     setIsLoading(true);
 
     try {
-      // 1. Generate Target Date (Hari ini + X Tahun)
-      const targetDate = new Date();
-      targetDate.setFullYear(targetDate.getFullYear() + years);
-      const dateString = targetDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
-
-      // 2. Call API Backend
-      const response = await financialService.saveGoalPlan({
-        goalName: selectedGoal, 
-        targetAmount: cost,
-        targetDate: dateString,
+      // 1. Prepare Payload sesuai Interface GoalSimulationInput (Tahap 1)
+      const payload: GoalSimulationInput = {
+        currentCost: cost,
+        years: years,
         inflationRate: inflation,
         returnRate: investmentRate
-      });
+      };
 
-      const calc = response.calculation;
+      // 2. Call API Simulator (Tahap 2)
+      // Note: Kita pakai 'simulateGoal' karena tidak menyimpan ke DB dulu
+      const data = await financialService.simulateGoal(payload);
 
-      // 3. Map Response to UI
+      // 3. Map Response to UI State
       setResult({
-        futureValue: calc.futureTargetAmount, // Nilai masa depan dari BE
-        monthlySaving: calc.monthlySaving     // Rekomendasi tabungan dari BE
+        futureValue: data.futureCost,    // Mapping: futureCost -> futureValue
+        monthlySaving: data.monthlySaving
       });
 
     } catch (error) {
       console.error("Gagal menghitung goals:", error);
-      alert("Terjadi kesalahan saat menghitung data. Coba lagi.");
+      alert("Terjadi kesalahan saat menghitung data. Pastikan Backend berjalan.");
     } finally {
       setIsLoading(false);
     }
@@ -354,7 +350,7 @@ export default function GoalsPage() {
                                 <div className="flex-1 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
                                     <p className="text-[10px] text-emerald-600 uppercase font-bold mb-1">Hasil Bunga</p>
                                     <p className="text-sm font-bold text-emerald-700">
-                                        {formatRupiah(result.futureValue - (result.monthlySaving * 12 * parseInt(duration)))}
+                                        {formatRupiah(Math.max(0, result.futureValue - (result.monthlySaving * 12 * parseInt(duration))))}
                                     </p>
                                 </div>
                             </div>
