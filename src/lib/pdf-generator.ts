@@ -6,7 +6,7 @@ import {
   InsuranceInput, InsuranceResult, SpecialGoalInput, SpecialGoalResult 
 } from "./types";
 
-// --- 1. PDF PENDIDIKAN (TETAP) ---
+// --- 1. PDF PENDIDIKAN ---
 export const generateEducationPDF = (
   portfolio: PortfolioSummary, 
   assumptions: { inflation: number, returnRate: number }
@@ -60,7 +60,10 @@ export const generateEducationPDF = (
     doc.text(`Anak: ${child.childName}`, 14, finalY);
     finalY += 8;
 
-    child.stages.forEach((stage) => {
+    // FIX 1: Handle undefined stages dengan (child.stages || [])
+    const stages = child.stages || [];
+
+    stages.forEach((stage: any) => {
       if (finalY > 230) { doc.addPage(); finalY = 20; }
 
       doc.setFontSize(11);
@@ -76,8 +79,11 @@ export const generateEducationPDF = (
       
       doc.text(`• ${stage.label} ${gradeInfo}`, 14, finalY);
 
-      const tableBody = stage.details?.map((item, i) => {
+      // FIX 2 & 3: Explicit type for item (any) and i (number)
+      const tableBody = stage.details?.map((item: any, i: number) => {
         let label = item.item;
+        
+        // Custom Labeling logic
         if (stage.stageId === "TK" && item.item.toLowerCase().includes("spp")) {
              const currentGrade = stage.startGrade + i;
              label = currentGrade === 1 ? "SPP TK A" : "SPP TK B";
@@ -86,6 +92,7 @@ export const generateEducationPDF = (
              const endSem = startSem + 1;
              label = `Biaya Semester ${startSem} - ${endSem}`;
         }
+
         return [
           label,
           `${item.dueYear} Tahun`,
@@ -94,6 +101,7 @@ export const generateEducationPDF = (
         ];
       }) || [];
 
+      // Push Subtotal Row
       tableBody.push([
         { content: "Subtotal Jenjang", colSpan: 3, styles: { fontStyle: "bold", halign: "right" } },
         { content: formatRupiah(stage.monthlySaving), styles: { fontStyle: "bold", textColor: [22, 163, 74] } }
@@ -230,7 +238,7 @@ export const generateBudgetPDF = (
   doc.save(`Financial_Checkup_${profile.name}.pdf`);
 };
 
-// --- 3. PDF DANA PENSIUN (UPDATE: REAL RATE) ---
+// --- 3. PDF DANA PENSIUN ---
 export const generatePensionPDF = (
   input: PensionInput,
   result: PensionResult,
@@ -341,7 +349,7 @@ export const generatePensionPDF = (
   doc.save(`Rencana_Pensiun_${userName}.pdf`);
 };
 
-// --- 4. PDF ASURANSI JIWA (MENU 4) ---
+// --- 4. PDF ASURANSI JIWA ---
 export const generateInsurancePDF = (
   input: InsuranceInput,
   result: InsuranceResult,
@@ -446,7 +454,7 @@ export const generateInsurancePDF = (
   doc.save(`Perencanaan_Asuransi_${userName}.pdf`);
 };
 
-// --- 5. PDF SPECIAL GOALS (MENU 6) ---
+// --- 5. PDF SPECIAL GOALS ---
 export const generateSpecialGoalPDF = (
   input: SpecialGoalInput,
   result: SpecialGoalResult,

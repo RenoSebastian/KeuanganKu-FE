@@ -3,17 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  Search, Plus, Edit, Trash2, 
+  Search, Plus, Edit, 
   RotateCcw, Briefcase, Building2,
-  CheckCircle2, XCircle, Filter, User, Power
+  CheckCircle2, XCircle, Filter, User, Power,
+  Users, ShieldCheck
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { AdminUser, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-// MOCK DATA (Simulasi database)
+// MOCK DATA
 const MOCK_USERS: AdminUser[] = [
   {
     id: "1",
@@ -95,12 +97,12 @@ export default function UserManagementPage() {
     return matchesSearch && matchesRole;
   });
 
-  const getRoleBadgeColor = (role: UserRole) => {
+  const getRoleBadgeStyle = (role: UserRole) => {
     switch (role) {
-      case "ADMIN": return "bg-purple-100 text-purple-700 border-purple-200";
-      case "DIRECTOR": return "bg-indigo-100 text-indigo-700 border-indigo-200";
-      case "UNIT_HEAD": return "bg-blue-100 text-blue-700 border-blue-200";
-      default: return "bg-slate-100 text-slate-600 border-slate-200";
+      case "ADMIN": return "bg-purple-50 text-purple-700 border-purple-200";
+      case "DIRECTOR": return "bg-indigo-50 text-indigo-700 border-indigo-200";
+      case "UNIT_HEAD": return "bg-cyan-50 text-cyan-700 border-cyan-200";
+      default: return "bg-slate-50 text-slate-600 border-slate-200";
     }
   };
 
@@ -115,55 +117,71 @@ export default function UserManagementPage() {
 
   const handleResetPassword = (id: string, name: string) => {
     if(confirm(`Reset password untuk ${name}?\nPassword akan kembali ke default: PamJaya123!`)) {
-        // Simulasi API call
         alert(`Password untuk ${name} berhasil direset!`);
     }
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-50/50 pb-24 md:pb-12">
-      {/* Header Decoration */}
-      <div className="h-32 w-full bg-slate-900 absolute top-0 left-0 z-0" />
+    <div className="min-h-screen w-full bg-surface-ground pb-24 md:pb-12">
+      
+      {/* --- HEADER (PAM IDENTITY) --- */}
+      <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
+         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
+         <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-8 md:pt-12">
+         <div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div>
+               <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 mb-3">
+                  <Users className="w-4 h-4 text-cyan-300" />
+                  <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Admin Portal</span>
+               </div>
+               <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                 Manajemen Pengguna
+               </h1>
+               <p className="text-brand-100 text-sm mt-1 opacity-90 max-w-lg">
+                 Kelola data karyawan, hak akses, dan status akun dalam satu kendali.
+               </p>
+            </div>
+            
+            <Button 
+              onClick={() => router.push("/admin/users/create")}
+              variant="primary"
+              className="shadow-xl shadow-brand-900/20 bg-emerald-600 hover:bg-emerald-700 border-0"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Tambah User Baru
+            </Button>
+         </div>
+      </div>
+
+      <div className="relative z-20 max-w-7xl mx-auto px-5 -mt-20">
         
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 text-white">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Manajemen Pengguna</h1>
-            <p className="text-slate-300 text-sm">Kelola data karyawan, role, dan status akun.</p>
-          </div>
-          <Button 
-            onClick={() => router.push("/admin/users/create")}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/20"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Tambah User Baru
-          </Button>
-        </div>
-
-        {/* Filters & Actions Bar */}
-        <Card className="p-4 mb-6 shadow-sm border-slate-200 bg-white">
+        {/* --- FILTERS & ACTIONS BAR --- */}
+        <Card className="p-4 mb-6 shadow-lg border-white/60 bg-white/90 backdrop-blur-xl">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input 
                 placeholder="Cari Nama, NIP, atau Email..." 
-                className="pl-9 bg-slate-50 border-slate-200 focus:bg-white"
+                className="pl-11 h-11 bg-slate-50 border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl text-sm font-medium transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <Filter className="w-4 h-4 text-slate-500" />
+            <div className="flex items-center gap-3 w-full md:w-auto bg-slate-50 p-1 rounded-xl border border-slate-200">
+              <div className="flex items-center px-3 text-slate-500 gap-2">
+                 <Filter className="w-4 h-4" />
+                 <span className="text-xs font-bold uppercase tracking-wider">Role</span>
+              </div>
               <select 
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-9 bg-white border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer font-medium"
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value as UserRole | "ALL")}
               >
                 <option value="ALL">Semua Role</option>
                 <option value="USER">User (Pegawai)</option>
-                <option value="UNIT_HEAD">Pimpinan Bidang</option>
+                <option value="UNIT_HEAD">Pimpinan Unit</option>
                 <option value="DIRECTOR">Direksi</option>
                 <option value="ADMIN">Administrator</option>
               </select>
@@ -171,50 +189,50 @@ export default function UserManagementPage() {
           </div>
         </Card>
 
-        {/* Users Table */}
-        <Card className="overflow-hidden shadow-sm border-slate-200">
+        {/* --- USERS TABLE --- */}
+        <Card className="overflow-hidden shadow-sm border-slate-200 bg-white rounded-[1.5rem]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-50/80 border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4 font-bold">Info Pegawai</th>
-                  <th className="px-6 py-4 font-bold">NIP & Jabatan</th>
-                  <th className="px-6 py-4 font-bold">Role</th>
-                  <th className="px-6 py-4 font-bold">Status</th>
-                  <th className="px-6 py-4 font-bold text-right">Aksi</th>
+                  <th className="px-6 py-5 font-bold">Info Pegawai</th>
+                  <th className="px-6 py-5 font-bold">NIP & Unit</th>
+                  <th className="px-6 py-5 font-bold text-center">Role</th>
+                  <th className="px-6 py-5 font-bold">Status Akun</th>
+                  <th className="px-6 py-5 font-bold text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => (
-                    <tr key={user.id} className="bg-white hover:bg-slate-50/50 transition-colors">
+                    <tr key={user.id} className="bg-white hover:bg-brand-50/30 transition-colors group">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shadow-inner border border-white">
                             {user.fullName.split(" ").map(n => n[0]).join("").substring(0,2)}
                           </div>
                           <div>
-                            <div className="font-bold text-slate-800">{user.fullName}</div>
-                            <div className="text-xs text-slate-500">{user.email}</div>
+                            <div className="font-bold text-slate-800 group-hover:text-brand-700 transition-colors">{user.fullName}</div>
+                            <div className="text-xs text-slate-500 font-medium">{user.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-slate-700 font-medium">
-                            <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-slate-700 font-mono text-xs font-bold bg-slate-50 px-2 py-0.5 rounded-md w-fit border border-slate-100">
+                            <Briefcase className="w-3 h-3 text-slate-400" />
                             {user.nip}
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                            <Building2 className="w-3 h-3 text-slate-400" />
                             {user.unitName || "-"}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <span className={cn(
-                          "px-2.5 py-1 rounded-md text-[10px] font-bold border",
-                          getRoleBadgeColor(user.role)
+                          "px-2.5 py-1 rounded-lg text-[10px] font-bold border uppercase tracking-wider",
+                          getRoleBadgeStyle(user.role)
                         )}>
                           {user.role.replace("_", " ")}
                         </span>
@@ -222,30 +240,30 @@ export default function UserManagementPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {user.isActive ? (
-                            <>
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                              <span className="text-emerald-700 font-bold text-xs">Aktif</span>
-                            </>
+                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-full">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span className="text-[10px] font-bold uppercase">Aktif</span>
+                            </div>
                           ) : (
-                            <>
-                              <XCircle className="w-4 h-4 text-slate-400" />
-                              <span className="text-slate-500 font-bold text-xs">Non-Aktif</span>
-                            </>
+                            <div className="flex items-center gap-2 bg-slate-100 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-full">
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span className="text-[10px] font-bold uppercase">Non-Aktif</span>
+                            </div>
                           )}
                         </div>
                         {user.lastLogin && (
-                          <div className="text-[10px] text-slate-400 mt-1">
+                          <div className="text-[10px] text-slate-400 mt-1.5 ml-1">
                             Last: {new Date(user.lastLogin).toLocaleDateString()}
                           </div>
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
                            {/* Edit Button */}
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                            className="h-9 w-9 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl"
                             onClick={() => router.push(`/admin/users/${user.id}/edit`)}
                             title="Edit User"
                           >
@@ -256,21 +274,21 @@ export default function UserManagementPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-slate-500 hover:text-amber-600 hover:bg-amber-50"
+                            className="h-9 w-9 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl"
                             onClick={() => handleResetPassword(user.id, user.fullName)}
                             title="Reset Password"
                           >
                             <RotateCcw className="w-4 h-4" />
                           </Button>
 
-                          {/* Toggle Active Status (Soft Delete) */}
+                          {/* Toggle Active Status */}
                           <Button 
                             variant="ghost" 
                             size="icon" 
                             className={cn(
-                                "h-8 w-8",
+                                "h-9 w-9 rounded-xl transition-colors",
                                 user.isActive 
-                                    ? "text-slate-500 hover:text-red-600 hover:bg-red-50" 
+                                    ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
                                     : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                             )}
                             onClick={() => handleToggleStatus(user.id, user.isActive)}
@@ -284,20 +302,29 @@ export default function UserManagementPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                      <User className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p>Tidak ada data user yang ditemukan.</p>
+                    <td colSpan={5} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
+                            <User className="w-8 h-8 text-slate-300" />
+                         </div>
+                         <div>
+                            <p className="text-slate-900 font-bold">Data tidak ditemukan</p>
+                            <p className="text-slate-500 text-xs">Coba ubah kata kunci pencarian atau filter.</p>
+                         </div>
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Placeholder */}
           <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
-            <span>Menampilkan {filteredUsers.length} dari {users.length} user</span>
+            <span className="font-medium">Menampilkan {filteredUsers.length} dari {users.length} user</span>
             <div className="flex gap-2">
-               <Button variant="outline" size="sm" disabled className="h-8 text-xs">Sebelumnya</Button>
-               <Button variant="outline" size="sm" disabled className="h-8 text-xs">Selanjutnya</Button>
+               <Button variant="outline" size="sm" disabled className="h-8 text-xs bg-white">Sebelumnya</Button>
+               <Button variant="outline" size="sm" disabled className="h-8 text-xs bg-white">Selanjutnya</Button>
             </div>
           </div>
         </Card>

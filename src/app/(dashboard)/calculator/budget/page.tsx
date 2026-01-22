@@ -119,8 +119,8 @@ export default function BudgetPage() {
       
       {/* --- HEADER (PAM BRAND IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
-         <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
+         {/* <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" /> */}
          
          <div className="relative z-10 max-w-5xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4">

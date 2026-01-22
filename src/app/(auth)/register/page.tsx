@@ -3,15 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { UserPlus, Mail, Lock, User, Loader2, Building2, Badge } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { 
+  UserPlus, Mail, Lock, User, Loader2, Building2, 
+  BadgeCheck, Eye, EyeOff, AlertCircle 
+} from "lucide-react";
 import api from "@/lib/axios";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   
   const [formData, setFormData] = useState({
     nip: "", 
@@ -23,77 +30,96 @@ export default function RegisterPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError(""); // Clear error saat user mengetik
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
     if (formData.password !== formData.passwordConfirm) {
-      alert("Password konfirmasi tidak cocok!");
+      setError("Konfirmasi password tidak cocok!");
       setIsLoading(false);
       return;
     }
 
     try {
-      // --- PERBAIKAN DISINI ---
-      // Mapping data agar sesuai DTO Backend (RegisterDto)
+      // Mapping data sesuai DTO Backend
       const payload = {
         nip: formData.nip,
-        fullName: formData.name, // BE minta 'fullName', bukan 'name'
+        fullName: formData.name, 
         email: formData.email,
         password: formData.password,
-        // Karena belum ada dropdown Unit Kerja, kita hardcode dulu biar lolos validasi
-        unitKerjaId: "KANTOR_PUSAT", 
+        unitKerjaId: "KANTOR_PUSAT", // Default sementara
       };
 
       await api.post("/auth/register", payload);
 
-      alert("Registrasi Berhasil! Silakan login.");
+      // Redirect ke login setelah sukses
+      // Kita bisa tambahkan toast/alert sukses di sini jika ada librarynya
+      alert("Registrasi Berhasil! Silakan login untuk melanjutkan.");
       router.push("/login");
 
     } catch (error: any) {
       console.error("Register Error:", error);
-      // Menangkap pesan error spesifik dari Class Validator NestJS
       const msg = error.response?.data?.message 
         ? (Array.isArray(error.response.data.message) 
             ? error.response.data.message.join(", ") 
             : error.response.data.message)
         : "Gagal mendaftar. Cek kembali data Anda.";
       
-      alert(`Gagal: ${msg}`);
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="max-w-md w-full">
-        
-        {/* Logo / Header */}
-        <div className="text-center mb-8">
-           <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl text-white mb-4 shadow-lg shadow-blue-200">
-             <Building2 className="w-6 h-6" />
-           </div>
-           <h1 className="text-2xl font-bold text-slate-800">Daftar Akun Pegawai</h1>
-           <p className="text-slate-500 text-sm mt-2">
-             Isi data diri sesuai identitas kepegawaian Anda.
-           </p>
-        </div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-surface-ground relative overflow-hidden py-10">
+      
+      {/* --- BACKGROUND DECORATION (Consistent with Login) --- */}
+      <div className="absolute inset-0 bg-brand-900">
+         <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-10 mix-blend-overlay"></div>
+         <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-brand-500/20 rounded-full blur-[120px] pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+         <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none translate-x-1/3 translate-y-1/3" />
+      </div>
 
-        <Card className="p-8 border-slate-200 shadow-xl bg-white/80 backdrop-blur-xl">
-          <form onSubmit={handleRegister} className="space-y-4">
+      <div className="relative z-10 w-full max-w-lg px-5">
+        <Card className="p-8 md:p-10 bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl shadow-brand-900/30 rounded-[2.5rem]">
+          
+          {/* HEADER SECTION */}
+          <div className="flex flex-col items-center mb-8 text-center">
+             <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mb-4 shadow-inner text-brand-600">
+                <Building2 className="w-8 h-8" />
+             </div>
+             <h1 className="text-2xl font-black text-brand-900 tracking-tight">
+               Registrasi Pegawai
+             </h1>
+             <p className="text-sm text-slate-500 font-medium mt-1 max-w-xs">
+               Bergabung dengan ekosistem koperasi digital PAM JAYA
+             </p>
+          </div>
+
+          {/* ERROR ALERT */}
+          {error && (
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-start gap-3 animate-in slide-in-from-top-2">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <p className="text-xs font-bold text-rose-600 leading-relaxed">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleRegister} className="space-y-5">
             
-            {/* INPUT NIP */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600 uppercase ml-1">Nomor Induk Pegawai (NIP)</label>
-              <div className="relative">
-                <Badge className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+            {/* NIP Field */}
+            <div className="space-y-2">
+              <Label variant="field">Nomor Induk Pegawai (NIP)</Label>
+              <div className="relative group">
+                <BadgeCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
                 <Input 
                   name="nip"
-                  placeholder="Contoh: 199001012024011001" 
-                  className="pl-10 h-11 bg-slate-50 border-slate-200 focus:bg-white transition-all font-mono"
+                  placeholder="Contoh: 19900101..." 
+                  className="pl-12 h-12 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium font-mono"
                   value={formData.nip}
                   onChange={handleChange}
                   required
@@ -101,15 +127,15 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Nama */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600 uppercase ml-1">Nama Lengkap</label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+            {/* Nama Lengkap */}
+            <div className="space-y-2">
+              <Label variant="field">Nama Lengkap</Label>
+              <div className="relative group">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
                 <Input 
                   name="name"
-                  placeholder="Nama Pegawai" 
-                  className="pl-10 h-11 bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                  placeholder="Nama Sesuai SK" 
+                  className="pl-12 h-12 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
                   value={formData.name}
                   onChange={handleChange}
                   required
@@ -118,15 +144,15 @@ export default function RegisterPage() {
             </div>
 
             {/* Email */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600 uppercase ml-1">Email Kantor</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+            <div className="space-y-2">
+              <Label variant="field">Email Kantor</Label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
                 <Input 
                   name="email"
                   type="email"
                   placeholder="nama@pamjaya.co.id" 
-                  className="pl-10 h-11 bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                  className="pl-12 h-12 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
                   value={formData.email}
                   onChange={handleChange}
                   required
@@ -134,59 +160,75 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Password */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 uppercase ml-1">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+            {/* Password Fields Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <Label variant="field">Password</Label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
                   <Input 
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="******" 
-                    className="pl-9 h-11 bg-slate-50 border-slate-200"
+                    className="pl-10 pr-10 h-11 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
                     value={formData.password}
                     onChange={handleChange}
                     required
                   />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 uppercase ml-1">Ulangi Pass</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              
+              <div className="space-y-2">
+                <Label variant="field">Ulangi Password</Label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
                   <Input 
                     name="passwordConfirm"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="******" 
-                    className="pl-9 h-11 bg-slate-50 border-slate-200"
+                    className="pl-10 pr-10 h-11 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
                     value={formData.passwordConfirm}
                     onChange={handleChange}
                     required
                   />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-brand-600 transition-colors focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             </div>
 
             <Button 
               type="submit" 
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 mt-2"
+              variant="primary"
+              fullWidth
+              size="lg"
+              className="mt-6 rounded-xl shadow-lg shadow-brand-600/30 transition-all hover:scale-[1.02]"
               disabled={isLoading}
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
-              Daftar Pegawai
+              {isLoading ? "Memproses..." : (
+                <span className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5" /> Daftar Sekarang
+                </span>
+              )}
             </Button>
 
           </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
-              Sudah punya akun?{" "}
-              <Link href="/login" className="text-blue-600 font-bold hover:underline">
+
+          {/* FOOTER LINK */}
+          <div className="mt-8 text-center pt-6 border-t border-slate-100">
+            <p className="text-xs text-slate-500 font-medium">
+              Sudah memiliki akun aktif?{" "}
+              <Link href="/login" className="text-brand-600 font-bold hover:text-brand-700 hover:underline transition-all">
                 Login disini
               </Link>
             </p>
           </div>
+
         </Card>
       </div>
     </div>

@@ -30,7 +30,7 @@ export interface ChildProfile {
   name: string;
   dob: string;
   gender: "L" | "P";
-  avatarColor: string; // Masih ok disimpan di sini untuk UX avatar user
+  avatarColor: string; 
   plans: PlanInput[];
 }
 
@@ -81,13 +81,32 @@ export interface EducationPlanResponse {
   calculation: EducationCalculationResult;
 }
 
+// --- MISSING TYPES FIXED HERE ---
+
+export interface StageDetailItem {
+  item: string;
+  dueYear: number;
+  futureCost: number;
+  requiredSaving: number;
+}
+
+export interface StageResult {
+  stageId: string;
+  label: string;
+  startGrade: number;
+  paymentFrequency: "MONTHLY" | "SEMESTER";
+  totalFutureCost: number;
+  monthlySaving: number;
+  details: StageDetailItem[];
+}
+
 // Adapter Type untuk UI Components
 export interface ChildSimulationResult {
   childId?: string;
   childName?: string;
   totalMonthlySaving: number; 
-  stagesBreakdown?: StageBreakdownItem[];
-  stages?: any[]; // Legacy support
+  stagesBreakdown?: StageBreakdownItem[]; // Dari API Backend
+  stages?: StageResult[]; // Dari Client Calculation (Legacy Support / Direct Calc)
 }
 
 export interface PortfolioSummary {
@@ -108,14 +127,12 @@ export interface BudgetInput {
   variableIncome: number; 
 }
 
-// [REFACTORED] Menghapus colorClass. Warna ditentukan UI berdasarkan 'type'.
 export interface BudgetAllocation {
   label: string;
   percentage: number; 
   amount: number;     
   type: "NEEDS" | "DEBT_PROD" | "DEBT_CONS" | "INSURANCE" | "SAVING" | "SURPLUS";
   description: string;
-  // HAPUS: colorClass (Decoupling Logic & View)
 }
 
 export interface BudgetResult {
@@ -323,13 +340,11 @@ export interface FinancialRecord {
 
 export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL"; 
 
-// [REFACTORED] Mengubah statusColor menjadi Grade Semantik
 export interface RatioDetail {
   id: string;
   label: string;
   value: number;
   benchmark: string;
-  // Menggunakan Grade, bukan Warna. UI yang menentukan warnanya.
   grade: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL"; 
   recommendation: string;
   status?: string; 
