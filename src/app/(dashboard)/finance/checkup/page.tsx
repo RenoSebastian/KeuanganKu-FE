@@ -10,81 +10,69 @@ export default function FinancialCheckupPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] relative selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="min-h-screen w-full bg-surface-ground">
       
-      {/* --- BACKGROUND FX --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-         {/* Grid Pattern */}
-         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-         
-         {/* Soft Ambient Glows */}
-         <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-100/40 rounded-full blur-[120px]" />
-         <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-emerald-100/40 rounded-full blur-[120px]" />
+      {/* --- HEADER (PAM IDENTITY) --- */}
+      <div className="bg-brand-900 pt-8 pb-32 px-5 relative overflow-hidden shadow-2xl">
+         {/* Ambient Background Effects */}
+         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
+         <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
+
+         <div className="relative z-10 max-w-5xl mx-auto">
+            {/* Top Navigation Bar */}
+            <div className="flex items-center justify-between mb-8 text-white">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => router.back()}
+                  className="text-brand-100 hover:text-white hover:bg-brand-800 -ml-4 gap-2 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="font-medium">Kembali</span>
+                </Button>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-xs font-medium text-brand-200 hidden md:block">
+                        Modul Diagnosa v1.0
+                    </span>
+                    <Badge variant="outline" className="bg-brand-800/50 backdrop-blur-sm border-brand-500 text-brand-100 gap-1.5 py-1 px-3">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span className="font-semibold">Secure Encryption</span>
+                    </Badge>
+                </div>
+            </div>
+
+            {/* Title Section */}
+            <div className="text-center max-w-2xl mx-auto">
+                <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-sm">
+                   <Stethoscope className="w-4 h-4 text-cyan-300" />
+                   <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Financial Health Check Up</span>
+                </div>
+                <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4 drop-shadow-sm">
+                  Periksa Vitalitas Keuangan
+                </h1>
+                <p className="text-brand-100 text-sm md:text-lg leading-relaxed opacity-90">
+                  Diagnosa kesehatan finansial Anda secara menyeluruh dengan standar perencana keuangan profesional. Data Anda dijamin kerahasiaannya.
+                </p>
+            </div>
+         </div>
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
-        
-        {/* --- TOP NAVIGATION BAR --- */}
-        <div className="flex items-center justify-between mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
-            <Button 
-              variant="ghost" 
-              className="text-slate-500 hover:text-slate-900 hover:bg-white/60 -ml-2 transition-all gap-2"
-              onClick={() => router.back()}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="font-medium">Dashboard</span>
-            </Button>
-            
-            <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-slate-400 hidden md:block">
-                    Modul Diagnosa v1.0
-                </span>
-                <Badge variant="outline" className="bg-white/50 backdrop-blur-sm border-emerald-200 text-emerald-700 gap-1.5 py-1 px-3 shadow-sm">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span className="font-semibold">Secure Encryption</span>
-                </Badge>
-            </div>
-        </div>
+      {/* --- CONTENT SHEET (Overlapping) --- */}
+      <div className="relative z-20 bg-surface-ground rounded-t-[2.5rem] -mt-16 pt-10 pb-20 px-4 md:px-8 min-h-[60vh] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
+         
+         <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {/* The Wizard Component */}
+            <CheckupWizard />
+         </div>
 
-        {/* --- HEADER SECTION (CENTERED) --- */}
-        <div className="text-center max-w-2xl mx-auto mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-           {/* Icon Badge */}
-           <div className="mx-auto w-16 h-16 bg-white rounded-2xl shadow-xl shadow-emerald-900/5 border border-slate-100 flex items-center justify-center mb-6 relative group">
-              <div className="absolute inset-0 bg-emerald-50 rounded-2xl transform rotate-6 scale-90 transition-transform group-hover:rotate-12" />
-              <Stethoscope className="w-8 h-8 text-emerald-600 relative z-10" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-white animate-pulse" />
-           </div>
-
-           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-4">
-             Financial Health <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">Check Up</span>
-           </h1>
-           
-           <p className="text-slate-500 text-lg leading-relaxed">
-             Mari periksa vitalitas keuangan Anda. Isi data dengan jujur untuk mendapatkan 
-             <span className="font-medium text-slate-700 mx-1 border-b border-emerald-300 border-dashed cursor-help" title="Diagnosa berdasarkan 8 rasio standar perencana keuangan">resep perbaikan</span> 
-             yang akurat.
-           </p>
-        </div>
-
-        {/* --- WIZARD CONTENT --- */}
-        <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-            {/* Wrapper agar wizard terlihat menonjol */}
-            <div className="relative">
-                {/* Decorative Elements behind card */}
-                <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full blur-2xl opacity-10" />
-                <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full blur-2xl opacity-10" />
-                
-                <CheckupWizard />
-            </div>
-        </div>
-
-        {/* --- FOOTER INFO --- */}
-        <div className="mt-12 text-center flex items-center justify-center gap-2 text-slate-400 text-xs animate-in fade-in duration-1000 delay-500">
+         {/* Footer Info */}
+         <div className="mt-12 text-center flex items-center justify-center gap-2 text-slate-400 text-xs">
             <Sparkles className="w-3 h-3" />
             <p>Powered by KeuanganKu Financial Engine</p>
-        </div>
-
+         </div>
       </div>
+
     </div>
   );
 }

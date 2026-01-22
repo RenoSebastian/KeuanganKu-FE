@@ -1,8 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-// Variasi style tombol
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger"
   size?: "sm" | "md" | "lg" | "icon"
   fullWidth?: boolean
@@ -11,24 +10,33 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", fullWidth = false, ...props }, ref) => {
     
-    // Base styles: Flexbox, Rounded, Font, Transition
-    const baseStyles = "inline-flex items-center justify-center rounded-xl font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:pointer-events-none disabled:opacity-50"
+    // Base styles: Flexbox, Rounded, Font, Transition, Focus Ring
+    const baseStyles = "inline-flex items-center justify-center rounded-xl font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]"
     
-    // Variants: Warna background & text
+    // Variants: Mapping ke Palet Warna PAM Blue Ecosystem
     const variants = {
-      primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200", // Sesuai tombol 'Masuk' & 'Simpan'
-      secondary: "bg-blue-50 text-blue-700 hover:bg-blue-100", // Untuk tombol sekunder
-      outline: "border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700",
-      ghost: "hover:bg-slate-100 text-slate-600",
-      danger: "bg-red-500 text-white hover:bg-red-600 shadow-md shadow-red-200",
+      // Primary: Brand Blue (Action Utama)
+      primary: "bg-brand-600 text-white hover:bg-brand-700 shadow-lg shadow-brand-600/25 border border-transparent", 
+      
+      // Secondary: Light Brand (Action Pendukung)
+      secondary: "bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-100", 
+      
+      // Outline: Neutral Border (Action Netral)
+      outline: "border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 hover:border-slate-300",
+      
+      // Ghost: Text Only (Navigasi/Icon)
+      ghost: "hover:bg-slate-100 text-slate-500 hover:text-slate-900",
+      
+      // Danger: Rose Red (Hapus/Batal)
+      danger: "bg-rose-600 text-white hover:bg-rose-700 shadow-lg shadow-rose-600/25 border border-transparent",
     }
 
-    // Sizes: Padding & Text Size
+    // Sizes: Dimensi yang ergonomis
     const sizes = {
-      sm: "h-8 px-3 text-xs",
-      md: "h-11 px-5 text-sm", // Default yang pas di jari jempol
-      lg: "h-14 px-8 text-base", // Tombol Call to Action besar
-      icon: "h-10 w-10",
+      sm: "h-9 px-4 text-xs",
+      md: "h-12 px-6 text-sm", // Standar tinggi 48px (Touch Friendly)
+      lg: "h-14 px-8 text-base", // Call to Action Besar
+      icon: "h-12 w-12",
     }
 
     return (

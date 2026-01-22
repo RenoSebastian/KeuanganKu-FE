@@ -115,24 +115,24 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
            
            <div className="overflow-x-auto">
              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr>
-                    <th className="pl-6 pr-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50">Jenjang</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50 text-right">Target Dana</th>
-                    <th className="pl-4 pr-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50 text-right">Nabung</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {stagesData.map((item: any, idx: number) => {
-                    const level = item.level || item.stageId;
-                    const typeLabel = item.costType === "ENTRY" ? "Uang Pangkal" : "SPP Bulanan";
-                    const isEntry = item.costType === "ENTRY";
-                    const years = item.yearsToStart !== undefined ? item.yearsToStart : item.dueYear;
-                    const fv = item.futureCost || item.totalFutureCost || 0;
-                    const pmt = item.monthlySaving || 0;
+               <thead>
+                 <tr>
+                   <th className="pl-6 pr-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50">Jenjang</th>
+                   <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50 text-right">Target Dana</th>
+                   <th className="pl-4 pr-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50 text-right">Nabung</th>
+                 </tr>
+               </thead>
+               <tbody className="text-sm">
+                 {stagesData.map((item: any, idx: number) => {
+                   const level = item.level || item.stageId;
+                   const typeLabel = item.costType === "ENTRY" ? "Uang Pangkal" : "SPP Bulanan";
+                   const isEntry = item.costType === "ENTRY";
+                   const years = item.yearsToStart !== undefined ? item.yearsToStart : item.dueYear;
+                   const fv = item.futureCost || item.totalFutureCost || 0;
+                   const pmt = item.monthlySaving || 0;
 
-                    return (
-                      <tr key={idx} className="group/row hover:bg-white transition-colors border-b border-slate-100/50 last:border-0">
+                   return (
+                     <tr key={idx} className="group/row hover:bg-white transition-colors border-b border-slate-100/50 last:border-0">
                          <td className="pl-6 pr-4 py-4">
                             <div className="flex items-center gap-3">
                                <div className={cn(
@@ -157,10 +157,10 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                             <div className="font-black text-green-600 text-xs md:text-sm">{formatRupiah(pmt)}</div>
                             <div className="text-[9px] text-slate-400 font-medium mt-0.5">/bulan</div>
                          </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
+                     </tr>
+                   );
+                 })}
+               </tbody>
              </table>
            </div>
            
