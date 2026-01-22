@@ -3,7 +3,7 @@
 import { 
   Home, Calculator, Wallet, History, User, LogOut, 
   LayoutDashboard, Users, Database, Settings, ShieldCheck,
-  ShieldAlert, BarChart3
+  ShieldAlert, BarChart3, PieChart
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,17 +18,22 @@ export function Sidebar() {
   // State untuk Role Management
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDirector, setIsDirector] = useState(false);
+  // Tambahan info user untuk ditampilkan di sidebar bawah (opsional)
+  const [userInitials, setUserInitials] = useState("U");
 
   useEffect(() => {
-    // --- LOGIKA CEK ROLE (Tahap 2) ---
-    const storedUser = localStorage.getItem("user");
+    // --- LOGIKA CEK ROLE ---
+    const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
     if (storedUser) {
       const user = JSON.parse(storedUser);
       setIsAdmin(user.role === 'ADMIN');
       setIsDirector(user.role === 'DIRECTOR');
-    } else {
-      // Fallback untuk Demo/Development: Hardcode salah satu true jika diperlukan
-      // setIsDirector(true); 
+      
+      // Ambil inisial nama
+      if (user.fullName) {
+          const names = user.fullName.split(' ');
+          setUserInitials(names[0].charAt(0) + (names.length > 1 ? names[names.length-1].charAt(0) : ""));
+      }
     }
   }, []);
 
@@ -59,119 +64,116 @@ export function Sidebar() {
     router.push("/login");
   };
 
+  // Helper untuk render link
+  const NavLink = ({ item, variant = "default" }: { item: any, variant?: "default" | "admin" | "exec" }) => {
+    const isActive = variant === "admin" ? pathname.startsWith(item.href) : pathname === item.href;
+    
+    // Warna khusus per role (tetap dalam nuansa biru/profesional)
+    let activeClass = "bg-brand-700 text-white shadow-lg shadow-brand-700/20"; // Default PAM Blue
+    let iconActiveColor = "text-white";
+
+    if (variant === "exec") {
+        activeClass = "bg-slate-800 text-white shadow-md shadow-slate-900/20"; // Dark Grey for Exec
+    } else if (variant === "admin") {
+        activeClass = "bg-teal-700 text-white shadow-md shadow-teal-700/20"; // Teal for Admin
+    }
+
+    return (
+        <Link
+            href={item.href}
+            className={cn(
+                "flex items-center gap-3 px-3 py-2.5 mx-2 text-sm font-medium rounded-xl transition-all duration-300 group relative overflow-hidden",
+                isActive 
+                    ? activeClass 
+                    : "text-slate-500 hover:bg-brand-50 hover:text-brand-700"
+            )}
+        >
+            <item.icon className={cn(
+                "w-5 h-5 transition-colors duration-300", 
+                isActive ? iconActiveColor : "text-slate-400 group-hover:text-brand-600"
+            )} />
+            <span className="relative z-10">{item.label}</span>
+            
+            {/* Indikator Active Kecil di Kiri (Optional Design Touch) */}
+            {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-white/20" />}
+        </Link>
+    );
+  };
+
   return (
-    <aside className="hidden md:flex flex-col w-64 h-screen border-r border-slate-200 bg-white/50 backdrop-blur-xl sticky top-0 left-0 z-40 font-sans">
+    <aside className="hidden md:flex flex-col w-64 h-screen border-r border-slate-200 bg-white sticky top-0 left-0 z-40 shadow-xl shadow-slate-200/50">
       
-      {/* 1. Header Logo */}
-      <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-        <div className="relative w-8 h-8">
+      {/* 1. Header Logo (Branding Area) */}
+      <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/50">
+        <div className="relative w-10 h-10 drop-shadow-sm">
           <Image 
             src="/images/pamjaya-logo.png" 
-            alt="Logo" 
+            alt="Logo PAM JAYA" 
             fill 
             className="object-contain"
+            priority
           />
         </div>
         <div>
-          <h1 className="font-bold text-slate-800 text-sm">KeuanganKu</h1>
-          <p className="text-xs text-slate-500">PAM JAYA</p>
+          <h1 className="font-extrabold text-lg leading-tight bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
+            KeuanganKu
+          </h1>
+          <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">PAM JAYA</p>
         </div>
       </div>
 
       {/* 2. Navigation Links */}
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
         
-        {/* GROUP: MENU UTAMA (Semua User) */}
-        <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Menu Utama</p>
-        <div className="space-y-1 mb-6">
-            {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-                <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                    "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group",
-                    isActive
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                )}
-                >
-                <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-white" : "text-slate-400 group-hover:text-blue-600")} />
-                {item.label}
-                </Link>
-            );
-            })}
+        {/* GROUP: MENU UTAMA */}
+        <div>
+            <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Menu Utama</p>
+            <div className="space-y-0.5">
+                {navItems.map((item) => <NavLink key={item.href} item={item} />)}
+            </div>
         </div>
 
-        {/* GROUP: EXECUTIVE MENU (Khusus Direksi) */}
+        {/* GROUP: EXECUTIVE MENU */}
         {isDirector && (
-            <>
-                <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <BarChart3 className="w-3 h-3 text-blue-500" /> Executive Menu
+            <div>
+                <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-800"></span>
+                    Executive
                 </p>
-                <div className="space-y-1 mb-6">
-                    {executiveNavItems.map((item) => {
-                    const isActive = pathname === item.href;
-                    return (
-                        <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                            "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group",
-                            isActive
-                            ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                        )}
-                        >
-                        <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-900")} />
-                        {item.label}
-                        </Link>
-                    );
-                    })}
+                <div className="space-y-0.5">
+                    {executiveNavItems.map((item) => <NavLink key={item.href} item={item} variant="exec" />)}
                 </div>
-            </>
+            </div>
         )}
 
-        {/* GROUP: ADMINISTRATOR (Khusus Admin) */}
+        {/* GROUP: ADMINISTRATOR */}
         {isAdmin && (
-            <>
-                <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3 text-emerald-500" /> Administrator
+            <div>
+                 <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                    Administrator
                 </p>
-                <div className="space-y-1">
-                    {adminNavItems.map((item) => {
-                    const isActive = pathname.startsWith(item.href); 
-                    return (
-                        <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                            "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group",
-                            isActive
-                            ? "bg-slate-800 text-white shadow-md shadow-slate-800/20"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                        )}
-                        >
-                        <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-emerald-400" : "text-slate-400 group-hover:text-slate-800")} />
-                        {item.label}
-                        </Link>
-                    );
-                    })}
+                <div className="space-y-0.5">
+                    {adminNavItems.map((item) => <NavLink key={item.href} item={item} variant="admin" />)}
                 </div>
-            </>
+            </div>
         )}
 
       </nav>
 
-      {/* 3. Footer / Logout */}
-      <div className="p-4 border-t border-slate-100">
+      {/* 3. Footer / User Profile Snippet */}
+      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
         <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-red-600 rounded-xl hover:bg-red-50 transition-colors"
+            className="group flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all duration-300 shadow-sm"
         >
-          <LogOut className="w-5 h-5" />
-          Keluar Aplikasi
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold group-hover:bg-red-100 group-hover:text-red-600 transition-colors">
+                {userInitials}
+             </div>
+             <span className="group-hover:translate-x-1 transition-transform">Keluar</span>
+          </div>
+          <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
         </button>
       </div>
     </aside>

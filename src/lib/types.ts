@@ -1,5 +1,10 @@
 // ============================================================================
-// 1. UI STATE TYPES (FROM BRANCH SEMENTARA_1)
+// SRC/LIB/TYPES.TS
+// THE CORE DATA CONTRACTS (CLEAN ARCHITECTURE)
+// ============================================================================
+
+// ============================================================================
+// 1. EDUCATION MODULE (WIZARD & CALCULATOR)
 // ============================================================================
 
 export interface EducationStage {
@@ -25,46 +30,13 @@ export interface ChildProfile {
   name: string;
   dob: string;
   gender: "L" | "P";
-  avatarColor: string;
+  avatarColor: string; // Masih ok disimpan di sini untuk UX avatar user
   plans: PlanInput[];
 }
 
-
-// ============================================================================
-// 2. API PAYLOAD TYPES (REQ KE BACKEND)
-// ============================================================================
-
-export interface PensionPayload {
-  currentAge: number;
-  retirementAge: number;
-  lifeExpectancy?: number;
-  currentExpense: number;
-  currentSaving?: number;
-  inflationRate?: number;
-  returnRate?: number;
-}
-
-export interface InsurancePayload {
-  type: "LIFE" | "HEALTH" | "CRITICAL_ILLNESS";
-  dependentCount: number;
-  monthlyExpense: number;
-  existingDebt?: number;
-  existingCoverage?: number;
-  protectionDuration?: number;
-}
-
-export interface GoalPayload {
-  goalName: string;
-  targetAmount: number;
-  targetDate: string; // YYYY-MM-DD
-  inflationRate?: number;
-  returnRate?: number;
-}
-
-// --- EDUCATION PAYLOAD (GRANULAR) ---
 export interface EducationStagePayload {
-  level: "TK" | "SD" | "SMP" | "SMA" | "PT"; // Enum SchoolLevel
-  costType: "ENTRY" | "ANNUAL";             // Enum CostType
+  level: "TK" | "SD" | "SMP" | "SMA" | "PT"; 
+  costType: "ENTRY" | "ANNUAL";             
   currentCost: number;
   yearsToStart: number;
 }
@@ -75,13 +47,8 @@ export interface EducationPayload {
   method?: "ARITHMETIC" | "GEOMETRIC";
   inflationRate?: number;
   returnRate?: number;
-  stages: EducationStagePayload[]; // Array of granular stages
+  stages: EducationStagePayload[]; 
 }
-
-
-// ============================================================================
-// 3. API RESPONSE TYPES (RES DARI BACKEND)
-// ============================================================================
 
 export interface StageBreakdownItem {
   level: "TK" | "SD" | "SMP" | "SMA" | "PT";
@@ -89,7 +56,7 @@ export interface StageBreakdownItem {
   currentCost: number;
   yearsToStart: number;
   
-  // Hasil Hitungan Backend
+  // Hasil Hitungan Math
   futureCost: number;      // FV Item Ini
   monthlySaving: number;   // Tabungan Item Ini
 }
@@ -97,7 +64,7 @@ export interface StageBreakdownItem {
 export interface EducationCalculationResult {
   totalFutureCost: number;
   monthlySaving: number; // Total Saving (Sum of items)
-  stagesBreakdown: StageBreakdownItem[]; // Data Rincian Granular (Drill Down)
+  stagesBreakdown: StageBreakdownItem[]; // Data Rincian Granular
 }
 
 export interface EducationPlanResponse {
@@ -111,44 +78,27 @@ export interface EducationPlanResponse {
     returnRate: number;
     method?: string;
   };
-  calculation: EducationCalculationResult; // Object hasil hitungan
+  calculation: EducationCalculationResult;
 }
 
-// --- ADAPTER TYPE (PENTING AGAR UI TIDAK ERROR) ---
-// Tipe ini menjembatani data UI (ChildProfile) dengan data Backend (EducationPlanResponse)
-// Digunakan di ChildCard & SimulationResult
+// Adapter Type untuk UI Components
 export interface ChildSimulationResult {
   childId?: string;
   childName?: string;
   totalMonthlySaving: number; 
-  // Support data granular baru dari Backend
   stagesBreakdown?: StageBreakdownItem[];
-  // Support legacy data (opsional, jaga-jaga)
-  stages?: any[]; 
+  stages?: any[]; // Legacy support
 }
 
-// Represents the calculation result for a single education stage (e.g., TK)
-export interface StageResult {
-  stageId: string;
-  label: string;
-  startGrade: number;
-  paymentFrequency: "MONTHLY" | "SEMESTER";
-  totalFutureCost: number;
-  monthlySaving: number;
-  // Optional: Detailed breakdown if your logic supports it
-  details?: any[]; 
-}
-
-// Represents the summary of calculations for all children
 export interface PortfolioSummary {
   grandTotalMonthlySaving: number;
   totalFutureCost: number;
-  details: ChildSimulationResult[]; // Reusing your existing ChildSimulationResult
+  details: ChildSimulationResult[];
 }
 
 
 // ============================================================================
-// 4. EXISTING TYPES (BUDGET, PENSION, ETC - TIDAK BERUBAH)
+// 2. BUDGETING MODULE (REFACTORED)
 // ============================================================================
 
 export interface BudgetInput {
@@ -158,13 +108,14 @@ export interface BudgetInput {
   variableIncome: number; 
 }
 
+// [REFACTORED] Menghapus colorClass. Warna ditentukan UI berdasarkan 'type'.
 export interface BudgetAllocation {
   label: string;
   percentage: number; 
   amount: number;     
   type: "NEEDS" | "DEBT_PROD" | "DEBT_CONS" | "INSURANCE" | "SAVING" | "SURPLUS";
   description: string;
-  colorClass: string; 
+  // HAPUS: colorClass (Decoupling Logic & View)
 }
 
 export interface BudgetResult {
@@ -174,7 +125,20 @@ export interface BudgetResult {
   surplus: number;     
 }
 
-// --- PENSION TYPES (Client Side View) ---
+
+// ============================================================================
+// 3. PENSION & INSURANCE MODULES
+// ============================================================================
+
+export interface PensionPayload {
+  currentAge: number;
+  retirementAge: number;
+  lifeExpectancy?: number;
+  currentExpense: number;
+  currentSaving?: number;
+  inflationRate?: number;
+  returnRate?: number;
+}
 
 export interface PensionInput {
   currentAge: number;
@@ -196,20 +160,25 @@ export interface PensionResult {
   monthlySaving: number;
 }
 
-// --- INSURANCE TYPES ---
+export interface InsurancePayload {
+  type: "LIFE" | "HEALTH" | "CRITICAL_ILLNESS";
+  dependentCount: number;
+  monthlyExpense: number;
+  existingDebt?: number;
+  existingCoverage?: number;
+  protectionDuration?: number;
+}
 
 export interface InsuranceInput {
-  debtKPR: number;          
-  debtKPM: number;          
+  debtKPR: number;            
+  debtKPM: number;            
   debtProductive: number;   
   debtConsumptive: number;  
   debtOther: number;        
-
   annualIncome: number;     
   protectionDuration: number; 
   inflationRate: number;    
   investmentRate: number;   
-
   finalExpense: number;     
   existingInsurance: number; 
 }
@@ -221,7 +190,18 @@ export interface InsuranceResult {
   shortfall: number;              
 }
 
-// --- SPECIAL GOAL TYPES ---
+
+// ============================================================================
+// 4. GOAL SIMULATION (PAM JAYA MENU 6)
+// ============================================================================
+
+export interface GoalPayload {
+  goalName: string;
+  targetAmount: number;
+  targetDate: string; 
+  inflationRate?: number;
+  returnRate?: number;
+}
 
 export type GoalType = "IBADAH" | "LIBURAN" | "PERNIKAHAN" | "LAINNYA";
 
@@ -238,54 +218,21 @@ export interface SpecialGoalResult {
   monthlySaving: number;    
 }
 
-// --- ADMIN & SYSTEM TYPES ---
-
-export interface AdminDashboardStats {
-  totalUsers: number;       
-  activeUsers: number;      
-  inactiveUsers: number;    
-  totalUnits: number;       
-  systemHealth: "Normal" | "Maintenance" | "Degraded"; 
+export interface GoalSimulationInput {
+  currentCost: number;   // PV
+  inflationRate: number; // i
+  returnRate: number;    // r
+  years: number;         // n
 }
 
-export type UserRole = "USER" | "ADMIN" | "DIRECTOR" | "UNIT_HEAD";
-
-export interface AdminUser {
-  id: string;
-  fullName: string;
-  email: string;
-  nip: string;              
-  unitId: string;           
-  unitName?: string;        
-  role: UserRole;           
-  isActive: boolean;        
-  lastLogin?: string;       
-  createdAt: string;        
+export interface GoalSimulationResult {
+  futureCost: number;    // FV
+  monthlySaving: number; // PMT
 }
 
-export interface UnitKerja {
-  id: string;
-  name: string;             
-  code: string;             
-  userCount?: number;       
-}
-
-export interface Jabatan {
-  id: string;
-  name: string;             
-  level: number;            
-  userCount?: number;       
-}
-
-export interface SystemSettings {
-  defaultInflationRate: number; 
-  defaultInvestmentRate: number; 
-  companyName: string;           
-  maintenanceMode: boolean;     
-}
 
 // ============================================================================
-// 5. FINANCIAL HEALTH CHECK UP TYPES
+// 5. FINANCIAL HEALTH CHECK UP (REFACTORED)
 // ============================================================================
 
 export interface PersonalInfo {
@@ -376,12 +323,14 @@ export interface FinancialRecord {
 
 export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL"; 
 
+// [REFACTORED] Mengubah statusColor menjadi Grade Semantik
 export interface RatioDetail {
   id: string;
   label: string;
   value: number;
   benchmark: string;
-  statusColor: "GREEN_DARK" | "GREEN_LIGHT" | "YELLOW" | "RED";
+  // Menggunakan Grade, bukan Warna. UI yang menentukan warnanya.
+  grade: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL"; 
   recommendation: string;
   status?: string; 
 }
@@ -395,21 +344,55 @@ export interface HealthAnalysisResult {
   generatedAt: string;
 }
 
+
 // ============================================================================
-// 6. GOAL SIMULATION TYPES (MENU 6 - PAM JAYA)
+// 6. ADMIN & SYSTEM DASHBOARD TYPES
 // ============================================================================
 
-export interface GoalSimulationInput {
-  currentCost: number;   // PV: Dana yang dibutuhkan saat ini
-  inflationRate: number; // i: Perkiraan inflasi (%)
-  returnRate: number;    // r: Harapan return investasi (%)
-  years: number;         // n: Jangka waktu (tahun)
+export interface AdminDashboardStats {
+  totalUsers: number;       
+  activeUsers: number;      
+  inactiveUsers: number;    
+  totalUnits: number;       
+  systemHealth: "Normal" | "Maintenance" | "Degraded"; 
 }
 
-export interface GoalSimulationResult {
-  futureCost: number;    // FV: Dana yang dibutuhkan di masa depan
-  monthlySaving: number; // PMT: Tabungan bulanan yang disisihkan
+export type UserRole = "USER" | "ADMIN" | "DIRECTOR" | "UNIT_HEAD";
+
+export interface AdminUser {
+  id: string;
+  fullName: string;
+  email: string;
+  nip: string;              
+  unitId: string;           
+  unitName?: string;        
+  role: UserRole;           
+  isActive: boolean;        
+  lastLogin?: string;       
+  createdAt: string;        
 }
+
+export interface UnitKerja {
+  id: string;
+  name: string;             
+  code: string;             
+  userCount?: number;       
+}
+
+export interface Jabatan {
+  id: string;
+  name: string;             
+  level: number;            
+  userCount?: number;       
+}
+
+export interface SystemSettings {
+  defaultInflationRate: number; 
+  defaultInvestmentRate: number; 
+  companyName: string;           
+  maintenanceMode: boolean;     
+}
+
 
 // ============================================================================
 // 7. EXECUTIVE / DIRECTOR DASHBOARD TYPES
@@ -417,10 +400,10 @@ export interface GoalSimulationResult {
 
 export interface DirectorDashboardStats {
   totalEmployees: number;
-  avgHealthScore: number;     // Rata-rata skor kesehatan satu perusahaan
-  riskyEmployeesCount: number; // Jumlah karyawan status "BAHAYA"
-  totalAssetsManaged: number;  // Estimasi total aset karyawan tercatat
-  monthlyHealthTrend: number[]; // Array data untuk grafik (misal 6 bulan terakhir)
+  avgHealthScore: number;     
+  riskyEmployeesCount: number; 
+  totalAssetsManaged: number;  
+  monthlyHealthTrend: number[]; 
 }
 
 export interface UnitHealthRanking {
@@ -436,7 +419,7 @@ export interface RiskyEmployeeDetail {
   fullName: string;
   unitName: string;
   healthScore: number;
-  debtToIncomeRatio: number; // Indikator utama risiko (dalam persen)
+  debtToIncomeRatio: number; 
   lastCheckupDate: string;
   status: "BAHAYA" | "WASPADA";
 }
