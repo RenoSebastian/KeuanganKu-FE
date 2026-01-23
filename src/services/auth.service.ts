@@ -1,7 +1,7 @@
 // File: src/services/auth.service.ts
 
 import api from "@/lib/axios";
-import { LoginDto, RegisterDto, AuthResponse } from "@/lib/types";
+import { LoginDto, RegisterDto, AuthResponse, User } from "@/lib/types";
 
 export const authService = {
   // 1. LOGIN
@@ -13,6 +13,7 @@ export const authService = {
     if (response.data.access_token) {
       if (typeof window !== "undefined") {
         localStorage.setItem("token", response.data.access_token);
+        // Simpan data user awal (bisa jadi belum lengkap, nanti di-sync via getMe)
         localStorage.setItem("user", JSON.stringify(response.data.user));
       }
     }
@@ -36,16 +37,36 @@ export const authService = {
     }
   },
 
-  // 4. GET CURRENT USER (Helper)
-  getCurrentUser: () => {
+  // 4. GET ME (Sync Profile Terbaru) -> NEW!
+  getMe: async () => {
+    // Memanggil endpoint profil user yang terproteksi (Token dikirim otomatis via interceptor)
+    const response = await api.get<User>("/users/me");
+    
+    // Update LocalStorage dengan data terbaru (agar sinkron jika user edit profil)
+    if (response.data && typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(response.data));
+    }
+    
+    return response.data;
+  },
+
+  // 5. GET CURRENT USER (Helper - Data Lokal)
+  getCurrentUser: (): User | null => {
     if (typeof window !== "undefined") {
       const userStr = localStorage.getItem("user");
-      if (userStr) return JSON.parse(userStr);
+      if (userStr) {
+        try {
+          return JSON.parse(userStr);
+        } catch (e) {
+          console.error("Error parsing user data", e);
+          return null;
+        }
+      }
     }
     return null;
   },
   
-  // 5. IS AUTHENTICATED (Helper)
+  // 6. IS AUTHENTICATED (Helper)
   isAuthenticated: () => {
     if (typeof window !== "undefined") {
       return !!localStorage.getItem("token");

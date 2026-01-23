@@ -4,7 +4,8 @@ import { useState } from "react";
 import { 
   CheckCircle2, AlertTriangle, XCircle,
   Save, RefreshCcw, FileText, ChevronDown, ChevronUp,
-  TrendingUp, Activity, Download
+  TrendingUp, Activity, Download, CalendarDays, Banknote,
+  LayoutDashboard
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,22 +24,32 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  
+  // --- STATE VIEW MODE (DEFAULT TAHUNAN BIAR KEREN) ---
+  const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
 
-  // --- 1. NORMALISASI DATA (FIX CRASH) ---
+  // --- 1. NORMALISASI DATA DARI BACKEND ---
+  // Pastikan ambil data dengan aman (handle null/undefined)
   const ratios = data.ratios || (data as any).ratiosDetails || [];
   const score = data.score ?? (data as any).healthScore ?? 0;
   const globalStatus = data.globalStatus || (data as any).status || "BAHAYA";
+  
+  // Net Worth adalah STOCK (Saldo), tidak dikali 12
   const netWorth = data.netWorth ?? (data as any).totalNetWorth ?? 0;
-  const surplusDeficit = data.surplusDeficit ?? 0;
+  
+  // Surplus adalah FLOW (Arus Kas), Backend kirim satuan BULANAN
+  const monthlySurplus = data.surplusDeficit ?? 0;
+  
+  // --- 2. LOGIKA TAMPILAN DINAMIS ---
+  // Jika mode ANNUAL, Surplus dikali 12. Jika MONTHLY, tetap.
+  const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
+  const periodLabel = viewMode === "ANNUAL" ? "(Per Tahun)" : "(Per Bulan)";
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // --- FIX: SANITASI DATA SEBELUM SIMPAN ---
-      // Clone data agar tidak memutasi props
       const payload = { ...rawData };
-
-      // Hapus data pasangan jika user Single/Divorced
+      // Hapus data spouse jika single (sanitasi ulang)
       if (payload.userProfile.maritalStatus !== "MARRIED") {
         delete payload.spouseProfile;
       }
@@ -47,21 +58,14 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
       setSaved(true);
     } catch (error: any) {
       console.error("Gagal menyimpan:", error);
-      
-      // Feedback error ke user
-      const errorMsg = error.response?.data?.message 
-        ? Array.isArray(error.response.data.message) 
-          ? error.response.data.message.join(", ") 
-          : error.response.data.message
-        : "Gagal menyimpan data.";
-        
+      const errorMsg = error.response?.data?.message || "Gagal menyimpan data.";
       alert(`Error: ${errorMsg}`);
     } finally {
       setSaving(false);
     }
   };
 
-  // --- HELPER UNTUK MAPPING WARNA STATUS ---
+  // --- HELPER UI ---
   const getStatusColor = (color: string) => {
     switch(color) {
       case "GREEN_DARK": return "border-emerald-600 bg-emerald-50/60 hover:bg-emerald-100";
@@ -92,7 +96,6 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
     }
   };
 
-  // --- HELPER GLOBAL STATUS ---
   const getGlobalStatusColor = (val: number) => {
       if (val >= 80) return "text-emerald-600";
       if (val >= 50) return "text-amber-500";
@@ -100,8 +103,41 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
   }
   
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-24 md:pb-0">
       
+      {/* --- HEADER & TOGGLE (Moved Outside Card) --- */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+         <div>
+            <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+               <LayoutDashboard className="w-6 h-6 text-brand-600" />
+               Hasil Diagnosa
+            </h2>
+            <p className="text-slate-500 text-sm">Berikut adalah analisa kesehatan keuangan Anda.</p>
+         </div>
+
+         {/* NEW TOGGLE POSITION */}
+         <div className="bg-white border border-slate-200 p-1.5 rounded-xl flex shadow-sm w-fit">
+            <button 
+                onClick={() => setViewMode("MONTHLY")}
+                className={cn(
+                    "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+                    viewMode === "MONTHLY" ? "bg-brand-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+                )}
+            >
+                <CalendarDays className="w-4 h-4" /> Bulanan
+            </button>
+            <button 
+                onClick={() => setViewMode("ANNUAL")}
+                className={cn(
+                    "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+                    viewMode === "ANNUAL" ? "bg-brand-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+                )}
+            >
+                <Banknote className="w-4 h-4" /> Tahunan
+            </button>
+         </div>
+      </div>
+
       {/* --- HERO SECTION: SPLIT CARD --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-0 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 bg-white">
         
@@ -146,12 +182,12 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
 
         {/* RIGHT: NET WORTH & DIAGNOSIS */}
         <div className="lg:col-span-2 p-8 bg-brand-900 text-white relative overflow-hidden flex flex-col justify-center">
-             {/* Decorative Background */}
              <div className="absolute top-0 right-0 p-40 bg-emerald-500/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
              <div className="absolute bottom-0 left-0 p-32 bg-blue-500/10 rounded-full blur-[60px] -ml-16 -mb-16 pointer-events-none" />
              <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05]" />
              
-             <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-white/10 pb-6">
+             {/* STATS GRID */}
+             <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-white/10 pb-6 mt-2">
                  <div>
                      <div className="flex items-center gap-2 text-brand-200 text-xs font-bold uppercase tracking-wider mb-2">
                         <TrendingUp className="w-4 h-4" />
@@ -160,30 +196,35 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                      <div className="text-3xl font-mono font-bold tracking-tight text-white truncate">
                         {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(netWorth)}
                      </div>
+                     <p className="text-[10px] text-brand-200 mt-1 opacity-70">Total Aset - Total Utang</p>
                  </div>
                  <div>
                      <div className="flex items-center gap-2 text-brand-200 text-xs font-bold uppercase tracking-wider mb-2">
                         <Activity className="w-4 h-4" />
-                        Surplus / Defisit Tahunan
+                        Surplus / Defisit {periodLabel}
                      </div>
                      <div className={cn("text-3xl font-mono font-bold tracking-tight truncate", 
-                        surplusDeficit >= 0 ? "text-emerald-400" : "text-red-400"
+                        displaySurplus >= 0 ? "text-emerald-400" : "text-red-400"
                      )}>
-                        {surplusDeficit >= 0 ? "+" : ""}
-                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(surplusDeficit)}
+                        {displaySurplus >= 0 ? "+" : ""}
+                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(displaySurplus)}
                      </div>
+                     <p className="text-[10px] text-brand-200 mt-1 opacity-70">Pemasukan - Pengeluaran</p>
                  </div>
              </div>
              
+             {/* DIAGNOSA TEXT */}
              <div className="relative z-10 bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-md">
                 <div className="flex gap-4">
-                    <div className="p-3 bg-emerald-500/20 rounded-xl h-fit shrink-0">
+                    <div className="p-3 bg-emerald-500/20 rounded-xl h-fit shrink-0 hidden md:block">
                         <FileText className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
-                        <h4 className="font-bold text-emerald-100 text-lg mb-2">Diagnosa Dokter Keuangan</h4>
+                        <h4 className="font-bold text-emerald-100 text-lg mb-2 flex items-center gap-2">
+                           <FileText className="w-5 h-5 md:hidden" />
+                           Diagnosa Dokter Keuangan
+                        </h4>
                         <p className="text-brand-100 text-sm leading-relaxed">
-                            {/* FIX: Menggunakan variabel 'ratios' yang sudah dinormalisasi */}
                             "Berdasarkan analisa 8 rasio, Anda memiliki <strong className="text-emerald-400">{ratios.filter((r: any) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length} indikator SEHAT</strong>, 
                             <strong className="text-amber-400"> {ratios.filter((r: any) => r.statusColor === "YELLOW").length} WASPADA</strong>, dan 
                             <strong className="text-red-400"> {ratios.filter((r: any) => r.statusColor === "RED").length} BAHAYA</strong>. 
@@ -204,7 +245,7 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                 <div className="w-1.5 h-6 bg-brand-600 rounded-full" /> 
                 Rincian 8 Indikator Vital
             </h3>
-            <span className="text-xs text-slate-500 hidden md:inline-block">*Klik kartu untuk melihat saran</span>
+            <span className="text-xs text-slate-500 hidden md:inline-block">*Klik kartu untuk melihat rekomendasi</span>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -226,7 +267,10 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                         
                         <h4 className="font-bold text-xs uppercase tracking-wide text-slate-500 mb-1">{ratio.label}</h4>
                         <div className="text-2xl font-bold text-slate-800 mb-2 truncate">
-                            {ratio.id === "emergency_fund" || ratio.id === "liq_networth" ? `${ratio.value}x / %` : `${ratio.value}%`}
+                            {/* Format value: jika uang, kasih Rp? tidak, rasio biasanya %, kali, atau desimal */}
+                            {ratio.id === "emergency_fund" ? `${ratio.value}x` : 
+                             ratio.id === "liq_networth" || ratio.id === "saving_ratio" || ratio.id === "debt_asset_ratio" || ratio.id === "debt_service_ratio" || ratio.id === "consumptive_ratio" || ratio.id === "invest_asset_ratio" || ratio.id === "solvency_ratio" 
+                             ? `${ratio.value}%` : ratio.value}
                         </div>
                         
                         <div className="flex items-center gap-2 text-xs text-slate-400 mb-4">
@@ -261,7 +305,7 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
       <Card className="p-4 bg-white border-t border-slate-200 fixed bottom-0 left-0 w-full z-50 md:static md:border md:rounded-2xl md:shadow-sm md:z-0">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-3 justify-between">
               <div className="hidden md:block text-sm text-slate-500">
-                  <span className="font-bold text-slate-700">Tips:</span> Simpan hasil diagnosa ini untuk memantau perkembangan kekayaan Anda bulan depan.
+                  <span className="font-bold text-slate-700">Tips:</span> Simpan hasil diagnosa ini untuk memantau history.
               </div>
               
               <div className="flex gap-3 w-full md:w-auto">
@@ -275,7 +319,7 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                  
                  <Button 
                     variant="ghost" 
-                    className="flex-1 md:flex-none text-slate-500 hover:text-brand-600"
+                    className="flex-1 md:flex-none text-slate-500 hover:text-brand-600 hidden md:flex"
                  >
                     <Download className="w-4 h-4 mr-2" /> PDF
                  </Button>
@@ -297,10 +341,6 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
               </div>
           </div>
       </Card>
-      
-      {/* Spacer for fixed bottom bar on mobile */}
-      <div className="h-20 md:hidden" />
-
     </div>
   );
 }

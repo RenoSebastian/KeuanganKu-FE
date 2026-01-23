@@ -7,15 +7,15 @@ import { Input } from "@/components/ui/input";
 import { 
   Calculator, Wallet, BadgePercent, TrendingUp, 
   AlertTriangle, ShieldCheck, PiggyBank, RefreshCcw, Download,
-  CalendarDays, CalendarRange, User, DollarSign
+  CalendarDays, CalendarRange, User, DollarSign, Loader2, Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { calculateSmartBudget, formatRupiah } from "@/lib/financial-math";
+import { calculateSmartBudget, formatRupiah } from "@/lib/financial-math"; // Masih dipakai untuk mapping visual hasil backend
 import { generateBudgetPDF } from "@/lib/pdf-generator";
 import { BudgetResult, BudgetAllocation } from "@/lib/types";
+import { financialService } from "@/services/financial.service"; 
 
 // --- 1. HELPER: MAPPING VISUAL BERDASARKAN TIPE ---
-// Menggantikan colorClass yang dulu ada di Logic
 const getAllocationStyle = (type: BudgetAllocation["type"]) => {
   switch (type) {
     case "NEEDS": return { bg: "bg-blue-50", border: "border-blue-100", text: "text-blue-700", icon: Wallet, iconColor: "text-blue-500" };
@@ -29,52 +29,47 @@ const getAllocationStyle = (type: BudgetAllocation["type"]) => {
 
 export default function BudgetPage() {
   // --- STATE INPUT ---
-  const [name, setName] = useState("");
-  const [age, setAge] = useState("");
   const [fixedIncome, setFixedIncome] = useState("");
   const [variableIncome, setVariableIncome] = useState("");
 
   // --- STATE RESULT (DUAL VIEW) ---
   const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
-  const [results, setResults] = useState<{
-    monthly: BudgetResult | null;
-    annual: BudgetResult | null;
-  }>({ monthly: null, annual: null });
+  const [result, setResult] = useState<BudgetResult | null>(null); // Menyimpan hasil perhitungan dari BE (mapped)
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // --- LOAD & SAVE LOCALSTORAGE ---
+  // --- 1. LOAD DATA AWAL (FETCH EXISTING BUDGET) ---
   useEffect(() => {
-    const savedData = localStorage.getItem("budget_data_v3"); // Key baru v3
-    if (savedData) {
-      const parsed = JSON.parse(savedData);
-      setName(parsed.name || "");
-      setAge(parsed.age || "");
-      setFixedIncome(parsed.fixedIncome || "");
-      setVariableIncome(parsed.variableIncome || "");
-      
-      if (parsed.fixedIncome) {
-        const fixed = parseInt(parsed.fixedIncome.replace(/\./g, "")) || 0;
-        const variable = parseInt(parsed.variableIncome.replace(/\./g, "")) || 0;
-        if (fixed > 0) {
-          setResults({
-            monthly: calculateSmartBudget(fixed, variable),
-            annual: calculateSmartBudget(fixed * 12, variable * 12)
-          });
+    const fetchBudget = async () => {
+      try {
+        const data = await financialService.getBudgets();
+        if (data) {
+          setFixedIncome(data.monthlyIncome.toString());
+          setVariableIncome(data.variableIncome.toString());
+          
+          // Hitung ulang result lokal untuk visualisasi (karena BE mungkin cuma simpan raw data)
+          // Idealnya BE mengembalikan 'allocations', tapi kita bisa generate di FE dari raw data yg valid
+          const monthlyRes = calculateSmartBudget(data.monthlyIncome, data.variableIncome);
+          setResult(monthlyRes);
         }
+      } catch (error) {
+        console.error("Gagal memuat budget:", error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoaded(true);
+    };
+
+    fetchBudget();
   }, []);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    const data = { name, age, fixedIncome, variableIncome };
-    localStorage.setItem("budget_data_v3", JSON.stringify(data));
-  }, [name, age, fixedIncome, variableIncome, isLoaded]);
-
   // --- HANDLERS ---
-  const handleCalculate = () => {
+  const handleMoneyInput = (val: string, setter: (v: string) => void) => {
+    const num = val.replace(/\D/g, "");
+    setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+  };
+
+  const handleCalculateAndSave = async () => {
     const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
     const variable = parseInt(variableIncome.replace(/\./g, "")) || 0;
 
@@ -83,36 +78,69 @@ export default function BudgetPage() {
       return;
     }
 
-    const monthly = calculateSmartBudget(fixed, variable);
-    const annual = calculateSmartBudget(fixed * 12, variable * 12);
+    setIsSaving(true);
 
-    setResults({ monthly, annual });
+    try {
+      // 1. Simpan ke Backend
+      const payload = {
+        monthlyIncome: fixed,
+        variableIncome: variable
+      };
+      
+      await financialService.createBudget(payload);
+
+      // 2. Update UI dengan hasil perhitungan
+      const monthlyRes = calculateSmartBudget(fixed, variable);
+      setResult(monthlyRes);
+
+    } catch (error) {
+      console.error("Gagal menyimpan budget:", error);
+      alert("Gagal menyimpan data. Silakan coba lagi.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
     if(confirm("Reset formulir anggaran?")) {
       setFixedIncome("");
       setVariableIncome("");
-      setResults({ monthly: null, annual: null });
-      localStorage.removeItem("budget_data_v3");
+      setResult(null);
     }
   };
 
   const handleDownload = () => {
-    if (results.monthly && results.annual) {
-      const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
-      generateBudgetPDF(results.monthly, results.annual, { name, age, fixedIncome: fixed });
+    if (result) {
+      // Generate ANNUAL result on the fly for PDF
+      const annualRes = calculateSmartBudget(
+        (parseInt(fixedIncome.replace(/\./g, "")) || 0) * 12, 
+        (parseInt(variableIncome.replace(/\./g, "")) || 0) * 12
+      );
+      
+      // Mock user data for PDF header
+      const user = { name: "User", age: "", fixedIncome: parseInt(fixedIncome.replace(/\./g, "")) || 0 };
+      
+      generateBudgetPDF(result, annualRes, user);
     }
   };
 
-  const handleMoneyInput = (val: string, setter: (v: string) => void) => {
-    const num = val.replace(/\D/g, "");
-    setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
-  };
+  // Switch View Mode Logic (Transform Monthly Result to Annual)
+  const displayedResult = viewMode === "MONTHLY" ? result : (result ? {
+      ...result,
+      safeToSpend: result.safeToSpend * 12,
+      totalFixedAllocated: result.totalFixedAllocated * 12,
+      surplus: result.surplus * 12,
+      allocations: result.allocations.map(a => ({ ...a, amount: a.amount * 12 }))
+  } : null);
 
-  const currentResult = viewMode === "MONTHLY" ? results.monthly : results.annual;
-
-  if (!isLoaded) return null;
+  if (isLoading) {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[500px]">
+              <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
+              <p className="text-slate-500 font-medium">Memuat data anggaran...</p>
+          </div>
+      );
+  }
 
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
@@ -142,32 +170,10 @@ export default function BudgetPage() {
           {/* --- LEFT: INPUT FORM (Clean UI) --- */}
           <Card className="md:col-span-5 p-6 md:p-8 rounded-[2rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl card-clean">
             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-brand-600" /> Input Data
+              <Wallet className="w-5 h-5 text-brand-600" /> Input Pemasukan
             </h3>
             
             <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Nama</label>
-                   <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <Input 
-                        placeholder="Nama" 
-                        value={name} onChange={e => setName(e.target.value)}
-                        className="pl-9 bg-slate-50 border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl"
-                      />
-                   </div>
-                 </div>
-                 <div className="space-y-2">
-                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Usia</label>
-                   <Input 
-                     type="number" placeholder="25" 
-                     value={age} onChange={e => setAge(e.target.value)}
-                     className="bg-slate-50 border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl"
-                   />
-                 </div>
-              </div>
-
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-brand-600 uppercase tracking-wide">Pemasukkan Tetap (Gaji)</label>
                  <div className="relative group">
@@ -195,17 +201,22 @@ export default function BudgetPage() {
               </div>
 
               <Button 
-                onClick={handleCalculate}
-                className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-base shadow-lg shadow-brand-500/20 mt-2 rounded-xl transition-all hover:scale-[1.02]"
+                onClick={handleCalculateAndSave}
+                disabled={isSaving}
+                className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-base shadow-lg shadow-brand-500/20 mt-2 rounded-xl transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Hitung Anggaran
+                {isSaving ? (
+                    <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menyimpan...</>
+                ) : (
+                    <><Save className="w-4 h-4 mr-2" /> Hitung & Simpan</>
+                )}
               </Button>
             </div>
           </Card>
 
           {/* --- RIGHT: RESULT DISPLAY --- */}
           <div className="md:col-span-7 space-y-6">
-             {!currentResult ? (
+             {!displayedResult ? (
                <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-[2rem] bg-white/50">
                   <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                      <BadgePercent className="w-8 h-8 text-slate-400" />
@@ -249,7 +260,7 @@ export default function BudgetPage() {
                          Safe to Spend ({viewMode === "MONTHLY" ? "Bulan Ini" : "Setahun"})
                        </p>
                        <h2 className="text-3xl font-black tracking-tight mb-2">
-                          {formatRupiah(currentResult.safeToSpend)}
+                          {formatRupiah(displayedResult.safeToSpend)}
                        </h2>
                        <div className="h-1 w-12 bg-white/30 rounded-full mb-2" />
                        <p className="text-[10px] text-brand-50 opacity-90 leading-relaxed">
@@ -280,7 +291,7 @@ export default function BudgetPage() {
 
                   {/* ALLOCATION GRID */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     {currentResult.allocations.map((item, idx) => {
+                     {displayedResult.allocations.map((item, idx) => {
                        const style = getAllocationStyle(item.type);
                        const Icon = style.icon;
                        return (
@@ -293,17 +304,17 @@ export default function BudgetPage() {
                                  <Icon className="w-5 h-5" />
                               </div>
                               <span className={cn("text-xs font-black px-2 py-1 rounded-lg bg-white/50 border border-black/5", style.text)}>
-                                 {item.percentage}%
+                                  {item.percentage}%
                               </span>
                            </div>
                            
                            <div>
                               <h4 className={cn("font-bold text-sm mb-1", style.text)}>{item.label}</h4>
                               <p className="text-2xl font-black text-slate-800 tracking-tight">
-                                 {formatRupiah(item.amount)}
+                                  {formatRupiah(item.amount)}
                               </p>
                               <p className="text-[10px] text-slate-500 mt-2 leading-relaxed min-h-[2.5em]">
-                                 {item.description}
+                                  {item.description}
                               </p>
                            </div>
                          </div>
@@ -313,13 +324,13 @@ export default function BudgetPage() {
 
                   {/* SURPLUS & ACTIONS */}
                   <div className="flex flex-col md:flex-row gap-4">
-                     {currentResult.surplus > 0 && (
+                     {displayedResult.surplus > 0 && (
                        <Card className="flex-1 bg-cyan-50 border-cyan-100 p-5 rounded-2xl flex items-center justify-between">
                           <div>
                              <p className="text-[10px] font-bold text-cyan-600 uppercase mb-1">
                                Surplus (Wajib Ditabung)
                              </p>
-                             <h3 className="text-xl font-black text-cyan-900">{formatRupiah(currentResult.surplus)}</h3>
+                             <h3 className="text-xl font-black text-cyan-900">{formatRupiah(displayedResult.surplus)}</h3>
                           </div>
                           <div className="h-10 w-10 bg-cyan-100 rounded-full flex items-center justify-center text-cyan-600">
                              <PiggyBank className="w-5 h-5" />

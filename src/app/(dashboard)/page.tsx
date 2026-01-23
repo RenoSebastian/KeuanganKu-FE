@@ -11,8 +11,9 @@ import {
 } from "lucide-react";
 import Image from "next/image"; 
 import { cn } from "@/lib/utils";
-import { financialService } from "@/services/financial.service"; // Import Service
-import { HealthAnalysisResult } from "@/lib/types";
+import { financialService } from "@/services/financial.service"; 
+import { authService } from "@/services/auth.service"; // Import Auth Service
+import { HealthAnalysisResult, User } from "@/lib/types";
 
 // Helper format uang
 const formatMoney = (val: number) => 
@@ -20,49 +21,63 @@ const formatMoney = (val: number) =>
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<User | null>(null); // Type safe
   const [checkupData, setCheckupData] = useState<HealthAnalysisResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  const [loadingCheckup, setLoadingCheckup] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(true);
 
   const currentDate = new Date().toLocaleDateString("id-ID", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   useEffect(() => {
-    const fetchData = async () => {
+    // 1. Fetch User Profile Terbaru
+    const fetchUser = async () => {
       try {
-        // 1. Ambil User dari LocalStorage
-        const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-        if (storedUser) setUserData(JSON.parse(storedUser));
+        // Ambil dari localStorage dulu untuk instant render (optimistic UI)
+        const storedUser = authService.getCurrentUser();
+        if (storedUser) setUserData(storedUser);
 
-        // 2. Fetch Latest Checkup Data
+        // Fetch fresh data dari API
+        const user = await authService.getMe();
+        if (user) {
+            setUserData(user);
+        }
+      } catch (error) {
+        console.error("Gagal memuat profil user:", error);
+        // Jika token expired/invalid, authService/axios interceptor biasanya akan redirect
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+
+    // 2. Fetch Financial Data
+    const fetchFinancial = async () => {
+      try {
         const latestCheckup = await financialService.getLatestCheckup();
         
-        // Backend might return null or empty object if no data
         if (latestCheckup && (latestCheckup.score !== undefined || (latestCheckup as any).healthScore !== undefined)) {
            setCheckupData(latestCheckup);
         } else {
            setCheckupData(null);
         }
-
       } catch (error) {
         console.error("Gagal memuat data dashboard:", error);
-        // Biarkan checkupData null jika error (misal 404 not found karena belum ada data)
       } finally {
-        setLoading(false);
+        setLoadingCheckup(false);
       }
     };
 
-    fetchData();
+    fetchUser();
+    fetchFinancial();
   }, []);
 
   // --- LOGIKA TAMPILAN DATA (ADAPTER) ---
-  // Kita perlu handle nama field yg mungkin beda dari backend (healthScore vs score)
   const hasData = !!checkupData;
   const rawData: any = checkupData || {};
 
   const score = rawData.score ?? rawData.healthScore ?? 0;
   const status = rawData.globalStatus ?? rawData.status ?? "BELUM DATA";
   
-  // Logic Rekomendasi Sederhana (Bisa diganti field dari BE jika ada)
   let recommendation = "Halo! Silakan lakukan Financial Checkup pertama Anda untuk melihat analisa kesehatan finansial.";
   if (hasData) {
       if (score >= 80) recommendation = "Kondisi keuangan Anda sangat prima! Pertahankan dan mulai fokus investasi.";
@@ -70,23 +85,16 @@ export default function DashboardPage() {
       else recommendation = "Perhatian! Keuangan Anda sedang tidak sehat. Segera lakukan perbaikan arus kas dan utang.";
   }
   
-  // Mapping Data Keuangan
-  // Catatan: Backend mungkin mengirim rincian pemasukan di 'ratios' atau field lain. 
-  // Jika tidak ada di root object, kita gunakan default 0 atau hitung manual jika rawData punya field income.
-  // Asumsi: Backend mengirim field root atau kita ambil dari properties yang tersedia.
-  
-  // Fallback safe value
   const incomeFixed = Number(rawData.incomeFixed || 0);
   const incomeVariable = Number(rawData.incomeVariable || 0);
   const totalIncome = incomeFixed + incomeVariable;
   
   const surplusDeficit = Number(rawData.surplusDeficit || 0);
-  
-  // Rumus: Pengeluaran = Pemasukan - Surplus
-  // (Jika data baru, mungkin totalIncome 0, jadi expense juga 0)
   const totalExpense = hasData ? (totalIncome - surplusDeficit) : 0; 
-
   const netWorth = Number(rawData.netWorth ?? rawData.totalNetWorth ?? 0);
+
+  // Ambil nama user (Prioritas: API -> LocalStorage -> Default)
+  const displayName = userData?.fullName || userData?.name || "Karyawan PAM";
 
   return (
     <div className="relative min-h-full w-full pb-32 md:pb-12">
@@ -113,7 +121,9 @@ export default function DashboardPage() {
           <div className="w-full glass-panel p-4 rounded-2xl flex items-center justify-between">
              <div>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">Selamat Datang</p>
-                <p className="text-base font-bold text-brand-900 truncate max-w-[200px]">{userData?.name || "Karyawan PAM"}</p>
+                <p className="text-base font-bold text-brand-900 truncate max-w-[200px]">
+                    {loadingUser && !userData ? "Memuat..." : displayName}
+                </p>
              </div>
              <div className="h-10 w-10 bg-brand-50 rounded-full flex items-center justify-center border border-brand-100">
                 <span className="text-lg">👋</span>
@@ -134,7 +144,7 @@ export default function DashboardPage() {
               Dashboard Keuangan
             </h1>
             <p className="text-lg text-slate-600">
-              Halo, <span className="font-bold text-brand-600">{userData?.name || "User"}</span>. Mari cek kesehatan finansialmu hari ini.
+              Halo, <span className="font-bold text-brand-600">{loadingUser && !userData ? "..." : displayName}</span>. Mari cek kesehatan finansialmu hari ini.
             </p>
           </div>
           
@@ -158,7 +168,7 @@ export default function DashboardPage() {
                {/* Decorative Gradient Line Top */}
                <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 via-brand-400 to-brand-300"></div>
 
-               {loading ? (
+               {loadingCheckup ? (
                  <div className="flex flex-col items-center justify-center h-[300px] w-full gap-4">
                     <Loader2 className="w-10 h-10 text-brand-300 animate-spin" />
                     <p className="text-sm text-slate-400 font-medium">Memuat data kesehatan...</p>
@@ -230,16 +240,8 @@ export default function DashboardPage() {
                            
                            {/* The Gauge Component */}
                            <div className={cn("relative z-10 transform transition-transform hover:scale-105 duration-500", !hasData && "opacity-50 grayscale")}>
+                              {/* HANYA GAUGE SAJA, TANPA BADGE ANGKA DI BAWAHNYA */}
                               <HealthGauge score={score} />
-                              
-                              {/* Floating Score Badge */}
-                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white border border-slate-100 shadow-xl px-4 py-1 rounded-full flex items-center gap-2">
-                                 <span className="text-xs font-bold text-slate-400">SCORE</span>
-                                 <span className={cn(
-                                     "text-lg font-black",
-                                     score >= 80 ? "text-emerald-600" : score >= 60 ? "text-amber-600" : "text-rose-600"
-                                 )}>{score}</span>
-                              </div>
                            </div>
                        </div>
                    </div>
@@ -247,7 +249,7 @@ export default function DashboardPage() {
                )}
             </div>
 
-            {/* 2. MENU CEPAT (Icons Upgrade) */}
+            {/* 2. MENU CEPAT */}
             <div className="space-y-4">
                <div className="flex items-center justify-between px-1">
                   <h3 className="text-base md:text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -301,7 +303,7 @@ export default function DashboardPage() {
                  Ringkasan Arus Kas
                </h3>
                
-               {loading ? (
+               {loadingCheckup ? (
                  <div className="space-y-4">
                     <div className="h-10 bg-slate-100 animate-pulse rounded-lg" />
                     <div className="h-10 bg-slate-100 animate-pulse rounded-lg" />
@@ -348,7 +350,7 @@ export default function DashboardPage() {
                )}
             </div>
 
-            {/* 2. TIPS WIDGET (Pam Blue Gradient) */}
+            {/* 2. TIPS WIDGET */}
             <div className="hidden md:block bg-pam-gradient rounded-3xl p-6 text-white shadow-xl shadow-brand-900/10 relative overflow-hidden group">
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700"></div>
                 <div className="relative z-10">
@@ -372,7 +374,7 @@ export default function DashboardPage() {
   );
 }
 
-// --- HELPER COMPONENTS (Cleaned Up) ---
+// --- HELPER COMPONENTS ---
 
 function StatRow({ label, value, trend, colorClass }: any) {
   return (

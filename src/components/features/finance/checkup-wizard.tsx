@@ -7,9 +7,8 @@ import {
   CreditCard, User, Heart, MapPin, Briefcase, Users,
   ShoppingBag, Car, Gem, Phone, Umbrella, PiggyBank, ShieldCheck, 
   Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle, 
-  Loader2 
+  Loader2, CalendarDays, Activity
 } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -30,17 +29,17 @@ const INITIAL_DATA: FinancialRecord = {
   userProfile: { ...EMPTY_PROFILE },
   spouseProfile: { ...EMPTY_PROFILE },
 
-  // 2. Aset (Neraca)
+  // 2. Aset (Neraca - STOCK)
   assetCash: 0,
   assetHome: 0, assetVehicle: 0, assetJewelry: 0, assetAntique: 0, assetPersonalOther: 0,
   assetInvHome: 0, assetInvVehicle: 0, assetGold: 0, assetInvAntique: 0, 
   assetStocks: 0, assetMutualFund: 0, assetBonds: 0, assetDeposit: 0, assetInvOther: 0,
 
-  // 3. Utang (Neraca - Sisa Pokok)
+  // 3. Utang (Neraca - STOCK)
   debtKPR: 0, debtKPM: 0, debtCC: 0, debtCoop: 0, debtConsumptiveOther: 0,
   debtBusiness: 0,
 
-  // 4. Arus Kas (Cashflow)
+  // 4. Arus Kas (Cashflow - FLOW)
   incomeFixed: 0, incomeVariable: 0,
   installmentKPR: 0, installmentKPM: 0, installmentCC: 0, installmentCoop: 0, 
   installmentConsumptiveOther: 0, installmentBusiness: 0,
@@ -59,8 +58,12 @@ export function CheckupWizard() {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // --- TOGGLE INPUT MODE ---
+  const [inputMode, setInputMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
+
   useEffect(() => setIsClient(true), []);
 
+  // --- LOGIC 1: HANDLE INPUT CHANGE ---
   const handleFinancialChange = (field: keyof FinancialRecord, value: string) => {
     const numericValue = parseFloat(value.replace(/[^0-9]/g, "")) || 0;
     setFormData((prev) => ({ ...prev, [field]: numericValue }));
@@ -72,42 +75,111 @@ export function CheckupWizard() {
     }));
   };
 
-  const nextStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.min(prev + 1, 4)); };
-  const prevStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.max(prev - 1, 0)); };
-  
-  // --- UPDATE LOGIC: API CALL WITH SANITIZATION ---
+  // --- LOGIC 2: AUTO-CONVERT SAAT TOGGLE ---
+  const toggleInputMode = (targetMode: "MONTHLY" | "ANNUAL") => {
+    if (targetMode === inputMode) return; // Tidak perlu ubah jika sama
+
+    // Tentukan faktor pengali
+    // Jika dari Annual ke Monthly: Bagi 12
+    // Jika dari Monthly ke Annual: Kali 12
+    const factor = targetMode === "ANNUAL" ? 12 : 1/12;
+
+    // Daftar field yang WAJIB dikonversi (Hanya Arus Kas)
+    const flowFields: (keyof FinancialRecord)[] = [
+        'incomeFixed', 'incomeVariable',
+        'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
+        'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
+        'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
+        'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
+    ];
+
+    setFormData(prev => {
+        const next = { ...prev };
+        flowFields.forEach(key => {
+            // TypeScript hack untuk dynamic key access
+            const val = next[key as keyof FinancialRecord];
+            if (typeof val === 'number') {
+                // @ts-ignore
+                next[key] = Math.round(val * factor); // Round biar rapi (ga ada desimal aneh)
+            }
+        });
+        return next;
+    });
+
+    setInputMode(targetMode);
+  };
+
+  // --- LOGIC 3: SUBMIT DATA ---
   const handleCalculate = async () => { 
     setIsLoading(true);
     try {
-      // 1. Buat salinan data agar tidak mengubah state form UI secara langsung
-      const payload = { ...formData };
+      const payload: any = { ...formData };
 
-      // 2. SANITASI: Hapus data pasangan jika status bukan menikah
-      // Backend akan menolak jika spouseProfile ada tapi isinya kosong/invalid date
+      // Sanitasi Data Pasangan
       if (payload.userProfile.maritalStatus !== "MARRIED") {
         delete payload.spouseProfile;
       }
 
-      // 3. Panggil API Backend via Service
+      // NORMALISASI FINAL KE BULANAN (Agar Backend Konsisten)
+      // Jika Input Mode saat ini TAHUNAN, bagi semua Arus Kas dengan 12 sebelum kirim
+      if (inputMode === "ANNUAL") {
+        const flowFields = [
+          'incomeFixed', 'incomeVariable',
+          'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
+          'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
+          'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
+          'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
+        ];
+
+        flowFields.forEach(field => {
+            if (typeof payload[field] === 'number') {
+                payload[field] = Math.round(payload[field] / 12);
+            }
+        });
+      }
+
       const analysis = await financialService.createCheckup(payload);
-      
       setResult(analysis); 
       window.scrollTo({ top: 0, behavior: "smooth" }); 
     } catch (error: any) {
       console.error("Gagal melakukan analisa:", error);
-      
-      // Ambil pesan error detail dari backend jika ada
       const errorMsg = error.response?.data?.message 
         ? Array.isArray(error.response.data.message) 
           ? error.response.data.message.join(", ") 
           : error.response.data.message
-        : "Terjadi kesalahan saat memproses data. Silakan periksa koneksi atau input Anda.";
-
+        : "Terjadi kesalahan saat memproses data.";
       alert(`Gagal: ${errorMsg}`);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const nextStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.min(prev + 1, 4)); };
+  const prevStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.max(prev - 1, 0)); };
+
+  // --- HITUNG TOTAL UNTUK REVIEW PAGE (Step 4) ---
+  const totalAssets = 
+    formData.assetCash + formData.assetHome + formData.assetVehicle + formData.assetJewelry + formData.assetAntique + formData.assetPersonalOther +
+    formData.assetInvHome + formData.assetInvVehicle + formData.assetGold + formData.assetInvAntique + formData.assetStocks + formData.assetMutualFund + formData.assetBonds + formData.assetDeposit + formData.assetInvOther;
+
+  const totalDebt = 
+    formData.debtKPR + formData.debtKPM + formData.debtCC + formData.debtCoop + formData.debtConsumptiveOther + formData.debtBusiness;
+
+  const netWorth = totalAssets - totalDebt;
+
+  const totalIncome = formData.incomeFixed + formData.incomeVariable;
+  
+  const totalInstallments = formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness;
+  const totalInsurance = formData.insuranceLife + formData.insuranceHealth + formData.insuranceHome + formData.insuranceVehicle + formData.insuranceBPJS + formData.insuranceOther;
+  const totalSavings = formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther;
+  const totalLivingExpense = formData.expenseFood + formData.expenseSchool + formData.expenseTransport + formData.expenseCommunication + formData.expenseHelpers + formData.expenseLifestyle + formData.expenseTax;
+  
+  const totalExpense = totalInstallments + totalInsurance + totalSavings + totalLivingExpense;
+  const surplusDeficit = totalIncome - totalExpense;
+
+  // Labels
+  const periodLabel = inputMode === "ANNUAL" ? "(PER TAHUN)" : "(PER BULAN)";
+  const periodHint = inputMode === "ANNUAL" ? "Total setahun (x12)" : "Rata-rata per bulan";
 
   if (result) {
     return (
@@ -132,7 +204,7 @@ export function CheckupWizard() {
   return (
     <div className="max-w-5xl mx-auto pb-12">
       
-      {/* --- PROGRESS STEPPER (PAM BRAND THEME) --- */}
+      {/* --- PROGRESS STEPPER --- */}
       <div className="mb-10 relative px-4 md:px-0">
         <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2 rounded-full z-0" />
         <div 
@@ -167,11 +239,11 @@ export function CheckupWizard() {
       </div>
       <div className="h-6" />
 
-      {/* --- MAIN CARD (CLEAN UI) --- */}
+      {/* --- MAIN CARD --- */}
       <div className="card-clean overflow-hidden">
         
-        {/* HEADER */}
-        <div className="bg-slate-50/50 border-b border-slate-100 p-6 md:p-8">
+        {/* HEADER & TOGGLE */}
+        <div className="bg-slate-50/50 border-b border-slate-100 p-6 md:p-8 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="flex items-center gap-5">
                 <div className={cn(
                     "p-3.5 rounded-2xl shadow-sm transition-all duration-500 ring-1 ring-inset ring-white/50", 
@@ -189,17 +261,41 @@ export function CheckupWizard() {
                         {step === 1 && "Neraca Aset (Harta)"}
                         {step === 2 && "Neraca Utang (Kewajiban)"}
                         {step === 3 && "Arus Kas Tahunan"}
-                        {step === 4 && "Review Data"}
+                        {step === 4 && "Review & Validasi"}
                     </h2>
                     <p className="text-slate-500 text-sm mt-1 font-medium">
                         {step === 0 && "Lengkapi data diri User dan Pasangan (jika ada)."}
-                        {step === 1 && "Detail aset likuid, investasi, dan personal."}
-                        {step === 2 && "Sisa pokok utang konsumtif dan produktif."}
-                        {step === 3 && "Detail pemasukan, pengeluaran, cicilan, dan tabungan."}
-                        {step === 4 && "Pastikan semua data valid sebelum diagnosa."}
+                        {step === 1 && "Nilai aset saat ini (Snapshot). Tidak terpengaruh periode."}
+                        {step === 2 && "Sisa pokok utang saat ini (Snapshot). Tidak terpengaruh periode."}
+                        {step === 3 && "Detail pemasukan & pengeluaran rutin."}
+                        {step === 4 && "Cek ringkasan Neraca & Arus Kas sebelum diagnosa."}
                     </p>
                 </div>
             </div>
+
+            {/* TOGGLE INPUT MODE (Hanya Muncul di Step 3 & 4 agar relevan) */}
+            {(step >= 3) && (
+                <div className="bg-white border border-slate-200 p-1 rounded-xl flex shadow-sm">
+                    <button 
+                        onClick={() => toggleInputMode("MONTHLY")}
+                        className={cn(
+                            "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+                            inputMode === "MONTHLY" ? "bg-brand-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+                        )}
+                    >
+                        <CalendarDays className="w-3.5 h-3.5" /> Bulanan
+                    </button>
+                    <button 
+                        onClick={() => toggleInputMode("ANNUAL")}
+                        className={cn(
+                            "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+                            inputMode === "ANNUAL" ? "bg-brand-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+                        )}
+                    >
+                        <Banknote className="w-3.5 h-3.5" /> Tahunan
+                    </button>
+                </div>
+            )}
         </div>
 
         {/* CONTENT */}
@@ -241,10 +337,10 @@ export function CheckupWizard() {
                 </div>
             )}
 
-            {/* STEP 1: ASET */}
+            {/* STEP 1: ASET (STOCK) */}
             {step === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <SectionHeader title="Aset Likuid" desc="Kas dan setara kas" />
+                    <SectionHeader title="Aset Likuid" desc="Kas dan setara kas (Saldo Saat Ini)" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <InputGroup label="Kas / Tabungan / Deposito Cair" value={formData.assetCash} onChange={(v) => handleFinancialChange("assetCash", v)} icon={<Wallet className="w-4 h-4" />} />
                     </div>
@@ -277,7 +373,7 @@ export function CheckupWizard() {
                 </div>
             )}
 
-            {/* STEP 2: UTANG */}
+            {/* STEP 2: UTANG (STOCK) */}
             {step === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3 text-amber-800 text-sm mb-6">
@@ -303,16 +399,16 @@ export function CheckupWizard() {
                 </div>
             )}
 
-            {/* STEP 3: ARUS KAS */}
+            {/* STEP 3: ARUS KAS (FLOW) */}
             {step === 3 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div className="bg-brand-50 border border-brand-100 p-4 rounded-xl flex gap-3 text-brand-800 text-sm mb-4">
-                        <Coins className="w-5 h-5 shrink-0" />
-                        <p><strong>PENTING:</strong> Perhatikan label periode <strong>(PER TAHUN)</strong> atau <strong>(PER BULAN)</strong>. Umumnya data ini diisi PER TAHUN (dikalikan 12).</p>
+                        <Activity className="w-5 h-5 shrink-0" />
+                        <p><strong>MODE INPUT: {inputMode === "ANNUAL" ? "TAHUNAN" : "BULANAN"}</strong>. Masukkan nominal {periodHint}.</p>
                     </div>
 
                     {/* I. PEMASUKAN */}
-                    <SectionHeader title="I. Pemasukan (PER TAHUN)" desc="Total pendapatan bersih setahun" />
+                    <SectionHeader title={`I. Pemasukan ${periodLabel}`} desc={`Total pendapatan ${periodHint}`} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <InputGroup label="1. Pendapatan Tetap" value={formData.incomeFixed} onChange={(v) => handleFinancialChange("incomeFixed", v)} icon={<DollarSign className="w-4 h-4" />} />
                         <InputGroup label="2. Pendapatan Tidak Tetap" value={formData.incomeVariable} onChange={(v) => handleFinancialChange("incomeVariable", v)} icon={<TrendingUp className="w-4 h-4" />} />
@@ -321,7 +417,7 @@ export function CheckupWizard() {
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 1. CICILAN UTANG */}
-                    <SectionHeader title="1. Cicilan Utang (PER TAHUN)" desc="Total bayar cicilan dalam setahun" />
+                    <SectionHeader title={`1. Cicilan Utang ${periodLabel}`} desc={`Total bayar cicilan ${periodHint}`} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <InputGroup label="KPR" value={formData.installmentKPR} onChange={(v) => handleFinancialChange("installmentKPR", v)} icon={<Home className="w-4 h-4" />} />
                         <InputGroup label="KPM" value={formData.installmentKPM} onChange={(v) => handleFinancialChange("installmentKPM", v)} icon={<Car className="w-4 h-4" />} />
@@ -334,20 +430,20 @@ export function CheckupWizard() {
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 2. PREMI ASURANSI */}
-                    <SectionHeader title="2. Premi Asuransi (PER TAHUN)" desc="Total Premi Seluruh Keluarga" />
+                    <SectionHeader title={`2. Premi Asuransi ${periodLabel}`} desc={`Total Premi ${periodHint}`} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <InputGroup label="Asuransi Jiwa" value={formData.insuranceLife} onChange={(v) => handleFinancialChange("insuranceLife", v)} icon={<Umbrella className="w-4 h-4" />} />
                         <InputGroup label="Asuransi Kesehatan" value={formData.insuranceHealth} onChange={(v) => handleFinancialChange("insuranceHealth", v)} icon={<Umbrella className="w-4 h-4" />} />
                         <InputGroup label="Asuransi Rumah" value={formData.insuranceHome} onChange={(v) => handleFinancialChange("insuranceHome", v)} icon={<Home className="w-4 h-4" />} />
                         <InputGroup label="Asuransi Kendaraan" value={formData.insuranceVehicle} onChange={(v) => handleFinancialChange("insuranceVehicle", v)} icon={<Car className="w-4 h-4" />} />
-                        <InputGroup label="BPJS" value={formData.insuranceBPJS} onChange={(v) => handleFinancialChange("insuranceBPJS", v)} icon={<ShieldCheck className="w-4 h-4" />} desc="Jika bayar bulanan, kalikan 12" />
+                        <InputGroup label="BPJS" value={formData.insuranceBPJS} onChange={(v) => handleFinancialChange("insuranceBPJS", v)} icon={<ShieldCheck className="w-4 h-4" />} />
                         <InputGroup label="Asuransi Lainnya" value={formData.insuranceOther} onChange={(v) => handleFinancialChange("insuranceOther", v)} icon={<Umbrella className="w-4 h-4" />} />
                     </div>
 
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 3. TABUNGAN/INVESTASI */}
-                    <SectionHeader title="3. Tabungan/Investasi (PER TAHUN)" desc="Alokasi tabungan dalam setahun" />
+                    <SectionHeader title={`3. Tabungan/Investasi ${periodLabel}`} desc={`Alokasi tabungan ${periodHint}`} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <InputGroup label="Dana Pendidikan Anak" value={formData.savingEducation} onChange={(v) => handleFinancialChange("savingEducation", v)} icon={<PiggyBank className="w-4 h-4" />} />
                         <InputGroup label="Dana Hari Tua" value={formData.savingRetirement} onChange={(v) => handleFinancialChange("savingRetirement", v)} icon={<TrendingUp className="w-4 h-4" />} />
@@ -360,7 +456,7 @@ export function CheckupWizard() {
                     <div className="border-t border-dashed border-slate-200" />
 
                     {/* 4. BELANJA KELUARGA */}
-                    <SectionHeader title="4. Belanja Keluarga (PER TAHUN)" desc="Pengeluaran rutin bulanan kalikan 12" />
+                    <SectionHeader title={`4. Belanja Keluarga ${periodLabel}`} desc={`Pengeluaran rutin ${periodHint}`} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <InputGroup label="Makan Keluarga" value={formData.expenseFood} onChange={(v) => handleFinancialChange("expenseFood", v)} icon={<ShoppingBag className="w-4 h-4" />} />
                         <InputGroup label="Uang Sekolah" value={formData.expenseSchool} onChange={(v) => handleFinancialChange("expenseSchool", v)} icon={<User className="w-4 h-4" />} />
@@ -369,17 +465,16 @@ export function CheckupWizard() {
                         <InputGroup label="ART / Supir" value={formData.expenseHelpers} onChange={(v) => handleFinancialChange("expenseHelpers", v)} icon={<User className="w-4 h-4" />} />
                         <InputGroup label="Belanja RT Lainnya" value={formData.expenseLifestyle} onChange={(v) => handleFinancialChange("expenseLifestyle", v)} icon={<ShoppingBag className="w-4 h-4" />} />
                         <div className="md:col-span-2">
-                            <InputGroup label="Pajak (PBB/PKB) - PER TAHUN" value={formData.expenseTax} onChange={(v) => handleFinancialChange("expenseTax", v)} icon={<Landmark className="w-4 h-4" />} desc="Masukkan nominal pajak tahunan" />
+                            <InputGroup label={`Pajak (PBB/PKB) ${periodLabel}`} value={formData.expenseTax} onChange={(v) => handleFinancialChange("expenseTax", v)} icon={<Landmark className="w-4 h-4" />} />
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* STEP 4: REVIEW */}
+            {/* STEP 4: REVIEW (DYNAMIC TOTALS & LABELS) */}
             {step === 4 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
                     <div className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200 space-y-6 relative overflow-hidden">
-                        {/* Decorative Background */}
                         <div className="absolute top-0 right-0 p-32 bg-brand-500/5 rounded-full blur-3xl -mr-12 -mt-12 pointer-events-none" />
                         
                         <h3 className="font-bold text-brand-900 text-lg flex items-center gap-2 relative z-10">
@@ -387,29 +482,62 @@ export function CheckupWizard() {
                         </h3>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                            <div className="space-y-4">
-                                <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2">Neraca Aset & Utang</h4>
-                                <ReviewRow label="Total Aset Likuid" value={formData.assetCash} />
-                                <ReviewRow label="Total Aset Investasi" value={
-                                    formData.assetInvHome + formData.assetInvVehicle + formData.assetGold + formData.assetInvAntique + 
-                                    formData.assetStocks + formData.assetMutualFund + formData.assetBonds + formData.assetDeposit + formData.assetInvOther
-                                } />
-                                <ReviewRow label="Total Utang" value={
-                                    (formData.debtKPR + formData.debtKPM + formData.debtCC + formData.debtCoop + formData.debtConsumptiveOther) + 
-                                    formData.debtBusiness
-                                } isNegative />
+                            {/* --- KOLOM 1: NERACA (ASET - UTANG) --- */}
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">1. Neraca (Balance Sheet)</h4>
+                                    <div className="space-y-3">
+                                        <ReviewRow label="Total Aset Likuid" value={formData.assetCash} />
+                                        <ReviewRow label="Total Aset Investasi" value={
+                                            formData.assetInvHome + formData.assetInvVehicle + formData.assetGold + formData.assetInvAntique + 
+                                            formData.assetStocks + formData.assetMutualFund + formData.assetBonds + formData.assetDeposit + formData.assetInvOther
+                                        } />
+                                        <ReviewRow label="Total Aset Personal" value={
+                                            formData.assetHome + formData.assetVehicle + formData.assetJewelry + formData.assetAntique + formData.assetPersonalOther
+                                        } />
+                                        <ReviewRow label="Total Semua Aset (+)" value={totalAssets} highlight />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="space-y-3">
+                                        <ReviewRow label="Total Utang (-)" value={totalDebt} isNegative />
+                                    </div>
+                                </div>
+
+                                {/* NET WORTH RESULT */}
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <p className="text-xs text-slate-500 font-bold uppercase mb-1">Kekayaan Bersih (Net Worth)</p>
+                                    <p className={cn("text-2xl font-black tracking-tight", netWorth >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(netWorth)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="space-y-4">
-                                <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2">Estimasi Arus Kas (Tahunan)</h4>
-                                <ReviewRow label="Total Pemasukan" value={formData.incomeFixed + formData.incomeVariable} highlight />
-                                <ReviewRow label="Total Cicilan Utang" value={
-                                    formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness
-                                } isNegative />
-                                <ReviewRow label="Pengeluaran Lain" value={
-                                    (formData.insuranceLife + formData.insuranceHealth + formData.insuranceHome + formData.insuranceVehicle + formData.insuranceBPJS + formData.insuranceOther) +
-                                    (formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther) +
-                                    (formData.expenseFood + formData.expenseSchool + formData.expenseTransport + formData.expenseCommunication + formData.expenseHelpers + formData.expenseLifestyle + formData.expenseTax)
-                                } isNegative />
+
+                            {/* --- KOLOM 2: ARUS KAS (INCOME - EXPENSE) --- */}
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">
+                                        2. Arus Kas {periodLabel}
+                                    </h4>
+                                    <div className="space-y-3">
+                                        <ReviewRow label="Total Pemasukan (+)" value={totalIncome} highlight />
+                                        <ReviewRow label="Cicilan Utang (-)" value={totalInstallments} isNegative />
+                                        <ReviewRow label="Premi Asuransi (-)" value={totalInsurance} isNegative />
+                                        <ReviewRow label="Tabungan & Investasi (-)" value={totalSavings} isNegative />
+                                        <ReviewRow label="Belanja Keluarga (-)" value={totalLivingExpense} isNegative />
+                                        <ReviewRow label="Total Pengeluaran" value={totalExpense} isNegative bold />
+                                    </div>
+                                </div>
+
+                                {/* SURPLUS/DEFICIT RESULT */}
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <p className="text-xs text-slate-500 font-bold uppercase mb-1">Surplus / Defisit {periodLabel}</p>
+                                    <p className={cn("text-2xl font-black tracking-tight", surplusDeficit >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                        {surplusDeficit >= 0 ? "+" : ""}
+                                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(surplusDeficit)}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -448,7 +576,7 @@ export function CheckupWizard() {
   );
 }
 
-// --- SUB COMPONENTS (STYLING UPDATE) ---
+// --- SUB COMPONENTS ---
 
 function SectionHeader({title, desc}: {title: string, desc: string}) {
     return (
@@ -517,11 +645,11 @@ function InputGroup({ icon, label, desc, value, onChange }: InputGroupProps) {
     );
 }
 
-function ReviewRow({ label, value, isNegative, highlight }: { label: string, value: number, isNegative?: boolean, highlight?: boolean }) {
+function ReviewRow({ label, value, isNegative, highlight, bold }: { label: string, value: number, isNegative?: boolean, highlight?: boolean, bold?: boolean }) {
     return (
         <div className={cn("flex justify-between items-center py-2.5 px-3 rounded-lg transition-colors border border-transparent", highlight ? "bg-brand-50 border-brand-100" : "hover:bg-slate-50 hover:border-slate-100")}>
             <span className={cn("text-sm font-medium", highlight ? "text-brand-800" : "text-slate-500")}>{label}</span>
-            <span className={cn("font-mono font-bold text-base", isNegative ? "text-rose-600" : highlight ? "text-brand-700" : "text-slate-800")}>
+            <span className={cn("font-mono text-base", bold ? "font-black" : "font-bold", isNegative ? "text-rose-600" : highlight ? "text-brand-700" : "text-slate-800")}>
                 {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value)}
             </span>
         </div>

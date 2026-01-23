@@ -5,48 +5,56 @@ interface HealthGaugeProps {
 }
 
 export function HealthGauge({ score }: HealthGaugeProps) {
-  // SVG Configuration
-  const radius = 80; // Diperbesar sedikit agar lebih jelas
-  const stroke = 12;
-  const normalizedRadius = radius - stroke * 2;
+  // --- KONFIGURASI VISUAL ---
+  const radius = 85; 
+  const stroke = 14; 
+  // Radius aman agar stroke tidak terpotong (radius luar - stroke)
+  const normalizedRadius = radius - stroke; 
   const circumference = normalizedRadius * 2 * Math.PI;
   
-  // Kita hanya pakai separuh lingkaran (180 derajat / setengah keliling)
-  const halfCircumference = circumference / 2;
+  // Logic Lingkaran Penuh (360 derajat)
   const strokeDasharray = `${circumference} ${circumference}`;
-  
-  // Offset awal agar mulai dari kosong (sebelah kiri)
-  // Logic: Offset penuh (circumference) = kosong. 
-  // Kita ingin range 0 (kiri) s.d 100 (kanan) dalam bentuk setengah lingkaran.
-  // Rumus: circumference - (score / 100) * halfCircumference
-  const strokeDashoffset = circumference - (score / 100) * halfCircumference;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
 
-  // Tentukan warna solid fallback jika gradient bermasalah atau untuk stroke
-  const getColor = (s: number) => {
-    if (s >= 80) return "#10b981"; // Emerald-500
-    if (s >= 50) return "#f59e0b"; // Amber-500
-    return "#ef4444"; // Red-500
-  };
+  // --- LOGIKA STATUS & WARNA ---
+  let statusLabel = "BAHAYA";
+  let statusColorClass = "text-rose-500 drop-shadow-sm";
+
+  if (score >= 80) {
+    statusLabel = "SEHAT";
+    statusColorClass = "text-emerald-500 drop-shadow-sm";
+  } else if (score >= 50) {
+    statusLabel = "WASPADA";
+    statusColorClass = "text-amber-500 drop-shadow-sm";
+  }
 
   return (
-    <div className="relative flex flex-col items-center justify-end w-48 h-28 overflow-hidden">
-      {/* SVG Container - Rotasi -90deg + 180deg flip logic adjustment */}
+    // Container dibuat W-Full H-Full agar mengikuti parent (Square)
+    <div className="relative flex items-center justify-center w-full h-full group">
+      
+      {/* SVG Container - Rotasi -90deg agar progress mulai dari jam 12 (Atas) */}
       <svg
         height={radius * 2}
         width={radius * 2}
-        className="absolute top-0 transform rotate-[180deg]" // Memutar agar "bukaannya" di bawah, lalu kita potong via container overflow
+        className="transform -rotate-90 transition-all duration-700" 
         style={{ overflow: "visible" }}
       >
-        {/* Definisi Warna Gradasi */}
         <defs>
-          <linearGradient id="gaugeGradient" x1="100%" y1="0%" x2="0%" y2="0%">
-            <stop offset="0%" stopColor="#ef4444" />   {/* Merah (Kiri) */}
-            <stop offset="50%" stopColor="#f59e0b" />  {/* Kuning (Tengah) */}
-            <stop offset="100%" stopColor="#10b981" /> {/* Hijau (Kanan) */}
+          {/* Gradient Premium: Merah (Awal) -> Kuning (Tengah) -> Hijau (Akhir) */}
+          <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f43f5e" />   {/* Rose/Merah */}
+            <stop offset="50%" stopColor="#f59e0b" />  {/* Amber/Kuning */}
+            <stop offset="100%" stopColor="#10b981" /> {/* Emerald/Hijau */}
           </linearGradient>
+
+          {/* Efek Glow Halus pada Bar */}
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
         </defs>
 
-        {/* Background Track (Abu-abu Pudar) */}
+        {/* Track Background (Lingkaran Penuh Abu-abu) */}
         <circle
           stroke="#f1f5f9"
           strokeWidth={stroke}
@@ -54,11 +62,9 @@ export function HealthGauge({ score }: HealthGaugeProps) {
           r={normalizedRadius}
           cx={radius}
           cy={radius}
-          style={{ strokeDasharray, strokeDashoffset: 0 }} 
-          strokeLinecap="round"
         />
         
-        {/* Progress Bar (Isian) */}
+        {/* Active Progress Bar (Lingkaran Penuh) */}
         <circle
           stroke="url(#gaugeGradient)"
           strokeWidth={stroke}
@@ -67,34 +73,30 @@ export function HealthGauge({ score }: HealthGaugeProps) {
           cx={radius}
           cy={radius}
           strokeLinecap="round"
+          filter="url(#glow)" 
           style={{ 
             strokeDasharray, 
             strokeDashoffset,
-            transition: "stroke-dashoffset 1.5s ease-out"
+            transition: "stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)" // Animasi smooth
           }}
         />
       </svg>
       
-      {/* Label Text (Centered in the semi-circle) */}
-      <div className="relative z-10 flex flex-col items-center justify-center -mt-6">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-          Health Score
-        </span>
-        <span className={cn(
-          "text-4xl font-black tracking-tighter",
-          score >= 80 ? "text-emerald-600" : score >= 50 ? "text-amber-500" : "text-red-500"
-        )}>
-          {score}
-        </span>
+      {/* --- BAGIAN TENGAH (TEXT STATUS) --- */}
+      {/* Absolute inset-0 memastikan teks benar-benar di tengah lingkaran */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-700">
         
-        <div className={cn(
-          "mt-2 px-2 py-0.5 rounded text-[10px] font-bold border",
-          score >= 80 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : 
-          score >= 50 ? "bg-amber-50 text-amber-700 border-amber-100" : 
-          "bg-red-50 text-red-700 border-red-100"
+        <h3 className={cn(
+          "text-2xl md:text-3xl font-black tracking-wider uppercase transition-colors duration-500",
+          statusColorClass
         )}>
-          {score >= 80 ? "SEHAT" : score >= 50 ? "WASPADA" : "BAHAYA"}
-        </div>
+          {statusLabel}
+        </h3>
+
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 opacity-80">
+          Kondisi Keuangan
+        </p>
+
       </div>
     </div>
   );

@@ -142,6 +142,12 @@ export interface BudgetResult {
   surplus: number;     
 }
 
+export interface BudgetPayload {
+  monthlyIncome: number;
+  variableIncome: number;
+  // Backend akan menghitung alokasi (50/30/20) secara otomatis
+}
+
 
 // ============================================================================
 // 3. PENSION & INSURANCE MODULES
@@ -338,7 +344,7 @@ export interface FinancialRecord {
   expenseLifestyle: number; 
 }
 
-export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL"; 
+export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL" | "SANGAT SEHAT"; 
 
 export interface RatioDetail {
   id: string;
@@ -346,6 +352,7 @@ export interface RatioDetail {
   value: number;
   benchmark: string;
   grade: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL"; 
+  statusColor?: string; // Tambahan untuk mapping warna dari backend (GREEN_DARK, dll)
   recommendation: string;
   status?: string; 
 }
@@ -357,6 +364,9 @@ export interface HealthAnalysisResult {
   netWorth: number;         
   surplusDeficit: number;   
   generatedAt: string;
+  // Fallback props untuk data dari DB raw
+  incomeFixed?: number;
+  incomeVariable?: number;
 }
 
 
@@ -452,14 +462,23 @@ export interface RegisterDto {
   name: string;
   email: string;
   password: string;
+  role?: string;
+  nip?: string;
+  unitKerjaId?: string;
 }
 
+// [UPDATED] USER INTERFACE SESUAI BACKEND
 export interface User {
   id: string;
   email: string;
-  name: string;
+  fullName: string; // sesuaikan dengan backend (fullName bukan name)
+  name?: string;    // fallback
   role: string;
-  // tambahkan field lain jika ada (misal: avatar, position)
+  nip?: string;
+  dateOfBirth?: string;
+  unitKerja?: UnitKerja; // Nested object
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthResponse {

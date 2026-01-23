@@ -4,8 +4,6 @@ import {
   PensionInput, PensionResult,
   InsuranceInput, InsuranceResult,
   SpecialGoalInput, SpecialGoalResult,
-  FinancialRecord, HealthAnalysisResult, 
-  RatioDetail, HealthStatus,
 } from "./types";
 
 // --- DATABASE JENJANG ---
@@ -173,6 +171,7 @@ export const calculatePortfolio = (
 };
 
 // --- BUDGET ENGINE (REFACTORED: NO COLOR CLASS) ---
+// Note: Input diharapkan BULANAN. Jika user input tahunan, UI harus membagi 12 dulu.
 
 export const calculateSmartBudget = (fixedIncome: number, variableIncome: number): BudgetResult => {
   const prodDebt = fixedIncome * 0.20;
@@ -193,6 +192,7 @@ export const calculateSmartBudget = (fixedIncome: number, variableIncome: number
 };
 
 // --- PENSION ENGINE (MATCHING EXCEL LOGIC) ---
+// Note: Input 'currentExpense' diharapkan BULANAN (agar konsisten dengan * 12 di bawah).
 
 export const calculatePension = (input: PensionInput): PensionResult => {
   const workingYears = input.retirementAge - input.currentAge;
@@ -324,17 +324,3 @@ export const calculateSpecialGoal = (input: SpecialGoalInput): SpecialGoalResult
     monthlySaving
   };
 };
-
-// ============================================================================
-// FINANCIAL HEALTH CHECK UP ENGINE (DEPRECATED)
-// ============================================================================
-// Logic perhitungan ini sekarang dipindah ke Backend (NestJS).
-// Fungsi ini dinonaktifkan untuk mencegah 'double truth' atau perbedaan hasil hitung.
-// Gunakan `financialService.createCheckup()` untuk mendapatkan hasil dari server.
-// ============================================================================
-
-/* export const calculateFinancialHealth = (data: FinancialRecord): HealthAnalysisResult => {
-  // ... LOGIC LAMA DIHAPUS / DIKOMENTARI AGAR TIDAK DIPAKAI ...
-  throw new Error("This function is deprecated. Use API call instead.");
-}; 
-*/
