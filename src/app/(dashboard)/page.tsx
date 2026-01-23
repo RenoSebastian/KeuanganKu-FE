@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { HealthGauge } from "@/components/features/dashboard/health-gauge";
 import { 
   Sparkles, TrendingUp, Calendar, ArrowRight, Info, AlertCircle,
   Calculator, GraduationCap, ShieldCheck, Landmark, Target, ClipboardList, Lightbulb,
-  Wallet
+  Wallet, Loader2, Activity
 } from "lucide-react";
 import Image from "next/image"; 
 import { cn } from "@/lib/utils";
-// import api from "@/lib/axios"; // Keep commented if unused
+import { financialService } from "@/services/financial.service"; // Import Service
+import { HealthAnalysisResult } from "@/lib/types";
 
 // Helper format uang
 const formatMoney = (val: number) => 
@@ -21,7 +21,7 @@ const formatMoney = (val: number) =>
 export default function DashboardPage() {
   const router = useRouter();
   const [userData, setUserData] = useState<any>(null);
-  const [financialData, setFinancialData] = useState<any>(null);
+  const [checkupData, setCheckupData] = useState<HealthAnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   const currentDate = new Date().toLocaleDateString("id-ID", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -33,18 +33,19 @@ export default function DashboardPage() {
         const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
         if (storedUser) setUserData(JSON.parse(storedUser));
 
-        // 2. Mock Data Checkup
-        setFinancialData({
-            score: 75,
-            status: "SEHAT",
-            recommendation: "Kondisi keuangan cukup baik. Pertimbangkan menambah dana darurat.",
-            incomeSnapshot: 15000000,
-            expenseSnapshot: 8500000,
-            checkDate: new Date().toISOString()
-        });
+        // 2. Fetch Latest Checkup Data
+        const latestCheckup = await financialService.getLatestCheckup();
+        
+        // Backend might return null or empty object if no data
+        if (latestCheckup && (latestCheckup.score !== undefined || (latestCheckup as any).healthScore !== undefined)) {
+           setCheckupData(latestCheckup);
+        } else {
+           setCheckupData(null);
+        }
 
       } catch (error) {
         console.error("Gagal memuat data dashboard:", error);
+        // Biarkan checkupData null jika error (misal 404 not found karena belum ada data)
       } finally {
         setLoading(false);
       }
@@ -53,18 +54,41 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // --- LOGIKA TAMPILAN DATA ---
-  const hasData = !!financialData;
-  const score = hasData ? financialData.score : 0;
-  const status = hasData ? financialData.status : "BELUM DATA";
-  const recommendation = hasData ? financialData.recommendation : "Halo! Silakan input anggaran pertama Anda untuk melihat analisa kesehatan finansial.";
+  // --- LOGIKA TAMPILAN DATA (ADAPTER) ---
+  // Kita perlu handle nama field yg mungkin beda dari backend (healthScore vs score)
+  const hasData = !!checkupData;
+  const rawData: any = checkupData || {};
+
+  const score = rawData.score ?? rawData.healthScore ?? 0;
+  const status = rawData.globalStatus ?? rawData.status ?? "BELUM DATA";
   
-  const income = hasData ? Number(financialData.incomeSnapshot) : 0;
-  const expense = hasData ? Number(financialData.expenseSnapshot) : 0;
-  const balance = income - expense;
+  // Logic Rekomendasi Sederhana (Bisa diganti field dari BE jika ada)
+  let recommendation = "Halo! Silakan lakukan Financial Checkup pertama Anda untuk melihat analisa kesehatan finansial.";
+  if (hasData) {
+      if (score >= 80) recommendation = "Kondisi keuangan Anda sangat prima! Pertahankan dan mulai fokus investasi.";
+      else if (score >= 50) recommendation = "Kondisi cukup baik, namun ada beberapa rasio yang perlu diperbaiki. Cek detailnya.";
+      else recommendation = "Perhatian! Keuangan Anda sedang tidak sehat. Segera lakukan perbaikan arus kas dan utang.";
+  }
+  
+  // Mapping Data Keuangan
+  // Catatan: Backend mungkin mengirim rincian pemasukan di 'ratios' atau field lain. 
+  // Jika tidak ada di root object, kita gunakan default 0 atau hitung manual jika rawData punya field income.
+  // Asumsi: Backend mengirim field root atau kita ambil dari properties yang tersedia.
+  
+  // Fallback safe value
+  const incomeFixed = Number(rawData.incomeFixed || 0);
+  const incomeVariable = Number(rawData.incomeVariable || 0);
+  const totalIncome = incomeFixed + incomeVariable;
+  
+  const surplusDeficit = Number(rawData.surplusDeficit || 0);
+  
+  // Rumus: Pengeluaran = Pemasukan - Surplus
+  // (Jika data baru, mungkin totalIncome 0, jadi expense juga 0)
+  const totalExpense = hasData ? (totalIncome - surplusDeficit) : 0; 
+
+  const netWorth = Number(rawData.netWorth ?? rawData.totalNetWorth ?? 0);
 
   return (
-    // Background sudah dihandle oleh globals.css (subtle pattern), jadi di sini transparan saja
     <div className="relative min-h-full w-full pb-32 md:pb-12">
       
       {/* Container Utama */}
@@ -89,7 +113,7 @@ export default function DashboardPage() {
           <div className="w-full glass-panel p-4 rounded-2xl flex items-center justify-between">
              <div>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">Selamat Datang</p>
-                <p className="text-base font-bold text-brand-900 truncate max-w-[200px]">{userData?.fullName || "Karyawan PAM"}</p>
+                <p className="text-base font-bold text-brand-900 truncate max-w-[200px]">{userData?.name || "Karyawan PAM"}</p>
              </div>
              <div className="h-10 w-10 bg-brand-50 rounded-full flex items-center justify-center border border-brand-100">
                 <span className="text-lg">👋</span>
@@ -110,14 +134,13 @@ export default function DashboardPage() {
               Dashboard Keuangan
             </h1>
             <p className="text-lg text-slate-600">
-              Halo, <span className="font-bold text-brand-600">{userData?.fullName || "User"}</span>. Mari cek kesehatan finansialmu hari ini.
+              Halo, <span className="font-bold text-brand-600">{userData?.name || "User"}</span>. Mari cek kesehatan finansialmu hari ini.
             </p>
           </div>
           
-          {/* Optional Action Button */}
-          <Button className="hidden lg:flex bg-brand-900 hover:bg-brand-800 text-white gap-2 rounded-full px-6 h-12 shadow-lg shadow-brand-900/20" onClick={() => router.push('/finance')}>
+          <Button className="hidden lg:flex bg-brand-900 hover:bg-brand-800 text-white gap-2 rounded-full px-6 h-12 shadow-lg shadow-brand-900/20" onClick={() => router.push('/finance/checkup')}>
             <Wallet className="w-4 h-4" />
-            <span>Kelola Aset</span>
+            <span>Update Data</span>
           </Button>
         </div>
 
@@ -131,78 +154,97 @@ export default function DashboardPage() {
           <div className="md:col-span-8 space-y-8">
             
             {/* 1. HEALTH ANALYSIS CARD (The Hero) */}
-            <div className="card-clean p-0 overflow-hidden relative group">
+            <div className="card-clean p-0 overflow-hidden relative group min-h-[300px]">
                {/* Decorative Gradient Line Top */}
                <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 via-brand-400 to-brand-300"></div>
 
-               <div className="p-5 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
-                  {/* Left Content */}
-                  <div className="flex-1 space-y-5 relative z-10">
-                     <div className="flex items-center gap-2 mb-1">
+               {loading ? (
+                 <div className="flex flex-col items-center justify-center h-[300px] w-full gap-4">
+                    <Loader2 className="w-10 h-10 text-brand-300 animate-spin" />
+                    <p className="text-sm text-slate-400 font-medium">Memuat data kesehatan...</p>
+                 </div>
+               ) : (
+                 <div className="p-5 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-8 h-full">
+                   {/* Left Content */}
+                   <div className="flex-1 space-y-5 relative z-10">
+                      <div className="flex items-center gap-2 mb-1">
                         <div className="p-1.5 bg-brand-50 rounded-lg text-brand-600 border border-brand-100">
                           <Sparkles className="w-4 h-4" />
                         </div>
                         <span className="text-xs font-bold text-brand-600 uppercase tracking-widest">Financial Health Check</span>
-                     </div>
-
-                     <div>
-                        <div className="flex items-baseline gap-3">
-                          <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight">
-                            {status}
-                          </h2>
-                          {hasData && (
-                            <span className={cn(
-                              "px-3 py-1 rounded-full text-[10px] md:text-xs font-bold border flex items-center gap-1",
-                              status === "SEHAT" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
-                              status === "WASPADA" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                              "bg-rose-50 text-rose-700 border-rose-200"
-                            )}>
-                              {status === "SEHAT" ? <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> : <AlertCircle className="w-3 h-3"/>}
-                              {status === "SEHAT" ? "Stabil" : "Perlu Perbaikan"}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                           {recommendation}
-                        </p>
-                     </div>
-
-                     <div className="pt-2">
-                        <Button 
-                          onClick={() => router.push("/calculator/budget")}
-                          className="w-full md:w-auto h-11 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold shadow-lg shadow-brand-500/20 hover:-translate-y-0.5 transition-all"
-                        >
-                           {hasData ? "Update Data Keuangan" : "Mulai Analisa Sekarang"}
-                           <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
-                     </div>
-                  </div>
-
-                  {/* Right Content (Gauge) */}
-                  <div className="flex-shrink-0 flex justify-center py-4 md:py-0">
-                      <div className="relative w-48 h-48 md:w-56 md:h-56 flex items-center justify-center">
-                          {/* Ambient Glow */}
-                          <div className={cn(
-                            "absolute inset-0 rounded-full blur-[50px] opacity-20",
-                            score >= 80 ? "bg-emerald-400" : score >= 60 ? "bg-amber-400" : "bg-rose-500"
-                          )}></div>
-                          
-                          {/* The Gauge Component */}
-                          <div className="relative z-10 transform transition-transform hover:scale-105 duration-500">
-                             <HealthGauge score={score} />
-                             
-                             {/* Floating Score Badge */}
-                             <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white border border-slate-100 shadow-xl px-4 py-1 rounded-full flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-400">SCORE</span>
-                                <span className={cn(
-                                    "text-lg font-black",
-                                    score >= 80 ? "text-emerald-600" : score >= 60 ? "text-amber-600" : "text-rose-600"
-                                )}>{score}</span>
-                             </div>
-                          </div>
                       </div>
-                  </div>
-               </div>
+
+                      <div>
+                        {hasData ? (
+                          <>
+                            <div className="flex items-baseline gap-3">
+                              <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight">
+                                {status}
+                              </h2>
+                              <span className={cn(
+                                "px-3 py-1 rounded-full text-[10px] md:text-xs font-bold border flex items-center gap-1",
+                                (status === "SEHAT" || status === "AMAN" || status === "SANGAT SEHAT") ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
+                                (status === "WASPADA" || status === "HATI-HATI") ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                "bg-rose-50 text-rose-700 border-rose-200"
+                              )}>
+                                {(status === "SEHAT" || status === "AMAN") ? <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> : <AlertCircle className="w-3 h-3"/>}
+                                {(status === "SEHAT" || status === "AMAN") ? "Stabil" : "Perlu Perbaikan"}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                               {recommendation}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <h2 className="text-2xl font-black text-slate-400 tracking-tight">Belum Ada Data</h2>
+                            <p className="text-sm text-slate-500 mt-2 leading-relaxed max-w-sm">
+                               Anda belum melakukan Financial Checkup. Yuk, diagnosa kondisi keuanganmu sekarang agar perencanaannya lebih akurat!
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="pt-2">
+                         <Button 
+                           onClick={() => router.push("/finance/checkup")}
+                           className={cn(
+                             "w-full md:w-auto h-11 rounded-xl text-white font-bold shadow-lg shadow-brand-500/20 hover:-translate-y-0.5 transition-all",
+                             hasData ? "bg-brand-600 hover:bg-brand-700" : "bg-emerald-600 hover:bg-emerald-700"
+                           )}
+                         >
+                            {hasData ? "Update Data Keuangan" : "Mulai Diagnosa Sekarang"}
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                         </Button>
+                      </div>
+                   </div>
+
+                   {/* Right Content (Gauge) */}
+                   <div className="flex-shrink-0 flex justify-center py-4 md:py-0">
+                       <div className="relative w-48 h-48 md:w-56 md:h-56 flex items-center justify-center">
+                           {/* Ambient Glow */}
+                           <div className={cn(
+                             "absolute inset-0 rounded-full blur-[50px] opacity-20",
+                             !hasData ? "bg-slate-200" : score >= 80 ? "bg-emerald-400" : score >= 60 ? "bg-amber-400" : "bg-rose-500"
+                           )}></div>
+                           
+                           {/* The Gauge Component */}
+                           <div className={cn("relative z-10 transform transition-transform hover:scale-105 duration-500", !hasData && "opacity-50 grayscale")}>
+                              <HealthGauge score={score} />
+                              
+                              {/* Floating Score Badge */}
+                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white border border-slate-100 shadow-xl px-4 py-1 rounded-full flex items-center gap-2">
+                                 <span className="text-xs font-bold text-slate-400">SCORE</span>
+                                 <span className={cn(
+                                     "text-lg font-black",
+                                     score >= 80 ? "text-emerald-600" : score >= 60 ? "text-amber-600" : "text-rose-600"
+                                 )}>{score}</span>
+                              </div>
+                           </div>
+                       </div>
+                   </div>
+                 </div>
+               )}
             </div>
 
             {/* 2. MENU CEPAT (Icons Upgrade) */}
@@ -256,33 +298,54 @@ export default function DashboardPage() {
             {/* 1. STATISTIK KEUANGAN */}
             <div className="card-clean p-5 md:p-6 space-y-5">
                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
-                 Ringkasan Bulan Ini
+                 Ringkasan Arus Kas
                </h3>
                
-               <StatRow 
-                 label="Pemasukan"
-                 value={income}
-                 trend="up"
-                 colorClass="text-emerald-600"
-               />
-               <StatRow 
-                 label="Pengeluaran"
-                 value={expense}
-                 trend="down"
-                 colorClass="text-rose-600"
-               />
-               
-               {/* Total Balance Block */}
-               <div className="bg-brand-50 rounded-xl p-4 border border-brand-100 mt-4">
-                  <p className="text-xs text-brand-600 font-semibold mb-1">Sisa Saldo (Cashflow)</p>
-                  <p className="text-2xl font-black text-brand-700">
-                    {formatMoney(balance).replace("Rp", "Rp ")}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2 text-[10px] text-brand-500">
-                     <Info className="w-3 h-3" />
-                     <span>Pastikan surplus positif setiap bulan.</span>
-                  </div>
-               </div>
+               {loading ? (
+                 <div className="space-y-4">
+                    <div className="h-10 bg-slate-100 animate-pulse rounded-lg" />
+                    <div className="h-10 bg-slate-100 animate-pulse rounded-lg" />
+                    <div className="h-20 bg-slate-100 animate-pulse rounded-lg" />
+                 </div>
+               ) : hasData ? (
+                 <>
+                   <StatRow 
+                     label="Pemasukan"
+                     value={totalIncome}
+                     trend="up"
+                     colorClass="text-emerald-600"
+                   />
+                   <StatRow 
+                     label="Pengeluaran"
+                     value={totalExpense}
+                     trend="down"
+                     colorClass="text-rose-600"
+                   />
+                   
+                   {/* Total Balance Block */}
+                   <div className="bg-brand-50 rounded-xl p-4 border border-brand-100 mt-4">
+                      <p className="text-xs text-brand-600 font-semibold mb-1">Surplus / Defisit Bulanan</p>
+                      <p className={cn("text-2xl font-black", surplusDeficit >= 0 ? "text-brand-700" : "text-rose-600")}>
+                        {surplusDeficit >= 0 ? "+" : ""} {formatMoney(surplusDeficit).replace("Rp", "Rp ")}
+                      </p>
+                      <div className="flex items-center gap-1 mt-2 text-[10px] text-brand-500">
+                         <Info className="w-3 h-3" />
+                         <span>{surplusDeficit >= 0 ? "Bagus! Arus kas Anda positif." : "Waspada! Arus kas negatif."}</span>
+                      </div>
+                   </div>
+
+                   {/* Net Worth Block */}
+                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
+                      <span className="text-xs font-bold text-slate-500">Total Kekayaan Bersih</span>
+                      <span className="text-sm font-bold text-slate-800">{formatMoney(netWorth)}</span>
+                   </div>
+                 </>
+               ) : (
+                 <div className="text-center py-8">
+                    <Activity className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400">Data belum tersedia.</p>
+                 </div>
+               )}
             </div>
 
             {/* 2. TIPS WIDGET (Pam Blue Gradient) */}

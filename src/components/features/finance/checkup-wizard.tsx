@@ -6,14 +6,15 @@ import {
   Wallet, Banknote, Calculator,
   CreditCard, User, Heart, MapPin, Briefcase, Users,
   ShoppingBag, Car, Gem, Phone, Umbrella, PiggyBank, ShieldCheck, 
-  Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle
+  Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle, 
+  Loader2 
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { FinancialRecord, HealthAnalysisResult, PersonalInfo } from "@/lib/types";
-import { calculateFinancialHealth } from "@/lib/financial-math";
+import { financialService } from "@/services/financial.service"; 
 import { cn } from "@/lib/utils";
 import { CheckupResult } from "./checkup-result"; 
 
@@ -56,6 +57,7 @@ export function CheckupWizard() {
   const [formData, setFormData] = useState<FinancialRecord>(INITIAL_DATA);
   const [result, setResult] = useState<HealthAnalysisResult | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => setIsClient(true), []);
 
@@ -73,10 +75,38 @@ export function CheckupWizard() {
   const nextStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.min(prev + 1, 4)); };
   const prevStep = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setStep(prev => Math.max(prev - 1, 0)); };
   
-  const handleCalculate = () => { 
-    const analysis = calculateFinancialHealth(formData);
-    setResult(analysis); 
-    window.scrollTo({ top: 0, behavior: "smooth" }); 
+  // --- UPDATE LOGIC: API CALL WITH SANITIZATION ---
+  const handleCalculate = async () => { 
+    setIsLoading(true);
+    try {
+      // 1. Buat salinan data agar tidak mengubah state form UI secara langsung
+      const payload = { ...formData };
+
+      // 2. SANITASI: Hapus data pasangan jika status bukan menikah
+      // Backend akan menolak jika spouseProfile ada tapi isinya kosong/invalid date
+      if (payload.userProfile.maritalStatus !== "MARRIED") {
+        delete payload.spouseProfile;
+      }
+
+      // 3. Panggil API Backend via Service
+      const analysis = await financialService.createCheckup(payload);
+      
+      setResult(analysis); 
+      window.scrollTo({ top: 0, behavior: "smooth" }); 
+    } catch (error: any) {
+      console.error("Gagal melakukan analisa:", error);
+      
+      // Ambil pesan error detail dari backend jika ada
+      const errorMsg = error.response?.data?.message 
+        ? Array.isArray(error.response.data.message) 
+          ? error.response.data.message.join(", ") 
+          : error.response.data.message
+        : "Terjadi kesalahan saat memproses data. Silakan periksa koneksi atau input Anda.";
+
+      alert(`Gagal: ${errorMsg}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (result) {
@@ -145,7 +175,7 @@ export function CheckupWizard() {
             <div className="flex items-center gap-5">
                 <div className={cn(
                     "p-3.5 rounded-2xl shadow-sm transition-all duration-500 ring-1 ring-inset ring-white/50", 
-                    "bg-brand-50 text-brand-600" // Unified Color Theme for Consistency
+                    "bg-brand-50 text-brand-600" 
                 )}>
                     {step === 0 && <User className="w-8 h-8" />}
                     {step === 1 && <Wallet className="w-8 h-8" />}
@@ -389,7 +419,7 @@ export function CheckupWizard() {
 
         {/* FOOTER ACTIONS */}
         <div className="bg-white p-6 md:p-8 border-t border-slate-100 flex justify-between items-center rounded-b-2xl">
-            <Button variant="ghost" onClick={prevStep} disabled={step === 0} className="text-slate-500 hover:text-brand-600">
+            <Button variant="ghost" onClick={prevStep} disabled={step === 0 || isLoading} className="text-slate-500 hover:text-brand-600">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Sebelumnya
             </Button>
             
@@ -397,8 +427,19 @@ export function CheckupWizard() {
                 <Button onClick={nextStep} className="bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-600/20 px-8 h-12 rounded-xl font-bold transition-all hover:translate-x-1">
                     Selanjutnya <ArrowRight className="w-4 h-4 ml-2" />
                 </Button> : 
-                <Button onClick={handleCalculate} className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 px-8 h-12 rounded-xl font-bold transition-all hover:scale-[1.02]">
-                    <Calculator className="w-4 h-4 mr-2" /> Diagnosa Sekarang
+                <Button 
+                  onClick={handleCalculate} 
+                  disabled={isLoading}
+                  className={cn(
+                    "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 px-8 h-12 rounded-xl font-bold transition-all hover:scale-[1.02]",
+                    isLoading && "opacity-70 cursor-not-allowed"
+                  )}
+                >
+                  {isLoading ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menganalisa...</>
+                  ) : (
+                    <><Calculator className="w-4 h-4 mr-2" /> Diagnosa Sekarang</>
+                  )}
                 </Button>
             }
         </div>

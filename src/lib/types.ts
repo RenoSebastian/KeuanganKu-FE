@@ -438,3 +438,31 @@ export interface RiskyEmployeeDetail {
   lastCheckupDate: string;
   status: "BAHAYA" | "WASPADA";
 }
+
+// ============================================================================
+// 8. AUTH TYPES (INTEGRATION PHASE 1)
+// ============================================================================
+
+export interface LoginDto {
+  email: string;
+  password: string;
+}
+
+export interface RegisterDto {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  // tambahkan field lain jika ada (misal: avatar, position)
+}
+
+export interface AuthResponse {
+  access_token: string;
+  user: User;
+}

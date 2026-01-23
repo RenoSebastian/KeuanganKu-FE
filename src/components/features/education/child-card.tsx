@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { formatRupiah, calculateAge } from "@/lib/financial-math";
-import { ChildProfile } from "@/lib/types";
+import { ChildProfile, StageBreakdownItem } from "@/lib/types"; // Import type yang benar
 import { 
   Baby, Trash2, ChevronDown, ChevronUp, Clock, Info, 
   GraduationCap, TrendingUp, Calendar, School 
@@ -12,7 +12,12 @@ import { cn } from "@/lib/utils";
 
 interface ChildCardProps {
   profile: ChildProfile;
-  result?: any; 
+  // Result bisa dari Backend (stagesBreakdown) atau Lokal (stages)
+  result?: { 
+    totalMonthlySaving: number;
+    stagesBreakdown?: StageBreakdownItem[]; 
+    stages?: any[]; 
+  }; 
   onDelete: (id: string) => void;
 }
 
@@ -25,6 +30,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
     ? "from-blue-100 to-indigo-200 text-blue-700" 
     : "from-pink-100 to-rose-200 text-pink-700";
 
+  // Prioritaskan Data Backend (stagesBreakdown) -> Fallback ke Data Lokal (stages)
   const stagesData = result?.stagesBreakdown || result?.stages || [];
 
   return (
@@ -39,72 +45,71 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
        <div className="p-1">
          <div className="bg-gradient-to-b from-white/50 to-white/20 p-5 rounded-[1.8rem]">
            
-            {/* --- HEADER SECTION --- */}
-            <div className="flex justify-between items-start mb-6 relative z-10">
-               <div className="flex items-center gap-4">
-                  {/* Avatar */}
-                  <div className={cn(
-                    "w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner bg-gradient-to-br",
-                    avatarGradient
-                  )}>
-                     {profile.name.charAt(0).toUpperCase()}
-                  </div>
-                  
-                  {/* Identity */}
-                  <div>
-                     <h3 className="font-bold text-slate-800 text-lg leading-tight mb-1 group-hover:text-blue-700 transition-colors">
-                       {profile.name}
-                     </h3>
-                     <div className="flex items-center gap-3">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                          <Baby className="w-3 h-3" /> {age} Tahun
-                        </span>
-                        {/* Gender Icon/Badge could go here if needed */}
-                     </div>
-                  </div>
-               </div>
-               
-               {/* Delete Button */}
-               <button 
-                 onClick={() => onDelete(profile.id)}
-                 className="text-slate-300 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-xl transition-all duration-300 hover:rotate-6 group-hover:opacity-100 opacity-0 md:opacity-100"
-                 title="Hapus Rencana"
-               >
-                 <Trash2 className="w-4.5 h-4.5" />
-               </button>
-            </div>
+           {/* --- HEADER SECTION --- */}
+           <div className="flex justify-between items-start mb-6 relative z-10">
+              <div className="flex items-center gap-4">
+                 {/* Avatar */}
+                 <div className={cn(
+                   "w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner bg-gradient-to-br",
+                   avatarGradient
+                 )}>
+                    {profile.name.charAt(0).toUpperCase()}
+                 </div>
+                 
+                 {/* Identity */}
+                 <div>
+                    <h3 className="font-bold text-slate-800 text-lg leading-tight mb-1 group-hover:text-blue-700 transition-colors">
+                      {profile.name}
+                    </h3>
+                    <div className="flex items-center gap-3">
+                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                         <Baby className="w-3 h-3" /> {age} Tahun
+                       </span>
+                    </div>
+                 </div>
+              </div>
+              
+              {/* Delete Button */}
+              <button 
+                onClick={() => onDelete(profile.id)}
+                className="text-slate-300 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-xl transition-all duration-300 hover:rotate-6 group-hover:opacity-100 opacity-0 md:opacity-100"
+                title="Hapus Rencana"
+              >
+                <Trash2 className="w-4.5 h-4.5" />
+              </button>
+           </div>
 
-            {/* --- SUMMARY STATS --- */}
-            <div className="flex flex-col md:flex-row gap-4 mb-2">
-               {/* Tabungan Widget */}
-               <div className="flex-1 bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between group-hover:border-blue-200 transition-colors">
-                  <div>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                       <TrendingUp className="w-3 h-3" /> Total Tabungan
-                     </p>
-                     <p className="text-xl font-black text-slate-800 tracking-tight">
-                        {result ? formatRupiah(result.monthlySaving || result.totalMonthlySaving) : "Rp 0"}
-                        <span className="text-sm font-medium text-slate-400 ml-1">/bln</span>
-                     </p>
-                  </div>
-               </div>
+           {/* --- SUMMARY STATS --- */}
+           <div className="flex flex-col md:flex-row gap-4 mb-2">
+              {/* Tabungan Widget */}
+              <div className="flex-1 bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between group-hover:border-blue-200 transition-colors">
+                 <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                      <TrendingUp className="w-3 h-3" /> Total Tabungan
+                    </p>
+                    <p className="text-xl font-black text-slate-800 tracking-tight">
+                       {result ? formatRupiah(result.totalMonthlySaving) : "Rp 0"}
+                       <span className="text-sm font-medium text-slate-400 ml-1">/bln</span>
+                    </p>
+                 </div>
+              </div>
 
-               {/* Action Toggle */}
-               {result && stagesData.length > 0 && (
-                 <button 
-                   onClick={() => setIsOpen(!isOpen)}
-                   className={cn(
-                     "flex items-center justify-center gap-2 px-5 rounded-2xl font-bold text-xs transition-all duration-300 border h-auto py-3 md:py-0",
-                     isOpen 
-                       ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20" 
-                       : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600"
-                   )}
-                 >
-                   {isOpen ? "Tutup Rincian" : "Lihat Rincian"}
-                   {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                 </button>
-               )}
-            </div>
+              {/* Action Toggle */}
+              {result && stagesData.length > 0 && (
+                <button 
+                  onClick={() => setIsOpen(!isOpen)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 px-5 rounded-2xl font-bold text-xs transition-all duration-300 border h-auto py-3 md:py-0",
+                    isOpen 
+                      ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20" 
+                      : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+                  )}
+                >
+                  {isOpen ? "Tutup Rincian" : "Lihat Rincian"}
+                  {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              )}
+           </div>
 
          </div>
        </div>
@@ -124,12 +129,14 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                </thead>
                <tbody className="text-sm">
                  {stagesData.map((item: any, idx: number) => {
+                   // Normalisasi Data (Handle perbedaan nama field Backend vs Frontend)
                    const level = item.level || item.stageId;
-                   const typeLabel = item.costType === "ENTRY" ? "Uang Pangkal" : "SPP Bulanan";
-                   const isEntry = item.costType === "ENTRY";
+                   const typeLabel = item.costType === "ENTRY" ? "Uang Pangkal" : (item.item || "SPP Bulanan");
+                   const isEntry = item.costType === "ENTRY" || (item.item && item.item.includes("Pangkal"));
+                   
                    const years = item.yearsToStart !== undefined ? item.yearsToStart : item.dueYear;
-                   const fv = item.futureCost || item.totalFutureCost || 0;
-                   const pmt = item.monthlySaving || 0;
+                   const fv = item.futureCost !== undefined ? item.futureCost : item.totalFutureCost;
+                   const pmt = item.monthlySaving !== undefined ? item.monthlySaving : item.requiredSaving;
 
                    return (
                      <tr key={idx} className="group/row hover:bg-white transition-colors border-b border-slate-100/50 last:border-0">
@@ -148,13 +155,13 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                             </div>
                          </td>
                          <td className="px-4 py-4 text-right">
-                            <div className="font-bold text-slate-600 text-xs md:text-sm">{formatRupiah(fv)}</div>
+                            <div className="font-bold text-slate-600 text-xs md:text-sm">{formatRupiah(fv || 0)}</div>
                             <div className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md mt-1">
                                <Clock className="w-2.5 h-2.5" /> {years} thn lagi
                             </div>
                          </td>
                          <td className="pl-4 pr-6 py-4 text-right">
-                            <div className="font-black text-green-600 text-xs md:text-sm">{formatRupiah(pmt)}</div>
+                            <div className="font-black text-green-600 text-xs md:text-sm">{formatRupiah(pmt || 0)}</div>
                             <div className="text-[9px] text-slate-400 font-medium mt-0.5">/bulan</div>
                          </td>
                      </tr>

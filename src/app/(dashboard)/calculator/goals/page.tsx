@@ -101,6 +101,7 @@ export default function GoalsPage() {
 
     } catch (error) {
       console.error("Gagal menghitung goals:", error);
+      alert("Terjadi kesalahan saat melakukan simulasi.");
     } finally {
       setIsLoading(false);
     }
@@ -247,10 +248,10 @@ export default function GoalsPage() {
                                 <span className="text-xs font-bold bg-rose-50 text-rose-600 px-2 py-1 rounded-md border border-rose-100">{inflation}% / thn</span>
                             </div>
                             <Slider 
-                                value={inflation} // FIX: Sekarang tipe number
-                                onChange={(val) => { setInflation(val); setResult(null); }} // FIX: Menggunakan onChange & val adalah number
+                                value={inflation} 
+                                onChange={(val) => { setInflation(val); setResult(null); }} 
                                 min={0} max={20} step={0.5} 
-                                colorClass="accent-rose-500" // Custom style
+                                colorClass="accent-rose-500"
                                 className="py-2"
                             />
                         </div>
@@ -262,10 +263,10 @@ export default function GoalsPage() {
                                 <span className="text-xs font-bold bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md border border-emerald-100">{investmentRate}% / thn</span>
                             </div>
                             <Slider 
-                                value={investmentRate} // FIX: Sekarang tipe number
-                                onChange={(val) => { setInvestmentRate(val); setResult(null); }} // FIX: Menggunakan onChange & val adalah number
+                                value={investmentRate} 
+                                onChange={(val) => { setInvestmentRate(val); setResult(null); }} 
                                 min={0} max={20} step={0.5} 
-                                colorClass="accent-emerald-500" // Custom style
+                                colorClass="accent-emerald-500"
                                 className="py-2"
                             />
                         </div>

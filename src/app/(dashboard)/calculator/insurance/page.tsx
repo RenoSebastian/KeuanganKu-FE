@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { 
   ShieldCheck, HeartPulse, BadgeDollarSign, 
   RefreshCcw, Download, Landmark, Wallet, 
-  TrendingUp, AlertCircle, CheckCircle2, Loader2, ArrowRight
+  TrendingUp, AlertCircle, CheckCircle2, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math"; 
@@ -102,11 +102,11 @@ export default function InsurancePage() {
             protectionDuration: parseInt(protectionDuration) || 10
         });
 
-        const calc = response.calculation;
+        const calc = (response as any).calculation;
 
         setResult({
             totalDebt: totalDebt,
-            incomeReplacementValue: calc.totalNeeded - totalDebt - pFinalExpense, 
+            incomeReplacementValue: Math.max(0, calc.totalNeeded - totalDebt - pFinalExpense), 
             totalFundNeeded: calc.totalNeeded,
             shortfall: calc.coverageGap
         });
@@ -156,7 +156,7 @@ export default function InsurancePage() {
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
       
-      {/* --- HEADER (PAM BRAND IDENTITY) --- */}
+      {/* --- HEADER --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
@@ -253,24 +253,32 @@ export default function InsurancePage() {
                         </div>
                         
                         <div className="bg-brand-50/50 p-5 rounded-xl space-y-6 border border-brand-100/50">
-                            {/* SLIDER CONFIGURATION */}
-                            <Slider 
-                                label="Asumsi Inflasi Tahunan" 
-                                valueLabel={`${inflation}%`}
-                                value={inflation} 
-                                onChange={(val) => { setInflation(val); setResult(null); }} 
-                                min={0} max={20} step={0.5} 
-                                colorClass="accent-rose-500"
-                            />
+                            {/* SLIDER CONFIGURATION: FIXED TYPES */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
+                                    <span>Asumsi Inflasi Tahunan</span>
+                                    <span>{inflation}%</span>
+                                </div>
+                                <Slider 
+                                    value={inflation} 
+                                    onChange={(val) => { setInflation(val); setResult(null); }} 
+                                    min={0} max={20} step={0.5} 
+                                    className="accent-rose-500"
+                                />
+                            </div>
                             
-                            <Slider 
-                                label="Target Return Investasi" 
-                                valueLabel={`${returnRate}%`}
-                                value={returnRate} 
-                                onChange={(val) => { setReturnRate(val); setResult(null); }} 
-                                min={0} max={20} step={0.5} 
-                                colorClass="accent-emerald-500"
-                            />
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
+                                    <span>Target Return Investasi</span>
+                                    <span>{returnRate}%</span>
+                                </div>
+                                <Slider 
+                                    value={returnRate} 
+                                    onChange={(val) => { setReturnRate(val); setResult(null); }} 
+                                    min={0} max={20} step={0.5} 
+                                    className="accent-emerald-500"
+                                />
+                            </div>
                             
                             <p className="text-[10px] text-slate-400 italic leading-tight pt-2 border-t border-brand-100">
                                 *Sistem akan menghitung "Nett Rate" (Selisih Investasi - Inflasi) untuk menentukan modal yang dibutuhkan.

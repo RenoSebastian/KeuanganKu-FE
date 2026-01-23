@@ -14,7 +14,7 @@ export interface SimulationResultData {
   monthlySaving: number;   
   inflationRate: number;
   returnRate: number;
-  stagesBreakdown?: StageBreakdownItem[]; 
+  stagesBreakdown?: StageBreakdownItem[]; // Opsional: Data detail dari Backend
 }
 
 interface SimulationResultProps {
@@ -25,6 +25,9 @@ interface SimulationResultProps {
 
 export function SimulationResult({ data, onReset, onSave }: SimulationResultProps) {
   const [showDetails, setShowDetails] = useState(false);
+
+  // Cek apakah ada data detail (stagesBreakdown) untuk ditampilkan
+  const hasDetails = data.stagesBreakdown && data.stagesBreakdown.length > 0;
 
   return (
     <div className="space-y-8 animate-in zoom-in-95 duration-500 ease-out">
@@ -92,7 +95,7 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
        </div>
 
        {/* --- BAGIAN DRILL DOWN (RINCIAN) --- */}
-       {data.stagesBreakdown && data.stagesBreakdown.length > 0 && (
+       {hasDetails && (
          <div className="bg-white border border-slate-200 rounded-[1.5rem] shadow-sm overflow-hidden transition-all duration-300">
            <button 
              onClick={() => setShowDetails(!showDetails)}
@@ -127,7 +130,7 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
-                     {data.stagesBreakdown.map((item, idx) => {
+                     {data.stagesBreakdown!.map((item, idx) => {
                        const years = item.yearsToStart ?? 0;
                        return (
                          <tr key={idx} className="group/row hover:bg-blue-50/30 transition-colors">

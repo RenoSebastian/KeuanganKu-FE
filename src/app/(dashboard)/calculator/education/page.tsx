@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { 
   GraduationCap, Plus, Users, Settings2, 
-  Download, Info, Loader2, AlertCircle, TrendingUp, Calendar
+  Download, Info, Loader2, AlertCircle, TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ export default function EducationPage() {
   const [children, setChildren] = useState<ChildProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Asumsi Ekonomi
+  // Asumsi Ekonomi (Bisa disesuaikan via Slider)
   const [assumptions, setAssumptions] = useState({
     inflation: 10,   
     returnRate: 12   
@@ -34,14 +34,17 @@ export default function EducationPage() {
 
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
 
-  // --- 1. FETCH DATA ---
+  // --- 1. FETCH DATA (LOAD FROM BACKEND) ---
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const data = await financialService.getEducationPlans();
       
+      // Mapping Response Backend ke Format UI ChildProfile
       const mappedChildren: ChildProfile[] = data.map((plan: EducationPlanResponse) => {
         const breakdown = plan.calculation.stagesBreakdown;
+        
+        // Group by Level (TK, SD, SMP...)
         const uniqueLevels = Array.from(new Set(breakdown.map(b => b.level)));
         
         const reconstructedPlans: PlanInput[] = uniqueLevels.map(level => {
@@ -50,6 +53,7 @@ export default function EducationPage() {
           
           let monthlyFee = 0;
           if (annualItem) {
+             // Jika PT (Kuliah) asumsi semesteran (x2), Sekolah lain bulanan (x12)
              monthlyFee = (level === "PT") 
                 ? annualItem.currentCost / 2  
                 : annualItem.currentCost / 12; 
@@ -57,7 +61,7 @@ export default function EducationPage() {
 
           return {
             stageId: level,
-            startGrade: 1, 
+            startGrade: 1, // Default, karena backend menyimpan hasil akhir
             costNow: {
               entryFee: entryItem ? entryItem.currentCost : 0,
               monthlyFee: monthlyFee
@@ -69,7 +73,7 @@ export default function EducationPage() {
           id: plan.plan.id,
           name: plan.plan.childName,
           dob: plan.plan.childDob,
-          gender: "L", // Default gender jika BE belum kirim
+          gender: "L", // Default
           avatarColor: "bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700",
           plans: reconstructedPlans
         };
@@ -87,7 +91,8 @@ export default function EducationPage() {
     fetchData();
   }, []);
 
-  // --- 2. CALCULATION ---
+  // --- 2. CALCULATION (REALTIME CLIENT SIDE) ---
+  // Menghitung ulang total portfolio saat data children atau asumsi slider berubah
   useEffect(() => {
     if (children.length > 0) {
       const result = calculatePortfolio(children, assumptions.inflation, assumptions.returnRate);
@@ -99,7 +104,7 @@ export default function EducationPage() {
 
   // --- HANDLERS ---
   const handleWizardSuccess = () => {
-    fetchData(); 
+    fetchData(); // Refresh data setelah simpan
     setView("DASHBOARD");
   };
 
@@ -107,9 +112,10 @@ export default function EducationPage() {
     if (confirm("Apakah Anda yakin ingin menghapus rencana ini? Data tidak dapat dikembalikan.")) {
       try {
         await financialService.deleteEducationPlan(id);
-        fetchData();
+        fetchData(); // Refresh list
       } catch (error) {
         alert("Gagal menghapus data.");
+        console.error(error);
       }
     }
   };
@@ -201,8 +207,8 @@ export default function EducationPage() {
 
                     {isLoading ? (
                       <div className="flex flex-col items-center justify-center py-16 gap-3">
-                         <Loader2 className="w-10 h-10 text-brand-500 animate-spin" />
-                         <p className="text-sm text-slate-400 font-medium">Memuat data...</p>
+                          <Loader2 className="w-10 h-10 text-brand-500 animate-spin" />
+                          <p className="text-sm text-slate-400 font-medium">Memuat data...</p>
                       </div>
                     ) : children.length === 0 ? (
                       // EMPTY STATE
@@ -230,6 +236,7 @@ export default function EducationPage() {
                       // DATA LIST
                       <div className="grid grid-cols-1 gap-6">
                          {children.map((child, idx) => {
+                           // Cari hasil kalkulasi dari portfolio state
                            const childResult = portfolio?.details.find(d => d.childId === child.id);
                            return (
                              <div key={child.id} className="animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${idx * 100}ms` }}>
@@ -276,11 +283,12 @@ export default function EducationPage() {
                                   {assumptions.inflation}% <span className="text-[10px] font-normal opacity-70">/thn</span>
                                 </div>
                             </div>
+                            {/* FIX: Menggunakan single value 'value' dan 'onChange' sesuai SliderProps di src/components/ui/slider.tsx */}
                             <Slider 
                               value={assumptions.inflation} 
                               onChange={(val) => setAssumptions(prev => ({ ...prev, inflation: val }))}
                               min={5} max={20} step={1}
-                              colorClass="accent-rose-500"
+                              colorClass="accent-rose-500" 
                             />
                             <p className="text-[10px] text-slate-400 text-right">Semakin tinggi inflasi, semakin besar dana yang dibutuhkan.</p>
                           </div>
@@ -298,6 +306,7 @@ export default function EducationPage() {
                                   {assumptions.returnRate}% <span className="text-[10px] font-normal opacity-70">/thn</span>
                                 </div>
                             </div>
+                            {/* FIX: Menggunakan single value 'value' dan 'onChange' sesuai SliderProps di src/components/ui/slider.tsx */}
                             <Slider 
                               value={assumptions.returnRate}
                               onChange={(val) => setAssumptions(prev => ({ ...prev, returnRate: val }))} 
@@ -336,4 +345,4 @@ export default function EducationPage() {
       </div>
     </div>
   );
-} 
+}

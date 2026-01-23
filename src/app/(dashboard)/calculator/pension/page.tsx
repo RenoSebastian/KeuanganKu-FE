@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { 
   Calculator, User, Briefcase, TrendingUp, 
-  RefreshCcw, Download, Hourglass, PiggyBank, AlertCircle, Loader2, ArrowRight
+  RefreshCcw, Download, Hourglass, PiggyBank, AlertCircle, Loader2
 } from "lucide-react"; 
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math"; 
@@ -75,7 +75,7 @@ export default function PensionPage() {
     setIsLoading(true); // Start Loading
 
     try {
-      // 1. Prepare Data
+      // 1. Prepare Data & Sanitasi
       const cAge = parseInt(currentAge) || 0;
       const rAge = parseInt(retirementAge) || 0;
       const rDur = parseInt(retirementDuration) || 20;
@@ -88,26 +88,26 @@ export default function PensionPage() {
         retirementAge: rAge,
         lifeExpectancy: rAge + rDur, // BE butuh umur harapan hidup total
         currentExpense: expense,
-        currentSaving: fund,
+        currentSaving: fund, // Optional field di BE
         inflationRate: inflation,
         returnRate: returnRate
       });
 
-      const calc = response.calculation;
+      // Response Backend dibungkus dalam object { id, userId, ..., calculation: {...} }
+      const calc = (response as any).calculation;
 
       // 3. Map Response to UI State
-      // Kita hitung FV fund manual untuk display karena BE fokus ke shortfall
       const yearsToRetire = rAge - cAge;
       const estimatedFvFund = fund * Math.pow(1 + (returnRate/100), yearsToRetire);
 
       setResult({
         workingYears: yearsToRetire,
         retirementYears: rDur,
-        fvMonthlyExpense: calc.futureMonthlyExpense, // Dari BE
-        fvExistingFund: estimatedFvFund, // Hitung lokal utk display
-        totalFundNeeded: calc.totalFundNeeded, // Dari BE
-        shortfall: calc.monthlySaving, // Asumsi shortfall ditutup monthly saving
-        monthlySaving: calc.monthlySaving // Dari BE
+        fvMonthlyExpense: calc.futureMonthlyExpense || 0, 
+        fvExistingFund: estimatedFvFund,
+        totalFundNeeded: calc.totalFundNeeded, 
+        shortfall: calc.monthlySaving > 0 ? calc.monthlySaving * 12 * yearsToRetire : 0, 
+        monthlySaving: calc.monthlySaving 
       });
 
     } catch (error) {
@@ -258,14 +258,31 @@ export default function PensionPage() {
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-xl space-y-6 border border-slate-100">
-                   <Slider 
-                     label="Asumsi Inflasi" valueLabel={`${inflation}% / tahun`}
-                     value={inflation} onChange={setInflation} min={0} max={15} step={0.5} colorClass="accent-red-500"
-                   />
-                   <Slider 
-                     label="Return Investasi" valueLabel={`${returnRate}% / tahun`}
-                     value={returnRate} onChange={setReturnRate} min={4} max={20} step={0.5} colorClass="accent-emerald-500"
-                   />
+                   {/* FIXED: Gunakan single value (number), bukan array [number] */}
+                   <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-slate-500">
+                        <span>Asumsi Inflasi</span>
+                        <span>{inflation}% / tahun</span>
+                      </div>
+                      <Slider 
+                        value={inflation} 
+                        onChange={(val) => setInflation(val)} 
+                        min={0} max={15} step={0.5} 
+                        className="accent-red-500"
+                      />
+                   </div>
+                   <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-slate-500">
+                        <span>Return Investasi</span>
+                        <span>{returnRate}% / tahun</span>
+                      </div>
+                      <Slider 
+                        value={returnRate} 
+                        onChange={(val) => setReturnRate(val)} 
+                        min={4} max={20} step={0.5} 
+                        className="accent-emerald-500"
+                      />
+                   </div>
                 </div>
 
                 {/* BUTTON WITH LOADING STATE */}
@@ -327,33 +344,33 @@ export default function PensionPage() {
                   <Card className="bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0">
                      <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                      <div className="relative z-10 space-y-8">
-                        <div className="grid grid-cols-2 gap-4 pb-6 border-b border-white/20">
-                           <div>
-                              <p className="text-indigo-200 text-[10px] font-bold uppercase mb-1">Target Dana ({result.retirementYears} Th)</p>
-                              <p className="text-xl font-bold truncate" title={formatRupiah(result.totalFundNeeded)}>
-                                {formatRupiah(result.totalFundNeeded)}
-                              </p>
-                           </div>
-                           <div className="text-right">
-                              <p className="text-emerald-300 text-[10px] font-bold uppercase mb-1">FV Saldo Awal</p>
-                              <p className="text-xl font-bold text-emerald-100 truncate" title={formatRupiah(result.fvExistingFund)}>
-                                {formatRupiah(result.fvExistingFund)}
-                              </p>
-                           </div>
-                        </div>
-                        <div className="text-center">
-                           <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/20 mb-3">
-                               <TrendingUp className="w-3 h-3 text-white" />
-                               <span className="text-[10px] font-bold uppercase tracking-widest text-white">Investasi Bulanan (Kekurangan)</span>
-                           </div>
-                           
-                           <h2 className="text-4xl md:text-5xl font-black mb-3 text-white tracking-tight drop-shadow-sm">
-                              {formatRupiah(result.monthlySaving)}
-                           </h2>
-                           <p className="text-xs text-indigo-100 opacity-80 leading-relaxed max-w-sm mx-auto">
-                              Jika Anda menabung nominal ini, dana pensiun Anda aman untuk membiayai hidup selama {result.retirementYears} tahun (sesuai input).
-                           </p>
-                        </div>
+                       <div className="grid grid-cols-2 gap-4 pb-6 border-b border-white/20">
+                          <div>
+                             <p className="text-indigo-200 text-[10px] font-bold uppercase mb-1">Target Dana ({result.retirementYears} Th)</p>
+                             <p className="text-xl font-bold truncate" title={formatRupiah(result.totalFundNeeded)}>
+                               {formatRupiah(result.totalFundNeeded)}
+                             </p>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-emerald-300 text-[10px] font-bold uppercase mb-1">FV Saldo Awal</p>
+                             <p className="text-xl font-bold text-emerald-100 truncate" title={formatRupiah(result.fvExistingFund)}>
+                               {formatRupiah(result.fvExistingFund)}
+                             </p>
+                          </div>
+                       </div>
+                       <div className="text-center">
+                          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/20 mb-3">
+                              <TrendingUp className="w-3 h-3 text-white" />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-white">Investasi Bulanan (Kekurangan)</span>
+                          </div>
+                          
+                          <h2 className="text-4xl md:text-5xl font-black mb-3 text-white tracking-tight drop-shadow-sm">
+                             {formatRupiah(result.monthlySaving)}
+                          </h2>
+                          <p className="text-xs text-indigo-100 opacity-80 leading-relaxed max-w-sm mx-auto">
+                             Jika Anda menabung nominal ini, dana pensiun Anda aman untuk membiayai hidup selama {result.retirementYears} tahun (sesuai input).
+                          </p>
+                       </div>
                      </div>
                   </Card>
 

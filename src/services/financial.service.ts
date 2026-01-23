@@ -7,8 +7,8 @@ import {
   GoalPayload,
   EducationPayload,
   EducationPlanResponse,
-  GoalSimulationInput,   // [NEW] Tipe Input Simulasi
-  GoalSimulationResult   // [NEW] Tipe Output Simulasi
+  GoalSimulationInput,
+  GoalSimulationResult
 } from "@/lib/types";
 
 export const financialService = {
@@ -17,16 +17,19 @@ export const financialService = {
   // ===========================================================================
   
   createCheckup: async (data: FinancialRecord) => {
+    // Explicit return type <HealthAnalysisResult> agar dikenali UI
     const response = await api.post<HealthAnalysisResult>("/financial/checkup", data);
     return response.data;
   },
 
   getLatestCheckup: async () => {
+    // Mengambil data checkup terakhir user
     const response = await api.get("/financial/checkup/latest");
     return response.data; 
   },
 
   getCheckupHistory: async () => {
+    // Mengambil history lengkap
     const response = await api.get("/financial/checkup/history");
     return response.data;
   },

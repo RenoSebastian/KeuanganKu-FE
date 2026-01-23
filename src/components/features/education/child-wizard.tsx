@@ -97,8 +97,12 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
 
         const cost = costs[id];
         const startGrade = startGrades[id] || 1;
+        
+        // Hitung tahun mulai (Years To Start)
+        // Rumus: (Usia Masuk Jenjang + Offset Kelas) - Usia Anak Sekarang
         const baseEntryYears = (stageInfo.entryAge + (startGrade - 1)) - childAge;
 
+        // 1. Tambahkan Uang Pangkal (Entry Fee) jika ada
         if (cost.entry > 0) {
           stagesPayload.push({
             level: mapLevel(id),
@@ -108,9 +112,12 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
           });
         }
 
+        // 2. Tambahkan Biaya Bulanan/Semesteran (Annual Fee) jika ada
         if (cost.monthly > 0) {
           const isSemester = stageInfo.paymentFrequency === "SEMESTER";
+          // Konversi ke Annual Cost karena Backend basis tahunan untuk inflasi
           const annualCost = isSemester ? cost.monthly * 2 : cost.monthly * 12;
+          
           const remainingDuration = stageInfo.duration - (startGrade - 1);
 
           for (let i = 0; i < remainingDuration; i++) {
@@ -118,7 +125,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
               level: mapLevel(id),
               costType: "ANNUAL", 
               currentCost: annualCost,
-              yearsToStart: Math.max(0, baseEntryYears + i) 
+              yearsToStart: Math.max(0, baseEntryYears + i) // Tiap tahun nambah 1 tahun lagi jaraknya
             });
           }
         }
@@ -134,7 +141,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
       };
 
       await financialService.saveEducationPlan(payload);
-      onSave(); 
+      onSave(); // Callback ke parent untuk refresh data
 
     } catch (error) {
       console.error("Gagal menyimpan rencana pendidikan:", error);

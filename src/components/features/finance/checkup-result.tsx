@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { 
-  CheckCircle2, AlertTriangle, XCircle, AlertOctagon,
-  Save, RefreshCcw, FileText, ChevronDown, ChevronUp, Share2,
+  CheckCircle2, AlertTriangle, XCircle,
+  Save, RefreshCcw, FileText, ChevronDown, ChevronUp,
   TrendingUp, Activity, Download
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { FinancialRecord, HealthAnalysisResult } from "@/lib/types"; 
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service"; 
-// import { useToast } from "@/components/ui/use-toast"; 
 
 interface CheckupResultProps {
   data: HealthAnalysisResult;
@@ -25,56 +24,81 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
   const [saved, setSaved] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
+  // --- 1. NORMALISASI DATA (FIX CRASH) ---
+  const ratios = data.ratios || (data as any).ratiosDetails || [];
+  const score = data.score ?? (data as any).healthScore ?? 0;
+  const globalStatus = data.globalStatus || (data as any).status || "BAHAYA";
+  const netWorth = data.netWorth ?? (data as any).totalNetWorth ?? 0;
+  const surplusDeficit = data.surplusDeficit ?? 0;
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await financialService.createCheckup(rawData);
+      // --- FIX: SANITASI DATA SEBELUM SIMPAN ---
+      // Clone data agar tidak memutasi props
+      const payload = { ...rawData };
+
+      // Hapus data pasangan jika user Single/Divorced
+      if (payload.userProfile.maritalStatus !== "MARRIED") {
+        delete payload.spouseProfile;
+      }
+
+      await financialService.createCheckup(payload);
       setSaved(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gagal menyimpan:", error);
+      
+      // Feedback error ke user
+      const errorMsg = error.response?.data?.message 
+        ? Array.isArray(error.response.data.message) 
+          ? error.response.data.message.join(", ") 
+          : error.response.data.message
+        : "Gagal menyimpan data.";
+        
+      alert(`Error: ${errorMsg}`);
     } finally {
       setSaving(false);
     }
   };
 
-  // --- HELPER UNTUK MAPPING WARNA STATUS (Semantic Grade) ---
-  const getStatusColor = (grade: string) => {
-    switch(grade) {
-      case "EXCELLENT": return "border-emerald-600 bg-emerald-50/60 hover:bg-emerald-100";
-      case "GOOD": return "border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50";
-      case "WARNING": return "border-amber-400 bg-amber-50/50 hover:bg-amber-50";
-      case "CRITICAL": return "border-red-500 bg-red-50/50 hover:bg-red-50";
+  // --- HELPER UNTUK MAPPING WARNA STATUS ---
+  const getStatusColor = (color: string) => {
+    switch(color) {
+      case "GREEN_DARK": return "border-emerald-600 bg-emerald-50/60 hover:bg-emerald-100";
+      case "GREEN_LIGHT": return "border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50";
+      case "YELLOW": return "border-amber-400 bg-amber-50/50 hover:bg-amber-50";
+      case "RED": return "border-red-500 bg-red-50/50 hover:bg-red-50";
       default: return "border-slate-200 bg-white";
     }
   };
 
-  const getStatusIcon = (grade: string) => {
-    switch(grade) {
-      case "EXCELLENT": return <CheckCircle2 className="w-5 h-5 text-emerald-700" />;
-      case "GOOD": return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
-      case "WARNING": return <AlertTriangle className="w-5 h-5 text-amber-500" />;
-      case "CRITICAL": return <XCircle className="w-5 h-5 text-red-600" />;
+  const getStatusIcon = (color: string) => {
+    switch(color) {
+      case "GREEN_DARK": return <CheckCircle2 className="w-5 h-5 text-emerald-700" />;
+      case "GREEN_LIGHT": return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
+      case "YELLOW": return <AlertTriangle className="w-5 h-5 text-amber-500" />;
+      case "RED": return <XCircle className="w-5 h-5 text-red-600" />;
       default: return <Activity className="w-5 h-5 text-slate-400" />;
     }
   };
 
-  const getStatusBadge = (grade: string) => {
-    switch(grade) {
-        case "EXCELLENT": return <Badge className="bg-emerald-700 hover:bg-emerald-800 text-white border-0">Sangat Sehat</Badge>;
-        case "GOOD": return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200">Sehat</Badge>;
-        case "WARNING": return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200">Waspada</Badge>;
-        case "CRITICAL": return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">Bahaya</Badge>;
+  const getStatusBadge = (color: string) => {
+    switch(color) {
+        case "GREEN_DARK": return <Badge className="bg-emerald-700 hover:bg-emerald-800 text-white border-0">Sangat Sehat</Badge>;
+        case "GREEN_LIGHT": return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200">Sehat</Badge>;
+        case "YELLOW": return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200">Waspada</Badge>;
+        case "RED": return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">Bahaya</Badge>;
         default: return null;
     }
   };
 
   // --- HELPER GLOBAL STATUS ---
-  const getGlobalStatusColor = (score: number) => {
-      if (score >= 80) return "text-emerald-600";
-      if (score >= 50) return "text-amber-500";
+  const getGlobalStatusColor = (val: number) => {
+      if (val >= 80) return "text-emerald-600";
+      if (val >= 50) return "text-amber-500";
       return "text-red-600";
   }
-
+  
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
       
@@ -93,16 +117,16 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                   <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f5f9" strokeWidth="8" strokeLinecap="round" />
                   <circle 
                     cx="50" cy="50" r="42" fill="none" 
-                    stroke={data.score >= 80 ? "#059669" : data.score >= 50 ? "#d97706" : "#dc2626"} 
+                    stroke={score >= 80 ? "#059669" : score >= 50 ? "#d97706" : "#dc2626"} 
                     strokeWidth="8" 
-                    strokeDasharray={`${data.score * 2.64} 264`} 
+                    strokeDasharray={`${score * 2.64} 264`} 
                     strokeLinecap="round"
                     className="transition-all duration-1000 ease-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className={cn("text-5xl font-black tracking-tighter", getGlobalStatusColor(data.score))}>
-                        {data.score}
+                    <span className={cn("text-5xl font-black tracking-tighter", getGlobalStatusColor(score))}>
+                        {score}
                     </span>
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Health Score</span>
                 </div>
@@ -110,11 +134,11 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
 
              <div className="text-center relative z-10">
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                    Status: <span className={getGlobalStatusColor(data.score)}>{data.globalStatus}</span>
+                    Status: <span className={getGlobalStatusColor(score)}>{globalStatus}</span>
                 </h2>
                 <p className="text-sm text-slate-500 leading-relaxed px-4">
-                    {data.score >= 80 ? "Kondisi keuangan Anda prima! Pertahankan performa ini." : 
-                     data.score >= 50 ? "Ada beberapa indikator yang perlu perhatian khusus." : 
+                    {score >= 80 ? "Kondisi keuangan Anda prima! Pertahankan performa ini." : 
+                     score >= 50 ? "Ada beberapa indikator yang perlu perhatian khusus." : 
                      "Kondisi kritis. Segera lakukan perbaikan struktur keuangan."}
                 </p>
              </div>
@@ -134,7 +158,7 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                         Kekayaan Bersih (Net Worth)
                      </div>
                      <div className="text-3xl font-mono font-bold tracking-tight text-white truncate">
-                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(data.netWorth)}
+                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(netWorth)}
                      </div>
                  </div>
                  <div>
@@ -143,10 +167,10 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                         Surplus / Defisit Tahunan
                      </div>
                      <div className={cn("text-3xl font-mono font-bold tracking-tight truncate", 
-                        data.surplusDeficit >= 0 ? "text-emerald-400" : "text-red-400"
+                        surplusDeficit >= 0 ? "text-emerald-400" : "text-red-400"
                      )}>
-                        {data.surplusDeficit >= 0 ? "+" : ""}
-                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(data.surplusDeficit)}
+                        {surplusDeficit >= 0 ? "+" : ""}
+                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(surplusDeficit)}
                      </div>
                  </div>
              </div>
@@ -159,11 +183,12 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                     <div>
                         <h4 className="font-bold text-emerald-100 text-lg mb-2">Diagnosa Dokter Keuangan</h4>
                         <p className="text-brand-100 text-sm leading-relaxed">
-                            "Berdasarkan analisa 8 rasio, Anda memiliki <strong className="text-emerald-400">{data.ratios.filter(r => r.grade === "EXCELLENT" || r.grade === "GOOD").length} indikator SEHAT</strong>, 
-                            <strong className="text-amber-400"> {data.ratios.filter(r => r.grade === "WARNING").length} WASPADA</strong>, dan 
-                            <strong className="text-red-400"> {data.ratios.filter(r => r.grade === "CRITICAL").length} BAHAYA</strong>. 
+                            {/* FIX: Menggunakan variabel 'ratios' yang sudah dinormalisasi */}
+                            "Berdasarkan analisa 8 rasio, Anda memiliki <strong className="text-emerald-400">{ratios.filter((r: any) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length} indikator SEHAT</strong>, 
+                            <strong className="text-amber-400"> {ratios.filter((r: any) => r.statusColor === "YELLOW").length} WASPADA</strong>, dan 
+                            <strong className="text-red-400"> {ratios.filter((r: any) => r.statusColor === "RED").length} BAHAYA</strong>. 
                             Prioritas perbaikan ada pada sektor <span className="text-white border-b border-dashed border-slate-500 pb-0.5 ml-1">
-                                {data.ratios.find(r => r.grade === "CRITICAL" || r.grade === "WARNING")?.label || "Pertumbuhan Aset"}
+                                {ratios.find((r: any) => r.statusColor === "RED" || r.statusColor === "YELLOW")?.label || "Pertumbuhan Aset"}
                             </span>."
                         </p>
                     </div>
@@ -183,25 +208,25 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {data.ratios.map((ratio) => (
+            {ratios.map((ratio: any) => (
                 <div 
                     key={ratio.id}
                     className={cn(
                         "group relative rounded-2xl p-5 border-l-4 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 bg-white",
-                        getStatusColor(ratio.grade),
+                        getStatusColor(ratio.statusColor),
                         expandedCard === ratio.id ? "col-span-1 md:col-span-2 lg:col-span-2 row-span-2 ring-2 ring-brand-500/20 z-10" : ""
                     )}
                     onClick={() => setExpandedCard(expandedCard === ratio.id ? null : ratio.id)}
                 >
                     <div className="flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
-                            {getStatusBadge(ratio.grade)}
-                            {getStatusIcon(ratio.grade)}
+                            {getStatusBadge(ratio.statusColor)}
+                            {getStatusIcon(ratio.statusColor)}
                         </div>
                         
                         <h4 className="font-bold text-xs uppercase tracking-wide text-slate-500 mb-1">{ratio.label}</h4>
                         <div className="text-2xl font-bold text-slate-800 mb-2 truncate">
-                            {ratio.id === "emergency_fund" || ratio.id === "liquidity_ratio" ? `${ratio.value}x` : `${ratio.value}%`}
+                            {ratio.id === "emergency_fund" || ratio.id === "liq_networth" ? `${ratio.value}x / %` : `${ratio.value}%`}
                         </div>
                         
                         <div className="flex items-center gap-2 text-xs text-slate-400 mb-4">
