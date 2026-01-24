@@ -20,7 +20,7 @@ export interface PlanInput {
   stageId: string;
   startGrade: number; // Default 1
   costNow: {
-    entryFee: number;   
+    entryFee: number;    
     monthlyFee: number; // SPP (x12) atau UKT (x2)
   };
 }
@@ -423,12 +423,18 @@ export interface SystemSettings {
 // 7. EXECUTIVE / DIRECTOR DASHBOARD TYPES
 // ============================================================================
 
+export interface StatusCountDto {
+  SEHAT: number;
+  WASPADA: number;
+  BAHAYA: number;
+}
+
 export interface DirectorDashboardStats {
   totalEmployees: number;
   avgHealthScore: number;     
   riskyEmployeesCount: number; 
   totalAssetsManaged: number;  
-  monthlyHealthTrend: number[]; 
+  statusCounts?: StatusCountDto; // Optional agar tidak error jika BE lama
 }
 
 export interface UnitHealthRanking {
@@ -444,9 +450,26 @@ export interface RiskyEmployeeDetail {
   fullName: string;
   unitName: string;
   healthScore: number;
-  debtToIncomeRatio: number; 
-  lastCheckupDate: string;
+  debtToIncomeRatio?: number; // Optional (sesuai DTO Backend)
+  lastCheckDate: string;      // Rename dari 'lastCheckupDate' agar sesuai DTO Backend
   status: "BAHAYA" | "WASPADA";
+}
+
+// [NEW] Interface untuk Detail Audit Karyawan (Wrapper Utama)
+export interface AuditProfile {
+  id: string;
+  fullName: string;
+  unitName: string;
+  email: string;
+  status: HealthStatus;
+  healthScore: number;
+  lastCheckDate: string;
+}
+
+export interface EmployeeAuditDetail {
+  profile: AuditProfile;
+  record: FinancialRecord;        // Menggunakan tipe FinancialRecord yang sudah ada (40+ vars)
+  analysis: HealthAnalysisResult; // Menggunakan tipe HealthAnalysisResult yang sudah ada
 }
 
 // ============================================================================
