@@ -15,18 +15,23 @@ import { cn } from "@/lib/utils";
 import { RiskyEmployeeDetail } from "@/lib/types";
 import { directorService } from "@/services/director.service";
 
+// Components
+import RiskFilterBar from "@/components/features/director/risk/risk-filter-bar";
+
 export default function RiskMonitorPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [employees, setEmployees] = useState<RiskyEmployeeDetail[]>([]);
   
-  // Client-side Filtering State
-  const [filterTerm, setFilterTerm] = useState("");
+  // --- FILTER STATE ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterUnit, setFilterUnit] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
+  // 1. Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Mengambil full list karyawan berisiko
         const data = await directorService.getRiskMonitor();
         setEmployees(data);
       } catch (error) {
@@ -38,11 +43,27 @@ export default function RiskMonitorPage() {
     fetchData();
   }, []);
 
-  // Logic Filtering (Nama atau Unit)
-  const filteredEmployees = employees.filter(emp => 
-    emp.fullName.toLowerCase().includes(filterTerm.toLowerCase()) ||
-    emp.unitName.toLowerCase().includes(filterTerm.toLowerCase())
-  );
+  // 2. Generate Options untuk Filter secara Dinamis
+  const unitOptions = Array.from(new Set(employees.map(e => e.unitName)))
+    .sort()
+    .map(unit => ({ label: unit, value: unit }));
+
+  const statusOptions = [
+    { label: "Bahaya", value: "BAHAYA" },
+    { label: "Waspada", value: "WASPADA" },
+  ];
+
+  // 3. Logic Filtering (Multi-condition)
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = 
+      emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      emp.unitName.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesUnit = filterUnit ? emp.unitName === filterUnit : true;
+    const matchesStatus = filterStatus ? emp.status === filterStatus : true;
+
+    return matchesSearch && matchesUnit && matchesStatus;
+  });
 
   return (
     <div className="space-y-6 min-h-screen pb-20">
@@ -62,31 +83,53 @@ export default function RiskMonitorPage() {
             Risk Monitor Center
           </h1>
           <p className="text-slate-500 text-sm mt-2 max-w-2xl">
-            Daftar lengkap karyawan yang terindikasi memiliki risiko kesehatan finansial <span className="font-bold text-rose-600 bg-rose-50 px-1 rounded">BAHAYA</span> atau <span className="font-bold text-amber-600 bg-amber-50 px-1 rounded">WASPADA</span>. Data ini bersifat rahasia.
+            Daftar lengkap karyawan yang terindikasi memiliki risiko kesehatan finansial <span className="font-bold text-rose-600 bg-rose-50 px-1 rounded">BAHAYA</span> atau <span className="font-bold text-amber-600 bg-amber-50 px-1 rounded">WASPADA</span>.
           </p>
         </div>
         
         <div className="flex gap-2">
-           <Button variant="outline" className="gap-2 border-slate-200 text-slate-600 bg-white shadow-sm">
+           <Button variant="outline" className="gap-2 border-slate-200 text-slate-600 bg-white shadow-sm hover:bg-slate-50">
              <Download className="w-4 h-4" /> Export CSV
            </Button>
         </div>
       </div>
 
       {/* --- CONTROL BAR --- */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-20 z-30">
-        <div className="relative w-full md:w-96">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-           <Input 
-             placeholder="Cari nama karyawan atau unit kerja..." 
-             className="pl-9 bg-slate-50 border-slate-200 focus:bg-white transition-all"
-             value={filterTerm}
-             onChange={(e) => setFilterTerm(e.target.value)}
-           />
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between sticky top-20 z-30">
+        
+        {/* Search & Filters */}
+        <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+            <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input 
+                  placeholder="Cari nama karyawan..." 
+                  className="pl-9 bg-slate-50 border-slate-200 focus:bg-white transition-all h-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
+            
+            <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+                <RiskFilterBar 
+                    label="Status" 
+                    options={statusOptions} 
+                    selectedValue={filterStatus}
+                    onValueChange={setFilterStatus}
+                    placeholder="Semua Status"
+                />
+                <RiskFilterBar 
+                    label="Unit Kerja" 
+                    options={unitOptions} 
+                    selectedValue={filterUnit}
+                    onValueChange={setFilterUnit}
+                    placeholder="Semua Unit"
+                />
+            </div>
         </div>
         
-        <div className="flex items-center gap-3 text-sm text-slate-500 w-full md:w-auto justify-between md:justify-end">
-           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+        {/* Count Badge */}
+        <div className="flex items-center gap-3 text-sm text-slate-500 w-full xl:w-auto justify-between xl:justify-end border-t xl:border-t-0 pt-3 xl:pt-0">
+           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 ml-auto">
              <Filter className="w-4 h-4" />
              <span className="font-medium">{filteredEmployees.length}</span>
              <span className="text-slate-400">Data Ditemukan</span>
@@ -107,10 +150,14 @@ export default function RiskMonitorPage() {
                 <FileText className="w-8 h-8 text-slate-300" />
               </div>
               <h3 className="font-bold text-slate-600 text-lg">Tidak ada data ditemukan</h3>
-              <p className="text-sm max-w-xs mt-1">Coba ubah kata kunci pencarian atau filter Anda.</p>
-              {filterTerm && (
-                <Button variant="link" onClick={() => setFilterTerm("")} className="mt-2 text-rose-600">
-                  Reset Pencarian
+              <p className="text-sm max-w-xs mt-1">Coba ubah kata kunci pencarian atau reset filter Anda.</p>
+              {(searchQuery || filterUnit || filterStatus) && (
+                <Button 
+                    variant="link" 
+                    onClick={() => { setSearchQuery(""); setFilterUnit(""); setFilterStatus(""); }} 
+                    className="mt-2 text-rose-600"
+                >
+                  Reset Semua Filter
                 </Button>
               )}
            </div>
