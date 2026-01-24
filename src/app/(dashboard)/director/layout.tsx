@@ -40,7 +40,7 @@ export default function DirectorLayout({
 
         {/* CENTER: Global Omni-Search (Phase 3 Integration) */}
         {/* Flex-1 agar mengisi ruang kosong di tengah, max-w agar tidak terlalu lebar */}
-        <div className="flex-1 max-w-xl mx-auto">
+        <div className="flex-1 max-w-xl mx-auto hidden sm:block">
            <DirectorOmniSearch />
         </div>
         
@@ -63,6 +63,11 @@ export default function DirectorLayout({
           <span className="lg:hidden">LOG</span>
         </div>
       </header>
+
+      {/* MOBILE SEARCH BAR (Visible only on small screens below sm breakpoint) */}
+      <div className="sm:hidden bg-slate-900 px-4 pb-3 border-b border-slate-800">
+         <DirectorOmniSearch />
+      </div>
 
       {/* ========================================================================
         Content Wrapper
