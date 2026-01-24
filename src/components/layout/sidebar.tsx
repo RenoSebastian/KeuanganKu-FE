@@ -1,15 +1,12 @@
 "use client";
 
-import { 
-  Home, Calculator, Wallet, History, User, LogOut, 
-  LayoutDashboard, Users, Database, Settings, ShieldCheck,
-  ShieldAlert, BarChart3, PieChart
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { NAVIGATION_CONFIG } from "@/config/navigation";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -18,57 +15,52 @@ export function Sidebar() {
   // State untuk Role Management
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDirector, setIsDirector] = useState(false);
-  // Tambahan info user untuk ditampilkan di sidebar bawah (opsional)
+  // Tambahan info user untuk ditampilkan di sidebar bawah
   const [userInitials, setUserInitials] = useState("U");
 
   useEffect(() => {
-    // --- LOGIKA CEK ROLE ---
+    // --- LOGIKA CEK ROLE (Client Side Hydration) ---
+    // Mengambil data user dari localStorage setelah mount untuk menghindari hydration mismatch
     const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    
     if (storedUser) {
-      const user = JSON.parse(storedUser);
-      setIsAdmin(user.role === 'ADMIN');
-      setIsDirector(user.role === 'DIRECTOR');
-      
-      // Ambil inisial nama
-      if (user.fullName) {
-          const names = user.fullName.split(' ');
-          setUserInitials(names[0].charAt(0) + (names.length > 1 ? names[names.length-1].charAt(0) : ""));
+      try {
+        const user = JSON.parse(storedUser);
+        setIsAdmin(user.role === 'ADMIN');
+        setIsDirector(user.role === 'DIRECTOR');
+        
+        // Generate inisial nama (Misal: "Budi Santoso" -> "BS")
+        if (user.fullName) {
+            const names = user.fullName.split(' ');
+            const initials = names[0].charAt(0) + (names.length > 1 ? names[names.length-1].charAt(0) : "");
+            setUserInitials(initials.toUpperCase());
+        }
+      } catch (e) {
+        console.error("Gagal parsing user data", e);
       }
     }
   }, []);
-
-  const navItems = [
-    { label: "Dashboard", icon: Home, href: "/" },
-    { label: "Kalkulator", icon: Calculator, href: "/calculator/budget" },
-    { label: "Keuangan", icon: Wallet, href: "/finance" },
-    { label: "Riwayat", icon: History, href: "/history" },
-    { label: "Profil", icon: User, href: "/profile" },
-  ];
-
-  const adminNavItems = [
-    { label: "Dashboard Admin", icon: LayoutDashboard, href: "/admin/dashboard" },
-    { label: "Manajemen User", icon: Users, href: "/admin/users" },
-    { label: "Data Master", icon: Database, href: "/admin/master-data" },
-    { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },
-  ];
-
-  const executiveNavItems = [
-    { label: "Director Panel", icon: ShieldAlert, href: "/director" },
-  ];
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
         localStorage.removeItem("user");
         localStorage.removeItem("token");
+        // Hapus cookie juga jika ada (optional, tergantung implementasi auth)
+        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
     router.push("/login");
   };
 
-  // Helper untuk render link
+  // Helper Component untuk render link
   const NavLink = ({ item, variant = "default" }: { item: any, variant?: "default" | "admin" | "exec" }) => {
-    const isActive = variant === "admin" ? pathname.startsWith(item.href) : pathname === item.href;
+    // Logic active state: 
+    // - Admin/Director: Active jika URL diawali dengan href (Nested route friendly)
+    // - Default: Active jika URL sama persis (Exact match)
+    const isActive = variant !== "default" 
+        ? pathname.startsWith(item.href) 
+        : pathname === item.href;
     
-    // Warna khusus per role (tetap dalam nuansa biru/profesional)
+    // Warna khusus per role (Visual Hierarchy)
     let activeClass = "bg-brand-700 text-white shadow-lg shadow-brand-700/20"; // Default PAM Blue
     let iconActiveColor = "text-white";
 
@@ -94,7 +86,7 @@ export function Sidebar() {
             )} />
             <span className="relative z-10">{item.label}</span>
             
-            {/* Indikator Active Kecil di Kiri (Optional Design Touch) */}
+            {/* Indikator Active Kecil di Kiri (Design Accent) */}
             {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-white/20" />}
         </Link>
     );
@@ -125,15 +117,15 @@ export function Sidebar() {
       {/* 2. Navigation Links */}
       <nav className="flex-1 py-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
         
-        {/* GROUP: MENU UTAMA */}
+        {/* GROUP: MENU UTAMA (All Users) */}
         <div>
             <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Menu Utama</p>
             <div className="space-y-0.5">
-                {navItems.map((item) => <NavLink key={item.href} item={item} />)}
+                {NAVIGATION_CONFIG.main.map((item) => <NavLink key={item.href} item={item} />)}
             </div>
         </div>
 
-        {/* GROUP: EXECUTIVE MENU */}
+        {/* GROUP: EXECUTIVE MENU (Director Only) */}
         {isDirector && (
             <div>
                 <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -141,12 +133,12 @@ export function Sidebar() {
                     Executive
                 </p>
                 <div className="space-y-0.5">
-                    {executiveNavItems.map((item) => <NavLink key={item.href} item={item} variant="exec" />)}
+                    {NAVIGATION_CONFIG.director.map((item) => <NavLink key={item.href} item={item} variant="exec" />)}
                 </div>
             </div>
         )}
 
-        {/* GROUP: ADMINISTRATOR */}
+        {/* GROUP: ADMINISTRATOR (Admin Only) */}
         {isAdmin && (
             <div>
                  <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -154,7 +146,7 @@ export function Sidebar() {
                     Administrator
                 </p>
                 <div className="space-y-0.5">
-                    {adminNavItems.map((item) => <NavLink key={item.href} item={item} variant="admin" />)}
+                    {NAVIGATION_CONFIG.admin.map((item) => <NavLink key={item.href} item={item} variant="admin" />)}
                 </div>
             </div>
         )}

@@ -2,7 +2,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger"
+  // [UPDATE] Menambahkan "link" ke dalam tipe variant
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "link"
   size?: "sm" | "md" | "lg" | "icon"
   fullWidth?: boolean
 }
@@ -29,6 +30,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       
       // Danger: Rose Red (Hapus/Batal)
       danger: "bg-rose-600 text-white hover:bg-rose-700 shadow-lg shadow-rose-600/25 border border-transparent",
+
+      // [UPDATE] Link: Tampilan seperti hyperlink teks biasa
+      link: "text-brand-600 underline-offset-4 hover:underline p-0 h-auto font-medium",
     }
 
     // Sizes: Dimensi yang ergonomis
@@ -39,13 +43,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       icon: "h-12 w-12",
     }
 
+    // Logic khusus: Jika variant 'link', abaikan padding/height dari size standard agar flow teks natural
+    const sizeClasses = variant === 'link' ? '' : sizes[size];
+
     return (
       <button
         ref={ref}
         className={cn(
           baseStyles,
           variants[variant],
-          sizes[size],
+          sizeClasses,
           fullWidth ? "w-full" : "",
           className
         )}
