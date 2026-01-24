@@ -127,8 +127,7 @@ export default function DirectorOmniSearch() {
             {/* STATE: LIST RESULTS */}
             {results.map((user) => {
               // Extract status & score dari array financialChecks (sesuai struktur backend)
-              // Biasanya array checkup terakhir ada di index 0 jika backend sort desc
-              const lastCheck = user['financialChecks']?.[0]; 
+              const lastCheck = user.financialChecks?.[0]; 
               const status = lastCheck?.status || "UNKNOWN";
               const score = lastCheck?.healthScore;
 
@@ -164,7 +163,9 @@ export default function DirectorOmniSearch() {
                           {status}
                         </Badge>
                         <span className="text-[10px] font-mono text-slate-400">
-                          Score: <span className={cn("font-bold", score < 60 ? "text-rose-500" : "text-slate-600")}>{score ?? '-'}</span>
+                          Score: <span className={cn("font-bold", (score ?? 0) < 60 ? "text-rose-500" : "text-slate-600")}>
+                            {score ?? '-'}
+                          </span>
                         </span>
                       </>
                     ) : (

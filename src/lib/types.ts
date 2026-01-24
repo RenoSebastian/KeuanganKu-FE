@@ -510,6 +510,12 @@ export interface User {
   unitKerja?: UnitKerja; // Nested object
   createdAt?: string;
   updatedAt?: string;
+  // [ADDITION] Properti untuk hasil pencarian (Fuzzy Search)
+  financialChecks?: {
+    status: HealthStatus;
+    healthScore: number;
+    checkDate?: string;
+  }[];
 }
 
 export interface AuthResponse {
