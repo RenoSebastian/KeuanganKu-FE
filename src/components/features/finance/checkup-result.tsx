@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle,
   Save, RefreshCcw, FileText, ChevronDown, ChevronUp,
   TrendingUp, Activity, Download, CalendarDays, Banknote,
-  LayoutDashboard
+  LayoutDashboard, Lock
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,52 +14,56 @@ import { FinancialRecord, HealthAnalysisResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service"; 
 
+// [STEP 1] Prop Expansion & Mode Definition
+type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW";
+
 interface CheckupResultProps {
   data: HealthAnalysisResult;
   rawData: FinancialRecord;
-  onReset: () => void;
+  onReset?: () => void; // Optional karena di mode Director tidak ada reset
+  mode?: ViewMode;      // Optional, default "USER_VIEW"
 }
 
-export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
+export function CheckupResult({ 
+  data, 
+  rawData, 
+  onReset, 
+  mode = "USER_VIEW" 
+}: CheckupResultProps) {
+  
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  
-  // --- STATE VIEW MODE (DEFAULT TAHUNAN BIAR KEREN) ---
   const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
 
-  // --- 1. NORMALISASI DATA DARI BACKEND ---
-  // Pastikan ambil data dengan aman (handle null/undefined)
+  // Logic: Read Only Flag
+  const isReadOnly = mode === "DIRECTOR_VIEW";
+
+  // --- 1. NORMALISASI DATA ---
   const ratios = data.ratios || (data as any).ratiosDetails || [];
   const score = data.score ?? (data as any).healthScore ?? 0;
   const globalStatus = data.globalStatus || (data as any).status || "BAHAYA";
-  
-  // Net Worth adalah STOCK (Saldo), tidak dikali 12
   const netWorth = data.netWorth ?? (data as any).totalNetWorth ?? 0;
-  
-  // Surplus adalah FLOW (Arus Kas), Backend kirim satuan BULANAN
   const monthlySurplus = data.surplusDeficit ?? 0;
   
   // --- 2. LOGIKA TAMPILAN DINAMIS ---
-  // Jika mode ANNUAL, Surplus dikali 12. Jika MONTHLY, tetap.
   const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
   const periodLabel = viewMode === "ANNUAL" ? "(Per Tahun)" : "(Per Bulan)";
 
   const handleSave = async () => {
+    if (isReadOnly) return; // Guard clause
+    
     setSaving(true);
     try {
       const payload = { ...rawData };
-      // Hapus data spouse jika single (sanitasi ulang)
       if (payload.userProfile.maritalStatus !== "MARRIED") {
         delete payload.spouseProfile;
       }
-
       await financialService.createCheckup(payload);
       setSaved(true);
     } catch (error: any) {
       console.error("Gagal menyimpan:", error);
-      const errorMsg = error.response?.data?.message || "Gagal menyimpan data.";
-      alert(`Error: ${errorMsg}`);
+      alert("Gagal menyimpan data.");
     } finally {
       setSaving(false);
     }
@@ -105,17 +109,21 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-24 md:pb-0">
       
-      {/* --- HEADER & TOGGLE (Moved Outside Card) --- */}
+      {/* --- HEADER & TOGGLE --- */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
          <div>
             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-               <LayoutDashboard className="w-6 h-6 text-brand-600" />
-               Hasil Diagnosa
+               {isReadOnly ? <Lock className="w-6 h-6 text-slate-400" /> : <LayoutDashboard className="w-6 h-6 text-brand-600" />}
+               {isReadOnly ? "Laporan Kesehatan Finansial" : "Hasil Diagnosa"}
             </h2>
-            <p className="text-slate-500 text-sm">Berikut adalah analisa kesehatan keuangan Anda.</p>
+            <p className="text-slate-500 text-sm">
+                {isReadOnly 
+                    ? "Laporan ini bersifat rahasia dan hanya untuk keperluan audit internal." 
+                    : "Berikut adalah analisa kesehatan keuangan Anda."}
+            </p>
          </div>
 
-         {/* NEW TOGGLE POSITION */}
+         {/* VIEW MODE TOGGLE */}
          <div className="bg-white border border-slate-200 p-1.5 rounded-xl flex shadow-sm w-fit">
             <button 
                 onClick={() => setViewMode("MONTHLY")}
@@ -139,16 +147,17 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
       </div>
 
       {/* --- HERO SECTION: SPLIT CARD --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-0 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 bg-white">
+      <div className={cn(
+          "grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-0 rounded-3xl overflow-hidden shadow-2xl border bg-white",
+          isReadOnly ? "border-slate-300 shadow-slate-200/50" : "border-slate-200"
+      )}>
         
         {/* LEFT: GAUGE & SCORE */}
         <div className="lg:col-span-1 p-8 flex flex-col items-center justify-center bg-white relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100">
-             {/* Background Gradient Mesh */}
              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500" />
              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl z-0" />
 
              <div className="relative z-10 w-48 h-48 flex items-center justify-center mb-6">
-                {/* SVG Gauge */}
                 <svg className="w-full h-full transform -rotate-90 drop-shadow-xl" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f5f9" strokeWidth="8" strokeLinecap="round" />
                   <circle 
@@ -173,33 +182,36 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                     Status: <span className={getGlobalStatusColor(score)}>{globalStatus}</span>
                 </h2>
                 <p className="text-sm text-slate-500 leading-relaxed px-4">
-                    {score >= 80 ? "Kondisi keuangan Anda prima! Pertahankan performa ini." : 
+                    {score >= 80 ? "Kondisi keuangan prima. Pertahankan performa ini." : 
                      score >= 50 ? "Ada beberapa indikator yang perlu perhatian khusus." : 
-                     "Kondisi kritis. Segera lakukan perbaikan struktur keuangan."}
+                     "Kondisi kritis. Perlu restrukturisasi segera."}
                 </p>
              </div>
         </div>
 
         {/* RIGHT: NET WORTH & DIAGNOSIS */}
-        <div className="lg:col-span-2 p-8 bg-brand-900 text-white relative overflow-hidden flex flex-col justify-center">
-             <div className="absolute top-0 right-0 p-40 bg-emerald-500/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
-             <div className="absolute bottom-0 left-0 p-32 bg-blue-500/10 rounded-full blur-[60px] -ml-16 -mb-16 pointer-events-none" />
+        <div className={cn(
+            "lg:col-span-2 p-8 text-white relative overflow-hidden flex flex-col justify-center",
+            isReadOnly ? "bg-slate-800" : "bg-brand-900" // Warna beda untuk mode Director
+        )}>
+             <div className="absolute top-0 right-0 p-40 bg-white/5 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
+             <div className="absolute bottom-0 left-0 p-32 bg-white/5 rounded-full blur-[60px] -ml-16 -mb-16 pointer-events-none" />
              <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05]" />
              
              {/* STATS GRID */}
              <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-white/10 pb-6 mt-2">
                  <div>
-                     <div className="flex items-center gap-2 text-brand-200 text-xs font-bold uppercase tracking-wider mb-2">
+                     <div className="flex items-center gap-2 text-white/70 text-xs font-bold uppercase tracking-wider mb-2">
                         <TrendingUp className="w-4 h-4" />
                         Kekayaan Bersih (Net Worth)
                      </div>
                      <div className="text-3xl font-mono font-bold tracking-tight text-white truncate">
                         {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(netWorth)}
                      </div>
-                     <p className="text-[10px] text-brand-200 mt-1 opacity-70">Total Aset - Total Utang</p>
+                     <p className="text-[10px] text-white/50 mt-1">Total Aset - Total Utang</p>
                  </div>
                  <div>
-                     <div className="flex items-center gap-2 text-brand-200 text-xs font-bold uppercase tracking-wider mb-2">
+                     <div className="flex items-center gap-2 text-white/70 text-xs font-bold uppercase tracking-wider mb-2">
                         <Activity className="w-4 h-4" />
                         Surplus / Defisit {periodLabel}
                      </div>
@@ -209,23 +221,23 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                         {displaySurplus >= 0 ? "+" : ""}
                         {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(displaySurplus)}
                      </div>
-                     <p className="text-[10px] text-brand-200 mt-1 opacity-70">Pemasukan - Pengeluaran</p>
+                     <p className="text-[10px] text-white/50 mt-1">Pemasukan - Pengeluaran</p>
                  </div>
              </div>
              
              {/* DIAGNOSA TEXT */}
              <div className="relative z-10 bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-md">
                 <div className="flex gap-4">
-                    <div className="p-3 bg-emerald-500/20 rounded-xl h-fit shrink-0 hidden md:block">
-                        <FileText className="w-6 h-6 text-emerald-400" />
+                    <div className="p-3 bg-white/10 rounded-xl h-fit shrink-0 hidden md:block">
+                        <FileText className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h4 className="font-bold text-emerald-100 text-lg mb-2 flex items-center gap-2">
+                        <h4 className="font-bold text-white text-lg mb-2 flex items-center gap-2">
                            <FileText className="w-5 h-5 md:hidden" />
-                           Diagnosa Dokter Keuangan
+                           Diagnosa Sistem
                         </h4>
-                        <p className="text-brand-100 text-sm leading-relaxed">
-                            "Berdasarkan analisa 8 rasio, Anda memiliki <strong className="text-emerald-400">{ratios.filter((r: any) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length} indikator SEHAT</strong>, 
+                        <p className="text-white/80 text-sm leading-relaxed">
+                            "Berdasarkan analisa 8 rasio, terdapat <strong className="text-emerald-400">{ratios.filter((r: any) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length} indikator SEHAT</strong>, 
                             <strong className="text-amber-400"> {ratios.filter((r: any) => r.statusColor === "YELLOW").length} WASPADA</strong>, dan 
                             <strong className="text-red-400"> {ratios.filter((r: any) => r.statusColor === "RED").length} BAHAYA</strong>. 
                             Prioritas perbaikan ada pada sektor <span className="text-white border-b border-dashed border-slate-500 pb-0.5 ml-1">
@@ -242,10 +254,10 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
       <div>
         <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <div className="w-1.5 h-6 bg-brand-600 rounded-full" /> 
+                <div className="w-1.5 h-6 bg-slate-800 rounded-full" /> 
                 Rincian 8 Indikator Vital
             </h3>
-            <span className="text-xs text-slate-500 hidden md:inline-block">*Klik kartu untuk melihat rekomendasi</span>
+            <span className="text-xs text-slate-500 hidden md:inline-block">*Klik kartu untuk melihat detail</span>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -267,7 +279,6 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
                         
                         <h4 className="font-bold text-xs uppercase tracking-wide text-slate-500 mb-1">{ratio.label}</h4>
                         <div className="text-2xl font-bold text-slate-800 mb-2 truncate">
-                            {/* Format value: jika uang, kasih Rp? tidak, rasio biasanya %, kali, atau desimal */}
                             {ratio.id === "emergency_fund" ? `${ratio.value}x` : 
                              ratio.id === "liq_networth" || ratio.id === "saving_ratio" || ratio.id === "debt_asset_ratio" || ratio.id === "debt_service_ratio" || ratio.id === "consumptive_ratio" || ratio.id === "invest_asset_ratio" || ratio.id === "solvency_ratio" 
                              ? `${ratio.value}%` : ratio.value}
@@ -301,46 +312,48 @@ export function CheckupResult({ data, rawData, onReset }: CheckupResultProps) {
         </div>
       </div>
 
-      {/* --- ACTION BAR --- */}
-      <Card className="p-4 bg-white border-t border-slate-200 fixed bottom-0 left-0 w-full z-50 md:static md:border md:rounded-2xl md:shadow-sm md:z-0">
-          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-3 justify-between">
-              <div className="hidden md:block text-sm text-slate-500">
-                  <span className="font-bold text-slate-700">Tips:</span> Simpan hasil diagnosa ini untuk memantau history.
-              </div>
-              
-              <div className="flex gap-3 w-full md:w-auto">
-                 <Button 
-                    variant="outline" 
-                    onClick={onReset}
-                    className="flex-1 md:flex-none border-slate-300 text-slate-600 hover:bg-slate-50"
-                 >
-                    <RefreshCcw className="w-4 h-4 mr-2" /> Hitung Ulang
-                 </Button>
-                 
-                 <Button 
-                    variant="ghost" 
-                    className="flex-1 md:flex-none text-slate-500 hover:text-brand-600 hidden md:flex"
-                 >
-                    <Download className="w-4 h-4 mr-2" /> PDF
-                 </Button>
+      {/* --- ACTION BAR (HIDDEN IN DIRECTOR VIEW) --- */}
+      {!isReadOnly && (
+          <Card className="p-4 bg-white border-t border-slate-200 fixed bottom-0 left-0 w-full z-50 md:static md:border md:rounded-2xl md:shadow-sm md:z-0">
+              <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-3 justify-between">
+                  <div className="hidden md:block text-sm text-slate-500">
+                      <span className="font-bold text-slate-700">Tips:</span> Simpan hasil diagnosa ini untuk memantau history.
+                  </div>
+                  
+                  <div className="flex gap-3 w-full md:w-auto">
+                      <Button 
+                        variant="outline" 
+                        onClick={onReset}
+                        className="flex-1 md:flex-none border-slate-300 text-slate-600 hover:bg-slate-50"
+                      >
+                        <RefreshCcw className="w-4 h-4 mr-2" /> Hitung Ulang
+                      </Button>
+                      
+                      <Button 
+                        variant="ghost" 
+                        className="flex-1 md:flex-none text-slate-500 hover:text-brand-600 hidden md:flex"
+                      >
+                        <Download className="w-4 h-4 mr-2" /> PDF
+                      </Button>
 
-                 <Button 
-                    onClick={handleSave}
-                    disabled={saving || saved}
-                    className={cn(
-                        "flex-[2] md:flex-none min-w-[180px] font-bold shadow-lg transition-all text-white",
-                        saved ? "bg-emerald-600 hover:bg-emerald-700" : "bg-brand-600 hover:bg-brand-700"
-                    )}
-                 >
-                    {saving ? "Menyimpan..." : saved ? (
-                        <><CheckCircle2 className="w-4 h-4 mr-2" /> Tersimpan</>
-                    ) : (
-                        <><Save className="w-4 h-4 mr-2" /> Simpan Hasil</>
-                    )}
-                 </Button>
+                      <Button 
+                        onClick={handleSave}
+                        disabled={saving || saved}
+                        className={cn(
+                            "flex-[2] md:flex-none min-w-[180px] font-bold shadow-lg transition-all text-white",
+                            saved ? "bg-emerald-600 hover:bg-emerald-700" : "bg-brand-600 hover:bg-brand-700"
+                        )}
+                      >
+                        {saving ? "Menyimpan..." : saved ? (
+                            <><CheckCircle2 className="w-4 h-4 mr-2" /> Tersimpan</>
+                        ) : (
+                            <><Save className="w-4 h-4 mr-2" /> Simpan Hasil</>
+                        )}
+                      </Button>
+                  </div>
               </div>
-          </div>
-      </Card>
+          </Card>
+      )}
     </div>
   );
 }
