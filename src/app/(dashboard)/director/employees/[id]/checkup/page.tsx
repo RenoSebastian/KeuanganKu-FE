@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, Printer, ShieldCheck, User, 
-  Briefcase, Calendar, AlertTriangle, Wallet, 
+  Briefcase, AlertTriangle, Wallet, 
   TrendingDown, TrendingUp, DollarSign, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,9 @@ export default function EmployeeAuditPage() {
     const fetchData = async () => {
       if (!id) return;
       try {
-        const result = await directorService.getEmployeeDetail(id);
+        // [FIX] Menggunakan nama method yang benar sesuai Service: getEmployeeAuditDetail
+        const result = await directorService.getEmployeeAuditDetail(id);
+        
         if (!result) {
             setError("Data checkup karyawan tidak ditemukan.");
         } else {

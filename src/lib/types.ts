@@ -81,8 +81,6 @@ export interface EducationPlanResponse {
   calculation: EducationCalculationResult;
 }
 
-// --- MISSING TYPES FIXED HERE ---
-
 export interface StageDetailItem {
   item: string;
   dueYear: number;
@@ -470,6 +468,16 @@ export interface EmployeeAuditDetail {
   profile: AuditProfile;
   record: FinancialRecord;        // Menggunakan tipe FinancialRecord yang sudah ada (40+ vars)
   analysis: HealthAnalysisResult; // Menggunakan tipe HealthAnalysisResult yang sudah ada
+}
+
+// [NEW] Interface untuk Dashboard Orchestrator (Composite Response)
+export interface DashboardSummaryDto {
+  stats: DirectorDashboardStats;
+  topRiskyEmployees: RiskyEmployeeDetail[];
+  unitRankings: UnitHealthRanking[];
+  meta: {
+    generatedAt: string; // ISO String
+  };
 }
 
 // ============================================================================
