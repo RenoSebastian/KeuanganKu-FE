@@ -7,40 +7,39 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    // 1. CONTAINER UTAMA: Flex Row (Kiri-Kanan)
-    <div className="flex min-h-screen w-full bg-slate-50/50">
+    <div className="min-h-screen w-full bg-slate-50/50">
       
-      {/* 2. SIDEBAR WRAPPER (Desktop)
-          - hidden md:flex: Hanya muncul di desktop
-          - flex-shrink-0: Mencegah sidebar "gepeng" kalau konten melebar
-          - h-screen sticky: Agar sidebar diam saat konten di-scroll
+      {/* 1. SIDEBAR (DESKTOP ONLY) 
+          - Fixed: Agar menempel di kiri layar.
+          - Z-index 50: Agar di atas layer konten lain jika terjadi overlap.
       */}
-      <div className="hidden md:flex flex-col w-64 flex-shrink-0 fixed inset-y-0 z-50">
+      <div className="hidden md:block fixed top-0 left-0 h-screen w-64 z-50 border-r border-slate-200 bg-white shadow-sm">
         <Sidebar />
       </div>
 
-      {/* 3. MAIN CONTENT WRAPPER 
-          - md:pl-64: Memberi jarak kiri sebesar lebar sidebar (agar tidak tertumpuk)
-          - flex-1: Mengisi sisa ruang kosong
-          - min-w-0: Mencegah konten "meledak" melebihi lebar layar (Flexbox bug fix)
+      {/* 2. WRAPPER KONTEN
+          - md:pl-64: PENTING! Memberi margin kiri sebesar lebar sidebar (256px) 
+            agar konten TIDAK TERTUTUP sidebar.
+          - flex-col: Agar footer/bottom nav bisa diatur posisinya.
       */}
-      <div className="flex-1 flex flex-col min-w-0 md:pl-64 transition-all duration-300">
+      <div className="flex flex-col min-h-screen transition-all duration-300 md:pl-64">
         
-        {/* CONTENT AREA */}
-        <main className="flex-1 w-full">
-          {/* CONTAINER: 
-             - max-w-7xl: Membatasi lebar agar chart tidak terlalu panjang
-             - mx-auto: Posisi tengah
-             - px-4/8: Padding kanan kiri aman
-             - pb-32: Padding bawah ekstra untuk Mobile (biar ga ketutup BottomNav)
-          */}
-          <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-8 pb-32 md:pb-10">
+        {/* 3. AREA UTAMA (MAIN)
+            - w-full: Lebar penuh.
+            - HAPUS 'overflow-x-hidden': INI PENYEBAB CARD TERPOTONG!
+            - p-4 md:p-8: Padding luar agar Card tidak menempel ke tepi layar (yang bikin kepotong).
+            - pb-32: Padding bawah ekstra untuk mobile agar tidak ketutup BottomNav.
+        */}
+        <main className="flex-1 w-full p-4 md:p-8 pb-32 md:pb-10">
+          
+          {/* Container Pembatas agar konten tidak terlalu lebar di layar super besar */}
+          <div className="w-full max-w-7xl mx-auto space-y-8">
             {children}
           </div>
+          
         </main>
 
-        {/* 4. BOTTOM NAV (Mobile Only) */}
-        {/* Tidak perlu logic aneh-aneh, BottomNav punya 'md:hidden' di dalamnya */}
+        {/* 4. BOTTOM NAV (MOBILE ONLY) */}
         <BottomNav />
         
       </div>

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Import sesuai struktur project Anda
+// PASTIKAN IMPORT INI SESUAI LOKASI FILE ANDA
 import { ChildWizard } from "@/components/features/education/child-wizard";
 import { ChildCard } from "@/components/features/education/child-card";
 import { SummaryBoard } from "@/components/features/education/summary-board";
@@ -91,7 +91,11 @@ export default function EducationPage() {
   // --- 2. CALCULATION ---
   useEffect(() => {
     if (children.length > 0) {
-      const result = calculatePortfolio(children, assumptions.inflation, assumptions.returnRate);
+      const result = calculatePortfolio(
+        children, 
+        assumptions.inflation, 
+        assumptions.returnRate
+      );
       setPortfolio(result);
     } else {
       setPortfolio(null);
@@ -117,28 +121,29 @@ export default function EducationPage() {
 
   // --- MODE WIZARD ---
   if (view === "WIZARD") {
-    // Kita bungkus Wizard agar rapi dalam container layout
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex items-center gap-2">
-            <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setView("DASHBOARD")} 
-                className="text-slate-500 hover:text-slate-900 -ml-2 hover:bg-white/50"
-            >
-                <ArrowLeft className="w-5 h-5 mr-1" /> Kembali
-            </Button>
-            <span className="text-lg font-bold text-slate-900">Buat Simulasi Baru</span>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setView("DASHBOARD")} 
+            className="text-slate-500 hover:text-slate-900 -ml-2 hover:bg-white/50"
+          >
+            <ArrowLeft className="w-5 h-5 mr-1" /> Kembali
+          </Button>
+          <span className="text-lg font-bold text-slate-900">
+            Buat Simulasi Baru
+          </span>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-5 md:p-8">
-                <ChildWizard 
-                  onSave={handleWizardSuccess} 
-                  onCancel={() => setView("DASHBOARD")} 
-                />
-            </div>
+        <div className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-visible">
+          <div className="p-5 md:p-8">
+            <ChildWizard 
+              onSave={handleWizardSuccess} 
+              onCancel={() => setView("DASHBOARD")} 
+            />
+          </div>
         </div>
       </div>
     );
@@ -146,27 +151,28 @@ export default function EducationPage() {
 
   // --- MODE DASHBOARD ---
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
       
-      {/* 1. HERO BANNER (Dibuat sebagai Card, bukan Full Screen) */}
+      {/* 1. HERO BANNER */}
       <div className="relative rounded-3xl bg-white border border-slate-200 p-6 md:p-10 overflow-hidden shadow-sm group">
-        {/* Background Effect */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-50/80 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none transition-transform duration-700 group-hover:scale-110" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-100/50 shadow-sm">
               <GraduationCap className="w-4 h-4" /> 
-              <span className="text-xs font-bold uppercase tracking-wider">Education Planner</span>
+              <span className="text-xs font-bold uppercase tracking-wider">
+                Education Planner
+              </span>
             </div>
             
             <div className="space-y-2">
-                <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-                  Dana Pendidikan Anak
-                </h1>
-                <p className="text-slate-500 text-sm md:text-base leading-relaxed max-w-lg">
-                  Rencanakan masa depan buah hati dengan metode <i>Sinking Fund</i> yang presisi.
-                </p>
+              <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                Dana Pendidikan Anak
+              </h1>
+              <p className="text-slate-500 text-sm md:text-base leading-relaxed max-w-lg">
+                Rencanakan masa depan buah hati dengan metode <i>Sinking Fund</i> yang presisi.
+              </p>
             </div>
           </div>
 
@@ -180,135 +186,142 @@ export default function EducationPage() {
       </div>
 
       {/* 2. GRID UTAMA */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start overflow-visible">
             
-            {/* KOLOM KIRI (Konten Utama) */}
-            <div className="lg:col-span-8 order-2 lg:order-1 space-y-6">
+        {/* KOLOM KIRI */}
+        <div className="lg:col-span-8 order-2 lg:order-1 space-y-6 overflow-visible">
                
-               <div className="flex items-center justify-between px-1">
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                      <div className="bg-white border border-slate-200 p-1.5 rounded-lg shadow-sm">
-                        <Users className="w-4 h-4 text-brand-600" />
-                      </div>
-                      Daftar Anak 
-                      <span className="text-sm font-medium text-slate-500 ml-2 bg-slate-200/50 px-2.5 py-0.5 rounded-full">
-                        {children.length}
-                      </span>
-                  </h3>
-               </div>
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <div className="bg-white border border-slate-200 p-1.5 rounded-lg shadow-sm">
+                <Users className="w-4 h-4 text-brand-600" />
+              </div>
+              Daftar Anak 
+              <span className="text-sm font-medium text-slate-500 ml-2 bg-slate-200/50 px-2.5 py-0.5 rounded-full">
+                {children.length}
+              </span>
+            </h3>
+          </div>
 
-               {/* Loading State */}
-               {isLoading && (
-                  <div className="flex flex-col items-center justify-center py-20 bg-white/50 border border-slate-200/60 rounded-3xl animate-pulse">
-                      <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
-                      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Menghitung Proyeksi...</p>
-                  </div>
-               )}
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-20 bg-white/50 border border-slate-200/60 rounded-3xl animate-pulse">
+              <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">
+                Menghitung Proyeksi...
+              </p>
+            </div>
+          )}
 
-               {/* Empty State */}
-               {!isLoading && children.length === 0 && (
-                  <div 
-                    className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200 hover:border-brand-300 transition-colors group cursor-pointer" 
-                    onClick={() => setView("WIZARD")}
-                  >
-                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                          <Sparkles className="w-10 h-10 text-slate-300 group-hover:text-brand-500 transition-colors" />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-800 mb-1">Belum ada simulasi</h3>
-                      <p className="text-slate-500 max-w-xs text-sm mb-6 leading-relaxed">
-                          Mulai hitung estimasi biaya pendidikan sekarang.
-                      </p>
-                      <Button variant="outline" className="rounded-full border-brand-200 text-brand-600 bg-brand-50/50 hover:bg-brand-100">
-                          Buat Simulasi Baru
-                      </Button>
-                  </div>
-               )}
+          {!isLoading && children.length === 0 && (
+            <div 
+              className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200 hover:border-brand-300 transition-colors group cursor-pointer" 
+              onClick={() => setView("WIZARD")}
+            >
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                <Sparkles className="w-10 h-10 text-slate-300 group-hover:text-brand-500 transition-colors" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">
+                Belum ada simulasi
+              </h3>
+              <p className="text-slate-500 max-w-xs text-sm mb-6 leading-relaxed">
+                Mulai hitung estimasi biaya pendidikan sekarang.
+              </p>
+              <Button 
+                variant="outline" 
+                className="rounded-full border-brand-200 text-brand-600 bg-brand-50/50 hover:bg-brand-100"
+              >
+                Buat Simulasi Baru
+              </Button>
+            </div>
+          )}
 
-               {/* Grid Kartu Anak */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {children.map((child) => {
-                      const liveResult = portfolio?.details.find(d => d.childId === child.id);
+          {/* GRID KARTU ANAK (FIX TIDAK KE POTONG) */}
+          <div className="relative z-0 grid grid-cols-1 md:grid-cols-2 gap-6 p-2 overflow-visible">
+            {children.map((child) => {
+              const liveResult = portfolio?.details.find(d => d.childId === child.id);
                       
-                      const cardResult = {
-                          totalMonthlySaving: liveResult 
-                              ? liveResult.totalMonthlySaving 
-                              : (child as any).simulationResult?.totalMonthlySaving || 0,
-                          stagesBreakdown: liveResult 
-                              ? undefined 
-                              : (child as any).simulationResult?.stagesBreakdown,
-                          stages: liveResult?.stages 
-                      };
+              const cardResult = {
+                totalMonthlySaving: liveResult 
+                  ? liveResult.totalMonthlySaving 
+                  : (child as any).simulationResult?.totalMonthlySaving || 0,
+                stagesBreakdown: liveResult 
+                  ? undefined 
+                  : (child as any).simulationResult?.stagesBreakdown,
+                stages: liveResult?.stages 
+              };
 
-                      return (
-                          <ChildCard 
-                              key={child.id}
-                              profile={child} 
-                              result={cardResult}
-                              onDelete={handleDeleteChild} 
-                          />
-                      );
-                  })}
-               </div>
-            </div>
-
-            {/* KOLOM KANAN (Sidebar Sticky) */}
-            <div className="lg:col-span-4 order-1 lg:order-2 space-y-6 lg:sticky lg:top-6">
-                
-                {/* 1. Summary Widget */}
-                {(children.length > 0 || isLoading) && (
-                     <SummaryBoard summary={portfolio} isLoading={isLoading} />
-                )}
-
-                {/* 2. Control Panel */}
-                <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 md:p-6">
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
-                        <div className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 shadow-sm">
-                            <Settings2 className="w-4 h-4" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Parameter Ekonomi</h3>
-                            <p className="text-[10px] text-slate-500 font-medium">Geser untuk simulasi</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-8">
-                        {/* Slider Inflasi - Menggunakan props yang benar */}
-                        <div className="space-y-4">
-                            <Slider 
-                                label="Inflasi Pendidikan"
-                                valueLabel={`${assumptions.inflation}%`}
-                                value={assumptions.inflation} 
-                                onChange={(val) => setAssumptions(prev => ({ ...prev, inflation: val }))}
-                                min={5} max={20} step={1}
-                                colorClass="accent-rose-500" 
-                                className="cursor-pointer"
-                            />
-                        </div>
-
-                        {/* Slider Return */}
-                        <div className="space-y-4">
-                            <Slider 
-                                label="Return Investasi"
-                                valueLabel={`${assumptions.returnRate}%`}
-                                value={assumptions.returnRate} 
-                                onChange={(val) => setAssumptions(prev => ({ ...prev, returnRate: val }))}
-                                min={2} max={20} step={1}
-                                colorClass="accent-emerald-500" 
-                                className="cursor-pointer"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mt-6 bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex gap-3">
-                        <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-[10px] md:text-[11px] text-blue-700/80 leading-relaxed font-medium">
-                            Inflasi pendidikan: <b>10-15%</b>/tahun. Pastikan return investasi Anda di atas angka ini.
-                        </p>
-                    </div>
-                </Card>
-            </div>
-
+              return (
+                <ChildCard 
+                  key={child.id}
+                  profile={child} 
+                  result={cardResult}
+                  onDelete={handleDeleteChild} 
+                />
+              );
+            })}
+          </div>
         </div>
+
+        {/* KOLOM KANAN */}
+        <div className="lg:col-span-4 order-1 lg:order-2 space-y-6 lg:sticky lg:top-6 overflow-visible">
+                
+          {(children.length > 0 || isLoading) && (
+            <SummaryBoard summary={portfolio} isLoading={isLoading} />
+          )}
+
+          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 md:p-6 overflow-visible">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
+              <div className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 shadow-sm">
+                <Settings2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  Parameter Ekonomi
+                </h3>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  Geser untuk simulasi
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <Slider 
+                label="Inflasi Pendidikan"
+                valueLabel={`${assumptions.inflation}%`}
+                value={assumptions.inflation} 
+                onChange={(val) =>
+                  setAssumptions(prev => ({ ...prev, inflation: val }))
+                }
+                min={5}
+                max={20}
+                step={1}
+                colorClass="accent-rose-500"
+              />
+
+              <Slider 
+                label="Return Investasi"
+                valueLabel={`${assumptions.returnRate}%`}
+                value={assumptions.returnRate} 
+                onChange={(val) =>
+                  setAssumptions(prev => ({ ...prev, returnRate: val }))
+                }
+                min={2}
+                max={20}
+                step={1}
+                colorClass="accent-emerald-500"
+              />
+            </div>
+
+            <div className="mt-6 bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex gap-3">
+              <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] md:text-[11px] text-blue-700/80 leading-relaxed font-medium">
+                Inflasi pendidikan: <b>10–15%</b>/tahun.  
+                Pastikan return investasi Anda di atas angka ini.
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
