@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { formatRupiah, calculateAge } from "@/lib/financial-math";
-import { ChildProfile, StageBreakdownItem } from "@/lib/types"; // Import type yang benar
+import { ChildProfile, StageBreakdownItem } from "@/lib/types"; 
 import { 
   Baby, Trash2, ChevronDown, ChevronUp, Clock, Info, 
   GraduationCap, TrendingUp, Calendar, School 
@@ -31,6 +31,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
     : "from-pink-100 to-rose-200 text-pink-700";
 
   // Prioritaskan Data Backend (stagesBreakdown) -> Fallback ke Data Lokal (stages)
+  // Logic: Backend biasanya mengirim 'stagesBreakdown', kalkulator lokal pakai 'stages'
   const stagesData = result?.stagesBreakdown || result?.stages || [];
 
   return (
@@ -71,7 +72,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
               
               {/* Delete Button */}
               <button 
-                onClick={() => onDelete(profile.id)}
+                onClick={() => onDelete(profile.id!)}
                 className="text-slate-300 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-xl transition-all duration-300 hover:rotate-6 group-hover:opacity-100 opacity-0 md:opacity-100"
                 title="Hapus Rencana"
               >
@@ -130,7 +131,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                <tbody className="text-sm">
                  {stagesData.map((item: any, idx: number) => {
                    // Normalisasi Data (Handle perbedaan nama field Backend vs Frontend)
-                   const level = item.level || item.stageId;
+                   const level = item.level || item.stageId || item.stage;
                    const typeLabel = item.costType === "ENTRY" ? "Uang Pangkal" : (item.item || "SPP Bulanan");
                    const isEntry = item.costType === "ENTRY" || (item.item && item.item.includes("Pangkal"));
                    

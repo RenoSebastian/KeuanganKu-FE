@@ -28,16 +28,27 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // Panggil Service Auth (Lebih rapi & terstandar)
-      await authService.login({
+      // 1. Panggil Service Login
+      // Kita simpan responsenya ke variabel untuk dicek role-nya
+      const response = await authService.login({
         email: formData.email,
         password: formData.password
       });
 
-      // Redirect ke Dashboard (sesuai role bisa diatur nanti, default ke /)
-      router.push("/");
+      // 2. Cek Role & Redirect Sesuai Hak Akses
+      const role = response.user.role;
+
+      if (role === "ADMIN") {
+        router.push("/admin/dashboard");
+      } else if (role === "DIRECTOR") {
+        router.push("/director/dashboard");
+      } else {
+        // Default untuk USER / UNIT_HEAD
+        router.push("/");
+      }
       
     } catch (err: any) {
+      console.error("Login failed:", err);
       // Handle Error dari Backend
       const msg = err.response?.data?.message || "Gagal masuk aplikasi. Periksa email/password.";
       setError(msg);

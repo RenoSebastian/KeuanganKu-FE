@@ -59,6 +59,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
 
   const handleGradeChange = (id: string, grade: number) => {
     setStartGrades(prev => ({ ...prev, [id]: grade }));
+    // Jika bukan kelas 1, asumsi uang pangkal sudah lunas (opsional, bisa diubah logicnya)
     if (grade > 1) {
       setCosts(prev => ({
         ...prev,
@@ -68,7 +69,8 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
   };
 
   const handleCostChange = (id: string, field: 'entry' | 'monthly', value: string) => {
-    const numVal = parseInt(value.replace(/\./g, "")) || 0;
+    // Remove non-numeric chars
+    const numVal = parseInt(value.replace(/\./g, "").replace(/[^0-9]/g, "")) || 0;
     setCosts(prev => ({
       ...prev,
       [id]: { ...prev[id], [field]: numVal }
@@ -120,6 +122,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
           
           const remainingDuration = stageInfo.duration - (startGrade - 1);
 
+          // Generate row per tahun ajaran
           for (let i = 0; i < remainingDuration; i++) {
             stagesPayload.push({
               level: mapLevel(id),
@@ -421,8 +424,8 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                              </div>
                           </div>
                        </div>
-                    </div>
-                  );
+                   </div>
+                 );
                })}
             </div>
           </div>

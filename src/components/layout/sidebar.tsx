@@ -17,10 +17,10 @@ export function Sidebar() {
   const [isDirector, setIsDirector] = useState(false);
   // Tambahan info user untuk ditampilkan di sidebar bawah
   const [userInitials, setUserInitials] = useState("U");
+  const [userRoleLabel, setUserRoleLabel] = useState("User");
 
   useEffect(() => {
     // --- LOGIKA CEK ROLE (Client Side Hydration) ---
-    // Mengambil data user dari localStorage setelah mount untuk menghindari hydration mismatch
     const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
     
     if (storedUser) {
@@ -28,8 +28,9 @@ export function Sidebar() {
         const user = JSON.parse(storedUser);
         setIsAdmin(user.role === 'ADMIN');
         setIsDirector(user.role === 'DIRECTOR');
+        setUserRoleLabel(user.role || "User");
         
-        // Generate inisial nama (Misal: "Budi Santoso" -> "BS")
+        // Generate inisial nama
         if (user.fullName) {
             const names = user.fullName.split(' ');
             const initials = names[0].charAt(0) + (names.length > 1 ? names[names.length-1].charAt(0) : "");
@@ -45,7 +46,6 @@ export function Sidebar() {
     if (typeof window !== 'undefined') {
         localStorage.removeItem("user");
         localStorage.removeItem("token");
-        // Hapus cookie juga jika ada (optional, tergantung implementasi auth)
         document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
     router.push("/login");
@@ -53,21 +53,17 @@ export function Sidebar() {
 
   // Helper Component untuk render link
   const NavLink = ({ item, variant = "default" }: { item: any, variant?: "default" | "admin" | "exec" }) => {
-    // Logic active state: 
-    // - Admin/Director: Active jika URL diawali dengan href (Nested route friendly)
-    // - Default: Active jika URL sama persis (Exact match)
     const isActive = variant !== "default" 
         ? pathname.startsWith(item.href) 
         : pathname === item.href;
     
-    // Warna khusus per role (Visual Hierarchy)
-    let activeClass = "bg-brand-700 text-white shadow-lg shadow-brand-700/20"; // Default PAM Blue
+    let activeClass = "bg-brand-700 text-white shadow-lg shadow-brand-700/20"; 
     let iconActiveColor = "text-white";
 
     if (variant === "exec") {
-        activeClass = "bg-slate-800 text-white shadow-md shadow-slate-900/20"; // Dark Grey for Exec
+        activeClass = "bg-slate-800 text-white shadow-md shadow-slate-900/20"; 
     } else if (variant === "admin") {
-        activeClass = "bg-teal-700 text-white shadow-md shadow-teal-700/20"; // Teal for Admin
+        activeClass = "bg-teal-700 text-white shadow-md shadow-teal-700/20"; 
     }
 
     return (
@@ -85,8 +81,6 @@ export function Sidebar() {
                 isActive ? iconActiveColor : "text-slate-400 group-hover:text-brand-600"
             )} />
             <span className="relative z-10">{item.label}</span>
-            
-            {/* Indikator Active Kecil di Kiri (Design Accent) */}
             {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-white/20" />}
         </Link>
     );
@@ -95,7 +89,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen border-r border-slate-200 bg-white sticky top-0 left-0 z-40 shadow-xl shadow-slate-200/50">
       
-      {/* 1. Header Logo (Branding Area) */}
+      {/* 1. Header Logo */}
       <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/50">
         <div className="relative w-10 h-10 drop-shadow-sm">
           <Image 
@@ -117,13 +111,16 @@ export function Sidebar() {
       {/* 2. Navigation Links */}
       <nav className="flex-1 py-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
         
-        {/* GROUP: MENU UTAMA (All Users) */}
-        <div>
-            <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Menu Utama</p>
-            <div className="space-y-0.5">
-                {NAVIGATION_CONFIG.main.map((item) => <NavLink key={item.href} item={item} />)}
+        {/* GROUP: MENU UTAMA (User Biasa & Director) */}
+        {/* [LOGIC CHANGE] Admin TIDAK BOLEH melihat menu ini karena dilarang input keuangan */}
+        {!isAdmin && (
+            <div>
+                <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Menu Utama</p>
+                <div className="space-y-0.5">
+                    {NAVIGATION_CONFIG.main.map((item) => <NavLink key={item.href} item={item} />)}
+                </div>
             </div>
-        </div>
+        )}
 
         {/* GROUP: EXECUTIVE MENU (Director Only) */}
         {isDirector && (
@@ -160,10 +157,18 @@ export function Sidebar() {
             className="group flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all duration-300 shadow-sm"
         >
           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold group-hover:bg-red-100 group-hover:text-red-600 transition-colors">
+             <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
+                isAdmin ? "bg-teal-100 text-teal-700" : 
+                isDirector ? "bg-slate-200 text-slate-700" : 
+                "bg-brand-100 text-brand-700"
+             )}>
                 {userInitials}
              </div>
-             <span className="group-hover:translate-x-1 transition-transform">Keluar</span>
+             <div className="flex flex-col items-start">
+                <span className="leading-none group-hover:text-red-600 transition-colors">Keluar</span>
+                <span className="text-[10px] text-slate-400 font-normal mt-0.5 uppercase">{userRoleLabel}</span>
+             </div>
           </div>
           <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
         </button>
