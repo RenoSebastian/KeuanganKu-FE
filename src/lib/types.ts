@@ -504,7 +504,7 @@ export interface User {
   email: string;
   fullName: string; // sesuaikan dengan backend (fullName bukan name)
   name?: string;    // fallback
-  role: string;
+  role: UserRole;
   nip?: string;
   dateOfBirth?: string;
   unitKerja?: UnitKerja; // Nested object

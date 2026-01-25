@@ -1,52 +1,55 @@
+// File: src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // 1. Target Protection: Intercept request ke rute Direksi
-  if (request.nextUrl.pathname.startsWith('/director')) {
-    
-    // 2. Token Extraction
-    // Mengambil token dari cookies (Nama cookie disesuaikan: 'accessToken' atau 'token')
-    const token = request.cookies.get('accessToken')?.value || request.cookies.get('token')?.value;
+  const { pathname } = request.nextUrl;
 
-    // 3. Gate 1: No Token -> Redirect ke Login
+  // -----------------------------------------------------------------------------
+  // 1. DIRECTOR AREA PROTECTION
+  // -----------------------------------------------------------------------------
+  if (pathname.startsWith('/director')) {
+    
+    // A. Ambil Token (Prioritaskan Cookies karena lebih aman untuk Middleware)
+    const token = request.cookies.get('token')?.value || request.cookies.get('accessToken')?.value;
+
+    // B. Gate 1: Belum Login? -> Tendang ke Login
     if (!token) {
       const loginUrl = new URL('/login', request.url);
-      // UX: Simpan URL tujuan agar bisa redirect balik setelah login
-      loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+      loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
     try {
-      // 4. Decode Token (Edge Compatible)
+      // C. Decode Token (Manual Decoder untuk Edge Runtime)
       const user = decodeJwt(token);
-      
-      // 5. Gate 2: Role Validation
-      // Pastikan payload token memiliki property 'role' sesuai Backend
+
+      // D. Gate 2: Salah Role? -> Tendang ke 403 atau Dashboard User biasa
+      // Pastikan string 'DIRECTOR' sama persis dengan yang di Backend (Case Sensitive)
       if (!user || user.role !== 'DIRECTOR') {
-        // Jika bukan Direksi, lempar ke halaman Forbidden atau Dashboard biasa
-        // Pastikan Anda nanti membuat page src/app/403/page.tsx atau redirect ke '/'
-        return NextResponse.redirect(new URL('/403', request.url));
+        // Option A: Redirect ke halaman Forbidden khusus
+        // return NextResponse.redirect(new URL('/403', request.url));
+        
+        // Option B: Redirect balik ke Dashboard User (Lebih soft)
+        return NextResponse.redirect(new URL('/', request.url));
       }
 
-      // 6. Access Granted
+      // E. Lolos Security Check -> Izinkan masuk
       return NextResponse.next();
 
     } catch (error) {
-      // Token corrupt atau tampered -> Paksa Login ulang
+      // Token tidak valid/rusak -> Paksa Login ulang
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
-  // Loloskan request selain /director/*
+  // -----------------------------------------------------------------------------
+  // 2. PUBLIC/OTHER ROUTES
+  // -----------------------------------------------------------------------------
   return NextResponse.next();
 }
 
-// -----------------------------------------------------------------------------
-// HELPER: JWT Decoder for Edge Runtime
-// -----------------------------------------------------------------------------
-// Kita tidak bisa pakai library 'jsonwebtoken' di Middleware (Edge).
-// Fungsi ini mendecode payload base64 secara manual.
+// --- HELPER: JWT Decoder (Edge Compatible) ---
 function decodeJwt(token: string) {
   try {
     const base64Url = token.split('.')[1];
@@ -63,10 +66,8 @@ function decodeJwt(token: string) {
   }
 }
 
-// -----------------------------------------------------------------------------
-// CONFIG: Matcher
-// -----------------------------------------------------------------------------
+// --- CONFIG ---
 export const config = {
-  // Middleware hanya aktif pada rute ini untuk menghemat resource server
+  // Middleware hanya aktif di route Director untuk performa optimal
   matcher: ['/director/:path*'],
 };

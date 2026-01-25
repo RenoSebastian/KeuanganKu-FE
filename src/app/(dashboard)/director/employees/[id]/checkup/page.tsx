@@ -19,8 +19,10 @@ import { CheckupResult } from "@/components/features/finance/checkup-result";
 // const formatMoney = (val: number) => 
 //   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
 
-export default async function EmployeeAuditPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+// [FIX NEXT.JS 15] Ubah tipe params menjadi Promise
+export default async function EmployeeAuditPage({ params }: { params: Promise<{ id: string }> }) {
+  // [FIX NEXT.JS 15] Await params sebelum destructuring
+  const { id } = await params;
 
   // 1. Ambil Token (Server Side)
   const cookieStore = await cookies();
@@ -35,6 +37,7 @@ export default async function EmployeeAuditPage({ params }: { params: { id: stri
   let error = null;
 
   try {
+    // ID sekarang sudah aman digunakan karena sudah di-await
     data = await directorService.getEmployeeAuditDetail(id, token);
   } catch (err) {
     console.error("Failed to fetch audit detail:", err);

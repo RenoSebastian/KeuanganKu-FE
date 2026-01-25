@@ -273,7 +273,7 @@ export const calculatePension = (input: PensionInput): PensionResult => {
 // --- INSURANCE ENGINE ---
 
 export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
-  const totalDebt = 
+  const totalDebt =   
     input.debtKPR + 
     input.debtKPM + 
     input.debtProductive + 

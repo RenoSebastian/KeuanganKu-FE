@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { use, useEffect, useState } from "react"; // [NEW] Import 'use' untuk unwrap Promise
+import { useRouter } from "next/navigation"; // Hapus useParams karena kita pakai props params
 import { 
   ArrowLeft, Save, Briefcase, 
   Building2, Shield, AlertTriangle, UserCheck,
@@ -24,10 +24,14 @@ const MOCK_UNITS = [
   { id: "DIR-001", name: "Direktorat Utama" },
 ];
 
-export default function EditUserPage() {
+// [FIX NEXT.JS 15] Definisi tipe props params sebagai Promise
+export default function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
+  // [FIX NEXT.JS 15] Gunakan 'use()' untuk unwrap params di Client Component
+  // Ini setara dengan 'await params' di Server Component
+  const { id } = use(params);
+  const userId = id;
+
   const router = useRouter();
-  const params = useParams();
-  const userId = params.id as string;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -145,53 +149,53 @@ export default function EditUserPage() {
             <div className="space-y-5">
                <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                   <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
-                     <User className="w-5 h-5" />
+                      <User className="w-5 h-5" />
                   </div>
                   <h3 className="font-bold text-slate-800 text-lg">Identitas & Kontak</h3>
                </div>
                
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                     <Label variant="field">Nama Lengkap</Label>
-                     <div className="relative group">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
-                        <Input 
-                          value={formData.fullName}
-                          onChange={e => setFormData({...formData, fullName: e.target.value})}
-                          className={cn("pl-10 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all", errors.fullName && "border-rose-500 focus:border-rose-500")}
-                          placeholder="Nama Karyawan"
-                        />
-                     </div>
-                     {errors.fullName && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.fullName}</p>}
+                      <Label variant="field">Nama Lengkap</Label>
+                      <div className="relative group">
+                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
+                         <Input 
+                           value={formData.fullName}
+                           onChange={e => setFormData({...formData, fullName: e.target.value})}
+                           className={cn("pl-10 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all", errors.fullName && "border-rose-500 focus:border-rose-500")}
+                           placeholder="Nama Karyawan"
+                         />
+                      </div>
+                      {errors.fullName && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.fullName}</p>}
                   </div>
 
                   <div className="space-y-2">
-                     <Label variant="field">Nomor Induk Pegawai (NIP)</Label>
-                     <div className="relative group">
-                        <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
-                        <Input 
-                          value={formData.nip}
-                          onChange={e => setFormData({...formData, nip: e.target.value})}
-                          className={cn("pl-10 h-12 rounded-xl bg-slate-50 focus:bg-white font-mono", errors.nip && "border-rose-500")}
-                          placeholder="1990..."
-                        />
-                     </div>
-                     {errors.nip && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.nip}</p>}
+                      <Label variant="field">Nomor Induk Pegawai (NIP)</Label>
+                      <div className="relative group">
+                         <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
+                         <Input 
+                           value={formData.nip}
+                           onChange={e => setFormData({...formData, nip: e.target.value})}
+                           className={cn("pl-10 h-12 rounded-xl bg-slate-50 focus:bg-white font-mono", errors.nip && "border-rose-500")}
+                           placeholder="1990..."
+                         />
+                      </div>
+                      {errors.nip && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.nip}</p>}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                     <Label variant="field">Email Perusahaan</Label>
-                     <div className="relative group">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
-                        <Input 
-                          type="email"
-                          value={formData.email}
-                          onChange={e => setFormData({...formData, email: e.target.value})}
-                          className={cn("pl-10 h-12 rounded-xl bg-slate-50 focus:bg-white", errors.email && "border-rose-500")}
-                          placeholder="nama@pamjaya.co.id"
-                        />
-                     </div>
-                     {errors.email && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.email}</p>}
+                      <Label variant="field">Email Perusahaan</Label>
+                      <div className="relative group">
+                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
+                         <Input 
+                           type="email"
+                           value={formData.email}
+                           onChange={e => setFormData({...formData, email: e.target.value})}
+                           className={cn("pl-10 h-12 rounded-xl bg-slate-50 focus:bg-white", errors.email && "border-rose-500")}
+                           placeholder="nama@pamjaya.co.id"
+                         />
+                      </div>
+                      {errors.email && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.email}</p>}
                   </div>
                </div>
             </div>
@@ -200,41 +204,41 @@ export default function EditUserPage() {
             <div className="space-y-5">
                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-3">
-                     <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
-                        <Shield className="w-5 h-5" />
-                     </div>
-                     <h3 className="font-bold text-slate-800 text-lg">Mutasi & Hak Akses</h3>
+                      <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+                         <Shield className="w-5 h-5" />
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-lg">Mutasi & Hak Akses</h3>
                   </div>
                   <Badge variant="warning" className="hidden md:inline-flex">Area Sensitif</Badge>
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                     <Label variant="field">Unit Kerja (Mutasi)</Label>
-                     <div className="relative">
-                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                        <select 
-                           className={cn(
-                             "flex h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer appearance-none",
-                             errors.unitId && "border-rose-500"
-                           )}
-                           value={formData.unitId}
-                           onChange={e => setFormData({...formData, unitId: e.target.value})}
-                        >
-                           <option value="">-- Pilih Unit Kerja --</option>
-                           {MOCK_UNITS.map(unit => (
-                             <option key={unit.id} value={unit.id}>{unit.name}</option>
-                           ))}
-                        </select>
-                     </div>
-                     {errors.unitId && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.unitId}</p>}
+                      <Label variant="field">Unit Kerja (Mutasi)</Label>
+                      <div className="relative">
+                         <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                         <select 
+                            className={cn(
+                              "flex h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer appearance-none",
+                              errors.unitId && "border-rose-500"
+                            )}
+                            value={formData.unitId}
+                            onChange={e => setFormData({...formData, unitId: e.target.value})}
+                         >
+                            <option value="">-- Pilih Unit Kerja --</option>
+                            {MOCK_UNITS.map(unit => (
+                              <option key={unit.id} value={unit.id}>{unit.name}</option>
+                            ))}
+                         </select>
+                      </div>
+                      {errors.unitId && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.unitId}</p>}
                   </div>
 
                   <div className="space-y-3">
-                     <Label variant="field">Role Aplikasi (Promosi)</Label>
-                     <div className="grid grid-cols-2 gap-3">
-                        {["USER", "UNIT_HEAD", "DIRECTOR", "ADMIN"].map((role) => (
-                           <button
+                      <Label variant="field">Role Aplikasi (Promosi)</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                         {["USER", "UNIT_HEAD", "DIRECTOR", "ADMIN"].map((role) => (
+                            <button
                               key={role}
                               type="button"
                               onClick={() => setFormData({...formData, role: role as UserRole})}
@@ -244,13 +248,13 @@ export default function EditUserPage() {
                                   ? "bg-brand-600 text-white border-brand-600 shadow-lg shadow-brand-500/20" 
                                   : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
                               )}
-                           >
-                              {role === "USER" && <User className="w-3.5 h-3.5" />}
-                              {role === "ADMIN" && <Shield className="w-3.5 h-3.5" />}
-                              {role.replace("_", " ")}
-                           </button>
-                        ))}
-                     </div>
+                            >
+                               {role === "USER" && <User className="w-3.5 h-3.5" />}
+                               {role === "ADMIN" && <Shield className="w-3.5 h-3.5" />}
+                               {role.replace("_", " ")}
+                            </button>
+                         ))}
+                      </div>
                   </div>
                </div>
 

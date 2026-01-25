@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 /**
  * STRATEGI CACHING PWA - KEUANGANKU
@@ -58,6 +59,10 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
+  // [FIX] Memaksa Next.js menggunakan folder ini sebagai root, 
+  // mengabaikan package-lock.json di C:\Users\PC
+  outputFileTracingRoot: path.join(__dirname, "./"),
+  
   images: {
     remotePatterns: [
       {
