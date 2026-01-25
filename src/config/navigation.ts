@@ -1,7 +1,9 @@
 import { 
   Home, Calculator, Wallet, History, User, 
   LayoutDashboard, Users, Database, Settings, 
-  ShieldAlert
+  ShieldAlert,
+  BarChart3,
+  Trophy
 } from "lucide-react";
 
 export const NAVIGATION_CONFIG = {
@@ -19,8 +21,20 @@ export const NAVIGATION_CONFIG = {
     { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },
   ],
   director: [
-    { label: "Director Panel", icon: ShieldAlert, href: "/director" },
-    // Menu spesifik direksi bisa ditambah di sini jika perlu (misal: Risk Monitor)
-    // { label: "Risk Monitor", icon: ShieldCheck, href: "/director/risk-monitor" },
+    { 
+      label: "Executive Summary", 
+      icon: BarChart3, 
+      href: "/director/dashboard" 
+    },
+    { 
+      label: "Risk Monitor", 
+      icon: ShieldAlert, 
+      href: "/director/risk-monitor" 
+    },
+    { 
+      label: "Peringkat Unit", 
+      icon: Trophy, 
+      href: "/director/unit-rankings" 
+    },
   ]
 };
