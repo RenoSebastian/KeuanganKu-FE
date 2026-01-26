@@ -51,6 +51,7 @@ export default function RiskMonitorPage() {
   const statusOptions = [
     { label: "Bahaya", value: "BAHAYA" },
     { label: "Waspada", value: "WASPADA" },
+    { label: "Sehat", value: "SEHAT" },
   ];
 
   // 3. Logic Filtering (Multi-condition)
@@ -109,7 +110,7 @@ export default function RiskMonitorPage() {
                 />
             </div>
             
-            <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+            {/* <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0"> */}
                 <RiskFilterBar 
                     label="Status" 
                     options={statusOptions} 
@@ -124,7 +125,7 @@ export default function RiskMonitorPage() {
                     onValueChange={setFilterUnit}
                     placeholder="Semua Unit"
                 />
-            </div>
+            {/* </div> */}
         </div>
         
         {/* Count Badge */}

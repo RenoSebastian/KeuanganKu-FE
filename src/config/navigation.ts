@@ -9,7 +9,7 @@ import {
 export const NAVIGATION_CONFIG = {
   main: [
     { label: "Dashboard", icon: Home, href: "/" },
-    { label: "Kalkulator", icon: Calculator, href: "/calculator/budget" },
+    { label: "Financial Checkup", icon: Calculator, href: "/finance/checkup" },
     { label: "Keuangan", icon: Wallet, href: "/finance" },
     { label: "Riwayat", icon: History, href: "/history" },
     { label: "Profil", icon: User, href: "/profile" },
