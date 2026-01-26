@@ -1,18 +1,24 @@
+// File: src/app/(auth)/login/page.tsx
+
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label"; 
-import { LogIn, AlertCircle, Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { authService } from "@/services/auth.service"; // Import Service Baru
+import { LogIn, Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
+import { authService } from "@/services/auth.service";
+import Cookies from "js-cookie"; // Pastikan package ini ada (npm i js-cookie)
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl'); // URL tujuan sebelum ditendang middleware
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -28,120 +34,92 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // 1. Panggil Service Login
-      // Kita simpan responsenya ke variabel untuk dicek role-nya
+      // 1. Panggil API Login
       const response = await authService.login({
         email: formData.email,
         password: formData.password
       });
 
-      // 2. Cek Role & Redirect Sesuai Hak Akses
-      const role = response.user.role;
-
-      if (role === "ADMIN") {
-        router.push("/admin/dashboard");
-      } else if (role === "DIRECTOR") {
-        router.push("/director/dashboard");
-      } else {
-        // Default untuk USER / UNIT_HEAD
-        router.push("/");
+      // 2. Simpan Token ke Cookie (PENTING untuk Middleware)
+      // Kita set expiry 1 hari sesuai Backend
+      if (response.access_token) {
+        Cookies.set('token', response.access_token, { expires: 1, secure: true });
+        
+        // Opsional: Simpan data user di localStorage untuk akses cepat di Client Component
+        localStorage.setItem('user', JSON.stringify(response.user));
       }
+
+      // 3. Redirect Sesuai Role
+      const role = response.user.role;
       
+      // Jika ada callbackUrl (misal user tadi mau buka /finance tapi disuruh login dulu)
+      if (callbackUrl) {
+        router.push(callbackUrl);
+      } else {
+        // Default Redirect
+        if (role === 'DIRECTOR') {
+          router.push('/director/dashboard');
+        } else if (role === 'ADMIN') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/dashboard'); // User Biasa
+        }
+      }
+
     } catch (err: any) {
-      console.error("Login failed:", err);
-      // Handle Error dari Backend
-      const msg = err.response?.data?.message || "Gagal masuk aplikasi. Periksa email/password.";
-      setError(msg);
+      console.error("Login Failed:", err);
+      // Tampilkan pesan error yang user-friendly
+      if (err.response?.status === 403 || err.response?.status === 401) {
+        setError("Email atau password salah. Silakan coba lagi.");
+      } else {
+        setError("Terjadi kesalahan sistem. Hubungi administrator.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-[#F8FAFC]">
-      {/* LEFT SIDE - BRANDING & ILLUSTRATION */}
-      <div className="hidden lg:flex w-1/2 bg-brand-600 relative overflow-hidden flex-col justify-between p-12 text-white">
-        {/* Abstract Background Shapes */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-           <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-white/10 blur-3xl"></div>
-           <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] rounded-full bg-brand-400/20 blur-3xl"></div>
-        </div>
-
-        {/* Logo Area */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm border border-white/10">
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 relative overflow-hidden">
+      {/* Background Decoration (Optional, Minimalis) */}
+      <div className="absolute top-0 left-0 w-full h-64 bg-blue-600/10 -skew-y-3 origin-top-left" />
+      
+      <div className="relative z-10 w-full max-w-md px-6">
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg mb-4">
             <Image 
               src="/images/pamjaya-logo.png" 
-              alt="PAM JAYA Logo" 
+              alt="Logo" 
               width={40} 
               height={40} 
               className="object-contain"
             />
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">KeuanganKu</h1>
-            <p className="text-xs text-brand-100 font-medium">PAM JAYA Application</p>
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Selamat Datang Kembali</h1>
+          <p className="text-slate-500 mt-2">Masuk untuk mengakses Financial Checkup Anda</p>
         </div>
 
-        {/* Illustration / Hero Text */}
-        <div className="relative z-10 max-w-lg">
-          <h2 className="text-4xl font-bold mb-6 leading-tight">
-            Kelola Kesehatan Finansial Anda dengan Lebih Bijak
-          </h2>
-          <p className="text-brand-100 text-lg leading-relaxed mb-8">
-            Platform terintegrasi untuk perencanaan keuangan, simulasi dana pensiun, dan analisis kesehatan finansial khusus karyawan PAM JAYA.
-          </p>
-          
-          <div className="flex gap-4">
-             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex-1">
-                <h3 className="font-bold text-2xl mb-1">100%</h3>
-                <p className="text-xs text-brand-100">Aman & Terpercaya</p>
-             </div>
-             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex-1">
-                <h3 className="font-bold text-2xl mb-1">24/7</h3>
-                <p className="text-xs text-brand-100">Akses Kapan Saja</p>
-             </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="relative z-10 text-xs text-brand-200 opacity-80">
-          © 2026 PAM JAYA. All rights reserved.
-        </div>
-      </div>
-
-      {/* RIGHT SIDE - LOGIN FORM */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative">
-         <div className="w-full max-w-md">
-          
-          {/* Mobile Logo (Visible only on small screens) */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <Image src="/images/pamjaya-logo.png" alt="Logo" width={60} height={60} />
-          </div>
-
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-slate-800">Selamat Datang Kembali</h2>
-            <p className="text-slate-500 mt-2">Silakan masuk menggunakan akun karyawan Anda</p>
-          </div>
-
-          {/* Error Alert */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700 leading-tight">{error}</p>
-            </div>
-          )}
-
+        <Card className="p-8 border-slate-200 shadow-xl bg-white/80 backdrop-blur-sm">
           <form onSubmit={handleLogin} className="space-y-5">
+            
+            {/* Error Alert */}
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center gap-2 border border-red-100 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {/* Email Input */}
             <div className="space-y-2">
-              <Label className="text-slate-700 font-semibold">Email Perusahaan</Label>
+              <Label htmlFor="email">Email Perusahaan</Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
+                <Mail className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
                 <Input 
+                  id="email"
                   type="email" 
-                  placeholder="nama@pamjaya.co.id" 
-                  className="pl-11 h-12 bg-white border-slate-200 focus:border-brand-500 focus:ring-brand-500 rounded-xl"
+                  placeholder="nama@pamjaya.co.id"
+                  className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white transition-all"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   required
@@ -149,63 +127,72 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Password Input */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label className="text-slate-700 font-semibold">Kata Sandi</Label>
-                <Link href="/forgot-password" className="text-xs font-semibold text-brand-600 hover:text-brand-700">
-                  Lupa kata sandi?
+                <Label htmlFor="password">Password</Label>
+                <Link 
+                  href="/forgot-password" 
+                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  Lupa password?
                 </Link>
               </div>
               <div className="relative">
-                 <Lock className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
-                 <Input 
-                   type={showPassword ? "text" : "password"} 
-                   placeholder="••••••••" 
-                   className="pl-11 pr-11 h-12 bg-white border-slate-200 focus:border-brand-500 focus:ring-brand-500 rounded-xl"
-                   value={formData.password}
-                   onChange={(e) => setFormData({...formData, password: e.target.value})}
-                   required
-                 />
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                <Input 
+                  id="password"
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="••••••••"
+                  className="pl-10 pr-10 h-12 bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  required
+                />
                  <button 
                    type="button"
                    onClick={() => setShowPassword(!showPassword)}
-                   className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                   className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
                  >
                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                  </button>
               </div>
             </div>
 
+            {/* Submit Button */}
             <Button 
               type="submit" 
-              variant="primary" // Pastikan variant sesuai shadcn (default/primary)
-              className="w-full mt-6 h-12 text-base rounded-xl shadow-lg shadow-brand-600/30 transition-all hover:scale-[1.02] bg-blue-600 hover:bg-blue-700 text-white"
+              className="w-full h-12 text-base font-medium rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 transition-all hover:scale-[1.01]"
               disabled={isLoading}
             >
-              {isLoading ? "Memproses..." : (
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> 
+                  Memproses...
+                </span>
+              ) : (
                 <span className="flex items-center gap-2 justify-center">
                   <LogIn className="w-5 h-5" /> Masuk Aplikasi
                 </span>
               )}
             </Button>
           </form>
-          
-          {/* REGISTER LINK */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-slate-500 font-medium">
-              Belum memiliki akun?{" "}
-              <Link href="/register" className="text-blue-600 font-bold hover:text-blue-700 hover:underline transition-all">
-                Daftar Pegawai Baru
+
+          {/* Footer Register */}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-sm text-slate-500">
+              Karyawan baru?{" "}
+              <Link href="/register" className="text-blue-600 font-semibold hover:text-blue-700 hover:underline">
+                Aktivasi Akun
               </Link>
             </p>
           </div>
-
-          <div className="mt-8 border-t border-slate-100 pt-6 text-center">
-             <p className="text-[10px] text-slate-400 font-semibold">
-               Protected by PAM JAYA Security System
-             </p>
-          </div>
-         </div>
+        </Card>
+        
+        {/* Footer Copyright */}
+        <p className="text-center text-xs text-slate-400 mt-8">
+          &copy; {new Date().getFullYear()} PAM JAYA Financial Wellness. All rights reserved.
+        </p>
       </div>
     </div>
   );

@@ -1,55 +1,75 @@
 // File: src/middleware.ts
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+
+// Daftar rute yang bisa diakses tanpa login
+const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // -----------------------------------------------------------------------------
-  // 1. DIRECTOR AREA PROTECTION
-  // -----------------------------------------------------------------------------
-  if (pathname.startsWith('/director')) {
-    
-    // A. Ambil Token (Prioritaskan Cookies karena lebih aman untuk Middleware)
-    const token = request.cookies.get('token')?.value || request.cookies.get('accessToken')?.value;
+  // 1. Ambil Token dari Cookies (Prioritas utama untuk Middleware)
+  // Token ini diset oleh Login Page menggunakan js-cookie
+  const token = request.cookies.get('token')?.value || request.cookies.get('accessToken')?.value;
 
-    // B. Gate 1: Belum Login? -> Tendang ke Login
-    if (!token) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
+  // 2. Decode Token (Basic Payload Check) untuk tahu Role
+  let userRole = null;
+  if (token) {
     try {
-      // C. Decode Token (Manual Decoder untuk Edge Runtime)
-      const user = decodeJwt(token);
-
-      // D. Gate 2: Salah Role? -> Tendang ke 403 atau Dashboard User biasa
-      // Pastikan string 'DIRECTOR' sama persis dengan yang di Backend (Case Sensitive)
-      if (!user || user.role !== 'DIRECTOR') {
-        // Option A: Redirect ke halaman Forbidden khusus
-        // return NextResponse.redirect(new URL('/403', request.url));
-        
-        // Option B: Redirect balik ke Dashboard User (Lebih soft)
-        return NextResponse.redirect(new URL('/', request.url));
-      }
-
-      // E. Lolos Security Check -> Izinkan masuk
-      return NextResponse.next();
-
-    } catch (error) {
-      // Token tidak valid/rusak -> Paksa Login ulang
-      return NextResponse.redirect(new URL('/login', request.url));
+      const decoded = decodeJwt(token);
+      userRole = decoded?.role;
+    } catch (e) {
+      console.error("Invalid Token in Middleware");
     }
   }
 
-  // -----------------------------------------------------------------------------
-  // 2. PUBLIC/OTHER ROUTES
-  // -----------------------------------------------------------------------------
+  const isAuth = !!token;
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const isRoot = pathname === '/';
+  const isDirectorRoute = pathname.startsWith('/director');
+
+  // --- SKENARIO A: User SUDAH Login ---
+  if (isAuth) {
+    // 1. Jika buka Halaman Login/Register atau Root (Landing Page), 
+    // Redirect paksa ke Dashboard masing-masing (biar gak login ulang)
+    if (isPublicRoute || isRoot) {
+      const targetDashboard = userRole === 'DIRECTOR' ? '/director/dashboard' : '/dashboard';
+      return NextResponse.redirect(new URL(targetDashboard, request.url));
+    }
+
+    // 2. Proteksi Halaman Director
+    if (isDirectorRoute) {
+      if (userRole !== 'DIRECTOR') {
+        // User biasa coba masuk area Direksi -> Balikin ke kandang (User Dashboard)
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+    }
+  }
+
+  // --- SKENARIO B: User BELUM Login ---
+  if (!isAuth) {
+    // 1. Jika buka Root (/), biarkan saja (Tampilkan Landing Page)
+    if (isRoot) {
+      return NextResponse.next();
+    }
+
+    // 2. Jika buka halaman selain Public Route (misal: /dashboard, /finance),
+    // Redirect ke Login
+    if (!isPublicRoute) {
+      const loginUrl = new URL('/login', request.url);
+      // Simpan URL tujuan agar nanti bisa redirect balik setelah login (UX)
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // Lolos semua pengecekan -> Lanjut
   return NextResponse.next();
 }
 
-// --- HELPER: JWT Decoder (Edge Compatible) ---
+// --- HELPER: JWT Decoder (Edge Runtime Compatible) ---
+// Middleware Next.js jalan di Edge, jadi tidak bisa pakai library berat.
 function decodeJwt(token: string) {
   try {
     const base64Url = token.split('.')[1];
@@ -66,8 +86,18 @@ function decodeJwt(token: string) {
   }
 }
 
-// --- CONFIG ---
+// Konfigurasi Matcher (Hanya jalan di path tertentu agar performa optimal)
 export const config = {
-  // Middleware hanya aktif di route Director untuk performa optimal
-  matcher: ['/director/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images (public images)
+     * - icons (public icons)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|images|icons).*)',
+  ],
 };
