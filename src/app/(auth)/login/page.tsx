@@ -181,9 +181,9 @@ export default function LoginPage() {
           {/* Footer Register */}
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
             <p className="text-sm text-slate-500">
-              Karyawan baru?{" "}
+              Belum memiliki akun?{" "}
               <Link href="/register" className="text-blue-600 font-semibold hover:text-blue-700 hover:underline">
-                Aktivasi Akun
+                Daftar Akun
               </Link>
             </p>
           </div>

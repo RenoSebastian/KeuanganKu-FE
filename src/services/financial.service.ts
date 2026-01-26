@@ -29,8 +29,15 @@ export const financialService = {
   },
 
   getCheckupHistory: async () => {
-    // Mengambil history lengkap
+    // Mengambil history lengkap (List Only)
     const response = await api.get("/financial/checkup/history");
+    return response.data;
+  },
+
+  // [NEW] Method untuk mengambil Detail Analisa per Item History
+  // Digunakan di Modal Detail pada halaman History
+  getCheckupDetail: async (id: string) => {
+    const response = await api.get(`/financial/checkup/detail/${id}`);
     return response.data;
   },
 

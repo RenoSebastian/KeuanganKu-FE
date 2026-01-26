@@ -372,6 +372,21 @@ export interface HealthAnalysisResult {
   incomeVariable?: number;
 }
 
+// [NEW] Interface Khusus untuk Response "Lihat Detail" (Modal Pop-up)
+export interface CheckupDetailResponse {
+  score: number;
+  globalStatus: string;
+  netWorth: number;
+  surplusDeficit: number;
+  ratios: RatioDetail[];
+  generatedAt: string;
+  record: FinancialRecord & { 
+    id: string; 
+    checkDate?: string; 
+    createdAt?: string; 
+  };
+}
+
 
 // ============================================================================
 // 6. ADMIN & SYSTEM DASHBOARD TYPES
