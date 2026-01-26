@@ -71,7 +71,7 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
                 <div className="h-10 w-full bg-white/10 animate-pulse rounded-xl mb-3" />
               ) : (
                 <div className="mb-3">
-                  <p className="text-2xl md:text-3xl font-bold text-white break-words">
+                  <p className="text-2xl md:text-2xl font-bold text-white break-words">
                      {formatRupiah(totalFutureCost)}
                   </p>
                 </div>

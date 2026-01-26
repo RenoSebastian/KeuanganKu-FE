@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider"; // Pastikan path ini benar sesuai struktur Anda
+import { Slider } from "@/components/ui/slider"; 
 import { Label } from "@/components/ui/label";
 import { 
   Plus, Users, Settings2, 
@@ -17,7 +17,7 @@ import { ChildWizard } from "@/components/features/education/child-wizard";
 import { ChildCard } from "@/components/features/education/child-card";
 import { SummaryBoard } from "@/components/features/education/summary-board";
 import { calculatePortfolio } from "@/lib/financial-math";
-import { ChildProfile, PortfolioSummary, EducationPlanResponse, PlanInput, StageBreakdownItem } from "@/lib/types";
+import { ChildProfile, PortfolioSummary, PlanInput } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 
 export default function EducationPage() {
@@ -27,7 +27,7 @@ export default function EducationPage() {
   const [children, setChildren] = useState<ChildProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Asumsi Ekonomi
+  // Asumsi Ekonomi (Default Value)
   const [assumptions, setAssumptions] = useState({
     inflation: 10,   
     returnRate: 12   
@@ -39,35 +39,34 @@ export default function EducationPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch raw data (which might contain strings for numbers)
-      const data: any[] = await financialService.getEducationPlans();
+      // ✅ CLEAN DATA SOURCE: 
+      // Data di sini sudah otomatis dikonversi jadi number oleh 'financial.service.ts'
+      // Tidak perlu lagi casting manual Number() yang berantakan.
+      const data = await financialService.getEducationPlans();
       
-      // A. Construct Child Profiles (Inputs for Wizard/Edit)
-      const mappedChildren: ChildProfile[] = data.map((plan: any) => {
-        // Force cast backend "calculation" fields to numbers just in case
-        const breakdown = plan.calculation.stagesBreakdown.map((b: any) => ({
-             ...b,
-             currentCost: Number(b.currentCost || 0),
-             futureCost: Number(b.futureCost || 0),
-             monthlySaving: Number(b.monthlySaving || 0)
-        }));
-
-        const uniqueLevels = Array.from(new Set(breakdown.map((b: any) => b.level)));
+      // A. Construct Child Profiles (Untuk kebutuhan Edit/Wizard)
+      const mappedChildren: ChildProfile[] = data.map((plan) => {
+        const breakdown = plan.calculation.stagesBreakdown;
         
-        const reconstructedPlans: PlanInput[] = uniqueLevels.map((level: any) => {
-          const entryItem = breakdown.find((b: any) => b.level === level && b.costType === "ENTRY");
-          const annualItem = breakdown.find((b: any) => b.level === level && b.costType === "ANNUAL");
+        // Ambil level unik (TK, SD, SMP...)
+        const uniqueLevels = Array.from(new Set(breakdown.map(b => b.level)));
+        
+        // Rekonstruksi input plan untuk setiap jenjang
+        const reconstructedPlans: PlanInput[] = uniqueLevels.map((level) => {
+          const entryItem = breakdown.find(b => b.level === level && b.costType === "ENTRY");
+          const annualItem = breakdown.find(b => b.level === level && b.costType === "ANNUAL");
           
+          // Reverse logic untuk mendapatkan estimasi "Biaya Bulanan" dari "Biaya Tahunan"
           let monthlyFee = 0;
           if (annualItem) {
              monthlyFee = (level === "PT") 
-                ? annualItem.currentCost / 2  
-                : annualItem.currentCost / 12; 
+                ? annualItem.currentCost / 2   // Asumsi PT: Biaya per Semester
+                : annualItem.currentCost / 12; // Asumsi Sekolah: Biaya per Bulan
           }
 
           return {
-            stageId: level as string,
-            startGrade: 1, 
+            stageId: level,
+            startGrade: 1, // Default, karena data detail grade tidak disimpan di breakdown
             costNow: {
               entryFee: entryItem ? entryItem.currentCost : 0,
               monthlyFee: monthlyFee
@@ -79,31 +78,24 @@ export default function EducationPage() {
           id: plan.plan.id,
           name: plan.plan.childName,
           dob: plan.plan.childDob,
-          gender: "L", 
+          gender: "L", // Default gender jika tidak ada di DB
           avatarColor: "bg-cyan-100 text-cyan-700",
           plans: reconstructedPlans
         };
       });
 
-      // B. Construct Initial Portfolio from Backend Data (Server-Side Result)
-      // Ini penting agar data langsung muncul sesuai respons BE sebelum di-overwrite logic FE
-      const initialDetails = data.map((plan: any) => ({
+      // B. Construct Initial Portfolio (Langsung dari Hasil Hitungan Backend)
+      // Ini menjamin angka yang muncul pertama kali SAMA PERSIS dengan hitungan BE
+      const initialDetails = data.map((plan) => ({
          childId: plan.plan.id,
          childName: plan.plan.childName,
-         totalMonthlySaving: Number(plan.calculation.monthlySaving || 0),
-         // Mapping stagesBreakdown agar semua angka string jadi number
-         stagesBreakdown: plan.calculation.stagesBreakdown.map((s: any) => ({
-             ...s,
-             currentCost: Number(s.currentCost || 0),
-             futureCost: Number(s.futureCost || 0),
-             monthlySaving: Number(s.monthlySaving || 0),
-             yearsToStart: Number(s.yearsToStart || 0)
-         }))
+         totalMonthlySaving: plan.calculation.monthlySaving,
+         stagesBreakdown: plan.calculation.stagesBreakdown
       }));
 
       const initialPortfolio: PortfolioSummary = {
-          grandTotalMonthlySaving: Number(initialDetails.reduce((acc: number, curr: any) => acc + curr.totalMonthlySaving, 0)),
-          totalFutureCost: Number(data.reduce((acc: number, curr: any) => acc + Number(curr.calculation.totalFutureCost || 0), 0)),
+          grandTotalMonthlySaving: initialDetails.reduce((acc, curr) => acc + curr.totalMonthlySaving, 0),
+          totalFutureCost: data.reduce((acc, curr) => acc + curr.calculation.totalFutureCost, 0),
           details: initialDetails
       };
 
@@ -123,13 +115,13 @@ export default function EducationPage() {
 
   // --- 2. CLIENT-SIDE RE-CALCULATION (Reactive to Sliders) ---
   useEffect(() => {
-    // Hanya jalankan kalkulasi ulang jika data anak sudah siap
-    // Ini memungkinkan slider berfungsi realtime
+    // Fitur Simulasi Realtime: 
+    // Hitung ulang di sisi client saat user menggeser slider inflasi/return
     if (children.length > 0) {
       const result = calculatePortfolio(children, assumptions.inflation, assumptions.returnRate);
       setPortfolio(result);
     }
-  }, [children, assumptions]); // Re-run saat asumsi berubah
+  }, [children, assumptions]); 
 
   // --- HANDLERS ---
   const handleWizardSuccess = () => {
@@ -298,7 +290,7 @@ export default function EducationPage() {
                       </div>
 
                       <div className="space-y-8">
-                          {/* SLIDER INFLASI (Fixed: Value must be Number, OnChange accepts Number) */}
+                          {/* SLIDER INFLASI */}
                           <div className="space-y-4">
                             <div className="flex justify-between items-end">
                                 <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">

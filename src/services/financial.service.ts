@@ -77,16 +77,45 @@ export const financialService = {
     return response.data;
   },
 
-  // D. Pendidikan Anak (LENGKAP: CRUD)
+  // D. Pendidikan Anak (LENGKAP: CRUD & FIX DATA TYPE)
   
   saveEducationPlan: async (data: EducationPayload) => {
     const response = await api.post<EducationPlanResponse>("/financial/calculator/education", data);
     return response.data;
   },
 
+  // --- [FIXED] DATA TRANSFORMATION LAYER ---
+  // Menangani data string dari BE dan mengubahnya menjadi number agar UI tidak error.
+  // UPDATE: Logic ini juga menjamin nilai '0' (untuk S2 Lumpsum) tetap terbaca sebagai angka 0, bukan null/NaN.
   getEducationPlans: async () => {
-    const response = await api.get<EducationPlanResponse[]>("/financial/calculator/education");
-    return response.data;
+    const response = await api.get("/financial/calculator/education");
+    
+    const cleanData = response.data.map((plan: any) => ({
+      ...plan,
+      plan: {
+        ...plan.plan,
+        // Paksa ubah string ke number
+        inflationRate: Number(plan.plan.inflationRate || 0),
+        returnRate: Number(plan.plan.returnRate || 0),
+      },
+      calculation: {
+        ...plan.calculation,
+        // Paksa ubah string ke number
+        totalFutureCost: Number(plan.calculation.totalFutureCost || 0),
+        monthlySaving: Number(plan.calculation.monthlySaving || 0),
+        
+        // Mapping array breakdown secara mendalam
+        stagesBreakdown: plan.calculation.stagesBreakdown.map((stage: any) => ({
+          ...stage,
+          currentCost: Number(stage.currentCost || 0),
+          futureCost: Number(stage.futureCost || 0),
+          monthlySaving: Number(stage.monthlySaving || 0),
+          yearsToStart: Number(stage.yearsToStart || 0)
+        }))
+      }
+    }));
+
+    return cleanData as EducationPlanResponse[];
   },
 
   deleteEducationPlan: async (id: string) => {
@@ -102,9 +131,7 @@ export const financialService = {
    * Mengambil harga emas terbaru per gram (IDR) dari Backend
    * Digunakan sebagai referensi di Financial Checkup (Aset Logam Mulia)
    */
-  // Di dalam financialService pada file financial.service.ts
   getLatestGoldPrice: async () => {
-      // Definisikan interface data emas secara eksplisit
       const response = await api.get<{ 
           success: boolean; 
           data: {

@@ -51,6 +51,11 @@ export interface EducationPayload {
 }
 
 export interface StageBreakdownItem {
+  requiredSaving: number;
+  item: any;
+  dueYear: number;
+  stage: string;
+  stageId: string;
   level: "TK" | "SD" | "SMP" | "SMA" | "PT";
   costType: "ENTRY" | "ANNUAL";
   currentCost: number;

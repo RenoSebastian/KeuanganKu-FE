@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { STAGES_DB, calculateAge } from "@/lib/financial-math";
 import { cn } from "@/lib/utils";
 import { 
-  Check, ChevronRight, GraduationCap, AlertCircle, Loader2, 
+  Check, ChevronRight, AlertCircle, Loader2, 
   User, Calendar as CalendarIcon, Baby, School, ArrowLeft,
-  CheckCircle2, DollarSign
+  CheckCircle2, DollarSign, GraduationCap
 } from "lucide-react";
 import { financialService } from "@/services/financial.service";
 import { EducationPayload, EducationStagePayload } from "@/lib/types";
@@ -59,7 +59,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
 
   const handleGradeChange = (id: string, grade: number) => {
     setStartGrades(prev => ({ ...prev, [id]: grade }));
-    // Jika bukan kelas 1, asumsi uang pangkal sudah lunas (opsional, bisa diubah logicnya)
+    // Jika bukan kelas 1, asumsi uang pangkal sudah lunas (opsional)
     if (grade > 1) {
       setCosts(prev => ({
         ...prev,
@@ -82,7 +82,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
     if (id === "SD") return "SD";
     if (id === "SMP") return "SMP";
     if (id === "SMA") return "SMA";
-    if (id === "KULIAH" || id === "S2") return "PT";
+    if (id === "KULIAH" || id === "S2") return "PT"; // S2 dianggap PT
     return "TK";
   };
 
@@ -100,11 +100,14 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
         const cost = costs[id];
         const startGrade = startGrades[id] || 1;
         
+        // Identifikasi S2
+        const isS2 = id === "S2";
+
         // Hitung tahun mulai (Years To Start)
         // Rumus: (Usia Masuk Jenjang + Offset Kelas) - Usia Anak Sekarang
         const baseEntryYears = (stageInfo.entryAge + (startGrade - 1)) - childAge;
 
-        // 1. Tambahkan Uang Pangkal (Entry Fee) jika ada
+        // 1. Tambahkan Uang Pangkal (Entry Fee) / Total Biaya S2 jika ada
         if (cost.entry > 0) {
           stagesPayload.push({
             level: mapLevel(id),
@@ -114,8 +117,9 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
           });
         }
 
-        // 2. Tambahkan Biaya Bulanan/Semesteran (Annual Fee) jika ada
-        if (cost.monthly > 0) {
+        // 2. Tambahkan Biaya Bulanan/Semesteran (Annual Fee)
+        // EXCEPTION: S2 tidak punya biaya bulanan di form ini, jadi di-skip
+        if (cost.monthly > 0 && !isS2) {
           const isSemester = stageInfo.paymentFrequency === "SEMESTER";
           // Konversi ke Annual Cost karena Backend basis tahunan untuk inflasi
           const annualCost = isSemester ? cost.monthly * 2 : cost.monthly * 12;
@@ -361,6 +365,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                  const stage = STAGES_DB.find(s => s.id === id);
                  const currentGrade = startGrades[id] || 1;
                  const isEntryFeeDisabled = currentGrade > 1;
+                 const isS2 = id === "S2";
 
                  const monthlyLabel = stage?.paymentFrequency === "SEMESTER" ? "UKT per Semester" : "SPP Bulanan";
                  
@@ -384,45 +389,52 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                        </div>
                        
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          {/* Uang Pangkal */}
-                          <div className="space-y-1.5">
+                          {/* INPUT 1: Uang Pangkal / Total Biaya S2 */}
+                          <div className={cn("space-y-1.5", isS2 && "md:col-span-2")}>
                              <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between">
-                               Uang Pangkal
-                               {isEntryFeeDisabled && <span className="text-rose-400 text-[9px] lowercase italic font-medium">(dilewati)</span>}
+                               {isS2 ? "Total Biaya Kuliah (Lumpsum)" : "Uang Pangkal"}
+                               {isEntryFeeDisabled && !isS2 && <span className="text-rose-400 text-[9px] lowercase italic font-medium">(dilewati)</span>}
                              </label>
                              <div className="relative group/input">
                                <span className={cn(
                                  "absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold transition-colors",
-                                 isEntryFeeDisabled ? "text-slate-400" : "text-slate-500 group-focus-within/input:text-brand-600"
+                                 (isEntryFeeDisabled && !isS2) ? "text-slate-400" : "text-slate-500 group-focus-within/input:text-brand-600"
                                )}>Rp</span>
                                <Input 
                                  className={cn(
                                    "pl-9 h-11 text-sm font-bold transition-all rounded-xl",
-                                   isEntryFeeDisabled 
+                                   (isEntryFeeDisabled && !isS2)
                                      ? "bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed" 
                                      : "bg-white border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 text-slate-800"
                                  )}
                                  placeholder="0"
                                  value={formatNum(costs[id]?.entry)}
                                  onChange={e => handleCostChange(id, 'entry', e.target.value)}
-                                 disabled={isEntryFeeDisabled}
+                                 disabled={isEntryFeeDisabled && !isS2}
                                />
                              </div>
+                             {isS2 && (
+                               <p className="text-[9px] text-slate-400 italic">
+                                 *Masukkan total estimasi biaya S2 dari awal hingga lulus.
+                               </p>
+                             )}
                           </div>
 
-                          {/* Biaya Bulanan / Semester */}
-                          <div className="space-y-1.5">
-                             <label className="text-[10px] font-bold text-slate-500 uppercase">{monthlyLabel}</label>
-                             <div className="relative group/input">
-                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 group-focus-within/input:text-brand-600 transition-colors">Rp</span>
-                               <Input 
-                                 className="pl-9 h-11 bg-white border-slate-200 text-sm font-bold focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all rounded-xl text-slate-800"
-                                 placeholder="0"
-                                 value={formatNum(costs[id]?.monthly)}
-                                 onChange={e => handleCostChange(id, 'monthly', e.target.value)}
-                               />
-                             </div>
-                          </div>
+                          {/* INPUT 2: Biaya Bulanan / Semester (Disembunyikan jika S2) */}
+                          {!isS2 && (
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">{monthlyLabel}</label>
+                                <div className="relative group/input">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 group-focus-within/input:text-brand-600 transition-colors">Rp</span>
+                                  <Input 
+                                    className="pl-9 h-11 bg-white border-slate-200 text-sm font-bold focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all rounded-xl text-slate-800"
+                                    placeholder="0"
+                                    value={formatNum(costs[id]?.monthly)}
+                                    onChange={e => handleCostChange(id, 'monthly', e.target.value)}
+                                  />
+                                </div>
+                            </div>
+                          )}
                        </div>
                    </div>
                  );

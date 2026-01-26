@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, ChevronUp, Clock, Target, ArrowRight } from "lucide-react";
+import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Clock, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/financial-math";
 import { StageBreakdownItem } from "@/lib/types"; 
@@ -58,7 +58,7 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
                <div>
                   <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">Total Estimasi Biaya</p>
                   <h3 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tight">
-                     {formatRupiah(data.totalFutureCost)}
+                      {formatRupiah(data.totalFutureCost)}
                   </h3>
                </div>
 
@@ -81,8 +81,8 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
                <div>
                   <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Rekomendasi Nabung</p>
                   <h3 className="text-3xl md:text-5xl font-black text-emerald-700 tracking-tighter drop-shadow-sm">
-                     {formatRupiah(data.monthlySaving)}
-                     <span className="text-lg font-bold text-emerald-600/70 ml-1">/bln</span>
+                      {formatRupiah(data.monthlySaving)}
+                      <span className="text-lg font-bold text-emerald-600/70 ml-1">/bln</span>
                   </h3>
                </div>
 
@@ -131,7 +131,9 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {data.stagesBreakdown!.map((item, idx) => {
+                       // Data sudah bersih (number), tidak perlu casting
                        const years = item.yearsToStart ?? 0;
+                       
                        return (
                          <tr key={idx} className="group/row hover:bg-blue-50/30 transition-colors">
                            <td className="px-6 py-4">
