@@ -5,13 +5,15 @@ import { Card } from "@/components/ui/card";
 import { formatRupiah, calculateAge } from "@/lib/financial-math";
 import { ChildProfile, StageBreakdownItem } from "@/lib/types"; 
 import { 
-  Baby, Trash2, ChevronDown, Clock, Info
+  Baby, Trash2, ChevronDown, ChevronUp, Clock, Info, 
+  GraduationCap, TrendingUp, Calendar, School 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 interface ChildCardProps {
   profile: ChildProfile;
+  // Result bisa dari Backend (stagesBreakdown) atau Lokal (stages)
   result?: { 
     totalMonthlySaving: number;
     stagesBreakdown?: StageBreakdownItem[]; 
@@ -22,23 +24,32 @@ interface ChildCardProps {
 
 export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const age = calculateAge(profile.dob);
   
-  // Defensive check: pastikan profile.dob valid
-  const age = profile.dob ? calculateAge(profile.dob) : 0;
-  
-  // Style Avatar
-  const avatarGradient = "bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-100";
+  // Dynamic Gradient Avatar based on Gender
+  const avatarGradient = profile.gender === "L" 
+    ? "from-blue-100 to-indigo-200 text-blue-700" 
+    : "from-pink-100 to-rose-200 text-pink-700";
 
-  // Data Breakdown
-  const breakdownData = result?.stagesBreakdown || []; 
+  // Prioritaskan Data Backend (stagesBreakdown) -> Fallback ke Data Lokal (stages)
+  // Logic: Backend biasanya mengirim 'stagesBreakdown', kalkulator lokal pakai 'stages'
+  const totalMonthlySaving = result?.totalMonthlySaving ?? 0;
+  const stagesData = result?.stagesBreakdown || result?.stages || [];
   
-  // Defensive Parsing: Pastikan totalSaving dibaca sebagai Number
-  const totalSaving = Number(result?.totalMonthlySaving || 0);
 
   return (
-    <Card className="overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 bg-white rounded-2xl group">
-      
-      {/* --- HEADER CARD --- */}
+    <Card className="group relative bg-white/80 backdrop-blur-md border border-white/60 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500 rounded-[2rem] overflow-hidden">
+       
+       {/* --- DECORATIVE BACKGROUND BLOB --- */}
+       <div className={cn(
+         "absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl opacity-30 pointer-events-none transition-colors duration-500",
+         profile.gender === "L" ? "bg-blue-300" : "bg-pink-300"
+       )} />
+
+       <div className="p-1">
+         <div className="bg-gradient-to-b from-white/50 to-white/20 p-5 rounded-[1.8rem]">
+           
+           {/* --- HEADER CARD --- */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
         className="p-5 flex items-center justify-between cursor-pointer select-none bg-white relative z-10"
@@ -58,7 +69,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
                 </span>
               </h4>
               <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                 Target Dana: <span className="font-semibold text-cyan-600">{formatRupiah(totalSaving)}</span> / bulan
+                 Target Dana: <span className="font-semibold text-cyan-600">{formatRupiah(totalMonthlySaving)}</span> / bulan
               </p>
            </div>
         </div>
@@ -68,7 +79,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
              variant="ghost"
              size="icon"
              className="h-8 w-8 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-             onClick={(e) => {
+             onClick={(e: { stopPropagation: () => void; }) => {
                e.stopPropagation();
                onDelete(profile.id);
              }}
@@ -83,67 +94,57 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
               <ChevronDown className="w-4 h-4" />
            </div>
         </div>
-      </div>
+      </div>         </div>
+       </div>
 
-      {/* --- DETAIL EXPANSION --- */}
-      <div className={cn(
-        "grid transition-all duration-300 ease-in-out bg-slate-50/50 border-t border-slate-100",
-        isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-      )}>
-         <div className="overflow-hidden">
+       {/* --- DETAILED TABLE (ACCORDION) --- */}
+       {isOpen && result && (
+         <div className="animate-in slide-in-from-top-4 duration-500 ease-out border-t border-slate-100 bg-slate-50/50">
            
-           {/* Wrapper overflow-x-auto agar tabel responsif di mobile */}
-           <div className="w-full overflow-x-auto">
-             <table className="w-full text-left min-w-[500px]"> 
-               <thead className="bg-slate-100/80 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+           <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse">
+               <thead>
                  <tr>
-                   <th className="pl-6 py-3 rounded-tl-lg">Jenjang</th>
-                   <th className="py-3">Biaya Saat Ini</th>
-                   <th className="py-3 text-right">Biaya Masa Depan</th>
-                   <th className="pr-6 py-3 text-right rounded-tr-lg">Nabung / Bln</th>
+                   <th className="pl-6 pr-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50">Jenjang</th>
+                   <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50 text-right">Target Dana</th>
+                   <th className="pl-4 pr-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50 text-right">Nabung</th>
                  </tr>
                </thead>
-               <tbody className="divide-y divide-slate-100 text-sm">
-                 {breakdownData.map((item, idx) => {
-                   // FIX CRITICAL: Paksa konversi ke Number()
-                   const currentCost = Number(item.currentCost || 0);
-                   const fv = Number(item.futureCost || 0);
-                   const pmt = Number(item.monthlySaving || 0);
-                   const years = Number(item.yearsToStart || 0);
-
-                   // FIX TYPE ERROR: Explicitly type as string agar bisa menerima custom text
-                   let levelLabel: string = item.level;
-                   if (item.level === "PT") levelLabel = "Kuliah / S2"; 
-
-                   let costLabel = "SPP Tahunan";
-                   if (item.costType === "ENTRY") costLabel = "Uang Pangkal / Lumpsum";
+               <tbody className="text-sm">
+                 {stagesData.map((item: any, idx: number) => {
+                   // Normalisasi Data (Handle perbedaan nama field Backend vs Frontend)
+                   const level = item.level || item.stageId || item.stage;
+                   const typeLabel = item.costType === "ENTRY" ? "Uang Pangkal" : (item.item || "SPP Bulanan");
+                   const isEntry = item.costType === "ENTRY" || (item.item && item.item.includes("Pangkal"));
+                   
+                   const years = item.yearsToStart !== undefined ? item.yearsToStart : item.dueYear;
+                   const fv = item.futureCost !== undefined ? item.futureCost : item.totalFutureCost;
+                   const pmt = item.monthlySaving !== undefined ? item.monthlySaving : item.requiredSaving;
 
                    return (
-                     <tr key={idx} className="hover:bg-white transition-colors group/row">
-                         <td className="pl-6 py-4">
-                            <div className="flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                               <span className="font-bold text-slate-700">{levelLabel}</span>
+                     <tr key={idx} className="group/row hover:bg-white transition-colors border-b border-slate-100/50 last:border-0">
+                         <td className="pl-6 pr-4 py-4">
+                            <div className="flex items-center gap-3">
+                               <div className={cn(
+                                 "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",
+                                 isEntry ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600"
+                               )}>
+                                  {isEntry ? <School className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
+                               </div>
+                               <div>
+                                 <div className="font-bold text-slate-700 text-xs md:text-sm">{level}</div>
+                                 <div className="text-[10px] text-slate-400 font-medium">{typeLabel}</div>
+                               </div>
                             </div>
-                            <span className="text-[10px] text-slate-400 pl-3.5">
-                              {costLabel}
-                            </span>
                          </td>
-                         <td className="py-4 text-slate-500 font-medium">
-                            {formatRupiah(currentCost)}
-                         </td>
-                         <td className="py-4 text-right">
-                            <div className="font-bold text-slate-700 text-sm whitespace-nowrap">
-                                {formatRupiah(fv)}
-                            </div>
+                         <td className="px-4 py-4 text-right">
+                            <div className="font-bold text-slate-600 text-xs md:text-sm">{formatRupiah(fv || 0)}</div>
                             <div className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md mt-1">
                                <Clock className="w-2.5 h-2.5" /> {years} thn lagi
                             </div>
                          </td>
-                         <td className="pl-4 pr-6 py-4 text-right bg-cyan-50/30 group-hover/row:bg-cyan-50/60 transition-colors">
-                            <div className="font-black text-cyan-700 text-sm whitespace-nowrap">
-                                {formatRupiah(pmt)}
-                            </div>
+                         <td className="pl-4 pr-6 py-4 text-right">
+                            <div className="font-black text-green-600 text-xs md:text-sm">{formatRupiah(pmt || 0)}</div>
                             <div className="text-[9px] text-slate-400 font-medium mt-0.5">/bulan</div>
                          </td>
                      </tr>
@@ -154,16 +155,14 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
            </div>
            
            {/* Insight Footer */}
-           <div className="px-6 py-4 bg-yellow-50/50 border-t border-yellow-100 flex gap-3 items-start">
+           <div className="px-6 py-4 bg-yellow-50/80 border-t border-yellow-100 flex gap-3 items-start">
               <Info className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
               <p className="text-[11px] text-yellow-800/80 leading-relaxed">
-                 Strategi <b>Sinking Fund:</b> Anda menabung secara terpisah untuk setiap jenjang pendidikan mulai hari ini.
-                 Total tabungan di atas adalah akumulasi dari semua cicilan jenjang pendidikan anak ini.
+                 Strategi <b>Sinking Fund:</b> Anda menabung secara terpisah untuk setiap jenjang pendidikan mulai hari ini. Total tabungan akan berkurang seiring lunasnya setiap tahapan sekolah.
               </p>
            </div>
-
          </div>
-      </div>
+       )}
     </Card>
   );
 }

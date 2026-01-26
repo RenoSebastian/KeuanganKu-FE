@@ -39,36 +39,32 @@ export default function EducationPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // ✅ CLEAN DATA SOURCE: 
-      // Data di sini sudah otomatis dikonversi jadi number oleh 'financial.service.ts'
-      // Tidak perlu lagi casting manual Number() yang berantakan.
+      // ✅ DATA SOURCE: Mengambil data bersih dari Service
       const data = await financialService.getEducationPlans();
       
       // A. Construct Child Profiles (Untuk kebutuhan Edit/Wizard)
       const mappedChildren: ChildProfile[] = data.map((plan) => {
         const breakdown = plan.calculation.stagesBreakdown;
-        
-        // Ambil level unik (TK, SD, SMP...)
         const uniqueLevels = Array.from(new Set(breakdown.map(b => b.level)));
         
-        // Rekonstruksi input plan untuk setiap jenjang
         const reconstructedPlans: PlanInput[] = uniqueLevels.map((level) => {
           const entryItem = breakdown.find(b => b.level === level && b.costType === "ENTRY");
           const annualItem = breakdown.find(b => b.level === level && b.costType === "ANNUAL");
           
-          // Reverse logic untuk mendapatkan estimasi "Biaya Bulanan" dari "Biaya Tahunan"
+          // [FIX] Handle jika Annual Item tidak ada (Kasus S2/Lumpsum)
           let monthlyFee = 0;
           if (annualItem) {
+             const annualCost = annualItem.currentCost || 0;
              monthlyFee = (level === "PT") 
-                ? annualItem.currentCost / 2   // Asumsi PT: Biaya per Semester
-                : annualItem.currentCost / 12; // Asumsi Sekolah: Biaya per Bulan
+                ? annualCost / 2   
+                : annualCost / 12; 
           }
 
           return {
             stageId: level,
-            startGrade: 1, // Default, karena data detail grade tidak disimpan di breakdown
+            startGrade: 1, 
             costNow: {
-              entryFee: entryItem ? entryItem.currentCost : 0,
+              entryFee: entryItem ? (entryItem.currentCost || 0) : 0,
               monthlyFee: monthlyFee
             }
           };
@@ -78,14 +74,13 @@ export default function EducationPage() {
           id: plan.plan.id,
           name: plan.plan.childName,
           dob: plan.plan.childDob,
-          gender: "L", // Default gender jika tidak ada di DB
+          gender: "L", 
           avatarColor: "bg-cyan-100 text-cyan-700",
           plans: reconstructedPlans
         };
       });
 
-      // B. Construct Initial Portfolio (Langsung dari Hasil Hitungan Backend)
-      // Ini menjamin angka yang muncul pertama kali SAMA PERSIS dengan hitungan BE
+      // B. Construct Initial Portfolio (Langsung dari BE)
       const initialDetails = data.map((plan) => ({
          childId: plan.plan.id,
          childName: plan.plan.childName,
@@ -113,10 +108,8 @@ export default function EducationPage() {
     fetchData();
   }, []);
 
-  // --- 2. CLIENT-SIDE RE-CALCULATION (Reactive to Sliders) ---
+  // --- 2. CLIENT-SIDE RE-CALCULATION ---
   useEffect(() => {
-    // Fitur Simulasi Realtime: 
-    // Hitung ulang di sisi client saat user menggeser slider inflasi/return
     if (children.length > 0) {
       const result = calculatePortfolio(children, assumptions.inflation, assumptions.returnRate);
       setPortfolio(result);
@@ -143,19 +136,17 @@ export default function EducationPage() {
   return (
     <div className="min-h-screen w-full bg-slate-50/50 relative pb-24 md:pb-12 overflow-x-hidden selection:bg-cyan-100 selection:text-cyan-900">
       
-      {/* --- BACKGROUND DECORATION --- */}
+      {/* BACKGROUND DECORATION */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-50/80 to-transparent" />
         <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-cyan-100/30 rounded-full blur-[100px]" />
         <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-blue-100/30 rounded-full blur-[80px]" />
       </div>
 
-      {/* --- HEADER SECTION --- */}
+      {/* HEADER SECTION */}
       <div className="relative z-10 w-full">
          <div className="max-w-7xl mx-auto px-6 pt-10 pb-8 md:pt-14 md:pb-10">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-               
-               {/* Text Section */}
                <div className="space-y-2">
                   <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm border border-slate-200/50 px-3 py-1 rounded-full shadow-sm mb-2">
                       <Droplets className="w-3.5 h-3.5 text-cyan-600" />
@@ -171,7 +162,6 @@ export default function EducationPage() {
                   </p>
                </div>
 
-               {/* Action Button */}
                {view === "DASHBOARD" && (
                  <Button 
                    onClick={() => setView("WIZARD")} 
@@ -185,10 +175,9 @@ export default function EducationPage() {
          </div>
       </div>
 
-      {/* --- MAIN CONTENT --- */}
+      {/* MAIN CONTENT */}
       <div className="relative z-20 max-w-7xl mx-auto px-4 md:px-6">
         
-        {/* MODE WIZARD */}
         {view === "WIZARD" && (
            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <Card className="p-0 rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/40 relative overflow-hidden">
@@ -202,19 +191,15 @@ export default function EducationPage() {
            </div>
         )}
 
-        {/* MODE DASHBOARD */}
         {view === "DASHBOARD" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-12">
              
-             {/* LEFT COLUMN: Main Data (8/12) */}
+             {/* LEFT COLUMN: Main Data */}
              <div className="lg:col-span-8 space-y-6">
-               
-                {/* 1. Summary Board */}
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
                    <SummaryBoard summary={portfolio} isLoading={isLoading} />
                 </div>
 
-                {/* 2. List Anak */}
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
                    <div className="flex items-center justify-between px-1">
                      <h3 className="text-lg font-bold text-slate-700 flex items-center gap-2">
@@ -234,12 +219,10 @@ export default function EducationPage() {
                         <p className="text-sm text-slate-400 font-medium">Memuat data...</p>
                      </div>
                    ) : children.length === 0 ? (
-                     // EMPTY STATE
                      <Card className="group relative overflow-hidden p-12 border-dashed border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-cyan-200 transition-all duration-500 rounded-3xl flex flex-col items-center justify-center text-center">
                         <div className="relative z-10 w-16 h-16 bg-cyan-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
                           <GraduationCap className="w-8 h-8 text-cyan-500 group-hover:text-cyan-600 transition-colors" />
                         </div>
-                        
                         <div className="relative z-10 max-w-sm">
                            <h3 className="text-lg font-bold text-slate-800 mb-2">Belum ada simulasi</h3>
                            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
@@ -254,7 +237,6 @@ export default function EducationPage() {
                         </div>
                      </Card>
                    ) : (
-                     // DATA LIST
                      <div className="grid grid-cols-1 gap-4">
                         {children.map((child, idx) => {
                           const childResult = portfolio?.details.find(d => d.childId === child.id);
@@ -273,12 +255,11 @@ export default function EducationPage() {
                 </div>
              </div>
 
-             {/* RIGHT COLUMN: Settings (4/12) */}
+             {/* RIGHT COLUMN: Settings */}
              <div className="lg:col-span-4 space-y-6">
                 <div className="sticky top-6 space-y-6">
                    <Card className="p-6 rounded-3xl border border-slate-100 bg-white shadow-lg shadow-slate-100/80">
                       
-                      {/* Settings Header */}
                       <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-100">
                          <div className="p-2.5 bg-cyan-50 rounded-xl">
                             <Settings2 className="w-5 h-5 text-cyan-600" />
@@ -290,7 +271,7 @@ export default function EducationPage() {
                       </div>
 
                       <div className="space-y-8">
-                          {/* SLIDER INFLASI */}
+                          {/* SLIDER INFLASI (FIXED: Value number, onChange explicit) */}
                           <div className="space-y-4">
                             <div className="flex justify-between items-end">
                                 <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
@@ -305,14 +286,14 @@ export default function EducationPage() {
                             </div>
                             <Slider 
                               value={assumptions.inflation} 
-                              onChange={(val) => setAssumptions(prev => ({ ...prev, inflation: val }))}
+                              onChange={(val: number) => setAssumptions(prev => ({ ...prev, inflation: val }))}
                               min={5} max={20} step={1}
                               className="py-2"
                               colorClass="accent-red-500" 
                             />
                           </div>
 
-                          {/* SLIDER RETURN INVESTASI */}
+                          {/* SLIDER RETURN INVESTASI (FIXED) */}
                           <div className="space-y-4">
                             <div className="flex justify-between items-end">
                                 <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
@@ -327,7 +308,7 @@ export default function EducationPage() {
                             </div>
                             <Slider 
                               value={assumptions.returnRate}
-                              onChange={(val) => setAssumptions(prev => ({ ...prev, returnRate: val }))} 
+                              onChange={(val: number) => setAssumptions(prev => ({ ...prev, returnRate: val }))} 
                               min={2} max={20} step={1}
                               className="py-2"
                               colorClass="accent-green-500"
@@ -335,7 +316,6 @@ export default function EducationPage() {
                           </div>
                       </div>
 
-                      {/* Info Box */}
                       <div className="mt-8 bg-slate-50 p-4 rounded-2xl flex gap-3 border border-slate-100">
                          <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
                          <p className="text-[10px] text-slate-500 leading-relaxed text-justify">
