@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "@/components/ui/slider"; // Pastikan path ini benar sesuai struktur Anda
 import { Label } from "@/components/ui/label";
 import { 
-  GraduationCap, Plus, Users, Settings2, 
-  Download, Info, Loader2, AlertCircle, TrendingUp
+  Plus, Users, Settings2, 
+  Download, Info, Loader2, AlertCircle, TrendingUp,
+  Droplets, GraduationCap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,7 @@ import { ChildWizard } from "@/components/features/education/child-wizard";
 import { ChildCard } from "@/components/features/education/child-card";
 import { SummaryBoard } from "@/components/features/education/summary-board";
 import { calculatePortfolio } from "@/lib/financial-math";
-import { ChildProfile, PortfolioSummary, EducationPlanResponse, PlanInput } from "@/lib/types";
+import { ChildProfile, PortfolioSummary, EducationPlanResponse, PlanInput, StageBreakdownItem } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 
 export default function EducationPage() {
@@ -34,19 +35,28 @@ export default function EducationPage() {
 
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
 
-  // --- 1. FETCH DATA ---
+  // --- 1. FETCH DATA & PREPARE ---
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const data = await financialService.getEducationPlans();
+      // Fetch raw data (which might contain strings for numbers)
+      const data: any[] = await financialService.getEducationPlans();
       
-      const mappedChildren: ChildProfile[] = data.map((plan: EducationPlanResponse) => {
-        const breakdown = plan.calculation.stagesBreakdown;
-        const uniqueLevels = Array.from(new Set(breakdown.map(b => b.level)));
+      // A. Construct Child Profiles (Inputs for Wizard/Edit)
+      const mappedChildren: ChildProfile[] = data.map((plan: any) => {
+        // Force cast backend "calculation" fields to numbers just in case
+        const breakdown = plan.calculation.stagesBreakdown.map((b: any) => ({
+             ...b,
+             currentCost: Number(b.currentCost || 0),
+             futureCost: Number(b.futureCost || 0),
+             monthlySaving: Number(b.monthlySaving || 0)
+        }));
+
+        const uniqueLevels = Array.from(new Set(breakdown.map((b: any) => b.level)));
         
-        const reconstructedPlans: PlanInput[] = uniqueLevels.map(level => {
-          const entryItem = breakdown.find(b => b.level === level && b.costType === "ENTRY");
-          const annualItem = breakdown.find(b => b.level === level && b.costType === "ANNUAL");
+        const reconstructedPlans: PlanInput[] = uniqueLevels.map((level: any) => {
+          const entryItem = breakdown.find((b: any) => b.level === level && b.costType === "ENTRY");
+          const annualItem = breakdown.find((b: any) => b.level === level && b.costType === "ANNUAL");
           
           let monthlyFee = 0;
           if (annualItem) {
@@ -56,7 +66,7 @@ export default function EducationPage() {
           }
 
           return {
-            stageId: level,
+            stageId: level as string,
             startGrade: 1, 
             costNow: {
               entryFee: entryItem ? entryItem.currentCost : 0,
@@ -70,12 +80,36 @@ export default function EducationPage() {
           name: plan.plan.childName,
           dob: plan.plan.childDob,
           gender: "L", 
-          avatarColor: "bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700",
+          avatarColor: "bg-cyan-100 text-cyan-700",
           plans: reconstructedPlans
         };
       });
 
+      // B. Construct Initial Portfolio from Backend Data (Server-Side Result)
+      // Ini penting agar data langsung muncul sesuai respons BE sebelum di-overwrite logic FE
+      const initialDetails = data.map((plan: any) => ({
+         childId: plan.plan.id,
+         childName: plan.plan.childName,
+         totalMonthlySaving: Number(plan.calculation.monthlySaving || 0),
+         // Mapping stagesBreakdown agar semua angka string jadi number
+         stagesBreakdown: plan.calculation.stagesBreakdown.map((s: any) => ({
+             ...s,
+             currentCost: Number(s.currentCost || 0),
+             futureCost: Number(s.futureCost || 0),
+             monthlySaving: Number(s.monthlySaving || 0),
+             yearsToStart: Number(s.yearsToStart || 0)
+         }))
+      }));
+
+      const initialPortfolio: PortfolioSummary = {
+          grandTotalMonthlySaving: Number(initialDetails.reduce((acc: number, curr: any) => acc + curr.totalMonthlySaving, 0)),
+          totalFutureCost: Number(data.reduce((acc: number, curr: any) => acc + Number(curr.calculation.totalFutureCost || 0), 0)),
+          details: initialDetails
+      };
+
       setChildren(mappedChildren);
+      setPortfolio(initialPortfolio);
+
     } catch (error) {
       console.error("Failed to fetch education plans:", error);
     } finally {
@@ -87,15 +121,15 @@ export default function EducationPage() {
     fetchData();
   }, []);
 
-  // --- 2. CALCULATION ---
+  // --- 2. CLIENT-SIDE RE-CALCULATION (Reactive to Sliders) ---
   useEffect(() => {
+    // Hanya jalankan kalkulasi ulang jika data anak sudah siap
+    // Ini memungkinkan slider berfungsi realtime
     if (children.length > 0) {
       const result = calculatePortfolio(children, assumptions.inflation, assumptions.returnRate);
       setPortfolio(result);
-    } else {
-      setPortfolio(null);
     }
-  }, [children, assumptions]);
+  }, [children, assumptions]); // Re-run saat asumsi berubah
 
   // --- HANDLERS ---
   const handleWizardSuccess = () => {
@@ -115,37 +149,33 @@ export default function EducationPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 relative pb-24 md:pb-12 overflow-x-hidden selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen w-full bg-slate-50/50 relative pb-24 md:pb-12 overflow-x-hidden selection:bg-cyan-100 selection:text-cyan-900">
       
       {/* --- BACKGROUND DECORATION --- */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-[0.03]" />
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-100/40 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/4" />
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-50/80 to-transparent" />
+        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-cyan-100/30 rounded-full blur-[100px]" />
+        <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-blue-100/30 rounded-full blur-[80px]" />
       </div>
 
-      {/* --- HEADER SECTION (FIXED) --- */}
-      <div className="relative z-10 bg-gradient-to-r from-blue-700 to-indigo-700 w-full rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl shadow-blue-900/20 overflow-hidden">
-         
-         {/* Decoration Shapes */}
-         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-         <div className="absolute bottom-0 left-10 w-64 h-64 bg-white/10 rounded-full blur-2xl translate-y-1/2" />
-         
-         {/* Container Content */}
-         <div className="max-w-7xl mx-auto px-6 pt-12 pb-32 md:pt-16 md:pb-40">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10">
+      {/* --- HEADER SECTION --- */}
+      <div className="relative z-10 w-full">
+         <div className="max-w-7xl mx-auto px-6 pt-10 pb-8 md:pt-14 md:pb-10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                
                {/* Text Section */}
-               <div className="text-white space-y-3 max-w-2xl">
-                  <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/10 px-4 py-1.5 rounded-full shadow-lg">
-                      <GraduationCap className="w-4 h-4 text-yellow-300" />
-                      <span className="text-xs font-bold text-white tracking-widest uppercase">Education Planner Pro</span>
+               <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm border border-slate-200/50 px-3 py-1 rounded-full shadow-sm mb-2">
+                      <Droplets className="w-3.5 h-3.5 text-cyan-600" />
+                      <span className="text-[10px] md:text-xs font-bold text-slate-600 tracking-wider uppercase">
+                        Education Planner
+                      </span>
                   </div>
-                  <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
-                    Rencanakan <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-400">Masa Depan</span> Anak
+                  <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-slate-800">
+                    Rencanakan <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">Masa Depan</span> Anak
                   </h1>
-                  <p className="text-blue-100 text-sm md:text-base leading-relaxed opacity-90">
-                    Simulasi dana pendidikan presisi dengan metode <i>Sinking Fund</i>. Perhitungkan inflasi dan return investasi secara realtime.
+                  <p className="text-slate-500 text-sm md:text-base max-w-2xl leading-relaxed">
+                    Simulasi dana pendidikan dengan metode <i>Sinking Fund</i>. Akurat, transparan, dan terintegrasi.
                   </p>
                </div>
 
@@ -153,9 +183,9 @@ export default function EducationPage() {
                {view === "DASHBOARD" && (
                  <Button 
                    onClick={() => setView("WIZARD")} 
-                   className="group bg-white text-blue-700 hover:bg-blue-50 shadow-xl shadow-blue-900/20 border-0 font-bold rounded-2xl h-12 px-6 transition-all duration-300 hover:scale-105 active:scale-95 shrink-0"
+                   className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-lg shadow-cyan-600/20 border-0 font-bold rounded-xl h-11 px-6 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                  >
-                   <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-300" /> 
+                   <Plus className="w-5 h-5 mr-2" /> 
                    Tambah Rencana
                  </Button>
                )}
@@ -163,15 +193,13 @@ export default function EducationPage() {
          </div>
       </div>
 
-      {/* --- MAIN CONTENT (OVERLAPPING CARD) --- */}
-      {/* Gunakan negative margin (-mt) untuk menarik konten ke atas area padding header */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 md:px-6 -mt-24 md:-mt-28">
+      {/* --- MAIN CONTENT --- */}
+      <div className="relative z-20 max-w-7xl mx-auto px-4 md:px-6">
         
         {/* MODE WIZARD */}
         {view === "WIZARD" && (
-           <div className="animate-in fade-in slide-in-from-bottom-8 duration-500">
-             <Card className="p-0 rounded-[2.5rem] shadow-2xl shadow-slate-200 border-white/60 bg-white/90 backdrop-blur-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <Card className="p-0 rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/40 relative overflow-hidden">
                 <div className="p-6 md:p-10 relative z-10">
                    <ChildWizard 
                      onSave={handleWizardSuccess} 
@@ -187,49 +215,47 @@ export default function EducationPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-12">
              
              {/* LEFT COLUMN: Main Data (8/12) */}
-             <div className="lg:col-span-8 space-y-8">
-                
+             <div className="lg:col-span-8 space-y-6">
+               
                 {/* 1. Summary Board */}
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
                    <SummaryBoard summary={portfolio} isLoading={isLoading} />
                 </div>
 
                 {/* 2. List Anak */}
-                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
-                   <div className="flex items-center justify-between px-2">
-                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                       <Users className="w-5 h-5 text-blue-600" />
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
+                   <div className="flex items-center justify-between px-1">
+                     <h3 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+                       <Users className="w-5 h-5 text-cyan-600" />
                        Daftar Rencana
                      </h3>
                      {children.length > 0 && (
-                       <span className="text-xs font-bold bg-white border border-blue-100 text-blue-600 px-3 py-1 rounded-full shadow-sm">
-                         {children.length} Anak Terdaftar
+                       <span className="text-xs font-bold bg-white border border-slate-200 text-slate-500 px-3 py-1 rounded-full">
+                         {children.length} Anak
                        </span>
                      )}
                    </div>
 
                    {isLoading ? (
-                     <div className="flex flex-col items-center justify-center py-16 gap-3">
-                        <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                     <div className="flex flex-col items-center justify-center py-16 gap-3 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
                         <p className="text-sm text-slate-400 font-medium">Memuat data...</p>
                      </div>
                    ) : children.length === 0 ? (
                      // EMPTY STATE
-                     <Card className="group relative overflow-hidden p-12 border-dashed border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-blue-200 transition-all duration-500 rounded-3xl flex flex-col items-center justify-center text-center">
-                        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-blue-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        
-                        <div className="relative z-10 w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 shadow-inner">
-                          <GraduationCap className="w-10 h-10 text-blue-400 group-hover:text-blue-600 transition-colors" />
+                     <Card className="group relative overflow-hidden p-12 border-dashed border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-cyan-200 transition-all duration-500 rounded-3xl flex flex-col items-center justify-center text-center">
+                        <div className="relative z-10 w-16 h-16 bg-cyan-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                          <GraduationCap className="w-8 h-8 text-cyan-500 group-hover:text-cyan-600 transition-colors" />
                         </div>
                         
                         <div className="relative z-10 max-w-sm">
-                           <h3 className="text-xl font-bold text-slate-800 mb-2">Belum ada data anak</h3>
-                           <p className="text-slate-500 mb-8 leading-relaxed">
-                             Mulai tambahkan profil anak dan rencana sekolah mereka untuk melihat simulasi biaya pendidikan.
+                           <h3 className="text-lg font-bold text-slate-800 mb-2">Belum ada simulasi</h3>
+                           <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+                             Mulai tambahkan profil anak untuk melihat kalkulasi biaya pendidikan di masa depan.
                            </p>
                            <Button 
                              onClick={() => setView("WIZARD")} 
-                             className="rounded-full bg-blue-600 hover:bg-blue-700 font-bold px-8 h-11 shadow-lg shadow-blue-500/30"
+                             className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 h-10"
                            >
                              <Plus className="w-4 h-4 mr-2" /> Mulai Sekarang
                            </Button>
@@ -237,7 +263,7 @@ export default function EducationPage() {
                      </Card>
                    ) : (
                      // DATA LIST
-                     <div className="grid grid-cols-1 gap-5">
+                     <div className="grid grid-cols-1 gap-4">
                         {children.map((child, idx) => {
                           const childResult = portfolio?.details.find(d => d.childId === child.id);
                           return (
@@ -257,85 +283,80 @@ export default function EducationPage() {
 
              {/* RIGHT COLUMN: Settings (4/12) */}
              <div className="lg:col-span-4 space-y-6">
-                <div className="sticky top-8 space-y-6">
-                   <Card className="p-6 md:p-8 rounded-[2.5rem] border-white/60 bg-white/80 backdrop-blur-xl shadow-xl shadow-slate-200/50 animate-in fade-in slide-in-from-right-8 duration-700">
+                <div className="sticky top-6 space-y-6">
+                   <Card className="p-6 rounded-3xl border border-slate-100 bg-white shadow-lg shadow-slate-100/80">
                       
                       {/* Settings Header */}
-                      <div className="flex items-center gap-3 mb-8 pb-6 border-b border-slate-100">
-                         <div className="p-2.5 bg-slate-100 rounded-xl">
-                            <Settings2 className="w-5 h-5 text-slate-600" />
+                      <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-100">
+                         <div className="p-2.5 bg-cyan-50 rounded-xl">
+                            <Settings2 className="w-5 h-5 text-cyan-600" />
                          </div>
                          <div>
-                            <h3 className="font-bold text-slate-800 text-lg">Parameter Ekonomi</h3>
+                            <h3 className="font-bold text-slate-800 text-base">Parameter Ekonomi</h3>
                             <p className="text-xs text-slate-400">Sesuaikan asumsi hitungan</p>
                          </div>
                       </div>
 
                       <div className="space-y-8">
-                         {/* SLIDER INFLASI */}
-                         <div className="space-y-4">
-                           <div className="flex justify-between items-end">
-                               <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                 <AlertCircle className="w-3.5 h-3.5" /> Inflasi Pendidikan
-                               </Label>
-                               <div className={cn(
-                                 "text-sm font-bold px-3 py-1 rounded-lg border shadow-sm transition-colors",
-                                 assumptions.inflation > 10 ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-50 text-slate-600 border-slate-100"
-                               )}>
-                                 {assumptions.inflation}% <span className="text-[10px] font-normal opacity-70">/thn</span>
-                               </div>
-                           </div>
-                           <Slider 
-                             value={assumptions.inflation} 
-                             onChange={(val) => setAssumptions(prev => ({ ...prev, inflation: val }))}
-                             min={5} max={20} step={1}
-                             colorClass="accent-red-500"
-                             className="py-2"
-                           />
-                           <p className="text-[10px] text-slate-400 text-right">Semakin tinggi inflasi, semakin besar dana yang dibutuhkan.</p>
-                         </div>
+                          {/* SLIDER INFLASI (Fixed: Value must be Number, OnChange accepts Number) */}
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-end">
+                                <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                                  <AlertCircle className="w-3.5 h-3.5" /> Inflasi Pendidikan
+                                </Label>
+                                <div className={cn(
+                                  "text-xs font-bold px-2.5 py-1 rounded-md border transition-colors",
+                                  assumptions.inflation > 10 ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-50 text-slate-600 border-slate-100"
+                                )}>
+                                  {assumptions.inflation}%
+                                </div>
+                            </div>
+                            <Slider 
+                              value={assumptions.inflation} 
+                              onChange={(val) => setAssumptions(prev => ({ ...prev, inflation: val }))}
+                              min={5} max={20} step={1}
+                              className="py-2"
+                              colorClass="accent-red-500" 
+                            />
+                          </div>
 
-                         {/* SLIDER RETURN INVESTASI */}
-                         <div className="space-y-4">
-                           <div className="flex justify-between items-end">
-                               <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                 <TrendingUp className="w-3.5 h-3.5" /> Return Investasi
-                               </Label>
-                               <div className={cn(
-                                 "text-sm font-bold px-3 py-1 rounded-lg border shadow-sm transition-colors",
-                                 assumptions.returnRate > 10 ? "bg-green-50 text-green-600 border-green-100" : "bg-slate-50 text-slate-600 border-slate-100"
-                               )}>
-                                 {assumptions.returnRate}% <span className="text-[10px] font-normal opacity-70">/thn</span>
-                               </div>
-                           </div>
-                           <Slider 
-                             value={assumptions.returnRate}
-                             onChange={(val) => setAssumptions(prev => ({ ...prev, returnRate: val }))} 
-                             min={2} max={20} step={1}
-                             colorClass="accent-green-500"
-                             className="py-2"
-                           />
-                           <p className="text-[10px] text-slate-400 text-right">Estimasi keuntungan rata-rata instrumen investasi Anda.</p>
-                         </div>
+                          {/* SLIDER RETURN INVESTASI */}
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-end">
+                                <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                                  <TrendingUp className="w-3.5 h-3.5" /> Return Investasi
+                                </Label>
+                                <div className={cn(
+                                  "text-xs font-bold px-2.5 py-1 rounded-md border transition-colors",
+                                  assumptions.returnRate > 10 ? "bg-green-50 text-green-600 border-green-100" : "bg-slate-50 text-slate-600 border-slate-100"
+                                )}>
+                                  {assumptions.returnRate}%
+                                </div>
+                            </div>
+                            <Slider 
+                              value={assumptions.returnRate}
+                              onChange={(val) => setAssumptions(prev => ({ ...prev, returnRate: val }))} 
+                              min={2} max={20} step={1}
+                              className="py-2"
+                              colorClass="accent-green-500"
+                            />
+                          </div>
                       </div>
 
                       {/* Info Box */}
-                      <div className="mt-8 bg-blue-50/80 p-5 rounded-2xl flex gap-3 border border-blue-100/50">
-                         <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                         <div className="space-y-1">
-                            <p className="text-xs font-bold text-blue-800">Simulasi Realtime</p>
-                            <p className="text-[11px] text-blue-700/80 leading-relaxed">
-                              Geser slider di atas untuk melihat dampak inflasi dan return investasi terhadap total tabungan bulanan secara langsung.
-                            </p>
-                         </div>
+                      <div className="mt-8 bg-slate-50 p-4 rounded-2xl flex gap-3 border border-slate-100">
+                         <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                         <p className="text-[10px] text-slate-500 leading-relaxed text-justify">
+                             Geser slider di atas untuk melihat dampak inflasi dan return investasi terhadap total tabungan bulanan secara langsung.
+                         </p>
                       </div>
                       
                       <Button 
                         variant="outline" 
-                        className="w-full mt-6 rounded-xl h-12 text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800 font-medium"
+                        className="w-full mt-4 rounded-xl h-10 text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800 font-medium text-xs"
                         onClick={() => alert("Fitur Download PDF akan segera hadir!")}
                       >
-                        <Download className="w-4 h-4 mr-2" /> Download Laporan PDF
+                        <Download className="w-3.5 h-3.5 mr-2" /> Download Laporan
                       </Button>
                    </Card>
                 </div>
