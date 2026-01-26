@@ -38,19 +38,27 @@ export default function BudgetPage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // State untuk menyimpan mode input (Total vs Kalkulasi)
+  const [kprInputMode, setKprInputMode] = useState<'TOTAL' | 'CALC'>('TOTAL');
+  const [kpmInputMode, setKpmInputMode] = useState<'TOTAL' | 'CALC'>('TOTAL');
 
   // --- 1. LOAD DATA AWAL (FETCH EXISTING BUDGET) ---
   useEffect(() => {
     const fetchBudget = async () => {
       try {
         const data = await financialService.getBudgets();
-        if (data) {
-          setFixedIncome(data.monthlyIncome.toString());
-          setVariableIncome(data.variableIncome.toString());
+        if (data && data.length > 0) {
+          const latestBudget = data[0];
           
-          // Hitung ulang result lokal untuk visualisasi (karena BE mungkin cuma simpan raw data)
-          // Idealnya BE mengembalikan 'allocations', tapi kita bisa generate di FE dari raw data yg valid
-          const monthlyRes = calculateSmartBudget(data.monthlyIncome, data.variableIncome);
+          // Pastikan nilai dari DB diformat titik sebelum masuk ke state
+          setFixedIncome(new Intl.NumberFormat("id-ID").format(Number(latestBudget.fixedIncome)));
+          setVariableIncome(new Intl.NumberFormat("id-ID").format(Number(latestBudget.variableIncome)));
+          
+          const monthlyRes = calculateSmartBudget(
+            Number(latestBudget.fixedIncome), 
+            Number(latestBudget.variableIncome)
+          );
           setResult(monthlyRes);
         }
       } catch (error) {
@@ -65,11 +73,22 @@ export default function BudgetPage() {
 
   // --- HANDLERS ---
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
-    const num = val.replace(/\D/g, "");
-    setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+    // 1. Hapus semua karakter non-digit
+    const rawValue = val.replace(/\D/g, "");
+    
+    // 2. Jika kosong, set ke string kosong agar placeholder muncul
+    if (!rawValue) {
+      setter("");
+      return;
+    }
+
+    // 3. Format ke ribuan (Contoh: 1000000 -> 1.000.000)
+    const formatted = new Intl.NumberFormat("id-ID").format(parseInt(rawValue));
+    setter(formatted);
   };
 
   const handleCalculateAndSave = async () => {
+    // Gunakan regex global /./g untuk menghapus semua titik
     const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
     const variable = parseInt(variableIncome.replace(/\./g, "")) || 0;
 
@@ -81,17 +100,66 @@ export default function BudgetPage() {
     setIsSaving(true);
 
     try {
-      // 1. Simpan ke Backend
+      // 1. Mapping Payload sesuai CreateBudgetDto di Backend
       const payload = {
-        monthlyIncome: fixed,
-        variableIncome: variable
+        fixedIncome: fixed,
+        variableIncome: variable,
+        month: new Date().getMonth() + 1, // Mengirim bulan berjalan (1-12)
+        year: new Date().getFullYear(),   // Mengirim tahun berjalan
+        // Field lain (livingCost, dll) tidak perlu dikirim karena akan dihitung otomatis oleh BE
       };
       
-      await financialService.createBudget(payload);
+      // 2. Simpan ke Backend dan ambil hasilnya
+      const response = await financialService.createBudget(payload);
 
-      // 2. Update UI dengan hasil perhitungan
-      const monthlyRes = calculateSmartBudget(fixed, variable);
-      setResult(monthlyRes);
+      // 3. Update UI dengan hasil kalkulasi CERDAS dari Backend
+      // Backend mengembalikan { budget: BudgetPlan, analysis: any }
+      if (response && response.budget) {
+        // Kita petakan kembali ke format BudgetResult yang dibutuhkan UI
+        const mappedResult: BudgetResult = {
+          safeToSpend: Number(response.budget.livingCost),
+          totalFixedAllocated: Number(response.budget.totalExpense),
+          surplus: Number(response.budget.balance),
+          allocations: [
+            {
+              label: "Kebutuhan Hidup",
+              percentage: 45,
+              amount: Number(response.budget.livingCost),
+              type: "NEEDS",
+              description: "Makan, Transport, Listrik & Pulsa."
+            },
+            {
+              label: "Hutang Produktif",
+              percentage: 20,
+              amount: Number(response.budget.productiveDebt),
+              type: "DEBT_PROD",
+              description: "Cicilan KPR atau Modal Usaha."
+            },
+            {
+              label: "Hutang Konsumtif",
+              percentage: 15,
+              amount: Number(response.budget.consumptiveDebt),
+              type: "DEBT_CONS",
+              description: "Cicilan Motor, HP, atau Kartu Kredit."
+            },
+            {
+              label: "Asuransi",
+              percentage: 10,
+              amount: Number(response.budget.insurance),
+              type: "INSURANCE",
+              description: "Premi Jiwa & Kesehatan keluarga."
+            },
+            {
+              label: "Tabungan & Investasi",
+              percentage: 10,
+              amount: Number(response.budget.saving),
+              type: "SAVING",
+              description: "Dana Darurat & Investasi masa depan."
+            }
+          ]
+        };
+        setResult(mappedResult);
+      }
 
     } catch (error) {
       console.error("Gagal menyimpan budget:", error);

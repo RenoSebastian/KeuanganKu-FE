@@ -92,5 +92,28 @@ export const financialService = {
   deleteEducationPlan: async (id: string) => {
     const response = await api.delete(`/financial/calculator/education/${id}`);
     return response.data;
+  },
+
+  // ===========================================================================
+  // 4. MARKET DATA (INTEGRASI HARGA EMAS BE)
+  // ===========================================================================
+
+  /**
+   * Mengambil harga emas terbaru per gram (IDR) dari Backend
+   * Digunakan sebagai referensi di Financial Checkup (Aset Logam Mulia)
+   */
+  // Di dalam financialService pada file financial.service.ts
+  getLatestGoldPrice: async () => {
+      // Definisikan interface data emas secara eksplisit
+      const response = await api.get<{ 
+          success: boolean; 
+          data: {
+              buyPrice: string;
+              sellPrice: string;
+              [key: string]: any;
+          }; 
+          timestamp: string; 
+      }>("/market/gold-price");
+      return response.data;
   }
 };
