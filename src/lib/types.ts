@@ -570,3 +570,13 @@ export interface SearchResponse {
     query: string;
   };
 }
+
+// --- UI/UX HELPERS ---
+
+export interface HelpContent {
+  title: string;       // Judul field (misal: Aset Likuid)
+  definition: string;  // Penjelasan singkat & padat
+  includes?: string[]; // Array string: Apa saja yang masuk kategori ini
+  excludes?: string[]; // Array string: Apa yang TIDAK masuk
+  example?: string;    // Contoh konkret angka/kasus
+}
