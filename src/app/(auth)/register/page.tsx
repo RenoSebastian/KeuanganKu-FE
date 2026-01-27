@@ -81,8 +81,8 @@ export default function RegisterPage() {
       {/* --- BACKGROUND DECORATION (Consistent with Login) --- */}
       <div className="absolute inset-0 bg-brand-900">
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-10 mix-blend-overlay"></div>
-         <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-brand-500/20 rounded-full blur-[120px] pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-         <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none translate-x-1/3 translate-y-1/3" />
+         <div className="absolute top-0 left-0 w-2008h-200brand-500/20 rounded-full blur-[120px] pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+         <div className="absolute bottom-0 right-0 w-150 h-150 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none translate-x-1/3 translate-y-1/3" />
       </div>
 
       <div className="relative z-10 w-full max-w-lg px-5">

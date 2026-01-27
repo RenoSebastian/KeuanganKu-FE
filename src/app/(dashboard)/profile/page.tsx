@@ -164,8 +164,8 @@ export default function ProfilePage() {
     <div className="relative w-full bg-slate-50/50 pb-36 md:pb-12 pt-4 md:pt-0">
       
       {/* Background Decorations */}
-      <div className="hidden md:block absolute top-0 left-0 w-[600px] h-[600px] bg-blue-100/40 rounded-full blur-[120px] -translate-x-1/3 -translate-y-1/3 pointer-events-none" />
-      <div className="hidden md:block absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-100/40 rounded-full blur-[100px] translate-x-1/3 translate-y-1/3 pointer-events-none" />
+      <div className="hidden md:block absolute top-0 left-0 w-150 h-150 bg-blue-100/40 rounded-full blur-[120px] -translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+      <div className="hidden md:block absolute bottom-0 right-0 w-125 h-125 bg-purple-100/40 rounded-full blur-[100px] translate-x-1/3 translate-y-1/3 pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-10 md:pt-12">
         
@@ -177,14 +177,14 @@ export default function ProfilePage() {
               
               {/* 1. Avatar Card */}
               <div className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-lg rounded-[2rem] p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden">
-                 <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-blue-50 to-transparent -z-10" />
+                 <div className="absolute top-0 w-full h-32 bg-linear-to-b from-blue-50 to-transparent -z-10" />
                  
                  <div className="relative group mb-4">
                     <div className={cn(
                       "w-28 h-28 md:w-32 md:h-32 rounded-full border-4 shadow-xl overflow-hidden relative transition-all duration-300",
                       isEditing ? "border-blue-400 scale-105" : "border-white bg-slate-200"
                     )}>
-                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-4xl md:text-5xl text-white font-bold uppercase">
+                       <div className="absolute inset-0 bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center text-4xl md:text-5xl text-white font-bold uppercase">
                          {userData.fullName.charAt(0)}
                        </div>
                        {isEditing && (
@@ -405,7 +405,7 @@ export default function ProfilePage() {
                        size="lg"
                        onClick={handleSave}
                        disabled={isSaving}
-                       className="bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-300/50 rounded-2xl h-14 md:h-12 text-sm font-bold flex-[2]"
+                       className="bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-300/50 rounded-2xl h-14 md:h-12 text-sm font-bold flex-2"
                      >
                        {isSaving ? "Menyimpan..." : (
                          <span className="flex items-center gap-2">
