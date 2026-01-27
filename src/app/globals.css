@@ -219,3 +219,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Search Highlighting */
+.search-highlight em {
+  font-style: normal;
+  font-weight: 700;
+  color: #1d4ed8; /* Blue-700 */
+  background-color: #dbeafe; /* Blue-100 */
+  padding: 0 1px;
+  border-radius: 2px;
+}
