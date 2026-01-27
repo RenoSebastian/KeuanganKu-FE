@@ -625,47 +625,137 @@ export function CheckupWizard() {
                         </div>
                     )}
 
-                    {/* STEP 4: REVIEW */}
+                    {/* STEP 4: REVIEW (LAYOUT BARU - NERACA & ARUS KAS TERPISAH) */}
                     {step === 3 && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
-                            <div className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200 space-y-6 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-32 bg-brand-500/5 rounded-full blur-3xl -mr-12 -mt-12 pointer-events-none" />
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
+                            
+                            {/* --- KARTU 1: NERACA (BALANCE SHEET) --- */}
+                            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
+                                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
+                                    <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600">
+                                        <Wallet className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-black text-slate-800 text-lg">Laporan Neraca</h3>
+                                        <p className="text-xs text-slate-500">Posisi Aset vs Utang saat ini</p>
+                                    </div>
+                                </div>
 
-                                <h3 className="font-bold text-brand-900 text-lg flex items-center gap-2 relative z-10">
-                                    <Calculator className="w-5 h-5 text-brand-600" /> Ringkasan Data (Tahunan)
-                                </h3>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                                    {/* --- NERACA --- */}
-                                    <div className="space-y-6">
-                                        <div>
-                                            <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">1. Neraca (Balance Sheet)</h4>
-                                            <div className="space-y-3">
-                                                <ReviewRow label="Total Aset (+)" value={totalAssets} highlight />
-                                                <ReviewRow label="Total Utang (-)" value={totalDebt} isNegative />
-                                                <ReviewRow label="Kekayaan Bersih" value={netWorth} bold />
-                                            </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 relative z-10">
+                                    {/* KIRI: ASET */}
+                                    <div className="flex flex-col h-full">
+                                        <h4 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Aset (Harta)
+                                        </h4>
+                                        <div className="space-y-3 flex-1">
+                                            {/* Grouping Aset agar rapi */}
+                                            <ReviewRow label="Aset Likuid (Cash)" value={formData.assetCash} />
+                                            <ReviewRow label="Aset Personal (Rumah/Kendaraan)" value={
+                                                formData.assetHome + formData.assetVehicle + formData.assetJewelry + formData.assetAntique + formData.assetPersonalOther
+                                            } />
+                                            <ReviewRow label="Aset Investasi" value={
+                                                formData.assetInvHome + formData.assetInvVehicle + formData.assetGold + formData.assetInvAntique +
+                                                formData.assetStocks + formData.assetMutualFund + formData.assetBonds + formData.assetDeposit + formData.assetInvOther
+                                            } />
+                                        </div>
+                                        {/* Total Aset */}
+                                        <div className="mt-6 pt-4 border-t border-slate-100">
+                                            <ReviewRow label="TOTAL ASET" value={totalAssets} isTotal color="emerald" />
                                         </div>
                                     </div>
 
-                                    {/* --- ARUS KAS --- */}
-                                    <div className="space-y-6">
-                                        <div>
-                                            <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">
-                                                2. Arus Kas (Per Tahun)
-                                            </h4>
-                                            <div className="space-y-3">
-                                                <ReviewRow label="Total Pemasukan (+)" value={totalIncomeAnnual} highlight />
-                                                <ReviewRow label="Cicilan Utang (-)" value={totalInstallmentsAnnual} isNegative />
-                                                <ReviewRow label="Premi Asuransi (-)" value={totalInsuranceAnnual} isNegative />
-                                                <ReviewRow label="Tabungan (-)" value={totalSavingsAnnual} isNegative />
-                                                <ReviewRow label="Belanja Keluarga (-)" value={totalLivingExpenseAnnual} isNegative />
-                                                <ReviewRow label="Surplus / Defisit" value={surplusDeficitAnnual} bold />
-                                            </div>
+                                    {/* KANAN: UTANG */}
+                                    <div className="flex flex-col h-full">
+                                        <h4 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-rose-500"></span> Utang (Kewajiban)
+                                        </h4>
+                                        <div className="space-y-3 flex-1">
+                                            <ReviewRow label="Sisa KPR (Rumah)" value={formData.debtKPR} />
+                                            <ReviewRow label="Sisa KPM (Kendaraan)" value={formData.debtKPM} />
+                                            <ReviewRow label="Utang Konsumtif Lain" value={formData.debtCC + formData.debtCoop + formData.debtConsumptiveOther} />
+                                            <ReviewRow label="Utang Produktif/Bisnis" value={formData.debtBusiness} />
+                                        </div>
+                                        {/* Total Utang */}
+                                        <div className="mt-6 pt-4 border-t border-slate-100">
+                                            <ReviewRow label="TOTAL UTANG" value={totalDebt} isTotal color="rose" />
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* FOOTER: NET WORTH */}
+                                <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-100 text-center">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Kekayaan Bersih (Net Worth)</p>
+                                    <div className={cn(
+                                        "text-3xl md:text-4xl font-black tracking-tight",
+                                        netWorth >= 0 ? "text-brand-700" : "text-rose-600"
+                                    )}>
+                                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(netWorth)}
+                                    </div>
+                                </div>
                             </div>
+
+
+                            {/* --- KARTU 2: ARUS KAS (CASHFLOW) --- */}
+                            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
+                                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
+                                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                                        <Banknote className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-black text-slate-800 text-lg">Laporan Arus Kas</h3>
+                                        <p className="text-xs text-slate-500">Ringkasan Pemasukan & Pengeluaran (Tahunan)</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 relative z-10">
+                                    {/* KIRI: PEMASUKAN */}
+                                    <div className="flex flex-col h-full">
+                                        <h4 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Pemasukan
+                                        </h4>
+                                        <div className="space-y-3 flex-1">
+                                            <ReviewRow label="Pemasukan Tetap" value={totalIncomeAnnual - formData.incomeVariable} />
+                                            <ReviewRow label="Pemasukan Tidak Tetap" value={formData.incomeVariable} />
+                                            {/* Spacer untuk menyeimbangkan tinggi jika item sedikit */}
+                                            <div className="hidden md:block h-6"></div> 
+                                        </div>
+                                        {/* Total Pemasukan */}
+                                        <div className="mt-6 pt-4 border-t border-slate-100">
+                                            <ReviewRow label="TOTAL PEMASUKAN" value={totalIncomeAnnual} isTotal color="emerald" />
+                                        </div>
+                                    </div>
+
+                                    {/* KANAN: PENGELUARAN */}
+                                    <div className="flex flex-col h-full">
+                                        <h4 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-rose-500"></span> Pengeluaran
+                                        </h4>
+                                        <div className="space-y-3 flex-1">
+                                            <ReviewRow label="Cicilan Utang" value={totalInstallmentsAnnual} />
+                                            <ReviewRow label="Premi Asuransi" value={totalInsuranceAnnual} />
+                                            <ReviewRow label="Tabungan & Investasi" value={totalSavingsAnnual} />
+                                            <ReviewRow label="Biaya Hidup & Pajak" value={totalLivingExpenseAnnual} />
+                                        </div>
+                                        {/* Total Pengeluaran */}
+                                        <div className="mt-6 pt-4 border-t border-slate-100">
+                                            <ReviewRow label="TOTAL PENGELUARAN" value={totalExpenseAnnual} isTotal color="rose" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* FOOTER: SURPLUS */}
+                                <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-100 text-center">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sisa Uang (Surplus / Defisit)</p>
+                                    <div className={cn(
+                                        "text-3xl md:text-4xl font-black tracking-tight",
+                                        surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600"
+                                    )}>
+                                        {surplusDeficitAnnual >= 0 ? "+" : ""}
+                                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(surplusDeficitAnnual)}
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     )}
                 </div>
@@ -880,11 +970,38 @@ function InputGroup({ icon, label, desc, value, onChange, helpContent, onMonthly
     );
 }
 
-function ReviewRow({ label, value, isNegative, highlight, bold }: { label: string, value: number, isNegative?: boolean, highlight?: boolean, bold?: boolean }) {
+// UPDATE: Component ReviewRow (Letakkan di bagian bawah file checkup-wizard.tsx)
+interface ReviewRowProps { 
+    label: string; 
+    value: number; 
+    isTotal?: boolean; 
+    color?: "emerald" | "rose" | "brand"; // Opsional untuk total
+}
+
+function ReviewRow({ label, value, isTotal, color }: ReviewRowProps) {
+    // Base style untuk text angka
+    let valueClass = "font-mono font-medium text-slate-700"; // Default Hitam/Abu Tua
+
+    if (isTotal) {
+        // Jika Total, gunakan font tebal dan warna spesifik
+        valueClass = "font-mono font-black text-lg ";
+        if (color === "emerald") valueClass += "text-emerald-700";
+        else if (color === "rose") valueClass += "text-rose-700";
+        else valueClass += "text-brand-700";
+    }
+
     return (
-        <div className={cn("flex justify-between items-center py-2.5 px-3 rounded-lg transition-colors border border-transparent", highlight ? "bg-brand-50 border-brand-100" : "hover:bg-slate-50 hover:border-slate-100")}>
-            <span className={cn("text-sm font-medium", highlight ? "text-brand-800" : "text-slate-500")}>{label}</span>
-            <span className={cn("font-mono text-base", bold ? "font-black" : "font-bold", isNegative ? "text-rose-600" : highlight ? "text-brand-700" : "text-slate-800")}>
+        <div className={cn(
+            "flex justify-between items-center py-1",
+            isTotal && "py-2" // Beri spacing lebih jika total
+        )}>
+            <span className={cn(
+                "text-sm", 
+                isTotal ? "font-bold text-slate-800 uppercase tracking-wide" : "font-medium text-slate-500"
+            )}>
+                {label}
+            </span>
+            <span className={valueClass}>
                 {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value)}
             </span>
         </div>
