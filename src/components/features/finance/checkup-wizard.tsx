@@ -19,6 +19,7 @@ import { CheckupResult } from "./checkup-result";
 import { formatRupiah } from "@/lib/financial-math";
 import { InfoPopover } from "@/components/ui/info-popover";
 import { FINANCIAL_HELP_DATA } from "@/lib/financial-dictionary";
+import { MonthlyHelperModal } from "./monthly-helper-modal"; // Import komponen baru
 
 // --- INITIAL STATE ---
 const EMPTY_PROFILE: PersonalInfo = {
@@ -42,7 +43,7 @@ const INITIAL_DATA: FinancialRecord = {
     debtKPR: 0, debtKPM: 0, debtCC: 0, debtCoop: 0, debtConsumptiveOther: 0,
     debtBusiness: 0,
 
-    // 4. Arus Kas (Cashflow - FLOW)
+    // 4. Arus Kas (Cashflow - FLOW) -> Default 0
     incomeFixed: 0, incomeVariable: 0,
     installmentKPR: 0, installmentKPM: 0, installmentCC: 0, installmentCoop: 0,
     installmentConsumptiveOther: 0, installmentBusiness: 0,
@@ -61,6 +62,8 @@ export function CheckupWizard() {
     const [isClient, setIsClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
+    // --- STATE MODAL HELPER (Monthly to Annual) ---
+    const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<keyof FinancialRecord | null>(null);
 
     // --- STATE MODAL HELPER UTANG ---
     const [showDebtModal, setShowDebtModal] = useState<{ show: boolean, target: keyof FinancialRecord | null }>({
@@ -73,10 +76,7 @@ export function CheckupWizard() {
     // --- STATE MODAL EMAS ---
     const [showGoldModal, setShowGoldModal] = useState(false);
     const [currentGoldPrice, setCurrentGoldPrice] = useState<number>(0);
-    const [goldWeight, setGoldWeight] = useState(""); // Menggunakan string untuk input desimal (titik/koma)
-
-    // --- TOGGLE INPUT MODE ---
-    const [inputMode, setInputMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
+    const [goldWeight, setGoldWeight] = useState("");
 
     useEffect(() => setIsClient(true), []);
 
@@ -92,21 +92,22 @@ export function CheckupWizard() {
         }));
     };
 
+    // --- LOGIC 2: APPLY MONTHLY HELPER ---
+    const applyMonthlyToAnnual = (annualValue: number) => {
+        if (monthlyHelperTarget) {
+            setFormData(prev => ({ ...prev, [monthlyHelperTarget]: annualValue }));
+            setMonthlyHelperTarget(null);
+        }
+    };
+
     useEffect(() => {
         const fetchMarketData = async () => {
             try {
-                // response di sini bertipe { success: boolean; data: any; timestamp: string; }
                 const response = await financialService.getLatestGoldPrice();
-
-                // Pastikan mengecek response.data karena buyPrice ada di dalamnya
                 if (response && response.success && response.data) {
-                    // Konversi string "2750571" menjadi angka
                     const price = Number(response.data.buyPrice);
-
                     if (!isNaN(price)) {
                         setCurrentGoldPrice(price);
-                    } else {
-                        console.error("Format buyPrice bukan angka:", response.data.buyPrice);
                     }
                 }
             } catch (error) {
@@ -117,42 +118,7 @@ export function CheckupWizard() {
         fetchMarketData();
     }, []);
 
-
-    // --- LOGIC 2: AUTO-CONVERT SAAT TOGGLE ---
-    const toggleInputMode = (targetMode: "MONTHLY" | "ANNUAL") => {
-        if (targetMode === inputMode) return; // Tidak perlu ubah jika sama
-
-        // Tentukan faktor pengali
-        // Jika dari Annual ke Monthly: Bagi 12
-        // Jika dari Monthly ke Annual: Kali 12
-        const factor = targetMode === "ANNUAL" ? 12 : 1 / 12;
-
-        // Daftar field yang WAJIB dikonversi (Hanya Arus Kas)
-        const flowFields: (keyof FinancialRecord)[] = [
-            'incomeFixed', 'incomeVariable',
-            'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
-            'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
-            'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
-            'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
-        ];
-
-        setFormData(prev => {
-            const next = { ...prev };
-            flowFields.forEach(key => {
-                // TypeScript hack untuk dynamic key access
-                const val = next[key as keyof FinancialRecord];
-                if (typeof val === 'number') {
-                    // @ts-ignore
-                    next[key] = Math.round(val * factor); // Round biar rapi (ga ada desimal aneh)
-                }
-            });
-            return next;
-        });
-
-        setInputMode(targetMode);
-    };
-
-    // --- LOGIC 3: SUBMIT DATA ---
+    // --- LOGIC 3: SUBMIT DATA (WITH NORMALIZATION) ---
     const handleCalculate = async () => {
         setIsLoading(true);
         try {
@@ -163,23 +129,23 @@ export function CheckupWizard() {
                 delete payload.spouseProfile;
             }
 
-            // NORMALISASI FINAL KE BULANAN (Agar Backend Konsisten)
-            // Jika Input Mode saat ini TAHUNAN, bagi semua Arus Kas dengan 12 sebelum kirim
-            if (inputMode === "ANNUAL") {
-                const flowFields = [
-                    'incomeFixed', 'incomeVariable',
-                    'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
-                    'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
-                    'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
-                    'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
-                ];
+            // CRITICAL: NORMALISASI TAHUNAN KE BULANAN (Agar Backend Konsisten)
+            // Backend mengharapkan data Monthly. User input Annual.
+            // Maka kita bagi 12 semua field Arus Kas (Flow).
+            const flowFields = [
+                'incomeFixed', 'incomeVariable',
+                'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
+                'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
+                'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
+                'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
+            ];
 
-                flowFields.forEach(field => {
-                    if (typeof payload[field] === 'number') {
-                        payload[field] = Math.round(payload[field] / 12);
-                    }
-                });
-            }
+            flowFields.forEach(field => {
+                if (typeof payload[field] === 'number') {
+                    // Pembulatan agar tidak ada desimal aneh
+                    payload[field] = Math.round(payload[field] / 12);
+                }
+            });
 
             const analysis = await financialService.createCheckup(payload);
             setResult(analysis);
@@ -199,7 +165,7 @@ export function CheckupWizard() {
 
     const nextStep = () => {
         window.scrollTo({ top: 0, behavior: "smooth" });
-        setStep(prev => Math.min(prev + 1, 3)); // Maksimal step sekarang 3
+        setStep(prev => Math.min(prev + 1, 3));
     };
 
     const prevStep = () => {
@@ -217,19 +183,18 @@ export function CheckupWizard() {
 
     const netWorth = totalAssets - totalDebt;
 
-    const totalIncome = formData.incomeFixed + formData.incomeVariable;
+    // Helper untuk hitung bulanan (estimasi di UI Review)
+    const getMonthly = (val: number) => Math.round(val / 12);
 
-    const totalInstallments = formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness;
-    const totalInsurance = formData.insuranceLife + formData.insuranceHealth + formData.insuranceHome + formData.insuranceVehicle + formData.insuranceBPJS + formData.insuranceOther;
-    const totalSavings = formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther;
-    const totalLivingExpense = formData.expenseFood + formData.expenseSchool + formData.expenseTransport + formData.expenseCommunication + formData.expenseHelpers + formData.expenseLifestyle + formData.expenseTax;
+    const totalIncomeAnnual = formData.incomeFixed + formData.incomeVariable;
+    
+    const totalInstallmentsAnnual = formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness;
+    const totalInsuranceAnnual = formData.insuranceLife + formData.insuranceHealth + formData.insuranceHome + formData.insuranceVehicle + formData.insuranceBPJS + formData.insuranceOther;
+    const totalSavingsAnnual = formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther;
+    const totalLivingExpenseAnnual = formData.expenseFood + formData.expenseSchool + formData.expenseTransport + formData.expenseCommunication + formData.expenseHelpers + formData.expenseLifestyle + formData.expenseTax;
 
-    const totalExpense = totalInstallments + totalInsurance + totalSavings + totalLivingExpense;
-    const surplusDeficit = totalIncome - totalExpense;
-
-    // Labels
-    const periodLabel = inputMode === "ANNUAL" ? "(PER TAHUN)" : "(PER BULAN)";
-    const periodHint = inputMode === "ANNUAL" ? "Total setahun (x12)" : "Rata-rata per bulan";
+    const totalExpenseAnnual = totalInstallmentsAnnual + totalInsuranceAnnual + totalSavingsAnnual + totalLivingExpenseAnnual;
+    const surplusDeficitAnnual = totalIncomeAnnual - totalExpenseAnnual;
 
     if (result) {
         return (
@@ -246,48 +211,33 @@ export function CheckupWizard() {
     const steps = [
         { label: "Data Diri", icon: User },
         { label: "Neraca", icon: Wallet },
-        // { label: "Utang", icon: CreditCard },
         { label: "Arus Kas", icon: Banknote },
         { label: "Review", icon: Calculator },
     ];
 
     const applyDebtCalculation = () => {
         if (!showDebtModal.target) return;
-
         const monthly = parseInt(tempMonthly.replace(/\./g, "")) || 0;
         const tenor = parseInt(tempTenor) || 0;
         const total = monthly * tenor;
-
-        // Masukkan ke formData utama
         setFormData(prev => ({ ...prev, [showDebtModal.target!]: total }));
-
-        // Reset dan tutup modal
         setShowDebtModal({ show: false, target: null });
         setTempMonthly("");
         setTempTenor("");
     };
 
     const applyGoldCalculation = () => {
-        // 1. Pastikan weight bersih dari karakter aneh dan ganti koma ke titik
         const cleanWeight = goldWeight.replace(/[^0-9,.]/g, "").replace(",", ".");
         const weight = parseFloat(cleanWeight) || 0;
-
-        // 2. Validasi harga emas
         if (!currentGoldPrice || currentGoldPrice <= 0) {
             alert("Harga emas belum tersedia dari server.");
             return;
         }
-
-        // 3. Kalkulasi
         const totalPrice = Math.round(weight * currentGoldPrice);
-
-        // 4. Update data (pastikan tidak NaN)
         if (!isNaN(totalPrice)) {
             handleFinancialChange("assetGold", totalPrice.toString());
             setShowGoldModal(false);
             setGoldWeight("");
-        } else {
-            console.error("Kalkulasi gagal (NaN):", { weight, currentGoldPrice });
         }
     };
 
@@ -332,7 +282,7 @@ export function CheckupWizard() {
             {/* --- MAIN CARD --- */}
             <div className="card-clean overflow-hidden">
 
-                {/* HEADER & TOGGLE */}
+                {/* HEADER */}
                 <div className="bg-slate-50/50 border-b border-slate-100 p-6 md:p-8 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
                     <div className="flex items-center gap-5">
                         <div className={cn(
@@ -341,51 +291,24 @@ export function CheckupWizard() {
                         )}>
                             {step === 0 && <User className="w-8 h-8" />}
                             {step === 1 && <Wallet className="w-8 h-8" />}
-                            {step === 2 && <CreditCard className="w-8 h-8" />}
-                            {step === 3 && <Banknote className="w-8 h-8" />}
-                            {step === 4 && <Calculator className="w-8 h-8" />}
+                            {step === 2 && <Banknote className="w-8 h-8" />}
+                            {step === 3 && <Calculator className="w-8 h-8" />}
                         </div>
                         <div>
                             <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
                                 {step === 0 && "Identitas & Profil"}
-                                {step === 1 && "Neraca"}
-                                {/* {step === 2 && "Neraca Utang (Kewajiban)"} */}
-                                {step === 2 && "Arus Kas Tahunan"}
+                                {step === 1 && "Neraca (Aset & Utang)"}
+                                {step === 2 && "Arus Kas (Tahunan)"}
                                 {step === 3 && "Review & Validasi"}
                             </h2>
                             <p className="text-slate-500 text-sm mt-1 font-medium">
                                 {step === 0 && "Lengkapi data diri User dan Pasangan (jika ada)."}
-                                {step === 1 && "Nilai aset saat ini (Snapshot). Tidak terpengaruh periode."}
-                                {/* {step === 2 && "Sisa pokok utang saat ini (Snapshot). Tidak terpengaruh periode."} */}
-                                {step === 2 && "Detail pemasukan & pengeluaran rutin."}
-                                {step === 3 && "Cek ringkasan Neraca & Arus Kas sebelum diagnosa."}
+                                {step === 1 && "Nilai aset & sisa pokok utang saat ini (Snapshot)."}
+                                {step === 2 && "Masukkan total pendapatan & pengeluaran DALAM SETAHUN."}
+                                {step === 3 && "Cek ringkasan sebelum diagnosa dijalankan."}
                             </p>
                         </div>
                     </div>
-
-                    {/* TOGGLE INPUT MODE (Hanya Muncul di Step 3 & 4 agar relevan) */}
-                    {(step >= 2) && (
-                        <div className="bg-white border border-slate-200 p-1 rounded-xl flex shadow-sm">
-                            <button
-                                onClick={() => toggleInputMode("MONTHLY")}
-                                className={cn(
-                                    "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
-                                    inputMode === "MONTHLY" ? "bg-brand-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
-                                )}
-                            >
-                                <CalendarDays className="w-3.5 h-3.5" /> Bulanan
-                            </button>
-                            <button
-                                onClick={() => toggleInputMode("ANNUAL")}
-                                className={cn(
-                                    "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
-                                    inputMode === "ANNUAL" ? "bg-brand-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
-                                )}
-                            >
-                                <Banknote className="w-3.5 h-3.5" /> Tahunan
-                            </button>
-                        </div>
-                    )}
                 </div>
 
                 {/* CONTENT */}
@@ -405,8 +328,8 @@ export function CheckupWizard() {
                                     <SelectInput label="Agama" value={formData.userProfile.religion} onChange={(v) => handleProfileChange("userProfile", "religion", v)} options={[{ value: "ISLAM", label: "Islam" }, { value: "KRISTEN", label: "Kristen" }, { value: "KATOLIK", label: "Katolik" }, { value: "HINDU", label: "Hindu" }, { value: "BUDDHA", label: "Buddha" }, { value: "LAINNYA", label: "Lainnya" }]} />
                                     <SelectInput label="Status Perkawinan" value={formData.userProfile.maritalStatus} onChange={(v) => handleProfileChange("userProfile", "maritalStatus", v)} options={[{ value: "SINGLE", label: "Belum Menikah" }, { value: "MARRIED", label: "Menikah" }, { value: "DIVORCED", label: "Pernah Menikah" }]} />
                                     <div className="grid grid-cols-2 gap-4">
-                                        <TextInput label="Jumlah Anak" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.childrenCount} onChange={(v) => handleProfileChange("userProfile", "childrenCount", parseInt(v) || 0)} />
-                                        <TextInput label="Tanggungan Ortu" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.dependentParents} onChange={(v) => handleProfileChange("userProfile", "dependentParents", parseInt(v) || 0)} />
+                                        <TextInput label="Jumlah Anak" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.childrenCount} onChange={(v) => handleProfileChange("userProfile", "childrenCount", parseInt(v) || 0)} helpContent={FINANCIAL_HELP_DATA["userProfile.childrenCount"]} />
+                                        <TextInput label="Tanggungan Ortu" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.dependentParents} onChange={(v) => handleProfileChange("userProfile", "dependentParents", parseInt(v) || 0)} helpContent={FINANCIAL_HELP_DATA["userProfile.dependentParents"]} />
                                     </div>
                                     <TextInput label="Pekerjaan" icon={<Briefcase className="w-4 h-4" />} value={formData.userProfile.occupation} onChange={(v) => handleProfileChange("userProfile", "occupation", v)} />
                                     <TextInput label="Kota Domisili" icon={<MapPin className="w-4 h-4" />} value={formData.userProfile.city} onChange={(v) => handleProfileChange("userProfile", "city", v)} />
@@ -430,7 +353,6 @@ export function CheckupWizard() {
                     {/* STEP 1: LAPORAN NERACA (ASSETS & LIABILITIES) */}
                     {step === 1 && (
                         <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-10">
-
                             {/* --- SEKSI A: DAFTAR ASET (HARTA) --- */}
                             <div className="space-y-8">
                                 <div className="flex items-center gap-3 border-b-2 border-brand-500 pb-2">
@@ -468,23 +390,13 @@ export function CheckupWizard() {
                                                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Logam Mulia (Emas)</Label>
                                                 <InfoPopover content={FINANCIAL_HELP_DATA.assetGold} />
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowGoldModal(true)}
-                                                className="text-[9px] font-bold text-brand-600 hover:text-brand-700 underline flex items-center gap-1 transition-colors"
-                                            >
+                                            <button type="button" onClick={() => setShowGoldModal(true)} className="text-[9px] font-bold text-brand-600 hover:text-brand-700 underline flex items-center gap-1 transition-colors">
                                                 <Calculator className="w-3 h-3" /> Bantu Hitung (Gram)
                                             </button>
                                         </div>
-                                        <InputGroupNoLabel
-                                            value={formData.assetGold}
-                                            onChange={(v) => handleFinancialChange("assetGold", v)}
-                                            icon={<Coins className="w-4 h-4" />}
-                                        />
+                                        <InputGroupNoLabel value={formData.assetGold} onChange={(v) => handleFinancialChange("assetGold", v)} icon={<Coins className="w-4 h-4" />} />
                                         {currentGoldPrice > 0 && (
-                                            <p className="text-[9px] text-slate-400 italic ml-1">
-                                                *Harga referensi: {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(currentGoldPrice)}/gr
-                                            </p>
+                                            <p className="text-[9px] text-slate-400 italic ml-1">*Harga referensi: {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(currentGoldPrice)}/gr</p>
                                         )}
                                     </div>
 
@@ -497,29 +409,11 @@ export function CheckupWizard() {
                                 </div>
                             </div>
 
-                            {/* --- PEMISAH VISUAL (Garis Neraca) --- */}
-                            <div className="relative py-4">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t-2 border-dashed border-slate-200"></span>
-                                </div>
-                                <div className="relative flex justify-center">
-                                    <span className="bg-white px-4 text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Kewajiban & Utang</span>
-                                </div>
-                            </div>
-
                             {/* --- SEKSI B: DAFTAR UTANG (KEWAJIBAN) --- */}
                             <div className="space-y-8">
                                 <div className="flex items-center gap-3 border-b-2 border-rose-500 pb-2">
                                     <CreditCard className="w-6 h-6 text-rose-600" />
                                     <h3 className="text-xl font-black text-slate-800">Daftar Utang (Kewajiban)</h3>
-                                </div>
-
-                                <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3 text-amber-800 text-sm mb-6">
-                                    <AlertCircle className="w-5 h-5 shrink-0" />
-                                    <div>
-                                        <p className="font-bold">Penting:</p>
-                                        <p>Masukkan <strong>Sisa Pokok Utang</strong> (Saldo berjalan yang belum lunas), bukan nominal cicilan bulanan.</p>
-                                    </div>
                                 </div>
 
                                 <SectionHeader title="Utang Konsumtif" desc="Sisa Pokok Utang (Outstanding)" />
@@ -531,19 +425,11 @@ export function CheckupWizard() {
                                                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">KPR (Rumah)</Label>
                                                 <InfoPopover content={FINANCIAL_HELP_DATA.debtKPR} />
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowDebtModal({ show: true, target: 'debtKPR' })}
-                                                className="text-[9px] font-bold text-brand-600 hover:text-brand-700 underline flex items-center gap-1 transition-colors"
-                                            >
+                                            <button type="button" onClick={() => setShowDebtModal({ show: true, target: 'debtKPR' })} className="text-[9px] font-bold text-brand-600 hover:text-brand-700 underline flex items-center gap-1 transition-colors">
                                                 <Calculator className="w-3 h-3" /> Bantu Hitung Sisa
                                             </button>
                                         </div>
-                                        <InputGroupNoLabel
-                                            value={formData.debtKPR}
-                                            onChange={(v) => handleFinancialChange("debtKPR", v)}
-                                            icon={<Home className="w-4 h-4" />}
-                                        />
+                                        <InputGroupNoLabel value={formData.debtKPR} onChange={(v) => handleFinancialChange("debtKPR", v)} icon={<Home className="w-4 h-4" />} />
                                     </div>
 
                                     {/* KPM DENGAN MODAL HELPER */}
@@ -553,27 +439,17 @@ export function CheckupWizard() {
                                                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">KPM (Kendaraan)</Label>
                                                 <InfoPopover content={FINANCIAL_HELP_DATA.debtKPM} />
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowDebtModal({ show: true, target: 'debtKPM' })}
-                                                className="text-[9px] font-bold text-brand-600 hover:text-brand-700 underline flex items-center gap-1 transition-colors"
-                                            >
+                                            <button type="button" onClick={() => setShowDebtModal({ show: true, target: 'debtKPM' })} className="text-[9px] font-bold text-brand-600 hover:text-brand-700 underline flex items-center gap-1 transition-colors">
                                                 <Calculator className="w-3 h-3" /> Bantu Hitung Sisa
                                             </button>
                                         </div>
-                                        <InputGroupNoLabel
-                                            value={formData.debtKPM}
-                                            onChange={(v) => handleFinancialChange("debtKPM", v)}
-                                            icon={<Car className="w-4 h-4" />}
-                                        />
+                                        <InputGroupNoLabel value={formData.debtKPM} onChange={(v) => handleFinancialChange("debtKPM", v)} icon={<Car className="w-4 h-4" />} />
                                     </div>
 
                                     <InputGroup label="Kartu Kredit" value={formData.debtCC} onChange={(v) => handleFinancialChange("debtCC", v)} icon={<CreditCard className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtCC} />
                                     <InputGroup label="Koperasi" value={formData.debtCoop} onChange={(v) => handleFinancialChange("debtCoop", v)} icon={<Users className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtCoop} />
                                     <InputGroup label="Utang Lainnya" value={formData.debtConsumptiveOther} onChange={(v) => handleFinancialChange("debtConsumptiveOther", v)} icon={<User className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtConsumptiveOther} />
                                 </div>
-
-                                <div className="border-t border-dashed border-slate-200" />
 
                                 <SectionHeader title="Utang Usaha" desc="Utang Produktif / Bisnis" />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -585,7 +461,6 @@ export function CheckupWizard() {
                             <div className="mt-12 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl ring-4 ring-brand-500/20">
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 rounded-full blur-[80px] -mr-32 -mt-32"></div>
                                 <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[60px] -ml-20 -mb-20"></div>
-
                                 <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
                                     <div className="text-center md:text-left">
                                         <p className="text-brand-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Kekayaan Bersih Saat Ini (Net Worth)</p>
@@ -594,7 +469,6 @@ export function CheckupWizard() {
                                         </h2>
                                         <p className="text-slate-400 text-xs mt-2 italic font-medium">Net Worth = Total Aset - Total Utang</p>
                                     </div>
-
                                     <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
                                         <div className="px-6 py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center">
                                             <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Total Aset</p>
@@ -610,144 +484,184 @@ export function CheckupWizard() {
                         </div>
                     )}
 
-                    {/* STEP 3: ARUS KAS (FLOW) */}
+                    {/* STEP 3: ARUS KAS (FLOW) - TAHUNAN ONLY */}
                     {step === 2 && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <div className="bg-brand-50 border border-brand-100 p-4 rounded-xl flex gap-3 text-brand-800 text-sm mb-4">
                                 <Activity className="w-5 h-5 shrink-0" />
-                                <p><strong>MODE INPUT: {inputMode === "ANNUAL" ? "TAHUNAN" : "BULANAN"}</strong>. Masukkan nominal {periodHint}.</p>
+                                <div>
+                                    <p className="font-bold">MODE INPUT: TAHUNAN</p>
+                                    <p>Masukkan total pendapatan & pengeluaran Anda dalam <strong>1 TAHUN</strong>. Gunakan tombol kalkulator untuk bantuan hitung dari bulanan.</p>
+                                </div>
                             </div>
 
                             {/* I. PEMASUKAN */}
-                            <SectionHeader title={`I. Pemasukan ${periodLabel}`} desc={`Total pendapatan ${periodHint}`} />
+                            <SectionHeader title="I. Pemasukan (Per Tahun)" desc="Total pendapatan setahun (x12)" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <InputGroup label="1. Pendapatan Tetap" value={formData.incomeFixed} onChange={(v) => handleFinancialChange("incomeFixed", v)} icon={<DollarSign className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeFixed} />
-                                <InputGroup label="2. Pendapatan Tidak Tetap" value={formData.incomeVariable} onChange={(v) => handleFinancialChange("incomeVariable", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeVariable} />
+                                <InputGroup
+                                    label="1. Pendapatan Tetap"
+                                    value={formData.incomeFixed}
+                                    onChange={(v) => handleFinancialChange("incomeFixed", v)}
+                                    icon={<DollarSign className="w-4 h-4" />}
+                                    helpContent={FINANCIAL_HELP_DATA.incomeFixed}
+                                    onMonthlyClick={() => setMonthlyHelperTarget("incomeFixed")}
+                                    showCalculator
+                                />
+                                <InputGroup
+                                    label="2. Pendapatan Tidak Tetap"
+                                    value={formData.incomeVariable}
+                                    onChange={(v) => handleFinancialChange("incomeVariable", v)}
+                                    icon={<TrendingUp className="w-4 h-4" />}
+                                    helpContent={FINANCIAL_HELP_DATA.incomeVariable}
+                                    onMonthlyClick={() => setMonthlyHelperTarget("incomeVariable")}
+                                    showCalculator
+                                />
                             </div>
 
                             <div className="border-t border-dashed border-slate-200" />
 
                             {/* 1. CICILAN UTANG */}
-                            <SectionHeader title={`1. Cicilan Utang ${periodLabel}`} desc={`Total bayar cicilan ${periodHint}`} />
+                            <SectionHeader title="1. Cicilan Utang (Per Tahun)" desc="Total bayar cicilan setahun" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <InputGroup label="KPR" value={formData.installmentKPR} onChange={(v) => handleFinancialChange("installmentKPR", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.installmentKPR} />
-                                <InputGroup label="KPM" value={formData.installmentKPM} onChange={(v) => handleFinancialChange("installmentKPM", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.installmentKPM} />
-                                <InputGroup label="Kartu Kredit" value={formData.installmentCC} onChange={(v) => handleFinancialChange("installmentCC", v)} icon={<CreditCard className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.installmentCC} />
-                                <InputGroup label="Koperasi" value={formData.installmentCoop} onChange={(v) => handleFinancialChange("installmentCoop", v)} icon={<Users className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.installmentCoop} />
-                                <InputGroup label="Utang Konsumtif Lain" value={formData.installmentConsumptiveOther} onChange={(v) => handleFinancialChange("installmentConsumptiveOther", v)} icon={<User className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.installmentConsumptiveOther} />
-                                <InputGroup label="Utang Usaha/UMKM" value={formData.installmentBusiness} onChange={(v) => handleFinancialChange("installmentBusiness", v)} icon={<Briefcase className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.installmentBusiness}/>
+                                {[
+                                    { k: 'installmentKPR', l: 'KPR', i: <Home className="w-4 h-4" /> },
+                                    { k: 'installmentKPM', l: 'KPM', i: <Car className="w-4 h-4" /> },
+                                    { k: 'installmentCC', l: 'Kartu Kredit', i: <CreditCard className="w-4 h-4" /> },
+                                    { k: 'installmentCoop', l: 'Koperasi', i: <Users className="w-4 h-4" /> },
+                                    { k: 'installmentConsumptiveOther', l: 'Utang Konsumtif Lain', i: <User className="w-4 h-4" /> },
+                                    { k: 'installmentBusiness', l: 'Utang Usaha/UMKM', i: <Briefcase className="w-4 h-4" /> }
+                                ].map((item) => (
+                                    <InputGroup
+                                        key={item.k}
+                                        label={item.l}
+                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        icon={item.i}
+                                        helpContent={FINANCIAL_HELP_DATA[item.k]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        showCalculator
+                                    />
+                                ))}
                             </div>
 
                             <div className="border-t border-dashed border-slate-200" />
 
                             {/* 2. PREMI ASURANSI */}
-                            <SectionHeader title={`2. Premi Asuransi ${periodLabel}`} desc={`Total Premi ${periodHint}`} />
+                            <SectionHeader title="2. Premi Asuransi (Per Tahun)" desc="Total premi setahun" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <InputGroup label="Asuransi Jiwa" value={formData.insuranceLife} onChange={(v) => handleFinancialChange("insuranceLife", v)} icon={<Umbrella className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.insuranceLife} />
-                                <InputGroup label="Asuransi Kesehatan" value={formData.insuranceHealth} onChange={(v) => handleFinancialChange("insuranceHealth", v)} icon={<Umbrella className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.insuranceHealth} />
-                                <InputGroup label="Asuransi Rumah" value={formData.insuranceHome} onChange={(v) => handleFinancialChange("insuranceHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.insuranceHome}/>
-                                <InputGroup label="Asuransi Kendaraan" value={formData.insuranceVehicle} onChange={(v) => handleFinancialChange("insuranceVehicle", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.insuranceVehicle}/>
-                                <InputGroup label="BPJS" value={formData.insuranceBPJS} onChange={(v) => handleFinancialChange("insuranceBPJS", v)} icon={<ShieldCheck className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.insuranceBPJS} />
-                                <InputGroup label="Asuransi Lainnya" value={formData.insuranceOther} onChange={(v) => handleFinancialChange("insuranceOther", v)} icon={<Umbrella className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.insuranceOther}/>
+                                {[
+                                    { k: 'insuranceLife', l: 'Asuransi Jiwa', i: <Umbrella className="w-4 h-4" /> },
+                                    { k: 'insuranceHealth', l: 'Asuransi Kesehatan', i: <Umbrella className="w-4 h-4" /> },
+                                    { k: 'insuranceHome', l: 'Asuransi Rumah', i: <Home className="w-4 h-4" /> },
+                                    { k: 'insuranceVehicle', l: 'Asuransi Kendaraan', i: <Car className="w-4 h-4" /> },
+                                    { k: 'insuranceBPJS', l: 'BPJS', i: <ShieldCheck className="w-4 h-4" /> },
+                                    { k: 'insuranceOther', l: 'Asuransi Lainnya', i: <Umbrella className="w-4 h-4" /> }
+                                ].map((item) => (
+                                    <InputGroup
+                                        key={item.k}
+                                        label={item.l}
+                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        icon={item.i}
+                                        helpContent={FINANCIAL_HELP_DATA[item.k]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        showCalculator
+                                    />
+                                ))}
                             </div>
 
                             <div className="border-t border-dashed border-slate-200" />
 
                             {/* 3. TABUNGAN/INVESTASI */}
-                            <SectionHeader title={`3. Tabungan/Investasi ${periodLabel}`} desc={`Alokasi tabungan ${periodHint}`} />
+                            <SectionHeader title="3. Tabungan/Investasi (Per Tahun)" desc="Total tabungan setahun" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <InputGroup label="Dana Pendidikan Anak" value={formData.savingEducation} onChange={(v) => handleFinancialChange("savingEducation", v)} icon={<PiggyBank className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.savingEducation} />
-                                <InputGroup label="Dana Hari Tua" value={formData.savingRetirement} onChange={(v) => handleFinancialChange("savingRetirement", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.savingRetirement} />
-                                <InputGroup label="Dana Ibadah" value={formData.savingPilgrimage} onChange={(v) => handleFinancialChange("savingPilgrimage", v)} icon={<Coins className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.savingPilgrimage}/>
-                                <InputGroup label="Dana Liburan" value={formData.savingHoliday} onChange={(v) => handleFinancialChange("savingHoliday", v)} icon={<Plane className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.savingHoliday}/>
-                                <InputGroup label="Dana Darurat" value={formData.savingEmergency} onChange={(v) => handleFinancialChange("savingEmergency", v)} icon={<ShieldCheck className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.savingEmergency} />
-                                <InputGroup label="Dana Lainnya" value={formData.savingOther} onChange={(v) => handleFinancialChange("savingOther", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.savingOther}/>
+                                {[
+                                    { k: 'savingEducation', l: 'Dana Pendidikan Anak', i: <PiggyBank className="w-4 h-4" /> },
+                                    { k: 'savingRetirement', l: 'Dana Hari Tua', i: <TrendingUp className="w-4 h-4" /> },
+                                    { k: 'savingPilgrimage', l: 'Dana Ibadah', i: <Coins className="w-4 h-4" /> },
+                                    { k: 'savingHoliday', l: 'Dana Liburan', i: <Plane className="w-4 h-4" /> },
+                                    { k: 'savingEmergency', l: 'Dana Darurat', i: <ShieldCheck className="w-4 h-4" /> },
+                                    { k: 'savingOther', l: 'Dana Lainnya', i: <Wallet className="w-4 h-4" /> }
+                                ].map((item) => (
+                                    <InputGroup
+                                        key={item.k}
+                                        label={item.l}
+                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        icon={item.i}
+                                        helpContent={FINANCIAL_HELP_DATA[item.k]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        showCalculator
+                                    />
+                                ))}
                             </div>
 
                             <div className="border-t border-dashed border-slate-200" />
 
                             {/* 4. BELANJA KELUARGA */}
-                            <SectionHeader title={`4. Belanja Keluarga ${periodLabel}`} desc={`Pengeluaran rutin ${periodHint}`} />
+                            <SectionHeader title="4. Belanja Keluarga (Per Tahun)" desc="Total pengeluaran rutin setahun" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <InputGroup label="Makan Keluarga" value={formData.expenseFood} onChange={(v) => handleFinancialChange("expenseFood", v)} icon={<ShoppingBag className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.expenseFood} />
-                                <InputGroup label="Uang Sekolah" value={formData.expenseSchool} onChange={(v) => handleFinancialChange("expenseSchool", v)} icon={<User className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.expenseSchool} />
-                                <InputGroup label="Transportasi" value={formData.expenseTransport} onChange={(v) => handleFinancialChange("expenseTransport", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.expenseTransport}/>
-                                <InputGroup label="Telepon & Internet" value={formData.expenseCommunication} onChange={(v) => handleFinancialChange("expenseCommunication", v)} icon={<Phone className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.expenseCommunication}/>
-                                <InputGroup label="ART / Supir" value={formData.expenseHelpers} onChange={(v) => handleFinancialChange("expenseHelpers", v)} icon={<User className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.expenseHelpers}/>
-                                <InputGroup label="Belanja RT Lainnya" value={formData.expenseLifestyle} onChange={(v) => handleFinancialChange("expenseLifestyle", v)} icon={<ShoppingBag className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.expenseLifestyle} />
-                                <div className="md:col-span-2">
-                                    <InputGroup label={`Pajak (PBB/PKB) ${periodLabel}`} value={formData.expenseTax} onChange={(v) => handleFinancialChange("expenseTax", v)} icon={<Landmark className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.expenseTax} />
-                                </div>
+                                {[
+                                    { k: 'expenseFood', l: 'Makan Keluarga', i: <ShoppingBag className="w-4 h-4" /> },
+                                    { k: 'expenseSchool', l: 'Uang Sekolah', i: <User className="w-4 h-4" /> },
+                                    { k: 'expenseTransport', l: 'Transportasi', i: <Car className="w-4 h-4" /> },
+                                    { k: 'expenseCommunication', l: 'Telepon & Internet', i: <Phone className="w-4 h-4" /> },
+                                    { k: 'expenseHelpers', l: 'ART / Supir', i: <User className="w-4 h-4" /> },
+                                    { k: 'expenseLifestyle', l: 'Belanja RT Lainnya', i: <ShoppingBag className="w-4 h-4" /> },
+                                    { k: 'expenseTax', l: 'Pajak (PBB/PKB)', i: <Landmark className="w-4 h-4" /> }
+                                ].map((item) => (
+                                    <InputGroup
+                                        key={item.k}
+                                        label={item.l}
+                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        icon={item.i}
+                                        helpContent={FINANCIAL_HELP_DATA[item.k]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        showCalculator
+                                    />
+                                ))}
                             </div>
                         </div>
                     )}
 
-                    {/* STEP 4: REVIEW (DYNAMIC TOTALS & LABELS) */}
+                    {/* STEP 4: REVIEW */}
                     {step === 3 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
                             <div className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200 space-y-6 relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-32 bg-brand-500/5 rounded-full blur-3xl -mr-12 -mt-12 pointer-events-none" />
 
                                 <h3 className="font-bold text-brand-900 text-lg flex items-center gap-2 relative z-10">
-                                    <Calculator className="w-5 h-5 text-brand-600" /> Ringkasan Data
+                                    <Calculator className="w-5 h-5 text-brand-600" /> Ringkasan Data (Tahunan)
                                 </h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                                    {/* --- KOLOM 1: NERACA (ASET - UTANG) --- */}
+                                    {/* --- NERACA --- */}
                                     <div className="space-y-6">
                                         <div>
                                             <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">1. Neraca (Balance Sheet)</h4>
                                             <div className="space-y-3">
-                                                <ReviewRow label="Total Aset Likuid" value={formData.assetCash} />
-                                                <ReviewRow label="Total Aset Investasi" value={
-                                                    formData.assetInvHome + formData.assetInvVehicle + formData.assetGold + formData.assetInvAntique +
-                                                    formData.assetStocks + formData.assetMutualFund + formData.assetBonds + formData.assetDeposit + formData.assetInvOther
-                                                } />
-                                                <ReviewRow label="Total Aset Personal" value={
-                                                    formData.assetHome + formData.assetVehicle + formData.assetJewelry + formData.assetAntique + formData.assetPersonalOther
-                                                } />
-                                                <ReviewRow label="Total Semua Aset (+)" value={totalAssets} highlight />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <div className="space-y-3">
+                                                <ReviewRow label="Total Aset (+)" value={totalAssets} highlight />
                                                 <ReviewRow label="Total Utang (-)" value={totalDebt} isNegative />
+                                                <ReviewRow label="Kekayaan Bersih" value={netWorth} bold />
                                             </div>
-                                        </div>
-
-                                        {/* NET WORTH RESULT */}
-                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                            <p className="text-xs text-slate-500 font-bold uppercase mb-1">Kekayaan Bersih (Net Worth)</p>
-                                            <p className={cn("text-2xl font-black tracking-tight", netWorth >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(netWorth)}
-                                            </p>
                                         </div>
                                     </div>
 
-                                    {/* --- KOLOM 2: ARUS KAS (INCOME - EXPENSE) --- */}
+                                    {/* --- ARUS KAS --- */}
                                     <div className="space-y-6">
                                         <div>
                                             <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-2 mb-3">
-                                                2. Arus Kas {periodLabel}
+                                                2. Arus Kas (Per Tahun)
                                             </h4>
                                             <div className="space-y-3">
-                                                <ReviewRow label="Total Pemasukan (+)" value={totalIncome} highlight />
-                                                <ReviewRow label="Cicilan Utang (-)" value={totalInstallments} isNegative />
-                                                <ReviewRow label="Premi Asuransi (-)" value={totalInsurance} isNegative />
-                                                <ReviewRow label="Tabungan & Investasi (-)" value={totalSavings} isNegative />
-                                                <ReviewRow label="Belanja Keluarga (-)" value={totalLivingExpense} isNegative />
-                                                <ReviewRow label="Total Pengeluaran" value={totalExpense} isNegative bold />
+                                                <ReviewRow label="Total Pemasukan (+)" value={totalIncomeAnnual} highlight />
+                                                <ReviewRow label="Cicilan Utang (-)" value={totalInstallmentsAnnual} isNegative />
+                                                <ReviewRow label="Premi Asuransi (-)" value={totalInsuranceAnnual} isNegative />
+                                                <ReviewRow label="Tabungan (-)" value={totalSavingsAnnual} isNegative />
+                                                <ReviewRow label="Belanja Keluarga (-)" value={totalLivingExpenseAnnual} isNegative />
+                                                <ReviewRow label="Surplus / Defisit" value={surplusDeficitAnnual} bold />
                                             </div>
-                                        </div>
-
-                                        {/* SURPLUS/DEFICIT RESULT */}
-                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                            <p className="text-xs text-slate-500 font-bold uppercase mb-1">Surplus / Defisit {periodLabel}</p>
-                                            <p className={cn("text-2xl font-black tracking-tight", surplusDeficit >= 0 ? "text-emerald-600" : "text-red-600")}>
-                                                {surplusDeficit >= 0 ? "+" : ""}
-                                                {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(surplusDeficit)}
-                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -783,7 +697,16 @@ export function CheckupWizard() {
                     }
                 </div>
             </div>
-            {/* --- MODAL ASISTEN KALKULATOR UTANG --- */}
+
+            {/* --- MODAL UTAMA: CALCULATOR BULAN KE TAHUN --- */}
+            <MonthlyHelperModal
+                isOpen={!!monthlyHelperTarget}
+                onClose={() => setMonthlyHelperTarget(null)}
+                onApply={applyMonthlyToAnnual}
+                title={monthlyHelperTarget ? "Asisten Hitung Tahunan" : ""}
+            />
+
+            {/* --- MODAL UTANG (SISA POKOK) --- */}
             {showDebtModal.show && (
                 <div className="fixed inset-0 z-100 flex items-center justify-center p-5 animate-in fade-in duration-200">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDebtModal({ show: false, target: null })} />
@@ -793,43 +716,32 @@ export function CheckupWizard() {
                                 <Calculator className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-slate-800">Asisten Kalkulator</h3>
-                                <p className="text-xs text-slate-500">Hitung sisa utang dari cicilan rutin.</p>
+                                <h3 className="text-xl font-black text-slate-800">Kalkulator Sisa Utang</h3>
+                                <p className="text-xs text-slate-500">Bukan untuk arus kas tahunan, tapi saldo utang.</p>
                             </div>
                         </div>
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cicilan Per Bulan</label>
-                                <InputGroupNoLabel
-                                    autoFocus
-                                    value={tempMonthly ? parseInt(tempMonthly.replace(/\./g, "")) : 0}
-                                    onChange={(v: SetStateAction<string>) => setTempMonthly(v)}
-                                    icon={<Banknote className="w-4 h-4" />}
-                                />
+                                <InputGroupNoLabel autoFocus value={tempMonthly ? parseInt(tempMonthly.replace(/\./g, "")) : 0} onChange={(v: SetStateAction<string>) => setTempMonthly(v)} icon={<Banknote className="w-4 h-4" />} />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sisa Tenor (Bulan)</label>
                                 <div className="relative">
-                                    <Input
-                                        type="number"
-                                        value={tempTenor}
-                                        onChange={(e) => setTempTenor(e.target.value)}
-                                        className="h-12 rounded-xl font-bold bg-slate-50 border-slate-200 focus:border-brand-500 pr-12"
-                                        placeholder="Contoh: 120"
-                                    />
+                                    <Input type="number" value={tempTenor} onChange={(e) => setTempTenor(e.target.value)} className="h-12 rounded-xl font-bold bg-slate-50 border-slate-200 focus:border-brand-500 pr-12" placeholder="Contoh: 120" />
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">Bln</span>
                                 </div>
                             </div>
                             <div className="pt-4 flex gap-3">
                                 <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setShowDebtModal({ show: false, target: null })}>Batal</Button>
-                                <Button className="flex-2 h-12 rounded-xl bg-brand-600 font-bold" onClick={applyDebtCalculation}>Terapkan Hasil</Button>
+                                <Button className="flex-2 h-12 rounded-xl bg-brand-600 font-bold" onClick={applyDebtCalculation}>Terapkan</Button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* --- MODAL ASISTEN EMAS --- */}
+            {/* --- MODAL EMAS --- */}
             {showGoldModal && (
                 <div className="fixed inset-0 z-100 flex items-center justify-center p-5 animate-in fade-in duration-200">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowGoldModal(false)} />
@@ -843,48 +755,25 @@ export function CheckupWizard() {
                                 <p className="text-xs text-slate-500 font-medium">Konversi gram ke nilai rupiah terkini.</p>
                             </div>
                         </div>
-
                         <div className="space-y-5">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Harga Emas Terkini</p>
-                                <p className="text-lg font-bold text-slate-700">
-                                    {/* Jika muncul RpNaN, berarti currentGoldPrice bermasalah */}
-                                    {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(currentGoldPrice)}
-                                </p>
+                                <p className="text-lg font-bold text-slate-700">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(currentGoldPrice)}</p>
                             </div>
-
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Jumlah Emas (Gram)</label>
                                 <div className="relative group">
-                                    <Input
-                                        autoFocus
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={goldWeight}
-                                        onChange={(e) => setGoldWeight(e.target.value)}
-                                        className="h-12 rounded-xl font-bold bg-white border-slate-200 focus:border-brand-500 pr-12 transition-all shadow-sm"
-                                        placeholder="Contoh: 3.21"
-                                    />
+                                    <Input autoFocus type="text" inputMode="decimal" value={goldWeight} onChange={(e) => setGoldWeight(e.target.value)} className="h-12 rounded-xl font-bold bg-white border-slate-200 focus:border-brand-500 pr-12 transition-all shadow-sm" placeholder="Contoh: 3.21" />
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">GR</span>
                                 </div>
                             </div>
-
                             <div className="bg-brand-50/50 p-4 rounded-xl border border-brand-100">
                                 <p className="text-[10px] font-black text-brand-400 uppercase mb-1">Estimasi Nilai</p>
-                                <p className="text-xl font-black text-brand-700">
-                                    {formatRupiah(Math.round((parseFloat(goldWeight.replace(",", ".")) || 0) * currentGoldPrice))}
-                                </p>
+                                <p className="text-xl font-black text-brand-700">{formatRupiah(Math.round((parseFloat(goldWeight.replace(",", ".")) || 0) * currentGoldPrice))}</p>
                             </div>
-
                             <div className="pt-2 flex gap-3">
                                 <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-slate-300 text-slate-600" onClick={() => setShowGoldModal(false)}>Batal</Button>
-                                <Button
-                                    className="flex-2 h-12 rounded-xl bg-brand-600 font-bold shadow-lg shadow-brand-500/20 text-white"
-                                    onClick={applyGoldCalculation}
-                                    disabled={!currentGoldPrice}
-                                >
-                                    Terapkan Nilai
-                                </Button>
+                                <Button className="flex-2 h-12 rounded-xl bg-brand-600 font-bold shadow-lg shadow-brand-500/20 text-white" onClick={applyGoldCalculation} disabled={!currentGoldPrice}>Terapkan Nilai</Button>
                             </div>
                         </div>
                     </div>
@@ -943,14 +832,36 @@ function SelectInput({ label, value, onChange, options }: SelectInputProps) {
     )
 }
 
-interface InputGroupProps { icon: React.ReactNode; label: string; desc?: string; value: number; onChange: (val: string) => void; helpContent?: HelpContent; }
-function InputGroup({ icon, label, desc, value, onChange, helpContent }: InputGroupProps) {
+// UPDATE: InputGroup now accepts onMonthlyClick and showCalculator
+interface InputGroupProps {
+    icon: React.ReactNode;
+    label: string;
+    desc?: string;
+    value: number;
+    onChange: (val: string) => void;
+    helpContent?: HelpContent;
+    onMonthlyClick?: () => void;
+    showCalculator?: boolean;
+}
+
+function InputGroup({ icon, label, desc, value, onChange, helpContent, onMonthlyClick, showCalculator }: InputGroupProps) {
     const safeValue = (value === undefined || value === null || isNaN(value)) ? 0 : value;
     return (
         <div className="group space-y-1.5">
-            <div className="flex items-center">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wide group-focus-within:text-brand-600 transition-colors">{label}</Label>
-                <InfoPopover content={helpContent} />
+            <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wide group-focus-within:text-brand-600 transition-colors">{label}</Label>
+                    <InfoPopover content={helpContent} />
+                </div>
+                {showCalculator && onMonthlyClick && (
+                    <button
+                        type="button"
+                        onClick={onMonthlyClick}
+                        className="text-[9px] font-bold text-brand-600 hover:text-brand-700 hover:bg-brand-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+                    >
+                        <Calculator className="w-3 h-3" /> Hitung Bulanan
+                    </button>
+                )}
             </div>
             <div className="relative transition-all duration-300 group-focus-within:scale-[1.01]">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-500 transition-colors">{icon}</div>

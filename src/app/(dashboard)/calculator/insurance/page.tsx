@@ -265,7 +265,7 @@ export default function InsurancePage() {
                 {/* --- SEKSI KPM --- */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center ml-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Sisa Kredit Kendaraan (KPM)</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Sisa KPM (Kendaraan)</label>
                     <button type="button" onClick={() => setShowKpmModal(true)} className="text-[9px] font-bold text-brand-600 hover:underline flex items-center gap-1">
                       <Calculator className="w-3 h-3" /> Bantu Hitung
                     </button>

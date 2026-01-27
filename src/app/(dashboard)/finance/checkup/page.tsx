@@ -48,8 +48,8 @@ export default function FinancialCheckupPage() {
                    <Stethoscope className="w-4 h-4 text-cyan-300" />
                    <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Financial Health Check Up</span>
                 </div>
-                <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4 drop-shadow-sm">
-                  Periksa Vitalitas Keuangan
+                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-4 drop-shadow-sm">
+                  Periksa Kesehatan Keuangan
                 </h1>
                 <p className="text-brand-100 text-sm md:text-lg leading-relaxed opacity-90">
                   Diagnosa kesehatan finansial Anda secara menyeluruh dengan standar perencana keuangan profesional. Data Anda dijamin kerahasiaannya.
