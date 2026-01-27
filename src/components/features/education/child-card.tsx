@@ -47,7 +47,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
        )} />
 
        <div className="p-1">
-         <div className="bg-gradient-to-b from-white/50 to-white/20 p-5 rounded-[1.8rem]">
+         <div className="bg-linear-to-b from-white/50 to-white/20 p-5 rounded-[1.8rem]">
            
            {/* --- HEADER CARD --- */}
       <div 
@@ -156,7 +156,7 @@ export function ChildCard({ profile, result, onDelete }: ChildCardProps) {
            
            {/* Insight Footer */}
            <div className="px-6 py-4 bg-yellow-50/80 border-t border-yellow-100 flex gap-3 items-start">
-              <Info className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <Info className="w-4 h-4 text-yellow-600 shrink-0 mt-0.5" />
               <p className="text-[11px] text-yellow-800/80 leading-relaxed">
                  Strategi <b>Sinking Fund:</b> Anda menabung secara terpisah untuk setiap jenjang pendidikan mulai hari ini. Total tabungan akan berkurang seiring lunasnya setiap tahapan sekolah.
               </p>

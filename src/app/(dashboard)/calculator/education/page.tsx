@@ -19,6 +19,7 @@ import { SummaryBoard } from "@/components/features/education/summary-board";
 import { calculatePortfolio } from "@/lib/financial-math";
 import { ChildProfile, PortfolioSummary, PlanInput } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
+import { EducationGuide } from "@/components/features/calculator/education-guide";
 
 export default function EducationPage() {
   const [view, setView] = useState<"DASHBOARD" | "WIZARD">("DASHBOARD");
@@ -138,9 +139,9 @@ export default function EducationPage() {
       
       {/* BACKGROUND DECORATION */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-50/80 to-transparent" />
-        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-cyan-100/30 rounded-full blur-[100px]" />
-        <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-blue-100/30 rounded-full blur-[80px]" />
+        <div className="absolute top-0 left-0 w-full h-125 bg-linear-to-brom-blue-50/80 to-transparent" />
+        <div className="absolute top-[-10%] right-[-5%] w-150 h-150 bg-cyan-100/30 rounded-full blur-[100px]" />
+        <div className="absolute top-[10%] left-[-10%] w-125 h-125 bg-blue-100/30 rounded-full blur-[80px]" />
       </div>
 
       {/* HEADER SECTION */}
@@ -155,7 +156,7 @@ export default function EducationPage() {
                       </span>
                   </div>
                   <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-slate-800">
-                    Rencanakan <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">Masa Depan</span> Anak
+                    Rencanakan <span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-600 to-blue-600">Masa Depan</span> Anak
                   </h1>
                   <p className="text-slate-500 text-sm md:text-base max-w-2xl leading-relaxed">
                     Simulasi dana pendidikan dengan metode <i>Sinking Fund</i>. Akurat, transparan, dan terintegrasi.
@@ -257,6 +258,7 @@ export default function EducationPage() {
 
              {/* RIGHT COLUMN: Settings */}
              <div className="lg:col-span-4 space-y-6">
+              <EducationGuide/>
                 <div className="sticky top-6 space-y-6">
                    <Card className="p-6 rounded-3xl border border-slate-100 bg-white shadow-lg shadow-slate-100/80">
                       
@@ -317,7 +319,7 @@ export default function EducationPage() {
                       </div>
 
                       <div className="mt-8 bg-slate-50 p-4 rounded-2xl flex gap-3 border border-slate-100">
-                         <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                         <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                          <p className="text-[10px] text-slate-500 leading-relaxed text-justify">
                              Geser slider di atas untuk melihat dampak inflasi dan return investasi terhadap total tabungan bulanan secara langsung.
                          </p>

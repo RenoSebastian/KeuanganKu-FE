@@ -47,7 +47,7 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          
          {/* 1. Future Cost Card */}
-         <div className="relative overflow-hidden bg-gradient-to-br from-white to-red-50/50 rounded-[2rem] p-6 border border-red-100 shadow-xl shadow-red-100/50 group hover:border-red-200 transition-all duration-300">
+         <div className="relative overflow-hidden bg-linear-to-br from-white to-red-50/50 rounded-[2rem] p-6 border border-red-100 shadow-xl shadow-red-100/50 group hover:border-red-200 transition-all duration-300">
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
             
             <div className="relative z-10 flex flex-col items-center text-center space-y-3">
@@ -70,7 +70,7 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
          </div>
 
          {/* 2. Monthly Saving Card */}
-         <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-50 rounded-[2rem] p-6 border border-emerald-100 shadow-xl shadow-emerald-100/50 ring-1 ring-emerald-200/50 group hover:ring-emerald-300 transition-all duration-300">
+         <div className="relative overflow-hidden bg-linear-to-br from-emerald-50 to-teal-50 rounded-[2rem] p-6 border border-emerald-100 shadow-xl shadow-emerald-100/50 ring-1 ring-emerald-200/50 group hover:ring-emerald-300 transition-all duration-300">
             <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
             
             <div className="relative z-10 flex flex-col items-center text-center space-y-3">
@@ -174,7 +174,7 @@ export function SimulationResult({ data, onReset, onSave }: SimulationResultProp
                
                {/* Insight Note */}
                <div className="p-5 bg-yellow-50 text-xs text-yellow-800 border-t border-yellow-100 flex gap-3 leading-relaxed">
-                  <Info className="w-5 h-5 flex-shrink-0 text-yellow-600" />
+                  <Info className="w-5 h-5 shrink-0 text-yellow-600" />
                   <p>
                     <b>Strategi Sinking Fund:</b> Perhitungan di atas memecah target menabung berdasarkan kapan dana tersebut dibutuhkan. 
                     Misalnya, tabungan untuk TK akan selesai dalam waktu singkat, sementara tabungan Kuliah memiliki tenor lebih panjang sehingga cicilannya lebih ringan.

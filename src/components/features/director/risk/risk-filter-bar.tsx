@@ -105,8 +105,8 @@ export default function RiskFilterBar({
 
         {/* DROPDOWN MENU POPOVER */}
         {isOpen && (
-          <div className="absolute top-full left-0 mt-2 w-[220px] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 slide-in-from-top-2 origin-top-left">
-             <div className="p-1 max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+          <div className="absolute top-full left-0 mt-2 w-55 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 slide-in-from-top-2 origin-top-left">
+             <div className="p-1 max-h-75 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
                 
                 {/* Option: Reset / Semua */}
                 <div 
@@ -135,7 +135,7 @@ export default function RiskFilterBar({
                      onClick={() => handleSelect(opt.value)}
                    >
                       <span className="truncate mr-2">{opt.label}</span>
-                      {selectedValue === opt.value && <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />}
+                      {selectedValue === opt.value && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
                    </div>
                 ))}
              </div>

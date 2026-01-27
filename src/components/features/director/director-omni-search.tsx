@@ -63,7 +63,7 @@ export default function DirectorOmniSearch() {
 
       {isOpen && query.length > 2 && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-slate-100 overflow-hidden z-50">
-          <div className="max-h-[350px] overflow-y-auto">
+          <div className="max-h-87.5 overflow-y-auto">
             {!isLoading && results.length === 0 && (
               <div className="p-6 text-center text-slate-500 text-sm">Tidak ditemukan hasil.</div>
             )}

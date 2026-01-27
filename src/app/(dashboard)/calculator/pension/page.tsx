@@ -14,6 +14,7 @@ import { formatRupiah } from "@/lib/financial-math";
 import { PensionResult } from "@/lib/types";
 import { generatePensionPDF } from "@/lib/pdf-generator";
 import { financialService } from "@/services/financial.service"; 
+import { PensionGuide } from "@/components/features/calculator/pension-guide";
 
 export default function PensionPage() {
   // --- STATE INPUT ---
@@ -155,7 +156,7 @@ export default function PensionPage() {
       
       {/* --- HEADER (PAM IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 
@@ -303,7 +304,7 @@ export default function PensionPage() {
           {/* RIGHT: RESULT DISPLAY */}
           <div className="lg:col-span-7 space-y-6">
              {!result ? (
-               <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center opacity-60 p-8 border-2 border-dashed border-indigo-200/50 rounded-[2rem] bg-white/50">
+               <div className="h-full min-h-100 flex flex-col items-center justify-center text-center opacity-60 p-8 border-2 border-dashed border-indigo-200/50 rounded-[2rem] bg-white/50">
                   <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
                      <Hourglass className="w-10 h-10 text-indigo-300" />
                   </div>
@@ -341,7 +342,7 @@ export default function PensionPage() {
                   </div>
 
                   {/* MAIN RESULT CARD (Indigo Gradient) */}
-                  <Card className="bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0">
+                  <Card className="bg-linear-to-br from-indigo-600 to-violet-700 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0">
                      <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                      <div className="relative z-10 space-y-8">
                        <div className="grid grid-cols-2 gap-4 pb-6 border-b border-white/20">
@@ -391,12 +392,13 @@ export default function PensionPage() {
                      <Button variant="outline" onClick={handleReset} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
                        <RefreshCcw className="w-4 h-4 mr-2" /> Reset
                      </Button>
-                     <Button className="flex-[2] rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold" onClick={handleDownload}>
+                     <Button className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold" onClick={handleDownload}>
                         <Download className="w-4 h-4 mr-2" /> Simpan Rencana PDF
                      </Button>
                   </div>
                </div>
              )}
+             <PensionGuide />
           </div>
         </div>
       </div>

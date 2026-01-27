@@ -14,6 +14,7 @@ import { calculateSmartBudget, formatRupiah } from "@/lib/financial-math"; // Ma
 import { generateBudgetPDF } from "@/lib/pdf-generator";
 import { BudgetResult, BudgetAllocation } from "@/lib/types";
 import { financialService } from "@/services/financial.service"; 
+import { BudgetGuide } from "@/components/features/calculator/budget-guide";
 
 // --- 1. HELPER: MAPPING VISUAL BERDASARKAN TIPE ---
 const getAllocationStyle = (type: BudgetAllocation["type"]) => {
@@ -203,7 +204,7 @@ export default function BudgetPage() {
 
   if (isLoading) {
       return (
-          <div className="flex flex-col items-center justify-center min-h-[500px]">
+          <div className="flex flex-col items-center justify-center min-h-125">
               <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
               <p className="text-slate-500 font-medium">Memuat data anggaran...</p>
           </div>
@@ -215,7 +216,7 @@ export default function BudgetPage() {
       
       {/* --- HEADER (PAM BRAND IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          
          <div className="relative z-10 max-w-5xl mx-auto text-center">
@@ -237,6 +238,7 @@ export default function BudgetPage() {
           
           {/* --- LEFT: INPUT FORM (Clean UI) --- */}
           <Card className="md:col-span-5 p-6 md:p-8 rounded-[2rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl card-clean">
+          <BudgetGuide/>
             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
               <Wallet className="w-5 h-5 text-brand-600" /> Input Pemasukan
             </h3>
@@ -285,7 +287,7 @@ export default function BudgetPage() {
           {/* --- RIGHT: RESULT DISPLAY --- */}
           <div className="md:col-span-7 space-y-6">
              {!displayedResult ? (
-               <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-[2rem] bg-white/50">
+               <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-[2rem] bg-white/50">
                   <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                      <BadgePercent className="w-8 h-8 text-slate-400" />
                   </div>
@@ -321,7 +323,7 @@ export default function BudgetPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card className={cn(
                       "text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden border-0 flex flex-col justify-center",
-                      viewMode === "MONTHLY" ? "bg-pam-gradient" : "bg-gradient-to-br from-cyan-600 to-blue-700"
+                      viewMode === "MONTHLY" ? "bg-pam-gradient" : "bg-linear-to-br from-cyan-600 to-blue-700"
                     )}>
                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                        <p className="text-brand-100 font-bold uppercase tracking-widest text-[10px] mb-1">
@@ -338,7 +340,7 @@ export default function BudgetPage() {
 
                     {/* DONUT CHART VISUALIZATION */}
                     <Card className="p-4 rounded-[2rem] bg-white border border-slate-100 flex items-center gap-6 shadow-sm">
-                       <div className="relative w-24 h-24 rounded-full flex-shrink-0" 
+                       <div className="relative w-24 h-24 rounded-full shrink-0" 
                            style={{ 
                              background: "conic-gradient(#3b82f6 0% 45%, #f59e0b 45% 65%, #f43f5e 65% 80%, #6366f1 80% 90%, #10b981 90% 100%)" 
                            }}>
@@ -411,7 +413,7 @@ export default function BudgetPage() {
                            <RefreshCcw className="w-4 h-4" />
                         </Button>
                         <Button 
-                           className="flex-[3] h-auto rounded-xl bg-slate-800 hover:bg-slate-900 shadow-xl" 
+                           className="flex-3 h-auto rounded-xl bg-slate-800 hover:bg-slate-900 shadow-xl" 
                            onClick={handleDownload}
                         >
                            <Download className="w-4 h-4 mr-2" /> Download PDF

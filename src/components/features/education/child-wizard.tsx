@@ -175,7 +175,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
   // --- UI COMPONENTS ---
   
   return (
-    <div className="flex flex-col h-full min-h-[500px]">
+    <div className="flex flex-col h-full min-h-125">
       
       {/* 1. PROGRESS STEPPER (PAM Style) */}
       <div className="flex items-center justify-between mb-8 px-4 md:px-12 relative">
@@ -261,7 +261,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
               </div>
 
               <div className="bg-blue-50 p-4 rounded-xl flex gap-3 text-blue-700 text-xs leading-relaxed border border-blue-100">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-600" />
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
                 <p>Sistem akan otomatis menghitung kapan anak harus masuk TK, SD, hingga Kuliah berdasarkan tanggal lahir.</p>
               </div>
             </div>
@@ -276,7 +276,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                <p className="text-slate-500 text-sm mt-1">Tentukan jenjang yang ingin direncanakan saat ini.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-100 overflow-y-auto pr-2 custom-scrollbar">
               {STAGES_DB.map((stage) => {
                 const age = calculateAge(dob);
                 const isTotallyPassed = age > (stage.entryAge + stage.duration);
@@ -312,7 +312,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                           </div>
                           
                           <div className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300",
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-300",
                             isSelected ? "bg-brand-500 border-brand-500 scale-110" : "border-slate-200 bg-white"
                           )}>
                             {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
@@ -360,7 +360,7 @@ export function ChildWizard({ onSave, onCancel }: ChildWizardProps) {
                <p className="text-slate-500 text-sm mt-1">Masukkan biaya pendidikan saat ini (tanpa inflasi).</p>
             </div>
 
-            <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-4 pb-2">
+            <div className="max-h-100 overflow-y-auto pr-2 custom-scrollbar space-y-4 pb-2">
                {selectedStageIds.map((id) => {
                  const stage = STAGES_DB.find(s => s.id === id);
                  const currentGrade = startGrades[id] || 1;

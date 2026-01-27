@@ -15,6 +15,7 @@ import { formatRupiah } from "@/lib/financial-math";
 import { SpecialGoalResult, GoalType, GoalSimulationInput } from "@/lib/types";
 import { generateSpecialGoalPDF } from "@/lib/pdf-generator";
 import { financialService } from "@/services/financial.service"; 
+import { GoalsGuide } from "@/components/features/calculator/goals-guide";
 
 // --- KONFIGURASI TEMA PER TUJUAN ---
 const GOAL_OPTIONS: { id: GoalType; label: string; icon: any; color: string; gradient: string; desc: string }[] = [
@@ -144,7 +145,7 @@ export default function GoalsPage() {
       
       {/* --- HEADER (PAM IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 
@@ -291,7 +292,7 @@ export default function GoalsPage() {
             {/* --- RIGHT COLUMN: RESULT --- */}
             <div className="lg:col-span-5 space-y-6">
                 {!result ? (
-                    <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 bg-white/50 rounded-[2rem]">
+                    <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 bg-white/50 rounded-[2rem]">
                         <div className={cn("w-24 h-24 rounded-full flex items-center justify-center mb-6 bg-slate-100 transition-colors duration-500", currentTheme.color.replace("text-", "bg-").replace("600", "50"))}>
                             <currentTheme.icon className={cn("w-10 h-10 opacity-50", currentTheme.color)} />
                         </div>
@@ -305,7 +306,7 @@ export default function GoalsPage() {
                         
                         {/* MAIN RESULT CARD (Theme Based) */}
                         <Card className={cn(
-                            "text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0 bg-gradient-to-br flex flex-col justify-center min-h-[280px]",
+                            "text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0 bg-linear-to-br flex flex-col justify-center min-h-70",
                             currentTheme.gradient
                         )}>
                             {/* Decoration */}
@@ -372,13 +373,14 @@ export default function GoalsPage() {
                             <Button variant="outline" onClick={handleReset} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
                                 <RefreshCcw className="w-4 h-4 mr-2" /> Reset
                             </Button>
-                            <Button className="flex-[2] rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold" onClick={handleDownload}>
+                            <Button className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold" onClick={handleDownload}>
                                 <Download className="w-4 h-4 mr-2" /> Simpan PDF
                             </Button>
                         </div>
 
                     </div>
                 )}
+                <GoalsGuide />
             </div>
 
         </div>

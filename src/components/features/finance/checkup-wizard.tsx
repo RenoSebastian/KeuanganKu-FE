@@ -296,7 +296,7 @@ export function CheckupWizard() {
             <div className="mb-10 relative px-4 md:px-0">
                 <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2 rounded-full z-0" />
                 <div
-                    className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-brand-700 to-cyan-500 -translate-y-1/2 rounded-full z-0 transition-all duration-500 ease-out"
+                    className="absolute top-1/2 left-0 h-0.5 bg-linear-to-r from-brand-700 to-cyan-500 -translate-y-1/2 rounded-full z-0 transition-all duration-500 ease-out"
                     style={{ width: `${(step / 4) * 100}%` }}
                 />
                 <div className="flex justify-between relative z-10">
@@ -387,7 +387,7 @@ export function CheckupWizard() {
                 </div>
 
                 {/* CONTENT */}
-                <div className="p-6 md:p-8 space-y-8 min-h-[400px]">
+                <div className="p-6 md:p-8 space-y-8 min-h-100">
                     {/* STEP 0: DATA DIRI */}
                     {step === 0 && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -751,7 +751,7 @@ export function CheckupWizard() {
                         <ArrowLeft className="w-4 h-4 mr-2" /> Sebelumnya
                     </Button>
 
-                    {step < 4 ?
+                    {step < 3 ?
                         <Button onClick={nextStep} className="bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-600/20 px-8 h-12 rounded-xl font-bold transition-all hover:translate-x-1">
                             Selanjutnya <ArrowRight className="w-4 h-4 ml-2" />
                         </Button> :
@@ -774,7 +774,7 @@ export function CheckupWizard() {
             </div>
             {/* --- MODAL ASISTEN KALKULATOR UTANG --- */}
             {showDebtModal.show && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-5 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-5 animate-in fade-in duration-200">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDebtModal({ show: false, target: null })} />
                     <div className="relative bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
                         <div className="flex items-center gap-3 mb-6">
@@ -811,7 +811,7 @@ export function CheckupWizard() {
                             </div>
                             <div className="pt-4 flex gap-3">
                                 <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setShowDebtModal({ show: false, target: null })}>Batal</Button>
-                                <Button className="flex-[2] h-12 rounded-xl bg-brand-600 font-bold" onClick={applyDebtCalculation}>Terapkan Hasil</Button>
+                                <Button className="flex-2 h-12 rounded-xl bg-brand-600 font-bold" onClick={applyDebtCalculation}>Terapkan Hasil</Button>
                             </div>
                         </div>
                     </div>
@@ -820,7 +820,7 @@ export function CheckupWizard() {
 
             {/* --- MODAL ASISTEN EMAS --- */}
             {showGoldModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-5 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-5 animate-in fade-in duration-200">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowGoldModal(false)} />
                     <div className="relative bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
                         <div className="flex items-center gap-4 mb-6">
@@ -868,7 +868,7 @@ export function CheckupWizard() {
                             <div className="pt-2 flex gap-3">
                                 <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-slate-300 text-slate-600" onClick={() => setShowGoldModal(false)}>Batal</Button>
                                 <Button
-                                    className="flex-[2] h-12 rounded-xl bg-brand-600 font-bold shadow-lg shadow-brand-500/20 text-white"
+                                    className="flex-2 h-12 rounded-xl bg-brand-600 font-bold shadow-lg shadow-brand-500/20 text-white"
                                     onClick={applyGoldCalculation}
                                     disabled={!currentGoldPrice}
                                 >

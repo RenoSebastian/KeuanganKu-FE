@@ -16,11 +16,11 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
 
   return (
     // UBAH: Background Gradient lebih Teal/Blue (PAM Style), shadow lebih soft
-    <Card className="relative overflow-hidden bg-gradient-to-br from-cyan-700 to-blue-800 text-white border-0 shadow-xl shadow-cyan-900/20 rounded-[2rem] p-6 md:p-8 group">
+    <Card className="relative overflow-hidden bg-linear-to-br from-cyan-700 to-blue-800 text-white border-0 shadow-xl shadow-cyan-900/20 rounded-[2rem] p-6 md:p-8 group">
       
       {/* --- BACKGROUND DECORATION --- */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-100 h-100white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-400/20 rounded-full blur-[60px] translate-y-1/2 -translate-x-1/2" />
       </div>
 
@@ -41,7 +41,7 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
              <div className="h-16 w-3/4 bg-white/10 animate-pulse rounded-2xl" />
            ) : (
              // UBAH: Hapus 'truncate', gunakan break-words agar angka turun jika kepanjangan
-             <h2 className="text-3xl md:text-4xl font-black tracking-tight text-white mb-2 break-words leading-tight">
+             <h2 className="text-3xl md:text-4xl font-black tracking-tight text-white mb-2 wrap-break-word leading-tight">
                 {formatRupiah(totalSaving)}
              </h2>
            )}
@@ -54,7 +54,7 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
         {/* RIGHT: TOTAL FUTURE COST (Secondary) */}
         <div className="relative">
            {/* Divider Vertical (Desktop only) */}
-           <div className="hidden md:block absolute -left-6 top-2 bottom-2 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+           <div className="hidden md:block absolute -left-6 top-2 bottom-2 w-px bg-linear-to-b from-transparent via-white/20 to-transparent" />
            
            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
               <div className="flex items-start gap-3 mb-4">
@@ -71,14 +71,14 @@ export function SummaryBoard({ summary, isLoading }: SummaryBoardProps) {
                 <div className="h-10 w-full bg-white/10 animate-pulse rounded-xl mb-3" />
               ) : (
                 <div className="mb-3">
-                  <p className="text-2xl md:text-2xl font-bold text-white break-words">
+                  <p className="text-2xl md:text-2xl font-bold text-white wrap-break-word">
                      {formatRupiah(totalFutureCost)}
                   </p>
                 </div>
               )}
               
               <div className="flex gap-2 items-start">
-                 <Info className="w-3.5 h-3.5 text-cyan-300 flex-shrink-0 mt-0.5" />
+                 <Info className="w-3.5 h-3.5 text-cyan-300 shrink-0 mt-0.5" />
                  <p className="text-[10px] text-cyan-100/70 italic leading-snug">
                     Angka ini adalah target akumulasi dana di masa depan (Future Value).
                  </p>

@@ -90,7 +90,7 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col w-64 h-screen border-r border-slate-200 bg-white sticky top-0 left-0 z-40 shadow-xl shadow-slate-200/50">
       
       {/* 1. Header Logo */}
-      <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/50">
+      <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-linear-to-b from-white to-slate-50/50">
         <div className="relative w-10 h-10 drop-shadow-sm">
           <Image 
             src="/images/pamjaya-logo.png" 
@@ -101,7 +101,7 @@ export function Sidebar() {
           />
         </div>
         <div>
-          <h1 className="font-extrabold text-lg leading-tight bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
+          <h1 className="font-extrabold text-lg leading-tight bg-linear-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
             KeuanganKu
           </h1>
           <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">PAM JAYA</p>

@@ -75,8 +75,8 @@ export default function HistoryPage() {
     <div className="relative min-h-screen w-full bg-slate-50/50 pb-20">
       
       {/* Background Decorations */}
-      <div className="hidden md:block absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="hidden md:block absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-100/40 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+      <div className="hidden md:block absolute top-0 right-0 w-125 h-125 bg-blue-100/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="hidden md:block absolute bottom-0 left-0 w-100 h-100 bg-purple-100/40 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
       <div className="relative z-10 px-5 pt-6 md:px-10 md:pt-12 max-w-7xl mx-auto">
         
@@ -183,7 +183,7 @@ export default function HistoryPage() {
               ) : selectedCheckup ? (
                  <div className="space-y-6">
                     {/* Score & Status Banner */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between p-5 bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-blue-100 shadow-sm">
+                    <div className="flex flex-col sm:flex-row items-center justify-between p-5 bg-linear-to-br from-blue-50 to-white rounded-2xl border border-blue-100 shadow-sm">
                         <div className="mb-4 sm:mb-0 text-center sm:text-left">
                             <p className="text-sm text-blue-600 font-semibold mb-1 uppercase tracking-wider">Skor Kesehatan</p>
                             <div className="flex items-baseline justify-center sm:justify-start gap-2">

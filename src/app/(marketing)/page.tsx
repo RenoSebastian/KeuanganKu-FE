@@ -67,8 +67,8 @@ export default function LandingPage() {
             priority
           />
           {/* Overlay Gradient: Agar teks tetap terbaca jelas di atas gambar */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent"></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white"></div>
+          <div className="absolute inset-0 bg-linear-to-r from-white/95 via-white/80 to-transparent"></div>
+          <div className="absolute inset-0 bg-linear-to-b from-transparent via-white/50 to-white"></div>
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
@@ -84,7 +84,7 @@ export default function LandingPage() {
 
             <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6 leading-[1.15] drop-shadow-sm">
               Kelola Keuangan, <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-cyan-600">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-cyan-600">
                 Wujudkan Sejahtera.
               </span>
             </h1>
@@ -123,7 +123,7 @@ export default function LandingPage() {
              </div>
              {/* Card 2 */}
              <div className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center text-center hover:-translate-y-1 transition-transform relative overflow-hidden">
-                <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                <div className="absolute top-0 w-full h-1 bg-linear-to-r from-blue-500 to-cyan-500"></div>
                 <div className="w-16 h-16 bg-cyan-50 rounded-2xl flex items-center justify-center mb-6 text-cyan-600">
                    <ShieldCheck className="w-8 h-8" />
                 </div>
@@ -249,15 +249,15 @@ export default function LandingPage() {
                   </p>
                   <ul className="space-y-4 mb-8">
                      <li className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                         <span className="text-slate-700 font-medium">100% Gratis untuk Karyawan</span>
                      </li>
                      <li className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                         <span className="text-slate-700 font-medium">Kalkulasi Standar Perencana Keuangan</span>
                      </li>
                      <li className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                         <span className="text-slate-700 font-medium">Rahasia & Aman</span>
                      </li>
                   </ul>
@@ -307,7 +307,7 @@ function FeatureCard({ icon, color, title, desc }: { icon: React.ReactNode, colo
         {icon}
       </div>
       <h3 className="text-lg font-bold text-slate-900 mb-2">{title}</h3>
-      <p className="text-slate-600 leading-relaxed text-sm flex-grow">
+      <p className="text-slate-600 leading-relaxed text-sm grow">
         {desc}
       </p>
     </Card>

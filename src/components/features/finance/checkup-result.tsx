@@ -154,7 +154,7 @@ export function CheckupResult({
         
         {/* LEFT: GAUGE & SCORE */}
         <div className="lg:col-span-1 p-8 flex flex-col items-center justify-center bg-white relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100">
-             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500" />
+             <div className="absolute top-0 left-0 w-full h-1.5 bg-linear-to-r from-red-500 via-amber-400 to-emerald-500" />
              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl z-0" />
 
              <div className="relative z-10 w-48 h-48 flex items-center justify-center mb-6">
@@ -340,7 +340,7 @@ export function CheckupResult({
                         onClick={handleSave}
                         disabled={saving || saved}
                         className={cn(
-                            "flex-[2] md:flex-none min-w-[180px] font-bold shadow-lg transition-all text-white",
+                            "flex-2 md:flex-none min-w-45 font-bold shadow-lg transition-all text-white",
                             saved ? "bg-emerald-600 hover:bg-emerald-700" : "bg-brand-600 hover:bg-brand-700"
                         )}
                       >

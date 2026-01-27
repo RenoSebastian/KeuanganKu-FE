@@ -88,8 +88,8 @@ export default function DashboardView({ initialData }: DashboardViewProps) {
       {/* --- HEADER VISUAL (EXECUTIVE THEME) --- */}
       <div className="bg-slate-900 pt-10 pb-28 px-5 md:px-10 relative overflow-hidden shadow-2xl rounded-3xl mb-8 mx-4 mt-4">
         {/* Background Effects */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-0 right-0 w-150 h-150 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-75 h-75 bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
         
         <div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-3">
@@ -187,7 +187,7 @@ export default function DashboardView({ initialData }: DashboardViewProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           
           {/* LEFT COLUMN: Search & Unit Rankings */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-[600px]">
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-150">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50 space-y-4">
                <div className="flex justify-between items-center">
                   <div>
@@ -269,7 +269,7 @@ export default function DashboardView({ initialData }: DashboardViewProps) {
                 ) : (
                   unitRankings.map((unit, index) => (
                       <div key={unit.id} className="p-5 hover:bg-slate-50 transition-colors flex items-center gap-4">
-                        <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold text-xs">
+                        <div className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold text-xs">
                             {index + 1}
                         </div>
                         
@@ -316,7 +316,7 @@ export default function DashboardView({ initialData }: DashboardViewProps) {
                <p className="text-[10px] text-rose-600/80 mt-1 uppercase tracking-wider font-bold">Priority Attention Required</p>
             </div>
 
-            <div className="divide-y divide-rose-50 max-h-[600px] overflow-y-auto">
+            <div className="divide-y divide-rose-50 max-h-150 overflow-y-auto">
                {topRiskyEmployees.length === 0 ? (
                   <div className="p-8 text-center text-emerald-600 text-sm font-medium">
                       <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-300" />

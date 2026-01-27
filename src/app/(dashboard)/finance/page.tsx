@@ -62,7 +62,7 @@ export default function FinancePage() {
       
       {/* [DESKTOP ONLY]: Background Decoration Blobs */}
       <div className="hidden md:block absolute top-0 left-0 w-96 h-96 bg-blue-400/20 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-      <div className="hidden md:block absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-400/20 rounded-full blur-[120px] translate-x-1/3 translate-y-1/3" />
+      <div className="hidden md:block absolute bottom-0 right-0 w-125 h-125 bg-purple-400/20 rounded-full blur-[120px] translate-x-1/3 translate-y-1/3" />
 
       {/* MAIN WRAPPER */}
       {/* Mobile: Flex Column (Atas Bawah). Desktop: Flex Row (Kiri Kanan) */}
@@ -81,7 +81,7 @@ export default function FinancePage() {
 
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight mb-3 md:mb-6">
             Kelola Uang <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-purple-600">
               Jadi Lebih Mudah
             </span>
           </h1>

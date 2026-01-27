@@ -15,7 +15,7 @@ export default function FinancialCheckupPage() {
       {/* --- HEADER (PAM IDENTITY) --- */}
       <div className="bg-brand-900 pt-8 pb-32 px-5 relative overflow-hidden shadow-2xl">
          {/* Ambient Background Effects */}
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 

@@ -76,7 +76,7 @@ export default async function EmployeeAuditPage({ params }: { params: Promise<{ 
             <div className="w-px h-4 bg-slate-200 mx-2" />
             <span className="hidden sm:inline">Executive Audit</span>
             <ChevronRight className="w-4 h-4 text-slate-300" />
-            <span className="font-medium text-slate-900 truncate max-w-[150px] sm:max-w-xs">
+            <span className="font-medium text-slate-900 truncate max-w-37.5 sm:max-w-xs">
               {profile.fullName}
             </span>
           </div>
