@@ -1,9 +1,32 @@
 import { HelpContent } from "./types";
 
 export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
-  // --- A. ASET (HARTA) ---
+  // ==========================================
+  // 1. DATA PRIBADI & PROFIL
+  // ==========================================
   
-  // 1. Aset Likuid
+  "userProfile.childrenCount": {
+    title: "Jumlah Anak (Tanggungan)",
+    definition: "Jumlah anak yang biaya hidup & pendidikannya masih Anda tanggung sepenuhnya.",
+    excludes: ["Anak yang sudah bekerja", "Anak yang sudah menikah"],
+    example: "Jika punya 3 anak, tapi anak pertama sudah kerja, isi 2."
+  },
+  "userProfile.dependentParents": {
+    title: "Tanggungan Orang Tua",
+    definition: "Jumlah orang tua/mertua yang rutin Anda biayai hidupnya setiap bulan.",
+    includes: ["Orang tua kandung", "Mertua"],
+    example: "Jika Anda rutin kirim uang bulanan untuk Ibu di kampung, hitung 1."
+  },
+  "spouseProfile.childrenCount": { // Fallback jika diperlukan
+    title: "Jumlah Anak",
+    definition: "Sama dengan data anak di profil kepala keluarga."
+  },
+
+  // ==========================================
+  // 2. ASET (HARTA) - STOCK
+  // ==========================================
+  
+  // --- A. Aset Likuid ---
   assetCash: {
     title: "Kas & Setara Kas",
     definition: "Uang tunai atau saldo di bank yang bisa diambil kapan saja (likuid) untuk kebutuhan mendesak.",
@@ -12,7 +35,7 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     example: "Jika butuh uang jam 12 malam ini karena darurat, berapa total uang yang bisa Anda akses?"
   },
 
-  // 2. Aset Personal (Guna Pakai)
+  // --- B. Aset Personal (Guna Pakai) ---
   assetHome: {
     title: "Rumah Tinggal",
     definition: "Nilai pasar (market value) rumah dan tanah yang saat ini Anda tempati sebagai tempat tinggal utama.",
@@ -45,7 +68,7 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     includes: ["Gadget (Laptop/HP) high-end", "Alat musik profesional", "Peralatan kamera/fotografi"],
   },
 
-  // 3. Aset Investasi (Menghasilkan Uang)
+  // --- C. Aset Investasi (Menghasilkan Uang) ---
   assetInvHome: {
     title: "Properti Investasi",
     definition: "Tanah atau bangunan yang tidak ditempati sendiri, melainkan disewakan atau didiamkan untuk kenaikan harga.",
@@ -97,8 +120,10 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     includes: ["P2P Lending Funding", "Crypto Assets (Bitcoin, ETH)", "Equity Crowdfunding", "Modal ventura di bisnis teman"],
   },
 
-  // --- B. UTANG (KEWAJIBAN) ---
-  // PENTING: User sering salah di sini. Tekankan "Sisa Pokok".
+  // ==========================================
+  // 3. UTANG (KEWAJIBAN) - STOCK
+  // ==========================================
+  // PENTING: Tekankan "Sisa Pokok" (Outstanding Balance)
 
   debtKPR: {
     title: "Sisa Pokok KPR",
@@ -120,11 +145,11 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
   },
   debtCoop: {
     title: "Utang Koperasi/Kantor",
-    definition: "Pinjaman karyawan atau pinjaman koperasi yang potong gaji.",
+    definition: "Sisa pinjaman karyawan atau pinjaman koperasi kantor.",
   },
   debtConsumptiveOther: {
     title: "Utang Konsumtif Lain",
-    definition: "Utang untuk kebutuhan gaya hidup atau barang yang nilainya turun.",
+    definition: "Sisa utang untuk kebutuhan gaya hidup atau barang yang nilainya turun.",
     includes: ["Paylater (GopayLater, SpayLater)", "Pinjaman Online (Pinjol)", "Utang ke teman/keluarga"],
   },
   debtBusiness: {
@@ -134,9 +159,11 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     excludes: ["Utang untuk beli gadget pribadi (masuk Konsumtif)"],
   },
 
-  // --- C. ARUS KAS (INCOME & EXPENSE) ---
+  // ==========================================
+  // 4. ARUS KAS (CASHFLOW) - FLOW
+  // ==========================================
   
-  // Income
+  // --- A. PEMASUKAN (INCOME) ---
   incomeFixed: {
     title: "Pemasukan Tetap",
     definition: "Penghasilan rutin yang pasti diterima setiap bulan dengan nominal yang cenderung stabil.",
@@ -150,7 +177,7 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     example: "Jika setahun dapat THR & Bonus total 24 juta, masukkan 2 juta per bulan di sini."
   },
 
-  // Installments (Cicilan)
+  // --- B. PENGELUARAN - CICILAN UTANG ---
   installmentKPR: {
     title: "Cicilan KPR",
     definition: "Angsuran yang Anda bayarkan ke bank setiap bulan untuk rumah.",
@@ -163,9 +190,20 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     title: "Pembayaran Min. Kartu Kredit",
     definition: "Rata-rata pembayaran tagihan kartu kredit per bulan (jika tidak full payment) atau cicilan tetap di dalam kartu kredit.",
   },
-  // ... (Cicilan lain definisinya cukup jelas, mengacu pada field Utang di atas)
+  installmentCoop: {
+    title: "Cicilan Koperasi/Kantor",
+    definition: "Potongan gaji bulanan untuk bayar pinjaman kantor/koperasi.",
+  },
+  installmentConsumptiveOther: {
+    title: "Cicilan Konsumtif Lain",
+    definition: "Angsuran untuk Paylater, Pinjol, atau utang barang konsumtif lainnya.",
+  },
+  installmentBusiness: {
+    title: "Cicilan Utang Usaha",
+    definition: "Angsuran bulanan untuk utang yang bersifat produktif/bisnis.",
+  },
 
-  // Insurance Premiums
+  // --- C. PENGELUARAN - PREMI ASURANSI ---
   insuranceLife: {
     title: "Premi Asuransi Jiwa",
     definition: "Biaya yang dibayar untuk perlindungan risiko kematian (Uang Pertanggungan).",
@@ -176,12 +214,24 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     definition: "Biaya untuk perlindungan rawat inap/jalan rumah sakit (Swasta).",
     excludes: ["BPJS Kesehatan (ada field sendiri)"],
   },
+  insuranceHome: {
+    title: "Asuransi Properti",
+    definition: "Premi asuransi kebakaran atau kebanjiran untuk rumah/ruko.",
+  },
+  insuranceVehicle: {
+    title: "Asuransi Kendaraan",
+    definition: "Premi asuransi TLO atau All Risk untuk mobil/motor.",
+  },
   insuranceBPJS: {
     title: "Iuran BPJS",
     definition: "Total iuran BPJS Kesehatan + BPJS Ketenagakerjaan yang dipotong dari gaji atau bayar mandiri.",
   },
+  insuranceOther: {
+    title: "Asuransi Lainnya",
+    definition: "Premi asuransi penyakit kritis, kecelakaan diri, atau perjalanan.",
+  },
   
-  // Savings
+  // --- D. PENGELUARAN - TABUNGAN & INVESTASI (SAVING) ---
   savingEmergency: {
     title: "Tabungan Dana Darurat",
     definition: "Alokasi rutin untuk menambah pos dana darurat.",
@@ -192,27 +242,58 @@ export const FINANCIAL_HELP_DATA: Record<string, HelpContent> = {
     definition: "Alokasi rutin untuk persiapan pensiun.",
     includes: ["DPLK (Dana Pensiun Lembaga Keuangan)", "Topup Reksadana rutin", "Beli emas rutin"],
   },
+  savingEducation: {
+    title: "Tabungan Pendidikan",
+    definition: "Alokasi khusus untuk uang pangkal sekolah/kuliah anak di masa depan.",
+  },
+  savingPilgrimage: {
+    title: "Tabungan Ibadah",
+    definition: "Alokasi untuk Umroh, Haji, atau perjalanan religi lainnya.",
+  },
+  savingHoliday: {
+    title: "Tabungan Liburan",
+    definition: "Sinking fund (dana singgahan) untuk traveling atau staycation.",
+  },
+  savingOther: {
+    title: "Tabungan Lainnya",
+    definition: "Alokasi untuk tujuan lain (beli gadget, renovasi rumah, pajak tahunan).",
+  },
 
-  // Expenses (Living Cost)
+  // --- E. PENGELUARAN - BIAYA HIDUP (LIVING COST) ---
   expenseFood: {
     title: "Makan & Minum",
     definition: "Biaya makan sehari-hari untuk seluruh keluarga.",
     includes: ["Belanja pasar/supermarket", "GoFood/GrabFood", "Jajan kopi/snack", "Makan di luar weekend"],
   },
   expenseSchool: {
-    title: "Pendidikan Anak",
+    title: "Pendidikan Anak (Rutin)",
     definition: "Biaya rutin bulanan terkait sekolah.",
     includes: ["SPP Bulanan", "Uang Les/Kursus", "Uang saku anak", "Antar jemput sekolah"],
     excludes: ["Uang Pangkal (karena bukan pengeluaran rutin bulanan, biasanya diambil dari tabungan)"],
   },
+  expenseTransport: {
+    title: "Transportasi",
+    definition: "Biaya mobilitas sehari-hari.",
+    includes: ["Bensin (BBM)", "Tol & Parkir", "Ojol/Taxi Online", "Tiket KRL/Busway", "Service rutin kendaraan"],
+  },
+  expenseCommunication: {
+    title: "Komunikasi & Data",
+    definition: "Biaya agar tetap terhubung.",
+    includes: ["Pulsa & Paket Data Seluler", "Tagihan Wi-Fi Rumah", "Langganan TV Kabel"],
+  },
+  expenseHelpers: {
+    title: "Gaji ART/Pekerja",
+    definition: "Upah untuk orang yang membantu di rumah.",
+    includes: ["Gaji Asisten Rumah Tangga", "Gaji Supir", "Tukang Kebun", "Satpam Komplek"],
+  },
   expenseLifestyle: {
     title: "Gaya Hidup & Hiburan",
-    definition: "Biaya untuk kesenangan dan hobi.",
+    definition: "Biaya untuk kesenangan, hobi, dan perawatan diri.",
     includes: ["Langganan Netflix/Spotify", "Gym membership", "Skincare & Salon", "Hobi", "Nonton bioskop", "Staycation rutin"],
   },
   expenseTax: {
     title: "Pajak & Retribusi",
-    definition: "Biaya pajak tahunan yang dibagi rata-rata per bulan.",
-    includes: ["PBB Rumah", "Pajak Kendaraan (STNK)", "Iuran lingkungan (IPL/Sampah/Keamanan)"],
+    definition: "Biaya wajib negara/lingkungan.",
+    includes: ["PBB Rumah (dibagi 12)", "Pajak Kendaraan/STNK (dibagi 12)", "Iuran lingkungan (IPL/Sampah/Keamanan)"],
   }
 };

@@ -23,7 +23,7 @@ export function InfoPopover({ content, className }: InfoPopoverProps) {
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "ml-2 text-slate-400 hover:text-brand-600 transition-colors focus:outline-none",
+            "ml-2 text-blue-400 hover:text-brand-600 transition-colors focus:outline-offset-50",
             className
           )}
           type="button" // Penting: type button agar tidak men-submit form saat diklik
