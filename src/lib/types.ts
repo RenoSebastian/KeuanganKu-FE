@@ -542,3 +542,31 @@ export interface AuthResponse {
   access_token: string;
   user: User;
 }
+
+// ============================================================================
+// 9. HYBRID SEARCH TYPES (NEW INTEGRAION)
+// ============================================================================
+
+export interface SearchResultMetadata {
+  source: "MEILI_ENGINE" | "DB_FALLBACK";
+  isFuzzy: boolean;
+}
+
+export interface SearchResult {
+  id: string;          // ID unik untuk list key (misal: "db_PERSON_123")
+  redirectId: string;  // ID asli untuk navigasi (UUID User / Unit)
+  type: "PERSON" | "UNIT";
+  title: string;       // Nama User / Nama Unit
+  subtitle: string;    // Email / Kode Unit
+  metadata: SearchResultMetadata;
+}
+
+export interface SearchResponse {
+  success: boolean;
+  data: SearchResult[];
+  meta: {
+    total: number;
+    limit: number;
+    query: string;
+  };
+}

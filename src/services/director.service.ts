@@ -6,21 +6,20 @@ import {
   UnitHealthRanking,
   User,
   EmployeeAuditDetail,
-  DashboardSummaryDto // Pastikan interface ini sudah ada di @/lib/types sesuai Phase 5 Backend
+  DashboardSummaryDto,
+  SearchResult, // Pastikan Type ini sudah ada di @/lib/types (Phase 5)
 } from "@/lib/types";
 
 // =============================================================================
 // HELPER: SERVER-SIDE TOKEN INJECTION
 // =============================================================================
-// Fungsi ini menentukan apakah request menggunakan token dari parameter (SSR)
-// atau mengandalkan interceptor bawaan axios (CSR/LocalStorage).
 const getConfig = (token?: string): AxiosRequestConfig => {
   if (token) {
     return {
       headers: { Authorization: `Bearer ${token}` }
     };
   }
-  return {}; // Biarkan interceptor axios menangani token dari localStorage/cookie browser
+  return {}; 
 };
 
 export const directorService = {
@@ -28,20 +27,35 @@ export const directorService = {
   // ===========================================================================
   // 0. ORCHESTRATOR (PHASE 5 - SINGLE ENTRY POINT)
   // ===========================================================================
-  // Mengambil seluruh data dashboard dalam satu request.
-  // Sangat disarankan untuk Initial Load (SSR).
   getDashboardSummary: async (token?: string) => {
-    const response = await api.get<DashboardSummaryDto>(
-      "/director/dashboard/summary", 
-      getConfig(token)
-    );
-    return response.data;
+    try {
+      const response = await api.get<DashboardSummaryDto>(
+        "/director/dashboard/summary", 
+        getConfig(token)
+      );
+
+      // [DEFENSIVE PROGRAMMING]
+      // Hotfix untuk mencegah TypeError di Frontend jika Backend mengirim data null/undefined
+      // Kita lakukan sanitasi data di level Service sebelum dikonsumsi Component.
+      if (response.data && response.data.topRiskyEmployees) {
+        response.data.topRiskyEmployees = response.data.topRiskyEmployees.map(emp => ({
+          ...emp,
+          // Fallback: Jika fullName kosong, cari property lain atau pakai placeholder
+          fullName: emp.fullName || (emp as any).name || 'Nama Tidak Tersedia',
+          unitName: emp.unitName || (emp as any).unit_name || '-'
+        }));
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("[DirectorService] Failed to fetch dashboard summary:", error);
+      throw error; // Re-throw agar bisa ditangani Error Boundary
+    }
   },
 
   // ===========================================================================
   // 1. DASHBOARD STATS (Agregat Data)
   // ===========================================================================
-  // Mengambil ringkasan eksekutif secara terpisah (jika perlu refresh parsial)
   getDashboardStats: async (token?: string) => {
     const response = await api.get<DirectorDashboardStats>(
       "/director/dashboard-stats", 
@@ -53,7 +67,6 @@ export const directorService = {
   // ===========================================================================
   // 2. RISK MONITOR (Red Alert)
   // ===========================================================================
-  // Mengambil daftar karyawan dengan status BAHAYA atau WASPADA
   getRiskMonitor: async (token?: string) => {
     const response = await api.get<RiskyEmployeeDetail[]>(
       "/director/risk-monitor", 
@@ -65,7 +78,6 @@ export const directorService = {
   // ===========================================================================
   // 3. UNIT RANKING (Performa Divisi)
   // ===========================================================================
-  // Mengambil data peringkat kesehatan finansial per unit kerja
   getUnitRankings: async (token?: string) => {
     const response = await api.get<UnitHealthRanking[]>(
       "/director/unit-rankings", 
@@ -75,26 +87,28 @@ export const directorService = {
   },
 
   // ===========================================================================
-  // 4. GLOBAL SEARCH (Investigasi)
+  // 4. GLOBAL SEARCH (HYBRID SEARCH INTEGRATION)
   // ===========================================================================
-  // Mencari karyawan (Biasanya CSR, tapi disiapkan untuk SSR search result page)
+  // Updated: Menggunakan endpoint /search/employees yang mendukung Meilisearch + Trigram
   searchEmployees: async (keyword: string, token?: string) => {
     const config = getConfig(token);
     
-    // Merge params dengan config headers
-    const response = await api.get<User[]>("/director/search", {
+    // Backend Response Structure: { success: true, data: [...], meta: {...} }
+    // Kita perlu mengambil array hasil pencarian yang ada di dalam properti 'data'
+    const response = await api.get<{ data: SearchResult[] }>("/search/employees", {
       ...config,
-      params: { q: keyword }
+      params: { 
+        q: keyword,
+        limit: 5 // Limit UI dropdown
+      }
     });
-    return response.data;
+    
+    return response.data.data; // Return array of SearchResult
   },
 
   // ===========================================================================
   // 5. EMPLOYEE AUDIT DETAIL (Deep Dive)
   // ===========================================================================
-  // Mengambil data audit lengkap. Wajib SSR untuk memastikan Audit Log tercatat 
-  // tepat 1x saat halaman di-request.
-  // Endpoint disesuaikan dengan Controller Backend Phase 3 (/checkup)
   getEmployeeAuditDetail: async (id: string, token?: string) => {
     const response = await api.get<EmployeeAuditDetail>(
       `/director/employees/${id}/checkup`, 

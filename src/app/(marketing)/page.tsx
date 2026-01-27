@@ -174,8 +174,8 @@ export default function LandingPage() {
              <FeatureCard 
               icon={<Wallet className="w-6 h-6 text-white" />}
               color="bg-slate-800"
-              title="Budgeting 50/30/20"
-              desc="Panduan alokasi gaji bulanan: 50% Kebutuhan, 30% Keinginan, dan 20% Tabungan/Investasi."
+              title="Budgeting"
+              desc="Panduan alokasi gaji bulanan."
             />
             <FeatureCard 
               icon={<TrendingUp className="w-6 h-6 text-white" />}

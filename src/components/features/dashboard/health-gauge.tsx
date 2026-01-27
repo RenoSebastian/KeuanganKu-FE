@@ -87,16 +87,11 @@ export function HealthGauge({ score }: HealthGaugeProps) {
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-700">
         
         <h3 className={cn(
-          "text-2xl md:text-3xl font-black tracking-wider uppercase transition-colors duration-500",
+          "text-2xl md:text-2xl font-black tracking-wider uppercase transition-colors duration-500",
           statusColorClass
         )}>
           {statusLabel}
         </h3>
-
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 opacity-80">
-          Kondisi Keuangan
-        </p>
-
       </div>
     </div>
   );
