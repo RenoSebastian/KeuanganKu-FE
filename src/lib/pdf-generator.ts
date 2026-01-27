@@ -1,558 +1,539 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { RowInput } from "jspdf-autotable";
 import { formatRupiah } from "./financial-math";
-import { 
-  PortfolioSummary, BudgetResult, PensionInput, PensionResult, 
-  InsuranceInput, InsuranceResult, SpecialGoalInput, SpecialGoalResult 
+import {
+  PortfolioSummary,
+  BudgetResult,
+  PensionInput,
+  PensionResult,
+  InsuranceInput,
+  InsuranceResult,
+  SpecialGoalInput,
+  SpecialGoalResult,
+  FinancialRecord,
+  HealthAnalysisResult
 } from "./types";
 
-// --- 1. PDF PENDIDIKAN ---
-export const generateEducationPDF = (
-  portfolio: PortfolioSummary, 
-  assumptions: { inflation: number, returnRate: number }
+// --- KONFIGURASI WARNA & FONT ---
+const COLORS = {
+  primary: [15, 23, 42] as [number, number, number], // Slate-900
+  accent: [59, 130, 246] as [number, number, number], // Blue-500
+  success: [22, 163, 74] as [number, number, number], // Green-600
+  danger: [220, 38, 38] as [number, number, number],  // Red-600
+  text: [51, 65, 85] as [number, number, number],     // Slate-700
+  lightBg: [248, 250, 252] as [number, number, number] // Slate-50
+};
+
+// --- HELPER FUNCTIONS ---
+const drawCorporateHeader = (doc: jsPDF, title: string, subtitle?: string) => {
+  const pageWidth = doc.internal.pageSize.width;
+  doc.setFillColor(...COLORS.primary);
+  doc.rect(0, 0, pageWidth, 5, "F");
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text(title, 14, 25);
+  if (subtitle) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text(subtitle, 14, 32);
+  }
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, 40, pageWidth - 14, 40);
+};
+
+const calculateAge = (dobString: string): string => {
+  if (!dobString) return "-";
+  const today = new Date();
+  const birthDate = new Date(dobString);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return `${age} Tahun`;
+};
+
+// ==========================================
+// 1. PDF GENERAL CHECKUP (ROBUST VERSION)
+// ==========================================
+export const generateCheckupPDF = (
+  data: FinancialRecord,
+  analysis: HealthAnalysisResult
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
 
-  // Header
-  doc.setFillColor(37, 99, 235);
-  doc.rect(0, 0, pageWidth, 40, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
-  doc.text("Rencana Pendidikan Anak", 14, 20);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`KeuanganKu Enterprise • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
+  // 1. Header
+  drawCorporateHeader(doc, "Laporan Kesehatan Finansial", `Tanggal Cetak: ${new Date().toLocaleDateString("id-ID", { dateStyle: "full" })}`);
 
   let finalY = 50;
 
-  // Ringkasan
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("Ringkasan Portfolio Keluarga", 14, finalY);
+  // --- CALCULATE TOTALS LOCALLY (Fallback mechanism) ---
+  // A. ASET
+  const totalAssets = 
+    (data.assetCash || 0) + (data.assetHome || 0) + (data.assetVehicle || 0) + (data.assetJewelry || 0) + (data.assetAntique || 0) + (data.assetPersonalOther || 0) +
+    (data.assetInvHome || 0) + (data.assetInvVehicle || 0) + (data.assetGold || 0) + (data.assetInvAntique || 0) + 
+    (data.assetStocks || 0) + (data.assetMutualFund || 0) + (data.assetBonds || 0) + (data.assetDeposit || 0) + (data.assetInvOther || 0);
 
+  // B. UTANG
+  const totalDebt = 
+    (data.debtKPR || 0) + (data.debtKPM || 0) + (data.debtCC || 0) + (data.debtCoop || 0) + (data.debtConsumptiveOther || 0) + (data.debtBusiness || 0);
+
+  const calculatedNetWorth = totalAssets - totalDebt;
+
+  // C. ARUS KAS (DATA DI INPUT SUDAH TAHUNAN, JANGAN DIKALI 12)
+  const totalIncomeAnnual = (data.incomeFixed || 0) + (data.incomeVariable || 0);
+  
+  const totalExpenseAnnual = 
+    (data.installmentKPR || 0) + (data.installmentKPM || 0) + (data.installmentCC || 0) + (data.installmentCoop || 0) + (data.installmentConsumptiveOther || 0) + (data.installmentBusiness || 0) +
+    (data.insuranceLife || 0) + (data.insuranceHealth || 0) + (data.insuranceHome || 0) + (data.insuranceVehicle || 0) + (data.insuranceBPJS || 0) + (data.insuranceOther || 0) +
+    (data.savingEducation || 0) + (data.savingRetirement || 0) + (data.savingPilgrimage || 0) + (data.savingHoliday || 0) + (data.savingEmergency || 0) + (data.savingOther || 0) +
+    (data.expenseFood || 0) + (data.expenseSchool || 0) + (data.expenseTransport || 0) + (data.expenseCommunication || 0) + (data.expenseHelpers || 0) + (data.expenseLifestyle || 0) + (data.expenseTax || 0);
+
+  const surplusDeficitAnnual = totalIncomeAnnual - totalExpenseAnnual;
+
+  // --- START PDF CONTENT ---
+
+  // 2. Section: Profil Klien
+  doc.setFontSize(12);
+  doc.setTextColor(...COLORS.primary);
+  doc.setFont("helvetica", "bold");
+  doc.text("1. Profil Klien", 14, finalY);
   finalY += 5;
-  doc.setDrawColor(200, 200, 200);
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(14, finalY, pageWidth - 28, 25, 3, 3, "FD");
+
+  const profileRows: RowInput[] = [
+    [
+      { content: "DATA KEPALA KELUARGA", styles: { fontStyle: "bold" as const, fillColor: COLORS.lightBg } },
+      { content: data.userProfile.maritalStatus === "MARRIED" ? "DATA PASANGAN" : "", styles: { fontStyle: "bold" as const, fillColor: COLORS.lightBg } }
+    ],
+    [
+      `Nama: ${data.userProfile.name || "-"}\n` +
+      `Usia: ${calculateAge(data.userProfile.dob)}\n` +
+      `Pekerjaan: ${data.userProfile.occupation || "-"}\n` +
+      `Domisili: ${data.userProfile.city || "-"}\n` +
+      `Tanggungan: ${(data.userProfile.childrenCount || 0) + (data.userProfile.dependentParents || 0)} Orang`,
+
+      data.userProfile.maritalStatus === "MARRIED" && data.spouseProfile ?
+        `Nama: ${data.spouseProfile.name || "-"}\n` +
+        `Usia: ${calculateAge(data.spouseProfile.dob)}\n` +
+        `Pekerjaan: ${data.spouseProfile.occupation || "-"}\n` +
+        `Agama: ${data.spouseProfile.religion || "-"}`
+        : ""
+    ]
+  ];
+
+  autoTable(doc, {
+    startY: finalY,
+    body: profileRows,
+    theme: "plain",
+    styles: { cellPadding: 5, fontSize: 10, valign: "top" },
+    columnStyles: {
+      0: { cellWidth: (pageWidth - 28) / 2 },
+      1: { cellWidth: (pageWidth - 28) / 2 }
+    },
+    margin: { left: 14, right: 14 }
+  });
+
+  finalY = (doc as any).lastAutoTable.finalY + 15;
+
+  // 3. Section: Ringkasan Eksekutif
+  doc.setDrawColor(...COLORS.accent);
+  doc.setFillColor(240, 249, 255); 
+  doc.roundedRect(14, finalY, pageWidth - 28, 25, 2, 2, "FD");
 
   doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
+  doc.text("STATUS KESEHATAN", 20, finalY + 8);
+  doc.text("TOTAL KEKAYAAN BERSIH (NET WORTH)", pageWidth / 2 + 10, finalY + 8);
+
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  
+  // Safe Access to Analysis Score
+  const score = analysis?.score ?? 0;
+  if (score >= 80) doc.setTextColor(...COLORS.success);
+  else if (score >= 50) doc.setTextColor(234, 179, 8); 
+  else doc.setTextColor(...COLORS.danger);
+
+  const statusLabel = analysis?.globalStatus || (score >= 80 ? "SEHAT" : score >= 50 ? "WASPADA" : "TIDAK SEHAT");
+  doc.text(statusLabel.toUpperCase(), 20, finalY + 18);
+
+  // Net Worth Display
+  if (calculatedNetWorth >= 0) doc.setTextColor(...COLORS.primary);
+  else doc.setTextColor(...COLORS.danger);
+  doc.text(formatRupiah(calculatedNetWorth), pageWidth / 2 + 10, finalY + 18);
+
+  finalY += 40;
+
+  // 4. Section: Laporan Keuangan
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(12);
+  doc.text("2. Ringkasan Laporan Keuangan", 14, finalY);
+  finalY += 5;
+
+  const financialTable: RowInput[] = [
+    [
+      { content: "NERACA (POSISI HARTA)", styles: { fontStyle: "bold" as const, fillColor: COLORS.lightBg } },
+      { content: "ARUS KAS (TAHUNAN)", styles: { fontStyle: "bold" as const, fillColor: COLORS.lightBg } }
+    ],
+    [
+      `Total Aset: ${formatRupiah(totalAssets)}\n` +
+      `Total Utang: ${formatRupiah(totalDebt)}\n\n` +
+      `Kekayaan Bersih: ${formatRupiah(calculatedNetWorth)}`,
+
+      `Total Pemasukan: ${formatRupiah(totalIncomeAnnual)}\n` +
+      `Total Pengeluaran: ${formatRupiah(totalExpenseAnnual)}\n\n` +
+      `Surplus/Defisit: ${formatRupiah(surplusDeficitAnnual)}`
+    ]
+  ];
+
+  autoTable(doc, {
+    startY: finalY,
+    body: financialTable,
+    theme: "grid",
+    styles: { cellPadding: 5, fontSize: 10 },
+    margin: { left: 14, right: 14 }
+  });
+
+  finalY = (doc as any).lastAutoTable.finalY + 15;
+
+  // 5. Section: Diagnosa Rasio
+  doc.text("3. Diagnosa Indikator Kesehatan", 14, finalY);
+  finalY += 5;
+
+  // Safe access ratios
+  const ratios = analysis?.ratios || [];
+  
+  if (ratios.length > 0) {
+    const ratioRows: RowInput[] = ratios.map((r: any) => [
+      r.label,
+      r.benchmark,
+      r.value + (r.id === "emergency_fund" ? "x" : "%"), 
+      {
+        content: r.status === "PASS" ? "SEHAT" : r.status === "WARN" ? "WASPADA" : "BAHAYA",
+        styles: {
+          textColor: r.status === "PASS" ? COLORS.success : r.status === "WARN" ? [234, 179, 8] : COLORS.danger,
+          fontStyle: "bold" as const
+        }
+      }
+    ]);
+
+    autoTable(doc, {
+      startY: finalY,
+      head: [["Indikator", "Target Ideal", "Kondisi Anda", "Status"]],
+      body: ratioRows,
+      theme: "striped",
+      headStyles: { fillColor: COLORS.primary },
+      styles: { fontSize: 9 },
+      margin: { left: 14, right: 14 }
+    });
+    
+    finalY = (doc as any).lastAutoTable.finalY + 15;
+  } else {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100, 100, 100);
+    doc.text("(Data rasio belum tersedia dari server)", 14, finalY + 10);
+    finalY += 20;
+  }
+
+  // 6. Section: Rekomendasi
+  if (finalY > 250) { doc.addPage(); finalY = 20; }
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.primary);
+  doc.text("4. Rekomendasi Prioritas", 14, finalY);
+  finalY += 8;
+
+  let hasRecommendation = false;
+  ratios.forEach((r: any) => {
+    if (r.status !== "PASS") {
+      hasRecommendation = true;
+      if (finalY > 270) { doc.addPage(); finalY = 20; }
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...COLORS.text);
+      doc.text(`• ${r.label}:`, 14, finalY);
+
+      doc.setFont("helvetica", "normal");
+      const splitText = doc.splitTextToSize(r.recommendation, pageWidth - 25);
+      doc.text(splitText, 20, finalY + 5);
+      finalY += (splitText.length * 5) + 8;
+    }
+  });
+
+  if (!hasRecommendation && ratios.length > 0) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.success);
+    doc.text("Selamat! Semua indikator keuangan Anda dalam kondisi SEHAT. Pertahankan.", 14, finalY + 5);
+  }
+
+  doc.save(`Laporan_Checkup_${data.userProfile.name.replace(/\s+/g, "_")}.pdf`);
+};
+
+// ==========================================
+// 2. PDF PENDIDIKAN (Clean Corporate Style)
+// ==========================================
+export const generateEducationPDF = (
+  portfolio: PortfolioSummary,
+  assumptions: { inflation: number, returnRate: number }
+) => {
+  const doc = new jsPDF();
+  drawCorporateHeader(doc, "Rencana Pendidikan Anak");
+
+  let finalY = 50;
+
+  // Ringkasan Box
+  doc.setDrawColor(200, 200, 200);
+  doc.setFillColor(...COLORS.lightBg);
+  doc.roundedRect(14, finalY, doc.internal.pageSize.width - 28, 25, 2, 2, "FD");
+
+  doc.setFontSize(10);
+  doc.setTextColor(...COLORS.text);
   doc.text("Total Investasi Bulanan:", 20, finalY + 10);
-  doc.text("Total Dana Masa Depan:", pageWidth / 2 + 5, finalY + 10);
+  doc.text("Total Dana Masa Depan:", doc.internal.pageSize.width / 2 + 5, finalY + 10);
 
   doc.setFontSize(16);
-  doc.setTextColor(22, 163, 74);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.success);
   doc.text(formatRupiah(portfolio.grandTotalMonthlySaving), 20, finalY + 19);
-  doc.setTextColor(220, 38, 38);
-  doc.text(formatRupiah(portfolio.totalFutureCost), pageWidth / 2 + 5, finalY + 19);
+  doc.setTextColor(...COLORS.primary);
+  doc.text(formatRupiah(portfolio.totalFutureCost), doc.internal.pageSize.width / 2 + 5, finalY + 19);
 
   finalY += 35;
 
-  // Rincian Per Anak
   portfolio.details.forEach((child) => {
     if (finalY > 250) { doc.addPage(); finalY = 20; }
 
-    doc.setFontSize(14);
-    doc.setTextColor(30, 58, 138);
+    doc.setFontSize(13);
+    doc.setTextColor(...COLORS.primary);
     doc.setFont("helvetica", "bold");
     doc.text(`Anak: ${child.childName}`, 14, finalY);
     finalY += 8;
 
-    // FIX 1: Handle undefined stages dengan (child.stages || [])
     const stages = child.stages || [];
-
     stages.forEach((stage: any) => {
       if (finalY > 230) { doc.addPage(); finalY = 20; }
 
       doc.setFontSize(11);
-      doc.setTextColor(60, 60, 60);
-      doc.setFont("helvetica", "bold");
-      
-      let gradeInfo = "";
-      if (stage.startGrade > 1) {
-        if (stage.stageId === "TK") gradeInfo = "(Mulai TK B)";
-        else if (stage.paymentFrequency === "SEMESTER") gradeInfo = `(Mulai Smt ${stage.startGrade})`;
-        else gradeInfo = `(Mulai Kls ${stage.startGrade})`;
-      }
-      
-      doc.text(`• ${stage.label} ${gradeInfo}`, 14, finalY);
+      doc.setTextColor(...COLORS.text);
+      doc.text(`• ${stage.label}`, 14, finalY);
 
-      // FIX 2 & 3: Explicit type for item (any) and i (number)
-      const tableBody = stage.details?.map((item: any, i: number) => {
-        let label = item.item;
-        
-        // Custom Labeling logic
-        if (stage.stageId === "TK" && item.item.toLowerCase().includes("spp")) {
-             const currentGrade = stage.startGrade + i;
-             label = currentGrade === 1 ? "SPP TK A" : "SPP TK B";
-        } else if (stage.paymentFrequency === "SEMESTER" && item.item.toLowerCase().includes("ukt")) {
-             const startSem = stage.startGrade + (i * 2);
-             const endSem = startSem + 1;
-             label = `Biaya Semester ${startSem} - ${endSem}`;
-        }
+      const tableBody: RowInput[] = stage.details?.map((item: any) => [
+        item.item,
+        `${item.dueYear} Th`,
+        formatRupiah(item.futureCost),
+        formatRupiah(item.requiredSaving)
+      ]) || [];
 
-        return [
-          label,
-          `${item.dueYear} Tahun`,
-          formatRupiah(item.futureCost),
-          formatRupiah(item.requiredSaving)
-        ];
-      }) || [];
-
-      // Push Subtotal Row
+      // Subtotal
       tableBody.push([
-        { content: "Subtotal Jenjang", colSpan: 3, styles: { fontStyle: "bold", halign: "right" } },
-        { content: formatRupiah(stage.monthlySaving), styles: { fontStyle: "bold", textColor: [22, 163, 74] } }
-      ] as any);
+        { content: "Subtotal", colSpan: 3, styles: { fontStyle: "bold" as const, halign: "right" } },
+        { content: formatRupiah(stage.monthlySaving), styles: { fontStyle: "bold" as const, textColor: COLORS.success } }
+      ]);
 
       autoTable(doc, {
         startY: finalY + 2,
-        head: [["Komponen Biaya", "Waktu Tunggu", "Biaya Nanti (fv)", "Nabung /Bln"]],
+        head: [["Komponen", "Waktu", "Biaya Nanti", "Nabung/Bln"]],
         body: tableBody,
-        theme: "grid",
-        headStyles: { fillColor: [100, 116, 139], fontSize: 9 },
-        bodyStyles: { fontSize: 9 },
+        theme: "plain",
+        headStyles: { fillColor: COLORS.lightBg, textColor: COLORS.primary, fontStyle: "bold" as const },
+        styles: { fontSize: 9, cellPadding: 3, lineColor: 230, lineWidth: 0.1 },
         margin: { left: 14, right: 14 }
       });
 
-      finalY = (doc as any).lastAutoTable.finalY + 12;
+      finalY = (doc as any).lastAutoTable.finalY + 10;
     });
-
-    doc.setDrawColor(220, 220, 220);
-    doc.line(14, finalY, pageWidth - 14, finalY);
-    finalY += 15;
+    finalY += 5;
   });
 
   doc.save(`Rencana_Pendidikan.pdf`);
 };
 
-// --- 2. PDF BUDGET (TETAP) ---
+
+// ==========================================
+// 3. PDF BUDGET (Clean Corporate Style)
+// ==========================================
 export const generateBudgetPDF = (
   monthly: BudgetResult,
   annual: BudgetResult,
   profile: { name: string; age: string; fixedIncome: number }
 ) => {
   const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
+  drawCorporateHeader(doc, "Financial Checkup: Budgeting", `Klien: ${profile.name}`);
 
-  const drawHeader = (title: string) => {
-    doc.setFillColor(16, 185, 129); // Emerald
-    doc.rect(0, 0, pageWidth, 40, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text(title, 14, 20);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Klien: ${profile.name || "Pengguna"} (${profile.age} Th) • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
-  };
-
-  // Hal 1: Bulanan
-  drawHeader("Financial Checkup: Bulanan");
   let finalY = 50;
 
-  doc.setTextColor(40, 40, 40);
+  // Monthly Overview
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Pemasukkan Tetap (Gaji Bulan Ini)", 14, finalY);
+  doc.text("Alokasi Bulanan", 14, finalY);
   finalY += 5;
-  doc.setFillColor(236, 253, 245);
-  doc.setDrawColor(16, 185, 129);
-  doc.roundedRect(14, finalY, pageWidth - 28, 20, 2, 2, "FD");
-  doc.setFontSize(14);
-  doc.setTextColor(6, 78, 59);
-  doc.text(formatRupiah(profile.fixedIncome), 20, finalY + 13);
-  finalY += 35;
 
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.text("Batas Aman Biaya Hidup (45%)", 14, finalY);
-  finalY += 8;
-  doc.setFontSize(26);
-  doc.setTextColor(16, 185, 129);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatRupiah(monthly.safeToSpend), 14, finalY);
+  doc.setFillColor(...COLORS.lightBg);
+  doc.rect(14, finalY, doc.internal.pageSize.width - 28, 20, "F");
+  
   doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
   doc.setFont("helvetica", "normal");
-  doc.text("Gunakan dana ini untuk operasional bulan ini.", 14, finalY + 8);
-  finalY += 20;
+  doc.text("Pemasukan Tetap:", 20, finalY + 13);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatRupiah(profile.fixedIncome), 60, finalY + 13);
 
-  let tableBody = monthly.allocations.map(item => [
+  doc.setFont("helvetica", "normal");
+  doc.text("Batas Aman Biaya Hidup:", doc.internal.pageSize.width / 2 + 10, finalY + 13);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.success);
+  doc.text(formatRupiah(monthly.safeToSpend), doc.internal.pageSize.width / 2 + 60, finalY + 13);
+  doc.setTextColor(...COLORS.text); // Reset text color
+
+  finalY += 30;
+
+  const tableBody: RowInput[] = monthly.allocations.map(item => [
     item.label, `${item.percentage}%`, formatRupiah(item.amount), item.description
   ]);
 
   autoTable(doc, {
-    startY: finalY + 5,
+    startY: finalY,
     head: [["Pos Alokasi", "Porsi", "Nominal (Bln)", "Keterangan"]],
     body: tableBody,
     theme: "striped",
-    headStyles: { fillColor: [6, 95, 70] },
+    headStyles: { fillColor: COLORS.primary },
     margin: { left: 14, right: 14 }
   });
 
-  // Hal 2: Tahunan
-  doc.addPage();
-  drawHeader("Financial Checkup: Proyeksi Tahunan");
-  finalY = 50;
-  
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(11);
-  doc.text("Potensi akumulasi kekayaan jika disiplin 12 bulan:", 14, finalY);
-  finalY += 15;
-
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(14, finalY, (pageWidth - 35) / 2, 25, 2, 2, "F");
-  doc.setFontSize(10);
-  doc.text("Total Pemasukkan Setahun", 20, finalY + 8);
-  doc.setFontSize(14);
-  doc.setTextColor(6, 78, 59);
-  doc.text(formatRupiah(profile.fixedIncome * 12), 20, finalY + 18);
-
-  doc.setFillColor(255, 241, 242);
-  doc.roundedRect(14 + (pageWidth - 35) / 2 + 7, finalY, (pageWidth - 35) / 2, 25, 2, 2, "F");
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(10);
-  doc.text("Total Biaya Hidup Setahun", 20 + (pageWidth - 35) / 2 + 7, finalY + 8);
-  doc.setFontSize(14);
-  doc.setTextColor(190, 18, 60);
-  doc.text(formatRupiah(annual.safeToSpend), 20 + (pageWidth - 35) / 2 + 7, finalY + 18);
-
-  finalY += 40;
-  
-  tableBody = annual.allocations.map(item => [
-    item.label, `${item.percentage}%`, formatRupiah(item.amount), "Akumulasi 12 Bulan"
-  ]);
-
-  autoTable(doc, {
-    startY: finalY + 5,
-    head: [["Pos Alokasi", "Porsi", "Proyeksi Tahunan", "Catatan"]],
-    body: tableBody,
-    theme: "grid",
-    headStyles: { fillColor: [59, 130, 246] },
-    margin: { left: 14, right: 14 }
-  });
-
-  doc.save(`Financial_Checkup_${profile.name}.pdf`);
+  doc.save(`Budgeting_${profile.name}.pdf`);
 };
 
-// --- 3. PDF DANA PENSIUN ---
-export const generatePensionPDF = (
-  input: PensionInput,
-  result: PensionResult,
-  userName: string
-) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
 
-  // Header
-  doc.setFillColor(79, 70, 229); // Indigo-600
-  doc.rect(0, 0, pageWidth, 40, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
-  doc.text("Rencana Dana Pensiun", 14, 20);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Disiapkan untuk: ${userName} • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
+// ==========================================
+// 4. PDF PENSIUN & ASURANSI (Shared Style)
+// ==========================================
+export const generatePensionPDF = (input: PensionInput, result: PensionResult, userName: string) => {
+  const doc = new jsPDF();
+  drawCorporateHeader(doc, "Perencanaan Dana Pensiun", userName);
 
   let finalY = 55;
 
-  // Profil & Asumsi
-  doc.setTextColor(40, 40, 40);
+  // Summary Box
+  doc.setDrawColor(...COLORS.accent);
+  doc.roundedRect(14, finalY, doc.internal.pageSize.width - 28, 30, 2, 2, "S");
+  
   doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Profil & Asumsi Dasar", 14, finalY);
-  
-  const tableData = [
-    ["Usia Sekarang", `${input.currentAge} Tahun`, "Asumsi Inflasi", `${input.inflationRate}% / tahun`],
-    ["Usia Pensiun", `${input.retirementAge} Tahun`, "Return Investasi", `${input.investmentRate}% / tahun`],
-    ["Saldo Awal Pensiun", formatRupiah(input.currentFund), "Lama Masa Pensiun", `${input.retirementDuration} Tahun`],
-    ["Target Pemasukan (Real)", formatRupiah(input.currentExpense), "Masa Menabung", `${result.workingYears} Tahun`]
-  ];
-
-  autoTable(doc, {
-    startY: finalY + 5,
-    head: [],
-    body: tableData,
-    theme: "grid",
-    styles: { fontSize: 10, cellPadding: 3 },
-    columnStyles: {
-      0: { fontStyle: "bold", fillColor: [243, 244, 246] },
-      2: { fontStyle: "bold", fillColor: [243, 244, 246] }
-    },
-    margin: { left: 14, right: 14 }
-  });
-
-  finalY = (doc as any).lastAutoTable.finalY + 20;
-
-  // Analisa Corpus
-  doc.setFillColor(238, 242, 255); // Indigo-50
-  doc.setDrawColor(79, 70, 229);
-  doc.roundedRect(14, finalY, pageWidth - 28, 45, 3, 3, "FD");
-
-  doc.setTextColor(55, 48, 163); // Indigo-900
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("Total Dana Pensiun", 20, finalY + 12);
-
-  doc.setFontSize(28);
-  doc.setTextColor(79, 70, 229);
-  doc.text(formatRupiah(result.totalFundNeeded), 20, finalY + 25);
-
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Target dana ini menggunakan asumsi 'Uang Terus Bekerja' (Real Rate) selama ${input.retirementDuration} tahun masa pensiun.`, 20, finalY + 35);
-  
-  // Biaya Hidup FV
-  doc.setFontSize(10);
-  doc.setTextColor(40, 40, 40);
-  doc.text(`Nilai Nominal (FV) dari Target Pemasukan:`, pageWidth / 2, finalY + 15);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatRupiah(result.fvMonthlyExpense), pageWidth / 2, finalY + 25);
-
-  finalY += 60;
-
-  // Action Plan
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Rencana Aksi (Action Plan)", 14, finalY);
-
-  finalY += 5;
-  doc.setFillColor(236, 253, 245); // Emerald-50
-  doc.setDrawColor(16, 185, 129);
-  doc.roundedRect(14, finalY, pageWidth - 28, 30, 3, 3, "FD");
-
-  doc.setTextColor(6, 78, 59); // Emerald-900
-  doc.setFontSize(11);
-  doc.text("Investasi Bulanan yang Diperlukan:", 20, finalY + 10);
-  
+  doc.text("Total Dana Dibutuhkan:", 20, finalY + 10);
   doc.setFontSize(20);
-  doc.setTextColor(5, 150, 105);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatRupiah(result.monthlySaving), 20, finalY + 22);
+  doc.setTextColor(...COLORS.primary);
+  doc.text(formatRupiah(result.totalFundNeeded), 20, finalY + 22);
   
-  doc.setFontSize(10);
-  doc.setTextColor(6, 78, 59);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Rutin selama ${result.workingYears} tahun ke depan pada instrumen return ${input.investmentRate}%.`, pageWidth / 2, finalY + 18);
+  finalY += 40;
 
-  doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
-  doc.text(`Simulasi ini menggunakan metode Real Rate of Return (Net Investasi - Inflasi) sesuai standar perencanaan keuangan.`, 14, doc.internal.pageSize.height - 10);
-
-  doc.save(`Rencana_Pensiun_${userName}.pdf`);
-};
-
-// --- 4. PDF ASURANSI JIWA ---
-export const generateInsurancePDF = (
-  input: InsuranceInput,
-  result: InsuranceResult,
-  userName: string
-) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
-
-  // Header
-  doc.setFillColor(225, 29, 72); // Rose-600
-  doc.rect(0, 0, pageWidth, 40, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
-  doc.text("Perencanaan Asuransi Jiwa", 14, 20);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Proteksi Keluarga untuk: ${userName} • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
-
-  let finalY = 55;
-
-  // Profil & Asumsi
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Data Finansial Saat Ini", 14, finalY);
-  
-  const tableData = [
-    ["Penghasilan Tahunan", formatRupiah(input.annualIncome), "Masa Perlindungan", `${input.protectionDuration} Tahun`],
-    ["Asumsi Inflasi", `${input.inflationRate}%`, "Return Investasi (Low Risk)", `${input.investmentRate}%`],
-    ["Total Utang Saat Ini", formatRupiah(result.totalDebt), "Asuransi Sudah Dimiliki", formatRupiah(input.existingInsurance)]
-  ];
-
+  // Parameter Table
   autoTable(doc, {
-    startY: finalY + 5,
-    head: [],
-    body: tableData,
+    startY: finalY,
+    head: [["Parameter", "Nilai"]],
+    body: [
+      ["Usia Sekarang", `${input.currentAge} Tahun`],
+      ["Usia Pensiun", `${input.retirementAge} Tahun`],
+      ["Lama Masa Pensiun", `${input.retirementDuration} Tahun`],
+      ["Target Pengeluaran Bulanan (Saat Ini)", formatRupiah(input.currentExpense)],
+      ["Asumsi Inflasi", `${input.inflationRate}%`],
+      ["Return Investasi", `${input.investmentRate}%`]
+    ],
     theme: "grid",
-    styles: { fontSize: 10, cellPadding: 3 },
-    columnStyles: {
-      0: { fontStyle: "bold", fillColor: [255, 241, 242] }, // Rose-50
-      2: { fontStyle: "bold", fillColor: [255, 241, 242] }
-    },
-    margin: { left: 14, right: 14 }
+    headStyles: { fillColor: COLORS.primary },
+    margin: { left: 14, right: 14, bottom: 20 },
+    tableWidth: (doc.internal.pageSize.width - 28) / 2
   });
 
-  finalY = (doc as any).lastAutoTable.finalY + 20;
+  // Result Table
+  autoTable(doc, {
+    startY: finalY,
+    head: [["Hasil Analisa", "Nilai"]],
+    body: [
+      ["Nilai Pengeluaran Nanti (FV)", formatRupiah(result.fvMonthlyExpense)],
+      ["Total Dana Dibutuhkan", formatRupiah(result.totalFundNeeded)],
+      ["Investasi Bulanan Diperlukan", formatRupiah(result.monthlySaving)]
+    ],
+    theme: "grid",
+    headStyles: { fillColor: COLORS.success },
+    margin: { left: doc.internal.pageSize.width / 2 + 5, right: 14 },
+    tableWidth: (doc.internal.pageSize.width - 28) / 2
+  });
 
-  // Rincian Perhitungan
+  doc.save(`Pensiun_${userName}.pdf`);
+};
+
+export const generateInsurancePDF = (input: InsuranceInput, result: InsuranceResult, userName: string) => {
+  const doc = new jsPDF();
+  drawCorporateHeader(doc, "Perencanaan Proteksi Jiwa", userName);
+
+  let finalY = 50;
+
+  // Result Highlight
+  doc.setFillColor(254, 226, 226); // Red-100 (soft)
+  doc.rect(14, finalY, doc.internal.pageSize.width - 28, 25, "F");
   doc.setFontSize(12);
+  doc.setTextColor(...COLORS.danger);
+  doc.text("Kekurangan Uang Pertanggungan (Shortfall):", 20, finalY + 10);
+  doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("Analisa Kebutuhan Uang Pertanggungan (UP)", 14, finalY);
+  doc.text(formatRupiah(result.shortfall), 20, finalY + 20);
 
-  const breakdownData = [
-    ["1. Dana Pelunasan Utang", formatRupiah(result.totalDebt), "Membersihkan kewajiban agar keluarga bebas beban."],
-    ["2. Dana Pengganti Penghasilan", formatRupiah(result.incomeReplacementValue), `Modal untuk mengganti gaji ${formatRupiah(input.annualIncome)} selama ${input.protectionDuration} tahun (Metode PVAD).`],
-    ["3. Biaya Akhir Hayat", formatRupiah(input.finalExpense), "Biaya pemakaman, upacara, dan administrasi."],
-    ["TOTAL KEBUTUHAN", formatRupiah(result.totalFundNeeded), "Total dana tunai yang harus tersedia jika risiko terjadi."],
-    ["DIKURANGI: Asuransi Lama", `(${formatRupiah(input.existingInsurance)})`, "UP dari polis yang sudah aktif saat ini."]
+  finalY += 35;
+
+  const breakdownData: RowInput[] = [
+    ["1. Pelunasan Utang", formatRupiah(result.totalDebt)],
+    ["2. Pengganti Penghasilan", formatRupiah(result.incomeReplacementValue)],
+    ["3. Biaya Akhir Hayat", formatRupiah(input.finalExpense)],
+    ["TOTAL KEBUTUHAN", formatRupiah(result.totalFundNeeded)],
+    ["DIKURANGI: Asuransi Lama", `(${formatRupiah(input.existingInsurance)})`]
   ];
 
   autoTable(doc, {
-    startY: finalY + 5,
-    head: [["Komponen", "Nilai", "Keterangan"]],
+    startY: finalY,
+    head: [["Komponen Perhitungan", "Nilai"]],
     body: breakdownData,
     theme: "striped",
-    headStyles: { fillColor: [225, 29, 72] },
-    bodyStyles: { fontSize: 10 },
-    columnStyles: { 
-      1: { fontStyle: "bold", halign: "right" },
-      0: { fontStyle: "bold" } 
-    },
+    headStyles: { fillColor: COLORS.primary },
     margin: { left: 14, right: 14 }
   });
 
-  finalY = (doc as any).lastAutoTable.finalY + 25;
-
-  // Result Box
-  doc.setFillColor(255, 241, 242); // Rose-50
-  doc.setDrawColor(225, 29, 72);
-  doc.roundedRect(14, finalY, pageWidth - 28, 40, 3, 3, "FD");
-
-  doc.setTextColor(159, 18, 57); // Rose-900
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("Asuransi Tambahan yg Dibutuhkan", 20, finalY + 12);
-
-  doc.setFontSize(24);
-  doc.setTextColor(225, 29, 72);
-  doc.text(formatRupiah(result.shortfall), 20, finalY + 25);
-
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont("helvetica", "normal");
-  doc.text("Ini adalah nilai pertanggungan polis asuransi jiwa BARU yang disarankan untuk Anda miliki.", 20, finalY + 35);
-
-  // Footer Disclaimer
-  doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
-  doc.text("Perhitungan Dana Pengganti Penghasilan menggunakan metode Present Value Annuity Due (Kebutuhan di awal periode).", 14, doc.internal.pageSize.height - 10);
-
-  doc.save(`Perencanaan_Asuransi_${userName}.pdf`);
+  doc.save(`Asuransi_${userName}.pdf`);
 };
 
-// --- 5. PDF SPECIAL GOALS ---
-export const generateSpecialGoalPDF = (
-  input: SpecialGoalInput,
-  result: SpecialGoalResult,
-  userName: string
-) => {
+export const generateSpecialGoalPDF = (input: SpecialGoalInput, result: SpecialGoalResult, userName: string) => {
   const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
+  drawCorporateHeader(doc, `Rencana: ${input.goalType}`, userName);
 
-  // Header - Violet Theme
-  doc.setFillColor(124, 58, 237); // Violet-600
-  doc.rect(0, 0, pageWidth, 40, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
-  doc.text("Perencanaan Tujuan Khusus", 14, 20);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`KeuanganKu Enterprise • ${userName} • ${new Date().toLocaleDateString("id-ID")}`, 14, 28);
+  let finalY = 50;
 
-  let finalY = 55;
-
-  // Section 1: Parameter Tujuan
-  doc.setTextColor(40, 40, 40);
   doc.setFontSize(12);
+  doc.setTextColor(...COLORS.text);
+  doc.text("Target Dana Masa Depan (Future Value):", 14, finalY);
+  doc.setFontSize(22);
+  doc.setTextColor(...COLORS.primary);
   doc.setFont("helvetica", "bold");
-  doc.text("Parameter Tujuan Finansial", 14, finalY);
+  doc.text(formatRupiah(result.futureValue), 14, finalY + 10);
 
-  const tableData = [
-    ["Jenis Tujuan", input.goalType, "Biaya Saat Ini", formatRupiah(input.currentCost)],
-    ["Target Waktu", `${input.duration} Tahun`, "Asumsi Inflasi", `${input.inflationRate}% / tahun`],
-    ["Return Investasi", `${input.investmentRate}% / tahun`, "", ""]
-  ];
+  finalY += 20;
 
   autoTable(doc, {
-    startY: finalY + 5,
-    head: [],
-    body: tableData,
-    theme: "grid",
-    styles: { fontSize: 10, cellPadding: 3 },
-    columnStyles: {
-      0: { fontStyle: "bold", fillColor: [245, 243, 255] }, // Violet-50
-      2: { fontStyle: "bold", fillColor: [245, 243, 255] }
-    },
+    startY: finalY,
+    head: [["Parameter", "Nilai"]],
+    body: [
+      ["Biaya Saat Ini", formatRupiah(input.currentCost)],
+      ["Waktu Pencapaian", `${input.duration} Tahun`],
+      ["Asumsi Inflasi", `${input.inflationRate}%`],
+      ["Target Return Investasi", `${input.investmentRate}%`],
+      ["Investasi Rutin Diperlukan", formatRupiah(result.monthlySaving)]
+    ],
+    theme: "striped",
+    headStyles: { fillColor: COLORS.primary },
     margin: { left: 14, right: 14 }
   });
 
-  finalY = (doc as any).lastAutoTable.finalY + 20;
-
-  // Section 2: Hasil Analisa
-  doc.setFillColor(245, 243, 255); // Violet-50
-  doc.setDrawColor(124, 58, 237);
-  doc.roundedRect(14, finalY, pageWidth - 28, 50, 3, 3, "FD");
-
-  doc.setTextColor(76, 29, 149); // Violet-900
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("Target Dana di Masa Depan", 20, finalY + 12);
-
-  doc.setFontSize(26);
-  doc.setTextColor(124, 58, 237); // Violet-600
-  doc.text(formatRupiah(result.futureValue), 20, finalY + 25);
-
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Nilai ini memperhitungkan kenaikan harga (inflasi) sebesar ${input.inflationRate}% selama ${input.duration} tahun.`, 20, finalY + 35);
-
-  finalY += 60;
-
-  // Section 3: Rekomendasi Tabungan
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Rekomendasi Strategi Menabung", 14, finalY);
-
-  finalY += 5;
-  doc.setFillColor(236, 253, 245); // Emerald-50
-  doc.setDrawColor(16, 185, 129);
-  doc.roundedRect(14, finalY, pageWidth - 28, 35, 3, 3, "FD");
-
-  doc.setTextColor(6, 78, 59); // Emerald-900
-  doc.setFontSize(11);
-  doc.text("Setoran Rutin Bulanan:", 20, finalY + 10);
-
-  doc.setFontSize(22);
-  doc.setTextColor(5, 150, 105); // Emerald-600
-  doc.setFont("helvetica", "bold");
-  doc.text(formatRupiah(result.monthlySaving), 20, finalY + 23);
-
-  doc.setFontSize(9);
-  doc.setTextColor(6, 78, 59);
-  doc.setFont("helvetica", "normal");
-  doc.text(`*Asumsi dana diinvestasikan dengan return ${input.investmentRate}% per tahun.`, 20, finalY + 30);
-
-  // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
-  doc.text("Perhitungan menggunakan metode Future Value (Compound Interest) dan Sinking Fund.", 14, doc.internal.pageSize.height - 10);
-
-  doc.save(`Rencana_${input.goalType}_${userName}.pdf`);
+  doc.save(`Goal_${input.goalType}.pdf`);
 };
