@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 // [STEP 2] Import Component Omni-Search
-import { DirectorOmniSearch } from '@/components/features/director/director-omni-search';
+import  DirectorOmniSearch  from '@/components/features/director/director-omni-search';
 
 export const metadata: Metadata = {
   title: 'Director Workspace | KeuanganKu',
