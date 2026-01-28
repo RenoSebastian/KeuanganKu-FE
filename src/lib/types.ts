@@ -353,13 +353,13 @@ export interface FinancialRecord {
 
 export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL" | "SANGAT SEHAT";
 
+// [UPDATED] Ratio Detail Interface - Sesuai dengan Output Backend
 export interface RatioDetail {
   id: string;
   label: string;
   value: number;
   benchmark: string;
-  grade: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL";
-  statusColor?: string; // Tambahan untuk mapping warna dari backend (GREEN_DARK, dll)
+  statusColor: string; // 'GREEN_DARK' | 'GREEN_LIGHT' | 'YELLOW' | 'RED'
   recommendation: string;
   status?: string;
 }

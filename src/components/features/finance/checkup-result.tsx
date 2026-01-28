@@ -41,6 +41,7 @@ export function CheckupResult({
     const isReadOnly = mode === "DIRECTOR_VIEW";
 
     // --- 1. NORMALISASI DATA ---
+    // Prioritaskan data.ratios (hasil mapping BE baru), fallback ke ratiosDetails
     const ratios = data.ratios || (data as any).ratiosDetails || [];
     const score = data.score ?? (data as any).healthScore ?? 0;
     const globalStatus = data.globalStatus || (data as any).status || "BAHAYA";
@@ -57,6 +58,7 @@ export function CheckupResult({
         setSaving(true);
         try {
             const payload = { ...rawData };
+            // Bersihkan data spouse jika single (untuk konsistensi)
             if (payload.userProfile.maritalStatus !== "MARRIED") {
                 delete payload.spouseProfile;
             }
@@ -73,8 +75,18 @@ export function CheckupResult({
     // --- 4. HANDLE DOWNLOAD PDF ---
     const handleDownloadPDF = () => {
         try {
-            // Panggil fungsi generator dengan data mentah (profil) dan hasil analisa
-            generateCheckupPDF(rawData, data);
+            // Panggil fungsi generator dengan data mentah (profil) dan hasil analisa (ratio & score)
+            // Kita passing data yang sudah dinormalisasi agar PDF generator tidak bingung
+            const pdfData: HealthAnalysisResult = {
+                ...data,
+                ratios: ratios,
+                score: score,
+                globalStatus: globalStatus,
+                netWorth: netWorth,
+                surplusDeficit: monthlySurplus
+            };
+
+            generateCheckupPDF(rawData, pdfData);
         } catch (error) {
             console.error("Gagal generate PDF:", error);
             alert("Terjadi kesalahan saat mengunduh PDF.");
