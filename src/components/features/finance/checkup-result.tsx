@@ -73,23 +73,32 @@ export function CheckupResult({
     };
 
     // --- 4. HANDLE DOWNLOAD PDF ---
-    const handleDownloadPDF = () => {
+    // Ganti handler lama dengan yang baru
+    const handleDownloadPDF = async () => {
         try {
-            // Panggil fungsi generator dengan data mentah (profil) dan hasil analisa (ratio & score)
-            // Kita passing data yang sudah dinormalisasi agar PDF generator tidak bingung
-            const pdfData: HealthAnalysisResult = {
-                ...data,
-                ratios: ratios,
-                score: score,
-                globalStatus: globalStatus,
-                netWorth: netWorth,
-                surplusDeficit: monthlySurplus
-            };
+            // Asumsi: data memiliki ID checkup. Jika ini data "Preview" (belum save), 
+            // User harus save dulu baru bisa PDF, atau BE harus support generate from Body.
+            // Skenario terbaik: Save dulu otomatis, lalu download.
 
-            generateCheckupPDF(rawData, pdfData);
+            if (!saved && !isReadOnly) {
+                // Logic auto-save jika belum saved
+                await handleSave();
+            }
+
+            // Pastikan kita punya ID. Jika data berasal dari 'createCheckup', ID ada di return value.
+            // Jika data dari 'getLatest', ID sudah ada.
+            const idToDownload = (data as any).id || (rawData as any).id;
+
+            if (!idToDownload) {
+                alert("Simpan data terlebih dahulu untuk mencetak PDF.");
+                return;
+            }
+
+            await financialService.downloadCheckupPdf(idToDownload);
+
         } catch (error) {
-            console.error("Gagal generate PDF:", error);
-            alert("Terjadi kesalahan saat mengunduh PDF.");
+            console.error("PDF Error", error);
+            alert("Gagal mengunduh PDF");
         }
     };
 

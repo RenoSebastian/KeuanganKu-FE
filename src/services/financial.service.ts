@@ -41,6 +41,22 @@ export const financialService = {
     return response.data;
   },
 
+  downloadCheckupPdf: async (checkupId: string) => {
+    // Request dengan responseType 'blob' sangat PENTING untuk file binary
+    const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
+      responseType: 'blob'
+    });
+
+    // Helper untuk trigger download di browser
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Financial-Report-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
+
   // ===========================================================================
   // 2. BUDGETING
   // ===========================================================================
