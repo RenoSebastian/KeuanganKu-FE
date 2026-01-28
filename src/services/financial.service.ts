@@ -44,7 +44,8 @@ export const financialService = {
   downloadCheckupPdf: async (checkupId: string) => {
     // Request dengan responseType 'blob' sangat PENTING untuk file binary
     const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
-      responseType: 'blob'
+      responseType: 'blob',
+      timeout: 60000,
     });
 
     // Helper untuk trigger download di browser

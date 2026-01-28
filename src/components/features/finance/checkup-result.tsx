@@ -14,6 +14,7 @@ import { FinancialRecord, HealthAnalysisResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
 import { generateCheckupPDF } from "@/lib/pdf-generator"; // <--- 1. IMPORT PDF GENERATOR
+import { PdfLoadingModal } from "./pdf-loading-modal";
 
 // [STEP 1] Prop Expansion & Mode Definition
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW";
@@ -36,6 +37,7 @@ export function CheckupResult({
     const [saved, setSaved] = useState(false);
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
+    const [showPdfModal, setShowPdfModal] = useState(false);
 
     // Logic: Read Only Flag
     const isReadOnly = mode === "DIRECTOR_VIEW";
@@ -72,33 +74,52 @@ export function CheckupResult({
         }
     };
 
-    // --- 4. HANDLE DOWNLOAD PDF ---
-    // Ganti handler lama dengan yang baru
+    // --- 4. HANDLE DOWNLOAD PDF (UPDATED WITH MODAL) ---
     const handleDownloadPDF = async () => {
-        try {
-            // Asumsi: data memiliki ID checkup. Jika ini data "Preview" (belum save), 
-            // User harus save dulu baru bisa PDF, atau BE harus support generate from Body.
-            // Skenario terbaik: Save dulu otomatis, lalu download.
+        // 1. Guard Clause: Cegah eksekusi jika modal sedang tampil
+        if (showPdfModal) return;
 
+        try {
+            // 2. Auto-Save Logic
+            // Jika data belum disimpan dan bukan mode read-only (Director), simpan dulu otomatis.
             if (!saved && !isReadOnly) {
-                // Logic auto-save jika belum saved
+                // Kita panggil handleSave dan tunggu sampai selesai
+                // Pastikan handleSave mengembalikan Promise (async)
                 await handleSave();
             }
 
-            // Pastikan kita punya ID. Jika data berasal dari 'createCheckup', ID ada di return value.
-            // Jika data dari 'getLatest', ID sudah ada.
+            // 3. ID Resolution
+            // Mencari ID dari 'data' (hasil analisa) atau 'rawData' (input form)
+            // Gunakan casting (as any) jika TypeScript rewel karena tipe union
             const idToDownload = (data as any).id || (rawData as any).id;
 
             if (!idToDownload) {
-                alert("Simpan data terlebih dahulu untuk mencetak PDF.");
+                alert("Gagal menemukan ID Laporan. Mohon simpan data terlebih dahulu.");
                 return;
             }
 
+            // 4. ACTIVATE MODAL
+            // Ini akan memunculkan popup "Sedang Menyiapkan Laporan..."
+            setShowPdfModal(true);
+
+            // 5. TRIGGER DOWNLOAD (Long Running Process)
+            // Axios di service sudah diset timeout 60 detik.
+            // Selama proses ini, Modal akan menampilkan animasi progress bar 0-90%
             await financialService.downloadCheckupPdf(idToDownload);
 
+            // 6. FINALIZE
+            // Beri jeda sedikit (500ms) agar user sempat melihat status "Selesai 100%"
+            // sebelum modal tertutup otomatis.
+            setTimeout(() => {
+                setShowPdfModal(false);
+            }, 500);
+
         } catch (error) {
-            console.error("PDF Error", error);
-            alert("Gagal mengunduh PDF");
+            // 7. ERROR HANDLING
+            // Jika terjadi timeout atau error server, tutup modal dan beri info.
+            setShowPdfModal(false);
+            console.error("PDF Download Error:", error);
+            alert("Gagal mengunduh PDF. Server mungkin sedang sibuk atau koneksi terputus. Silakan coba lagi.");
         }
     };
 
