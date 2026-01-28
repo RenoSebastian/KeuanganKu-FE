@@ -11,10 +11,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calculateSmartBudget, formatRupiah } from "@/lib/financial-math";
-import { generateBudgetPDF } from "@/lib/pdf";
 import { BudgetResult, BudgetAllocation } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { BudgetGuide } from "@/components/features/calculator/budget-guide";
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 
 // --- 1. HELPER: MAPPING VISUAL BERDASARKAN TIPE ---
 const getAllocationStyle = (type: BudgetAllocation["type"]) => {
@@ -40,6 +40,12 @@ export default function BudgetPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // State untuk ID Budget yang tersimpan (agar bisa download PDF)
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  // State Modal PDF
+  const [showPdfModal, setShowPdfModal] = useState(false);
+
   // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const backgroundImages = [
@@ -53,7 +59,7 @@ export default function BudgetPage() {
       setCurrentImageIndex((prevIndex) =>
         prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
       );
-    }, 5000); // Ganti gambar setiap 5 detik
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [backgroundImages.length]);
@@ -67,6 +73,9 @@ export default function BudgetPage() {
           const latestBudget = data[0];
           setFixedIncome(new Intl.NumberFormat("id-ID").format(Number(latestBudget.fixedIncome)));
           setVariableIncome(new Intl.NumberFormat("id-ID").format(Number(latestBudget.variableIncome)));
+
+          // Set ID agar bisa langsung download PDF
+          setSavedId(latestBudget.id);
 
           const monthlyRes = calculateSmartBudget(
             Number(latestBudget.fixedIncome),
@@ -117,6 +126,9 @@ export default function BudgetPage() {
       const response = await financialService.createBudget(payload);
 
       if (response && response.budget) {
+        // Simpan ID baru
+        setSavedId(response.budget.id);
+
         const mappedResult: BudgetResult = {
           safeToSpend: Number(response.budget.livingCost),
           totalFixedAllocated: Number(response.budget.totalExpense),
@@ -175,17 +187,66 @@ export default function BudgetPage() {
       setFixedIncome("");
       setVariableIncome("");
       setResult(null);
+      setSavedId(null);
     }
   };
 
-  const handleDownload = () => {
-    if (result) {
-      const annualRes = calculateSmartBudget(
-        (parseInt(fixedIncome.replace(/\./g, "")) || 0) * 12,
-        (parseInt(variableIncome.replace(/\./g, "")) || 0) * 12
-      );
-      const user = { name: "User", age: "", fixedIncome: parseInt(fixedIncome.replace(/\./g, "")) || 0 };
-      generateBudgetPDF(result, annualRes, user);
+  // [LOGIC BARU] Handle Download PDF
+  const handleDownloadPDF = async () => {
+    if (showPdfModal) return; // Prevent double click
+
+    try {
+      let targetId = savedId;
+
+      // 1. AUTO-SAVE: Jika belum ada ID (belum disimpan), simpan dulu
+      if (!targetId) {
+        // Cek apakah data valid untuk disimpan
+        const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
+        if (fixed === 0) {
+          alert("Lakukan kalkulasi anggaran terlebih dahulu.");
+          return;
+        }
+
+        setIsSaving(true);
+        try {
+          const variable = parseInt(variableIncome.replace(/\./g, "")) || 0;
+          const payload = {
+            fixedIncome: fixed,
+            variableIncome: variable,
+            month: new Date().getMonth() + 1,
+            year: new Date().getFullYear(),
+          };
+
+          // Panggil API createBudget
+          const response = await financialService.createBudget(payload);
+          if (response && response.budget) {
+            targetId = response.budget.id; // Tangkap ID baru
+            setSavedId(targetId);        // Update state
+          }
+        } catch (e) {
+          console.error("Auto-save failed", e);
+          alert("Gagal menyimpan data otomatis.");
+          return;
+        } finally {
+          setIsSaving(false);
+        }
+      }
+
+      // 2. Buka Modal Loading (UX)
+      setShowPdfModal(true);
+
+      // 3. Request PDF ke Backend (Long Process)
+      if (targetId) {
+        await financialService.downloadBudgetPdf(targetId);
+      }
+
+      // 4. Tutup Modal dengan delay sedikit (Smooth transition)
+      setTimeout(() => setShowPdfModal(false), 500);
+
+    } catch (error) {
+      console.error("PDF Error:", error);
+      setShowPdfModal(false);
+      alert("Gagal mengunduh PDF. Server sibuk atau timeout.");
     }
   };
 
@@ -208,6 +269,9 @@ export default function BudgetPage() {
 
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
+
+      {/* 1. MOUNT MODAL (WAJIB) */}
+      <PdfLoadingModal isOpen={showPdfModal} />
 
       {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
@@ -288,7 +352,7 @@ export default function BudgetPage() {
 
               <Button
                 onClick={handleCalculateAndSave}
-                disabled={isSaving}
+                disabled={isSaving || showPdfModal}
                 className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-base shadow-lg shadow-brand-500/20 mt-2 rounded-xl transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
@@ -425,14 +489,25 @@ export default function BudgetPage() {
                   )}
 
                   <div className="flex gap-2 flex-1">
-                    <Button variant="outline" onClick={handleReset} className="flex-1 h-auto rounded-xl border-slate-300 text-slate-600 hover:bg-slate-50">
+                    <Button
+                      variant="outline"
+                      onClick={handleReset}
+                      disabled={showPdfModal}
+                      className="flex-1 h-auto rounded-xl border-slate-300 text-slate-600 hover:bg-slate-50"
+                    >
                       <RefreshCcw className="w-4 h-4" />
                     </Button>
                     <Button
                       className="flex-3 h-auto rounded-xl bg-slate-800 hover:bg-slate-900 shadow-xl"
-                      onClick={handleDownload}
+                      onClick={handleDownloadPDF}
+                      disabled={showPdfModal || isSaving}
                     >
-                      <Download className="w-4 h-4 mr-2" /> Download PDF
+                      {showPdfModal ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4 mr-2" />
+                      )}
+                      {showPdfModal ? "Memproses..." : "Download PDF"}
                     </Button>
                   </div>
                 </div>

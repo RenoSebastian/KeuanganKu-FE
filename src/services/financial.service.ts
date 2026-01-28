@@ -74,6 +74,25 @@ export const financialService = {
     return response.data;
   },
 
+  // [NEW] Download Budget PDF
+  downloadBudgetPdf: async (budgetId: string) => {
+    // Gunakan timeout panjang (60s) karena Puppeteer rendering itu berat
+    const response = await api.get(`/financial/budget/pdf/${budgetId}`, {
+      responseType: 'blob',
+      timeout: 60000,
+    });
+
+    // Logic download file di browser
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    // Format nama file: Budget-Report-YYYY-MM-DD.pdf
+    link.setAttribute('download', `Budget-Report-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
+
   // ===========================================================================
   // 3. NEW CALCULATORS (INTEGRASI BARU)
   // ===========================================================================
