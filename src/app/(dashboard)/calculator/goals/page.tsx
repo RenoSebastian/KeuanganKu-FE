@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math"; 
 import { SpecialGoalResult, GoalType, GoalSimulationInput } from "@/lib/types";
-import { generateSpecialGoalPDF } from "@/lib/pdf-generator";
+import { generateSpecialGoalPDF } from "@/lib/pdf";
 import { financialService } from "@/services/financial.service"; 
 import { GoalsGuide } from "@/components/features/calculator/goals-guide";
 

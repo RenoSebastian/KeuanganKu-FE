@@ -8,19 +8,21 @@
 // ============================================================================
 
 export interface EducationStage {
-  id: string;       // "TK", "SD", "KULIAH", dll
+  id: string;       // "TK", "SD", "S1", dll
   label: string;
   entryAge: number; // Usia masuk default
   duration: number; // Lama sekolah (tahun)
   paymentFrequency: "MONTHLY" | "SEMESTER"; // Pembeda SPP vs UKT
 }
 
+export type EducationLevel = "TK" | "SD" | "SMP" | "SMA" | "S1" | "S2";
+
 // Data input user (Client Side - digunakan di Wizard)
 export interface PlanInput {
   stageId: string;
   startGrade: number; // Default 1
   costNow: {
-    entryFee: number;    
+    entryFee: number;
     monthlyFee: number; // SPP (x12) atau UKT (x2)
   };
 }
@@ -30,13 +32,13 @@ export interface ChildProfile {
   name: string;
   dob: string;
   gender: "L" | "P";
-  avatarColor: string; 
+  avatarColor: string;
   plans: PlanInput[];
 }
 
 export interface EducationStagePayload {
-  level: "TK" | "SD" | "SMP" | "SMA" | "PT"; 
-  costType: "ENTRY" | "ANNUAL";             
+  level: EducationLevel;
+  costType: "ENTRY" | "ANNUAL";
   currentCost: number;
   yearsToStart: number;
 }
@@ -47,7 +49,7 @@ export interface EducationPayload {
   method?: "ARITHMETIC" | "GEOMETRIC";
   inflationRate?: number;
   returnRate?: number;
-  stages: EducationStagePayload[]; 
+  stages: EducationStagePayload[];
 }
 
 export interface StageBreakdownItem {
@@ -56,11 +58,12 @@ export interface StageBreakdownItem {
   dueYear: number;
   stage: string;
   stageId: string;
-  level: "TK" | "SD" | "SMP" | "SMA" | "PT";
+  // [UPDATED] Menggunakan tipe EducationLevel agar konsisten
+  level: EducationLevel;
   costType: "ENTRY" | "ANNUAL";
   currentCost: number;
   yearsToStart: number;
-  
+
   // Hasil Hitungan Math
   futureCost: number;      // FV Item Ini
   monthlySaving: number;   // Tabungan Item Ini
@@ -107,7 +110,7 @@ export interface StageResult {
 export interface ChildSimulationResult {
   childId?: string;
   childName?: string;
-  totalMonthlySaving: number; 
+  totalMonthlySaving: number;
   stagesBreakdown?: StageBreakdownItem[]; // Dari API Backend
   stages?: StageResult[]; // Dari Client Calculation (Legacy Support / Direct Calc)
 }
@@ -126,23 +129,23 @@ export interface PortfolioSummary {
 export interface BudgetInput {
   name: string;
   age: number;
-  fixedIncome: number;    
-  variableIncome: number; 
+  fixedIncome: number;
+  variableIncome: number;
 }
 
 export interface BudgetAllocation {
   label: string;
-  percentage: number; 
-  amount: number;     
+  percentage: number;
+  amount: number;
   type: "NEEDS" | "DEBT_PROD" | "DEBT_CONS" | "INSURANCE" | "SAVING" | "SURPLUS";
   description: string;
 }
 
 export interface BudgetResult {
-  safeToSpend: number; 
+  safeToSpend: number;
   allocations: BudgetAllocation[];
-  totalFixedAllocated: number; 
-  surplus: number;     
+  totalFixedAllocated: number;
+  surplus: number;
 }
 
 export interface BudgetPayload {
@@ -170,10 +173,10 @@ export interface PensionInput {
   currentAge: number;
   retirementAge: number;
   retirementDuration: number;
-  currentExpense: number; 
+  currentExpense: number;
   currentFund: number;
-  inflationRate: number; 
-  investmentRate: number; 
+  inflationRate: number;
+  investmentRate: number;
 }
 
 export interface PensionResult {
@@ -196,24 +199,24 @@ export interface InsurancePayload {
 }
 
 export interface InsuranceInput {
-  debtKPR: number;            
-  debtKPM: number;            
-  debtProductive: number;   
-  debtConsumptive: number;  
-  debtOther: number;        
-  annualIncome: number;     
-  protectionDuration: number; 
-  inflationRate: number;    
-  investmentRate: number;   
-  finalExpense: number;     
-  existingInsurance: number; 
+  debtKPR: number;
+  debtKPM: number;
+  debtProductive: number;
+  debtConsumptive: number;
+  debtOther: number;
+  annualIncome: number;
+  protectionDuration: number;
+  inflationRate: number;
+  investmentRate: number;
+  finalExpense: number;
+  existingInsurance: number;
 }
 
 export interface InsuranceResult {
-  totalDebt: number;              
-  incomeReplacementValue: number; 
-  totalFundNeeded: number;        
-  shortfall: number;              
+  totalDebt: number;
+  incomeReplacementValue: number;
+  totalFundNeeded: number;
+  shortfall: number;
 }
 
 
@@ -224,7 +227,7 @@ export interface InsuranceResult {
 export interface GoalPayload {
   goalName: string;
   targetAmount: number;
-  targetDate: string; 
+  targetDate: string;
   inflationRate?: number;
   returnRate?: number;
 }
@@ -232,16 +235,16 @@ export interface GoalPayload {
 export type GoalType = "IBADAH" | "LIBURAN" | "PERNIKAHAN" | "LAINNYA";
 
 export interface SpecialGoalInput {
-  goalType: GoalType;       
-  currentCost: number;      
-  inflationRate: number;    
-  investmentRate: number;   
-  duration: number;         
+  goalType: GoalType;
+  currentCost: number;
+  inflationRate: number;
+  investmentRate: number;
+  duration: number;
 }
 
 export interface SpecialGoalResult {
-  futureValue: number;      
-  monthlySaving: number;    
+  futureValue: number;
+  monthlySaving: number;
 }
 
 export interface GoalSimulationInput {
@@ -263,15 +266,15 @@ export interface GoalSimulationResult {
 
 export interface PersonalInfo {
   name: string;
-  dob: string;                
+  dob: string;
   gender: "L" | "P";
-  ethnicity: string;          
-  religion: string;           
+  ethnicity: string;
+  religion: string;
   maritalStatus: "SINGLE" | "MARRIED" | "DIVORCED";
-  childrenCount: number;      
-  dependentParents: number;   
-  occupation: string;         
-  city: string;               
+  childrenCount: number;
+  dependentParents: number;
+  occupation: string;
+  city: string;
 }
 
 export interface FinancialRecord {
@@ -279,93 +282,93 @@ export interface FinancialRecord {
   spouseProfile?: PersonalInfo;
 
   // A. Aset Likuid
-  assetCash: number;          
+  assetCash: number;
 
   // B. Aset Personal
-  assetHome: number;          
-  assetVehicle: number;       
-  assetJewelry: number;       
-  assetAntique: number;       
-  assetPersonalOther: number; 
+  assetHome: number;
+  assetVehicle: number;
+  assetJewelry: number;
+  assetAntique: number;
+  assetPersonalOther: number;
 
   // C. Aset Investasi
-  assetInvHome: number;       
-  assetInvVehicle: number;    
-  assetGold: number;          
-  assetInvAntique: number;    
-  assetStocks: number;        
-  assetMutualFund: number;    
-  assetBonds: number;         
-  assetDeposit: number;       
-  assetInvOther: number;      
+  assetInvHome: number;
+  assetInvVehicle: number;
+  assetGold: number;
+  assetInvAntique: number;
+  assetStocks: number;
+  assetMutualFund: number;
+  assetBonds: number;
+  assetDeposit: number;
+  assetInvOther: number;
 
   // E. Utang Konsumtif
-  debtKPR: number;            
-  debtKPM: number;            
-  debtCC: number;             
-  debtCoop: number;           
-  debtConsumptiveOther: number; 
+  debtKPR: number;
+  debtKPM: number;
+  debtCC: number;
+  debtCoop: number;
+  debtConsumptiveOther: number;
 
   // F. Utang Usaha
-  debtBusiness: number;       
+  debtBusiness: number;
 
   // I. Penghasilan
-  incomeFixed: number;        
-  incomeVariable: number;     
+  incomeFixed: number;
+  incomeVariable: number;
 
   // K. Cicilan Utang
-  installmentKPR: number;                 
-  installmentKPM: number;                 
-  installmentCC: number;                  
-  installmentCoop: number;                
-  installmentConsumptiveOther: number;    
-  installmentBusiness: number;            
+  installmentKPR: number;
+  installmentKPM: number;
+  installmentCC: number;
+  installmentCoop: number;
+  installmentConsumptiveOther: number;
+  installmentBusiness: number;
 
   // L. Premi Asuransi
-  insuranceLife: number;      
-  insuranceHealth: number;    
-  insuranceHome: number;      
-  insuranceVehicle: number;   
-  insuranceBPJS: number;      
-  insuranceOther: number;     
+  insuranceLife: number;
+  insuranceHealth: number;
+  insuranceHome: number;
+  insuranceVehicle: number;
+  insuranceBPJS: number;
+  insuranceOther: number;
 
   // M. Tabungan/Investasi
-  savingEducation: number;    
-  savingRetirement: number;   
-  savingPilgrimage: number;   
-  savingHoliday: number;      
-  savingEmergency: number;    
-  savingOther: number;        
+  savingEducation: number;
+  savingRetirement: number;
+  savingPilgrimage: number;
+  savingHoliday: number;
+  savingEmergency: number;
+  savingOther: number;
 
   // N. Belanja Keluarga
-  expenseFood: number;        
-  expenseSchool: number;      
-  expenseTransport: number;   
-  expenseCommunication: number; 
-  expenseHelpers: number;     
-  expenseTax: number;         
-  expenseLifestyle: number; 
+  expenseFood: number;
+  expenseSchool: number;
+  expenseTransport: number;
+  expenseCommunication: number;
+  expenseHelpers: number;
+  expenseTax: number;
+  expenseLifestyle: number;
 }
 
-export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL" | "SANGAT SEHAT"; 
+export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL" | "SANGAT SEHAT";
 
 export interface RatioDetail {
   id: string;
   label: string;
   value: number;
   benchmark: string;
-  grade: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL"; 
+  grade: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL";
   statusColor?: string; // Tambahan untuk mapping warna dari backend (GREEN_DARK, dll)
   recommendation: string;
-  status?: string; 
+  status?: string;
 }
 
 export interface HealthAnalysisResult {
   score: number;
   globalStatus: string;
   ratios: RatioDetail[];
-  netWorth: number;         
-  surplusDeficit: number;   
+  netWorth: number;
+  surplusDeficit: number;
   generatedAt: string;
   // Fallback props untuk data dari DB raw
   incomeFixed?: number;
@@ -380,10 +383,10 @@ export interface CheckupDetailResponse {
   surplusDeficit: number;
   ratios: RatioDetail[];
   generatedAt: string;
-  record: FinancialRecord & { 
-    id: string; 
-    checkDate?: string; 
-    createdAt?: string; 
+  record: FinancialRecord & {
+    id: string;
+    checkDate?: string;
+    createdAt?: string;
   };
 }
 
@@ -393,11 +396,11 @@ export interface CheckupDetailResponse {
 // ============================================================================
 
 export interface AdminDashboardStats {
-  totalUsers: number;       
-  activeUsers: number;      
-  inactiveUsers: number;    
-  totalUnits: number;       
-  systemHealth: "Normal" | "Maintenance" | "Degraded"; 
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  totalUnits: number;
+  systemHealth: "Normal" | "Maintenance" | "Degraded";
 }
 
 export type UserRole = "USER" | "ADMIN" | "DIRECTOR" | "UNIT_HEAD";
@@ -406,34 +409,34 @@ export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
-  nip: string;              
-  unitId: string;           
-  unitName?: string;        
-  role: UserRole;           
-  isActive: boolean;        
-  lastLogin?: string;       
-  createdAt: string;        
+  nip: string;
+  unitId: string;
+  unitName?: string;
+  role: UserRole;
+  isActive: boolean;
+  lastLogin?: string;
+  createdAt: string;
 }
 
 export interface UnitKerja {
   id: string;
-  name: string;             
-  code: string;             
-  userCount?: number;       
+  name: string;
+  code: string;
+  userCount?: number;
 }
 
 export interface Jabatan {
   id: string;
-  name: string;             
-  level: number;            
-  userCount?: number;       
+  name: string;
+  level: number;
+  userCount?: number;
 }
 
 export interface SystemSettings {
-  defaultInflationRate: number; 
-  defaultInvestmentRate: number; 
-  companyName: string;           
-  maintenanceMode: boolean;     
+  defaultInflationRate: number;
+  defaultInvestmentRate: number;
+  companyName: string;
+  maintenanceMode: boolean;
 }
 
 
@@ -449,9 +452,9 @@ export interface StatusCountDto {
 
 export interface DirectorDashboardStats {
   totalEmployees: number;
-  avgHealthScore: number;     
-  riskyEmployeesCount: number; 
-  totalAssetsManaged: number;  
+  avgHealthScore: number;
+  riskyEmployeesCount: number;
+  totalAssetsManaged: number;
   statusCounts?: StatusCountDto; // Optional agar tidak error jika BE lama
 }
 

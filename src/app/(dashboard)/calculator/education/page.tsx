@@ -56,7 +56,7 @@ export default function EducationPage() {
           let monthlyFee = 0;
           if (annualItem) {
              const annualCost = annualItem.currentCost || 0;
-             monthlyFee = (level === "PT") 
+             monthlyFee = (level === "S2") 
                 ? annualCost / 2   
                 : annualCost / 12; 
           }

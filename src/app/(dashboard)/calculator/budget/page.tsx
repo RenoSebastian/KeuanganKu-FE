@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calculateSmartBudget, formatRupiah } from "@/lib/financial-math"; // Masih dipakai untuk mapping visual hasil backend
-import { generateBudgetPDF } from "@/lib/pdf-generator";
+import { generateBudgetPDF } from "@/lib/pdf";
 import { BudgetResult, BudgetAllocation } from "@/lib/types";
 import { financialService } from "@/services/financial.service"; 
 import { BudgetGuide } from "@/components/features/calculator/budget-guide";

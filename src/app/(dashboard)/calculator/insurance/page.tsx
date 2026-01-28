@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
 import { InsuranceResult } from "@/lib/types";
-import { generateInsurancePDF } from "@/lib/pdf-generator";
+import { generateInsurancePDF } from "@/lib/pdf";
 import { financialService } from "@/services/financial.service";
 import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
 

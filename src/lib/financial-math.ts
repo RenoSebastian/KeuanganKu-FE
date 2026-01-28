@@ -1,24 +1,42 @@
-import { 
-  BudgetResult, BudgetAllocation, ChildProfile, EducationStage, 
-  PlanInput, PortfolioSummary, StageResult, ChildSimulationResult, 
-  PensionInput, PensionResult,
-  InsuranceInput, InsuranceResult,
-  SpecialGoalInput, SpecialGoalResult,
+import {
+  BudgetResult,
+  BudgetAllocation,
+  ChildProfile,
+  EducationLevel,
+  PlanInput,
+  PortfolioSummary,
+  StageResult,
+  ChildSimulationResult,
+  PensionInput,
+  PensionResult,
+  InsuranceInput,
+  InsuranceResult,
+  SpecialGoalInput,
+  SpecialGoalResult,
 } from "./types";
 
-// --- DATABASE JENJANG ---
+export interface EducationStage {
+  id: EducationLevel; // Menggunakan type baru dari types.ts
+  label: string;
+  entryAge: number;
+  duration: number; // Durasi umum dalam tahun
+  paymentFrequency: "MONTHLY" | "SEMESTER";
+}
+
+// --- DATABASE JENJANG (UPDATED S1 & S2) ---
 export const STAGES_DB: EducationStage[] = [
   { id: "TK", label: "TK / PAUD", entryAge: 5, duration: 2, paymentFrequency: "MONTHLY" },
   { id: "SD", label: "Sekolah Dasar", entryAge: 7, duration: 6, paymentFrequency: "MONTHLY" },
   { id: "SMP", label: "SMP", entryAge: 13, duration: 3, paymentFrequency: "MONTHLY" },
   { id: "SMA", label: "SMA", entryAge: 16, duration: 3, paymentFrequency: "MONTHLY" },
-  { id: "KULIAH", label: "Sarjana (S1)", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
+  // [UPDATED] Menggunakan ID S1 & S2 agar sinkron dengan Backend (Prisma Enum)
+  { id: "S1", label: "Sarjana (S1)", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
   { id: "S2", label: "Magister (S2)", entryAge: 23, duration: 2, paymentFrequency: "SEMESTER" },
 ];
 
 // --- BASIC HELPERS ---
 
-export const formatRupiah = (val: number) => 
+export const formatRupiah = (val: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
 
 export const calculateAge = (dob: string): number => {
@@ -34,8 +52,8 @@ export const calculateFV = (pv: number, inflationRate: number, years: number): n
 
 // 2. Rumus PMT (Payment / Tabungan Rutin)
 export const calculatePMT = (
-  fv: number, 
-  investmentRate: number, 
+  fv: number,
+  investmentRate: number,
   years: number
 ): number => {
   if (years <= 0) return fv;
@@ -52,12 +70,12 @@ export const calculatePMT = (
 // Note: Masih dipakai di UI Wizard Pendidikan untuk preview cepat sebelum save ke DB
 
 const calculateStageGranular = (
-  input: PlanInput, 
-  childAge: number, 
-  inflation: number, 
+  input: PlanInput,
+  childAge: number,
+  inflation: number,
   returnRate: number
 ): StageResult | null => {
-  
+
   const refStage = STAGES_DB.find(s => s.id === input.stageId);
   if (!refStage) return null;
 
@@ -76,7 +94,7 @@ const calculateStageGranular = (
   let totalMonthlySaving = 0;
   const breakdownDetails: any[] = [];
 
-  // Uang Pangkal
+  // 1. Uang Pangkal (Entry Fee)
   if (input.startGrade === 1 && input.costNow.entryFee > 0) {
     const timeDistance = yearsUntilEntry;
     const fvEntry = calculateFV(input.costNow.entryFee, inflation, timeDistance);
@@ -93,7 +111,7 @@ const calculateStageGranular = (
     });
   }
 
-  // Biaya Periodik
+  // 2. Biaya Periodik (SPP/UKT - Granular Calculation Loop)
   const remainingDuration = refStage.duration - gradeOffset;
 
   for (let i = 0; i < remainingDuration; i++) {
@@ -101,8 +119,9 @@ const calculateStageGranular = (
     let yearlyBaseCost = 0;
     let labelItem = "";
 
+    // Kalkulasi Biaya Tahunan berdasarkan Frequency Input
     if (refStage.paymentFrequency === "MONTHLY") {
-      yearlyBaseCost = input.costNow.monthlyFee * 12; 
+      yearlyBaseCost = input.costNow.monthlyFee * 12;
       if (refStage.id === "TK") {
         const effectiveGrade = input.startGrade + i;
         labelItem = effectiveGrade === 1 ? "SPP TK A" : "SPP TK B";
@@ -110,8 +129,9 @@ const calculateStageGranular = (
         labelItem = `SPP Tahun ke-${i + 1}`;
       }
     } else {
-      yearlyBaseCost = input.costNow.monthlyFee * 2; 
-      labelItem = `UKT Tahun ke-${i + 1}`;
+      // Semester (S1/S2)
+      yearlyBaseCost = input.costNow.monthlyFee * 2; // Input UI diasumsikan per Semester untuk S1/S2
+      labelItem = `Biaya Kuliah Tahun ke-${i + 1}`;
     }
 
     if (yearlyBaseCost > 0) {
@@ -142,8 +162,8 @@ const calculateStageGranular = (
 };
 
 export const calculatePortfolio = (
-  children: ChildProfile[], 
-  inflation: number, 
+  children: ChildProfile[],
+  inflation: number,
   returnRate: number
 ): PortfolioSummary => {
   let grandTotalSaving = 0;
@@ -154,6 +174,7 @@ export const calculatePortfolio = (
     const childAge = calculateAge(child.dob);
     const stageResults: StageResult[] = [];
     let childTotalSaving = 0;
+
     child.plans.forEach(plan => {
       const result = calculateStageGranular(plan, childAge, inflation, returnRate);
       if (result) {
@@ -162,8 +183,14 @@ export const calculatePortfolio = (
         totalPortfolioCost += result.totalFutureCost;
       }
     });
+
     // Use 'any' to bypass strict type check for legacy UI component support
-    details.push({ childId: child.id, childName: child.name, stages: stageResults as any, totalMonthlySaving: childTotalSaving });
+    details.push({
+      childId: child.id,
+      childName: child.name,
+      stages: stageResults as any,
+      totalMonthlySaving: childTotalSaving
+    });
     grandTotalSaving += childTotalSaving;
   });
 
@@ -200,43 +227,43 @@ export const calculatePension = (input: PensionInput): PensionResult => {
 
   // Safety Check
   if (workingYears <= 0) {
-    return { 
-        workingYears: 0, 
-        retirementYears, 
-        fvMonthlyExpense: 0, 
-        fvExistingFund: 0, 
-        totalFundNeeded: 0, 
-        shortfall: 0, 
-        monthlySaving: 0 
+    return {
+      workingYears: 0,
+      retirementYears,
+      fvMonthlyExpense: 0,
+      fvExistingFund: 0,
+      totalFundNeeded: 0,
+      shortfall: 0,
+      monthlySaving: 0
     };
   }
 
   // --- 1. PREPARE RATES ---
   const annualInflRate = input.inflationRate / 100;
   const annualInvestRate = input.investmentRate / 100;
-  
+
   // Real Rate (Excel Logic: Invest - Inflasi)
   const realRate = annualInvestRate - annualInflRate;
 
   // --- 2. FUTURE VALUE OF EXPENSE (LIFESTYLE) ---
   const currentAnnualExpense = input.currentExpense * 12;
   const futureAnnualExpense = currentAnnualExpense * Math.pow(1 + annualInflRate, workingYears);
-  
+
   const fvMonthlyExpense = futureAnnualExpense / 12;
 
   // --- 3. CORPUS NEEDED (TOTAL DANA DIBUTUHKAN) ---
   let totalFundNeeded = 0;
 
   if (retirementYears === 1) {
-      totalFundNeeded = futureAnnualExpense;
+    totalFundNeeded = futureAnnualExpense;
   } else {
-      if (Math.abs(realRate) < 0.0000001) {
-          totalFundNeeded = futureAnnualExpense * retirementYears;
-      } else {
-          const annuityFactor = (1 - Math.pow(1 + realRate, -retirementYears)) / realRate;
-          const annuityDueAdjustment = 1 + realRate; 
-          totalFundNeeded = futureAnnualExpense * annuityFactor * annuityDueAdjustment;
-      }
+    if (Math.abs(realRate) < 0.0000001) {
+      totalFundNeeded = futureAnnualExpense * retirementYears;
+    } else {
+      const annuityFactor = (1 - Math.pow(1 + realRate, -retirementYears)) / realRate;
+      const annuityDueAdjustment = 1 + realRate;
+      totalFundNeeded = futureAnnualExpense * annuityFactor * annuityDueAdjustment;
+    }
   }
 
   // --- 4. FUTURE VALUE OF EXISTING ASSET ---
@@ -249,12 +276,12 @@ export const calculatePension = (input: PensionInput): PensionResult => {
   // --- 6. MONTHLY SAVING CALCULATION ---
   let annualSaving = 0;
   if (shortfall > 0) {
-      if (annualInvestRate === 0) {
-          annualSaving = shortfall / workingYears;
-      } else {
-          const compoundFactor = Math.pow(1 + annualInvestRate, workingYears) - 1;
-          annualSaving = (shortfall * annualInvestRate) / compoundFactor;
-      }
+    if (annualInvestRate === 0) {
+      annualSaving = shortfall / workingYears;
+    } else {
+      const compoundFactor = Math.pow(1 + annualInvestRate, workingYears) - 1;
+      annualSaving = (shortfall * annualInvestRate) / compoundFactor;
+    }
   }
 
   const monthlySaving = annualSaving / 12;
@@ -262,7 +289,7 @@ export const calculatePension = (input: PensionInput): PensionResult => {
   return {
     workingYears,
     retirementYears,
-    fvMonthlyExpense, 
+    fvMonthlyExpense,
     fvExistingFund,
     totalFundNeeded,
     shortfall,
@@ -273,17 +300,17 @@ export const calculatePension = (input: PensionInput): PensionResult => {
 // --- INSURANCE ENGINE ---
 
 export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
-  const totalDebt =   
-    input.debtKPR + 
-    input.debtKPM + 
-    input.debtProductive + 
-    input.debtConsumptive + 
+  const totalDebt =
+    input.debtKPR +
+    input.debtKPM +
+    input.debtProductive +
+    input.debtConsumptive +
     input.debtOther;
 
   const investRate = input.investmentRate / 100;
   const inflRate = input.inflationRate / 100;
   const realRate = investRate - inflRate;
-  
+
   const n = input.protectionDuration;
   const pmt = input.annualIncome;
 
@@ -301,7 +328,7 @@ export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
   const totalFundNeeded = totalDebt + incomeReplacementValue + input.finalExpense;
 
   let shortfall = totalFundNeeded - input.existingInsurance;
-  if (shortfall < 0) shortfall = 0; 
+  if (shortfall < 0) shortfall = 0;
 
   return {
     totalDebt,

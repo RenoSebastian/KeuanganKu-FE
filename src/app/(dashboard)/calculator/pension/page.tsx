@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math"; 
 import { PensionResult } from "@/lib/types";
-import { generatePensionPDF } from "@/lib/pdf-generator";
+import { generatePensionPDF } from "@/lib/pdf";
 import { financialService } from "@/services/financial.service"; 
 import { PensionGuide } from "@/components/features/calculator/pension-guide";
 
