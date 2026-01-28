@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
-import { 
-  FinancialRecord, 
+import {
+  FinancialRecord,
   HealthAnalysisResult,
   PensionPayload,
   InsurancePayload,
@@ -15,7 +15,7 @@ export const financialService = {
   // ===========================================================================
   // 1. FINANCIAL CHECKUP
   // ===========================================================================
-  
+
   createCheckup: async (data: FinancialRecord) => {
     // Explicit return type <HealthAnalysisResult> agar dikenali UI
     const response = await api.post<HealthAnalysisResult>("/financial/checkup", data);
@@ -25,7 +25,7 @@ export const financialService = {
   getLatestCheckup: async () => {
     // Mengambil data checkup terakhir user
     const response = await api.get("/financial/checkup/latest");
-    return response.data; 
+    return response.data;
   },
 
   getCheckupHistory: async () => {
@@ -44,7 +44,7 @@ export const financialService = {
   // ===========================================================================
   // 2. BUDGETING
   // ===========================================================================
-  
+
   createBudget: async (data: any) => {
     const response = await api.post("/financial/budget", data);
     return response.data;
@@ -77,15 +77,16 @@ export const financialService = {
     return response.data;
   },
 
-  // [NEW] SIMULATOR GOAL (Sesuai Rumus PAM Jaya Menu 6)
-  // Endpoint ini tidak menyimpan ke DB, hanya mengembalikan hasil hitungan
+  // [FIXED] SIMULATOR GOAL
+  // Backend returns: { status: 'success', data: { futureValue, monthlySaving } }
   simulateGoal: async (data: GoalSimulationInput) => {
-    const response = await api.post<GoalSimulationResult>("/financial/calculator/goals/simulate", data);
-    return response.data;
+    // Kita definisikan tipe return axios sebagai Wrapper Object
+    const response = await api.post<{ status: string, data: GoalSimulationResult }>("/financial/goals/simulate", data);
+    return response.data.data;
   },
 
   // D. Pendidikan Anak (LENGKAP: CRUD & FIX DATA TYPE)
-  
+
   saveEducationPlan: async (data: EducationPayload) => {
     const response = await api.post<EducationPlanResponse>("/financial/calculator/education", data);
     return response.data;
@@ -96,7 +97,7 @@ export const financialService = {
   // UPDATE: Logic ini juga menjamin nilai '0' (untuk S2 Lumpsum) tetap terbaca sebagai angka 0, bukan null/NaN.
   getEducationPlans: async () => {
     const response = await api.get("/financial/calculator/education");
-    
+
     const cleanData = response.data.map((plan: any) => ({
       ...plan,
       plan: {
@@ -110,7 +111,7 @@ export const financialService = {
         // Paksa ubah string ke number
         totalFutureCost: Number(plan.calculation.totalFutureCost || 0),
         monthlySaving: Number(plan.calculation.monthlySaving || 0),
-        
+
         // Mapping array breakdown secara mendalam
         stagesBreakdown: plan.calculation.stagesBreakdown.map((stage: any) => ({
           ...stage,
@@ -139,15 +140,15 @@ export const financialService = {
    * Digunakan sebagai referensi di Financial Checkup (Aset Logam Mulia)
    */
   getLatestGoldPrice: async () => {
-      const response = await api.get<{ 
-          success: boolean; 
-          data: {
-              buyPrice: string;
-              sellPrice: string;
-              [key: string]: any;
-          }; 
-          timestamp: string; 
-      }>("/market/gold-price");
-      return response.data;
+    const response = await api.get<{
+      success: boolean;
+      data: {
+        buyPrice: string;
+        sellPrice: string;
+        [key: string]: any;
+      };
+      timestamp: string;
+    }>("/market/gold-price");
+    return response.data;
   }
 };

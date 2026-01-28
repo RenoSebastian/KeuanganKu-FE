@@ -58,7 +58,6 @@ export interface StageBreakdownItem {
   dueYear: number;
   stage: string;
   stageId: string;
-  // [UPDATED] Menggunakan tipe EducationLevel agar konsisten
   level: EducationLevel;
   costType: "ENTRY" | "ANNUAL";
   currentCost: number;
@@ -221,19 +220,34 @@ export interface InsuranceResult {
 
 
 // ============================================================================
-// 4. GOAL SIMULATION (PAM JAYA MENU 6)
+// 4. GOAL SIMULATION (UPDATED)
 // ============================================================================
 
+// Interface untuk SAVE (CreateGoalDto)
 export interface GoalPayload {
   goalName: string;
-  targetAmount: number;
-  targetDate: string;
+  targetAmount: number; // Nilai Future Value yang sudah dihitung
+  targetDate: string;   // Tanggal tercapai (Date.now() + years)
   inflationRate?: number;
   returnRate?: number;
 }
 
-export type GoalType = "IBADAH" | "LIBURAN" | "PERNIKAHAN" | "LAINNYA";
+// Interface untuk SIMULATE (SimulateGoalDto)
+export interface GoalSimulationInput {
+  currentCost: number;    // PV (Nilai Sekarang)
+  years: number;          // n (Durasi Tahun)
+  inflationRate: number;  // i
+  returnRate: number;     // r
+}
 
+// Interface Output Simulasi (Backend Response)
+export interface GoalSimulationResult {
+  futureValue: number;    // FV (Nilai Masa Depan)
+  monthlySaving: number;  // PMT (Tabungan Bulanan)
+}
+
+// Legacy Support (Jika masih ada komponen lama yg pakai ini, bisa dihapus bertahap)
+export type GoalType = "IBADAH" | "LIBURAN" | "PERNIKAHAN" | "LAINNYA";
 export interface SpecialGoalInput {
   goalType: GoalType;
   currentCost: number;
@@ -241,22 +255,9 @@ export interface SpecialGoalInput {
   investmentRate: number;
   duration: number;
 }
-
 export interface SpecialGoalResult {
   futureValue: number;
   monthlySaving: number;
-}
-
-export interface GoalSimulationInput {
-  currentCost: number;   // PV
-  inflationRate: number; // i
-  returnRate: number;    // r
-  years: number;         // n
-}
-
-export interface GoalSimulationResult {
-  futureCost: number;    // FV
-  monthlySaving: number; // PMT
 }
 
 
