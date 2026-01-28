@@ -97,7 +97,7 @@ export default function RegisterPage() {
                Registrasi Pegawai
              </h1>
              <p className="text-sm text-slate-500 font-medium mt-1 max-w-xs">
-               Bergabung dengan ekosistem koperasi digital PAM JAYA
+               Bergabung dengan ekosistem koperasi digital MAXIPRO
              </p>
           </div>
 
@@ -151,7 +151,7 @@ export default function RegisterPage() {
                 <Input 
                   name="email"
                   type="email"
-                  placeholder="nama@pamjaya.co.id" 
+                  placeholder="nama@maxipro.co.id" 
                   className="pl-12 h-12 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
                   value={formData.email}
                   onChange={handleChange}

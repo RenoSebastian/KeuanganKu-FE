@@ -9,7 +9,7 @@ export const USER_PROFILE = {
   nip: "1020304050",
   role: "Karyawan",
   // [NEW] Data Sesuai Flowchart
-  email: "budi.santoso@pamjaya.co.id",
+  email: "budi.santoso@maxipro.co.id",
   unit: "Divisi Teknologi Informasi",
   birthDate: "1990-05-15",
   dependents: 2, // Jumlah Tanggungan (Istri/Anak)

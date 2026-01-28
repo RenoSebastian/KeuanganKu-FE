@@ -79,7 +79,7 @@ export default function CreateUserPage() {
       
       {/* --- HEADER (PAM IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 
@@ -154,7 +154,7 @@ export default function CreateUserPage() {
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
                         <Input 
                           type="email"
-                          placeholder="nama@pamjaya.co.id"
+                          placeholder="nama@maxipro.co.id"
                           value={formData.email}
                           onChange={e => setFormData({...formData, email: e.target.value})}
                           className={cn("pl-10 h-12 rounded-xl bg-slate-50 focus:bg-white", errors.email && "border-rose-500")}
@@ -259,7 +259,7 @@ export default function CreateUserPage() {
                <div>
                   <h4 className="text-sm font-bold text-amber-800 mb-1">Password Default</h4>
                   <p className="text-xs text-amber-700 leading-relaxed">
-                    User baru akan dibuatkan password otomatis: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-amber-200 mx-1 select-all">PamJaya123!</span>
+                    User baru akan dibuatkan password otomatis: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-amber-200 mx-1 select-all">Maxipro!</span>
                     <br/>Harap informasikan kepada user untuk segera mengganti password saat login pertama kali.
                   </p>
                </div>
@@ -278,7 +278,7 @@ export default function CreateUserPage() {
                <Button 
                  type="submit" 
                  disabled={loading}
-                 className="flex-[2] h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg shadow-lg shadow-emerald-200 rounded-xl"
+                 className="flex-2 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg shadow-lg shadow-emerald-200 rounded-xl"
                >
                  {loading ? "Menyimpan..." : (
                    <span className="flex items-center gap-2">

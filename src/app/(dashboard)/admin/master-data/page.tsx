@@ -100,7 +100,7 @@ export default function MasterDataPage() {
       
       {/* --- HEADER (PAM IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 
@@ -114,7 +114,7 @@ export default function MasterDataPage() {
                  Unit Kerja & Struktur
                </h1>
                <p className="text-brand-100 text-sm mt-1 opacity-90 max-w-lg">
-                 Kelola daftar Bidang, Divisi, dan Unit Organisasi dalam ekosistem PAM JAYA.
+                 Kelola daftar Bidang, Divisi, dan Unit Organisasi dalam ekosistem MAXIPRO.
                </p>
             </div>
             
@@ -232,7 +232,7 @@ export default function MasterDataPage() {
 
       {/* --- MODAL FORM --- */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-brand-950/60 backdrop-blur-sm animate-in fade-in duration-200">
           <Card className="w-full max-w-md border-0 overflow-hidden animate-in zoom-in-95 duration-200 p-0 shadow-2xl">
             <div className="bg-brand-900 px-6 py-5 flex justify-between items-center relative overflow-hidden">
               {/* Decor */}

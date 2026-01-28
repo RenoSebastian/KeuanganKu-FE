@@ -139,7 +139,7 @@ export default async function EmployeeAuditPage({ params }: { params: Promise<{ 
       {/* FOOTER SIMPLE */}
       <footer className="max-w-5xl mx-auto px-6 mt-16 pt-8 border-t border-slate-100 text-center pb-8">
         <p className="text-xs text-slate-400 font-mono uppercase tracking-wider">
-          PAM JAYA Internal Confidential Document
+          MAXIPRO Internal Confidential Document
         </p>
       </footer>
 

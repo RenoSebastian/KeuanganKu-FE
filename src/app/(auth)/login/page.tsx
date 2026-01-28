@@ -88,7 +88,7 @@ export default function LoginPage() {
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg mb-4">
             <Image 
-              src="/images/pamjaya-logo.png" 
+              src="/images/maxipro.webp" 
               alt="Logo" 
               width={40} 
               height={40} 
@@ -118,7 +118,7 @@ export default function LoginPage() {
                 <Input 
                   id="email"
                   type="email" 
-                  placeholder="nama@pamjaya.co.id"
+                  placeholder="nama@maxipro.co.id"
                   className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white transition-all"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -191,7 +191,7 @@ export default function LoginPage() {
         
         {/* Footer Copyright */}
         <p className="text-center text-xs text-slate-400 mt-8">
-          &copy; {new Date().getFullYear()} PAM JAYA Financial Wellness. All rights reserved.
+          &copy; {new Date().getFullYear()} MAXIPRO Financial Wellness. All rights reserved.
         </p>
       </div>
     </div>

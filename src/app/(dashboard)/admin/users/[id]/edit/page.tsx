@@ -58,7 +58,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       const mockUser = {
         fullName: "Budi Santoso",
         nip: "19880123 201001 1 001",
-        email: "budi.s@pamjaya.co.id",
+        email: "budi.s@maxipro.co.id",
         unitId: "U-001",
         role: "USER" as UserRole,
         isActive: true
@@ -114,7 +114,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       
       {/* --- HEADER (PAM IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 
@@ -192,7 +192,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                            value={formData.email}
                            onChange={e => setFormData({...formData, email: e.target.value})}
                            className={cn("pl-10 h-12 rounded-xl bg-slate-50 focus:bg-white", errors.email && "border-rose-500")}
-                           placeholder="nama@pamjaya.co.id"
+                           placeholder="nama@maxipro.co.id"
                          />
                       </div>
                       {errors.email && <p className="text-[10px] text-rose-500 font-bold ml-1">{errors.email}</p>}
@@ -277,7 +277,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                          formData.role === "UNIT_HEAD" ? "Akses Pimpinan Bidang" :
                          formData.role === "ADMIN" ? "Akses Super Admin" : "Akses Pegawai"}
                     </span>
-                    {formData.role === "DIRECTOR" && "User ini dapat melihat data agregat dan detail seluruh karyawan PAM JAYA."}
+                    {formData.role === "DIRECTOR" && "User ini dapat melihat data agregat dan detail seluruh karyawan MAXIPRO."}
                     {formData.role === "UNIT_HEAD" && `User ini dapat melihat rekapitulasi data karyawan di unit ${MOCK_UNITS.find(u => u.id === formData.unitId)?.name || "terpilih"}.`}
                     {formData.role === "ADMIN" && "User ini memiliki kontrol penuh atas sistem, manajemen user, dan konfigurasi. Hati-hati memberikan role ini."}
                     {formData.role === "USER" && "User hanya dapat mengakses dan mengelola data pribadinya sendiri."}
@@ -299,7 +299,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                  type="submit" 
                  disabled={saving}
                  variant="primary"
-                 className="flex-[2] h-12 rounded-xl shadow-lg shadow-brand-600/25 text-base"
+                 className="flex-2 h-12 rounded-xl shadow-lg shadow-brand-600/25 text-base"
                >
                  {saving ? (
                    <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menyimpan...</>

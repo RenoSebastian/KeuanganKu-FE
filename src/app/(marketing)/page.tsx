@@ -29,8 +29,8 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <div className="relative w-10 h-10">
               <Image 
-                src="/images/pamjaya-logo.png" 
-                alt="Logo PAM JAYA" 
+                src="/images/maxipro.webp" 
+                alt="Logo MAXIPRO" 
                 fill
                 className="object-contain"
               />
@@ -79,7 +79,7 @@ export default function LandingPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
                </span>
-               Portal Resmi Karyawan PAM JAYA
+               Portal Resmi Karyawan MAXIPRO
             </div>
 
             <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6 leading-[1.15] drop-shadow-sm">
@@ -90,7 +90,7 @@ export default function LandingPage() {
             </h1>
             
             <p className="text-lg md:text-xl text-slate-700 mb-10 leading-relaxed font-medium">
-              Platform internal yang didedikasikan untuk membantu keluarga besar PAM JAYA merencanakan masa depan finansial yang lebih aman, terukur, dan bahagia.
+              Platform internal yang didedikasikan untuk membantu keluarga besar MAXIPRO merencanakan masa depan finansial yang lebih aman, terukur, dan bahagia.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -146,9 +146,9 @@ export default function LandingPage() {
       <section id="features" className="py-24 bg-slate-50/50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-2xl mx-auto">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Fitur Lengkap untuk Karyawan</h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Fitur Andalan</h2>
             <p className="text-slate-600 text-lg">
-              Dirancang khusus untuk memenuhi kebutuhan perencanaan keuangan keluarga besar PAM JAYA.
+              Dirancang khusus untuk memenuhi kebutuhan perencanaan keuangan keluarga besar.
             </p>
           </div>
 
@@ -235,7 +235,7 @@ export default function LandingPage() {
                         </div>
                         <div>
                            <h4 className="font-bold text-lg">Email Support</h4>
-                           <p className="text-slate-400">hc.support@pamjaya.co.id</p>
+                           <p className="text-slate-400">hc.support@maxipro.co.id</p>
                         </div>
                      </div>
                   </div>
@@ -245,7 +245,7 @@ export default function LandingPage() {
                <div className="bg-white text-slate-900 p-8 rounded-3xl shadow-2xl">
                   <h3 className="text-2xl font-bold mb-6">Tentang Aplikasi</h3>
                   <p className="text-slate-600 mb-6 leading-relaxed">
-                     <strong className="text-blue-700">KeuanganKu System</strong> adalah inisiatif strategis PAM JAYA untuk meningkatkan literasi dan kesejahteraan finansial seluruh karyawan.
+                     <strong className="text-blue-700">KeuanganKu System</strong> adalah inisiatif strategis untuk meningkatkan literasi dan kesejahteraan finansial seluruh karyawan.
                   </p>
                   <ul className="space-y-4 mb-8">
                      <li className="flex items-center gap-3">
@@ -281,16 +281,16 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2 grayscale opacity-70">
              <Image 
-                src="/images/pamjaya-logo.png" 
-                alt="Logo PAM JAYA" 
+                src="/images/maxipro.webp" 
+                alt="Logo MAXI PRO" 
                 width={24}
                 height={24}
                 className="object-contain"
              />
-             <span className="font-semibold text-slate-700 text-sm">PAM JAYA Financial Wellness</span>
+             <span className="font-semibold text-slate-700 text-sm">MAXIPRO Financial Wellness</span>
           </div>
           <p className="text-xs text-slate-400 text-center md:text-right">
-             © {new Date().getFullYear()} PAM JAYA. Hak Cipta Dilindungi Undang-Undang. <br/>
+             © {new Date().getFullYear()} MAXIPRO. Hak Cipta Dilindungi Undang-Undang. <br/>
              Untuk Kalangan Sendiri (Internal Use Only).
           </p>
         </div>

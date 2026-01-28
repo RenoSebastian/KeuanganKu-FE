@@ -51,6 +51,24 @@ export default function InsurancePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const backgroundImages = [
+    '/images/asuransi/rancangproteksi1.webp',
+    '/images/asuransi/rancangproteksi2.webp'
+  ];
+
+  // --- EFFECT: BACKGROUND ROTATION ---
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) =>
+        prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
+      );
+    }, 5000); // Ganti gambar setiap 5 detik
+
+    return () => clearInterval(interval);
+  }, [backgroundImages.length]);
+
   // --- HANDLERS ---
 
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
@@ -215,22 +233,45 @@ export default function InsurancePage() {
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
 
-      {/* --- HEADER --- */}
-      <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
+      {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
+      <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
 
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4">
+        {/* 1. LAYER GAMBAR (ABSOLUTE) */}
+        <div className="absolute inset-0 w-full h-full z-0">
+          {backgroundImages.map((image, index) => (
+            <div
+              key={image}
+              className={cn(
+                "absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ease-in-out",
+                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+              )}
+              style={{ backgroundImage: `url(${image})` }}
+            />
+          ))}
+
+          {/* Overlay: Gelap + Pattern Wave */}
+          <div className="absolute inset-0 bg-brand-500/85 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-linear-to-t from-brand-600 via-brand-600/40 to-transparent" />
+
+          {/* Existing Pattern Overlay */}
+          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
+        </div>
+
+        {/* 2. LAYER DEKORASI (Z-10) */}
+        <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
+
+        {/* 3. LAYER KONTEN (Z-20) */}
+        <div className="relative z-20 max-w-5xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
             <ShieldCheck className="w-4 h-4 text-cyan-300" />
             <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Insurance Planner</span>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3">
+          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
             Perencanaan Asuransi
           </h1>
-          <p className="text-brand-100 text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-90">
-            Hitung kebutuhan Uang Pertanggungan (UP) untuk melindungi masa depan finansial keluarga Anda bersama PAM JAYA.
+          <p className="text-brand-100 text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-90 drop-shadow-md">
+            Hitung kebutuhan Uang Pertanggungan (UP) untuk melindungi masa depan finansial keluarga Anda bersama maxipro.
           </p>
         </div>
       </div>
@@ -349,7 +390,7 @@ export default function InsurancePage() {
                     {/* FIXED: Menggunakan single value & onChange */}
                     <Slider
                       value={inflation}
-                      onChange={(val) => { setInflation(val); setResult(null); }}
+                      onChange={(val: number) => { setInflation(val); setResult(null); }}
                       min={0} max={20} step={0.5}
                       colorClass="accent-rose-600"
                     />
@@ -363,7 +404,7 @@ export default function InsurancePage() {
                     {/* FIXED: Menggunakan single value & onChange */}
                     <Slider
                       value={returnRate}
-                      onChange={(val) => { setReturnRate(val); setResult(null); }}
+                      onChange={(val: number) => { setReturnRate(val); setResult(null); }}
                       min={0} max={20} step={0.5}
                       colorClass="accent-emerald-600"
                     />
@@ -408,7 +449,7 @@ export default function InsurancePage() {
 
           {/* RIGHT COLUMN - RESULT */}
           <div className="lg:col-span-5 space-y-6">
-            
+
             {/* Component Panduan Diletakkan Di Sini */}
             {!result ? (
               <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 bg-white/50 rounded-[2rem]">

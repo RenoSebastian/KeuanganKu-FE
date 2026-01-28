@@ -94,7 +94,7 @@ export default function DashboardPage() {
   const netWorth = Number(rawData.netWorth ?? rawData.totalNetWorth ?? 0);
 
   // Ambil nama user (Prioritas: API -> LocalStorage -> Default)
-  const displayName = userData?.fullName || userData?.name || "Karyawan PAM";
+  const displayName = userData?.fullName || userData?.name || "Karyawan MAXIPRO";
 
   return (
     <div className="relative min-h-full w-full pb-32 md:pb-12">
@@ -110,8 +110,8 @@ export default function DashboardPage() {
         <div className="flex flex-col items-center mb-6 md:hidden"> 
           <div className="relative w-32 h-12 mb-4"> 
              <Image 
-               src="/images/pamjaya-logo.png" 
-               alt="Logo PAM JAYA"
+               src="/images/maxipro.webp" 
+               alt="Logo MAXIPRO"
                fill
                className="object-contain"
                priority
@@ -121,7 +121,7 @@ export default function DashboardPage() {
           <div className="w-full glass-panel p-4 rounded-2xl flex items-center justify-between">
              <div>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">Selamat Datang</p>
-                <p className="text-base font-bold text-brand-900 truncate max-w-[200px]">
+                <p className="text-base font-bold text-brand-900 truncate max-w-50">
                     {loadingUser && !userData ? "Memuat..." : displayName}
                 </p>
              </div>
@@ -164,12 +164,12 @@ export default function DashboardPage() {
           <div className="md:col-span-8 space-y-8">
             
             {/* 1. HEALTH ANALYSIS CARD (The Hero) */}
-            <div className="card-clean p-0 overflow-hidden relative group min-h-[300px]">
+            <div className="card-clean p-0 overflow-hidden relative group min-h-75">
                {/* Decorative Gradient Line Top */}
-               <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 via-brand-400 to-brand-300"></div>
+               <div className="h-1.5 w-full bg-linear-to-r from-brand-500 via-brand-400 to-brand-300"></div>
 
                {loadingCheckup ? (
-                 <div className="flex flex-col items-center justify-center h-[300px] w-full gap-4">
+                 <div className="flex flex-col items-center justify-center h-75 w-full gap-4">
                     <Loader2 className="w-10 h-10 text-brand-300 animate-spin" />
                     <p className="text-sm text-slate-400 font-medium">Memuat data kesehatan...</p>
                  </div>
@@ -230,7 +230,7 @@ export default function DashboardPage() {
                    </div>
 
                    {/* Right Content (Gauge) */}
-                   <div className="flex-shrink-0 flex justify-center py-4 md:py-0">
+                   <div className="shrink-0 flex justify-center py-4 md:py-0">
                        <div className="relative w-48 h-48 md:w-56 md:h-56 flex items-center justify-center">
                            {/* Ambient Glow */}
                            <div className={cn(
@@ -402,7 +402,7 @@ function MenuCard({ title, icon: Icon, onClick }: any) {
         className="group bg-white border border-slate-200 rounded-2xl p-3 shadow-sm flex flex-col items-center justify-center text-center h-28 hover:shadow-card-hover hover:border-brand-200 hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden"
       >
          {/* Hover Gradient Background */}
-         <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+         <div className="absolute inset-0 bg-linear-to-br from-brand-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
          
          <div className="relative z-10 mb-3 w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-brand-600 group-hover:shadow-md transition-all duration-300">
             <Icon className="w-6 h-6" strokeWidth={1.5} />

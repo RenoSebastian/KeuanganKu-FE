@@ -278,6 +278,8 @@ export interface PersonalInfo {
   city: string;
 }
 
+// [VERIFIED] Struktur ini sinkron 100% dengan field di Backend Prisma Schema
+// Digunakan untuk Payload Form (Create) dan Hydration (Edit Last Data)
 export interface FinancialRecord {
   userProfile: PersonalInfo;
   spouseProfile?: PersonalInfo;
@@ -353,7 +355,7 @@ export interface FinancialRecord {
 
 export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL" | "SANGAT SEHAT";
 
-// [UPDATED] Ratio Detail Interface - Sesuai dengan Output Backend
+// [VERIFIED] Ratio Detail Interface - Sesuai dengan Output Backend JSON
 export interface RatioDetail {
   id: string;
   label: string;

@@ -23,8 +23,10 @@ export const financialService = {
   },
 
   getLatestCheckup: async () => {
-    // Mengambil data checkup terakhir user
-    const response = await api.get("/financial/checkup/latest");
+    // [UPDATED] Menggunakan Intersection Type untuk return value
+    // Backend mengembalikan object gabungan: Data Mentah (FinancialRecord) + Hasil Analisa (HealthAnalysisResult)
+    // Data ini krusial untuk fitur "Persistence/Hydration" agar form bisa terisi otomatis.
+    const response = await api.get<FinancialRecord & HealthAnalysisResult>("/financial/checkup/latest");
     return response.data;
   },
 
@@ -34,8 +36,7 @@ export const financialService = {
     return response.data;
   },
 
-  // [NEW] Method untuk mengambil Detail Analisa per Item History
-  // Digunakan di Modal Detail pada halaman History
+  // Method untuk mengambil Detail Analisa per Item History
   getCheckupDetail: async (id: string) => {
     const response = await api.get(`/financial/checkup/detail/${id}`);
     return response.data;
@@ -43,6 +44,7 @@ export const financialService = {
 
   downloadCheckupPdf: async (checkupId: string) => {
     // Request dengan responseType 'blob' sangat PENTING untuk file binary
+    // Timeout diperpanjang ke 60s karena Puppeteer BE butuh waktu render
     const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -99,6 +101,7 @@ export const financialService = {
   simulateGoal: async (data: GoalSimulationInput) => {
     // Kita definisikan tipe return axios sebagai Wrapper Object
     const response = await api.post<{ status: string, data: GoalSimulationResult }>("/financial/goals/simulate", data);
+    // Kita unwrap data disini agar UI langsung terima result bersih
     return response.data.data;
   },
 
@@ -111,7 +114,6 @@ export const financialService = {
 
   // --- [FIXED] DATA TRANSFORMATION LAYER ---
   // Menangani data string dari BE dan mengubahnya menjadi number agar UI tidak error.
-  // UPDATE: Logic ini juga menjamin nilai '0' (untuk S2 Lumpsum) tetap terbaca sebagai angka 0, bukan null/NaN.
   getEducationPlans: async () => {
     const response = await api.get("/financial/calculator/education");
 

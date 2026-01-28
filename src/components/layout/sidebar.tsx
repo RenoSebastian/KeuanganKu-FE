@@ -93,8 +93,8 @@ export function Sidebar() {
       <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-linear-to-b from-white to-slate-50/50">
         <div className="relative w-10 h-10 drop-shadow-sm">
           <Image 
-            src="/images/pamjaya-logo.png" 
-            alt="Logo PAM JAYA" 
+            src="/images/maxipro.webp" 
+            alt="Logo MAXIPRO" 
             fill 
             className="object-contain"
             priority
@@ -104,7 +104,7 @@ export function Sidebar() {
           <h1 className="font-extrabold text-lg leading-tight bg-linear-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
             KeuanganKu
           </h1>
-          <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">PAM JAYA</p>
+          <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">MAXIPRO</p>
         </div>
       </div>
 

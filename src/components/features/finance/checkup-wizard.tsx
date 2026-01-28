@@ -7,7 +7,7 @@ import {
     CreditCard, User, Heart, MapPin, Briefcase, Users,
     ShoppingBag, Car, Gem, Phone, Umbrella, PiggyBank, ShieldCheck,
     Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle,
-    Loader2, CalendarDays, Activity
+    Loader2, CalendarDays, Activity, RefreshCcw, FileText
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { CheckupResult } from "./checkup-result";
 import { formatRupiah } from "@/lib/financial-math";
 import { InfoPopover } from "@/components/ui/info-popover";
 import { FINANCIAL_HELP_DATA } from "@/lib/financial-dictionary";
-import { MonthlyHelperModal } from "./monthly-helper-modal"; // Import komponen baru
+import { MonthlyHelperModal } from "./monthly-helper-modal";
 
 // --- INITIAL STATE ---
 const EMPTY_PROFILE: PersonalInfo = {
@@ -55,12 +55,24 @@ const INITIAL_DATA: FinancialRecord = {
     expenseHelpers: 0, expenseTax: 0, expenseLifestyle: 0,
 };
 
+// List field arus kas yang perlu dikonversi (Bulan <-> Tahun)
+const FLOW_FIELDS: (keyof FinancialRecord)[] = [
+    'incomeFixed', 'incomeVariable',
+    'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
+    'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
+    'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
+    'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
+];
+
 export function CheckupWizard() {
     const [step, setStep] = useState(0);
     const [formData, setFormData] = useState<FinancialRecord>(INITIAL_DATA);
     const [result, setResult] = useState<HealthAnalysisResult | null>(null);
     const [isClient, setIsClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // --- PERSISTENCE STATE ---
+    const [isFetchingData, setIsFetchingData] = useState(true);
 
     // --- STATE MODAL HELPER (Monthly to Annual) ---
     const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<keyof FinancialRecord | null>(null);
@@ -78,7 +90,92 @@ export function CheckupWizard() {
     const [currentGoldPrice, setCurrentGoldPrice] = useState<number>(0);
     const [goldWeight, setGoldWeight] = useState("");
 
+    // --- STATE MODAL RESET ---
+    const [showResetModal, setShowResetModal] = useState(false);
+
     useEffect(() => setIsClient(true), []);
+
+    // --- LOGIC 0: PERSISTENCE CHECK (AUTO-JUMP TO RESULT) ---
+    useEffect(() => {
+        const checkPersistence = async () => {
+            try {
+                const latestData = await financialService.getLatestCheckup();
+
+                if (latestData) {
+                    // A. Hydrate Form (Isi form dengan data lama, jaga-jaga user mau edit)
+                    hydrateForm(latestData);
+
+                    // B. Construct Result Object
+                    // NOTE: Menggunakan 'as any' untuk mengakses properti raw dari DB (healthScore, status, dll)
+                    // yang tidak ada di interface standar FinancialRecord tapi dikembalikan oleh API.
+                    const raw = latestData as any;
+
+                    const resultData: HealthAnalysisResult = {
+                        score: raw.healthScore ?? raw.score ?? 0,
+                        globalStatus: raw.status ?? raw.globalStatus ?? "BAHAYA",
+                        ratios: raw.ratios || raw.ratiosDetails || [],
+                        netWorth: Number(raw.totalNetWorth ?? 0),
+                        surplusDeficit: Number(raw.surplusDeficit ?? 0),
+                        generatedAt: (raw.checkDate as string) || new Date().toISOString()
+                    };
+
+                    // C. Set Result State -> Ini akan memicu render halaman Result langsung
+                    setResult(resultData);
+                }
+            } catch (error) {
+                console.error("No previous data found or error:", error);
+            } finally {
+                setIsFetchingData(false);
+            }
+        };
+
+        if (isClient) {
+            checkPersistence();
+        }
+    }, [isClient]);
+
+    // --- HYDRATION LOGIC (Helper) ---
+    const hydrateForm = (sourceData: any) => {
+        const newData = { ...INITIAL_DATA };
+
+        // 1. Profile (Mapping langsung)
+        if (sourceData.userProfile) newData.userProfile = { ...sourceData.userProfile } as PersonalInfo;
+        if (sourceData.spouseProfile) newData.spouseProfile = { ...sourceData.spouseProfile } as PersonalInfo;
+
+        // 2. Aset & Utang (Snapshot/Stock) - Nilai Tetap
+        (Object.keys(INITIAL_DATA) as (keyof FinancialRecord)[]).forEach(key => {
+            if (key !== 'userProfile' && key !== 'spouseProfile' && !FLOW_FIELDS.includes(key)) {
+                // [FIXED] Gunakan casting (newData as any) untuk menghindari error assignment 'number' ke 'PersonalInfo'
+                (newData as any)[key] = Number(sourceData[key]) || 0;
+            }
+        });
+
+        // 3. Arus Kas (Flow) - KONVERSI BULANAN KE TAHUNAN
+        // Karena di DB disimpan Bulanan, tapi UI Wizard inputnya Tahunan
+        FLOW_FIELDS.forEach(key => {
+            (newData as any)[key] = (Number(sourceData[key]) || 0) * 12;
+        });
+
+        setFormData(newData);
+    };
+
+    // --- RESET HANDLER (Dipanggil dari tombol "Hitung Ulang" di Result) ---
+    const handleResetTrigger = () => {
+        setShowResetModal(true);
+    };
+
+    const onConfirmReset = () => {
+        setFormData(INITIAL_DATA);
+        setStep(0);
+        setResult(null);
+        setShowResetModal(false);
+    };
+
+    const onConfirmEdit = () => {
+        setStep(0);
+        setResult(null);
+        setShowResetModal(false);
+    };
 
     // --- LOGIC 1: HANDLE INPUT CHANGE ---
     const handleFinancialChange = (field: keyof FinancialRecord, value: string) => {
@@ -115,8 +212,8 @@ export function CheckupWizard() {
                 setCurrentGoldPrice(0);
             }
         };
-        fetchMarketData();
-    }, []);
+        if (isClient) fetchMarketData();
+    }, [isClient]);
 
     // --- LOGIC 3: SUBMIT DATA (WITH NORMALIZATION) ---
     const handleCalculate = async () => {
@@ -130,19 +227,8 @@ export function CheckupWizard() {
             }
 
             // CRITICAL: NORMALISASI TAHUNAN KE BULANAN (Agar Backend Konsisten)
-            // Backend mengharapkan data Monthly. User input Annual.
-            // Maka kita bagi 12 semua field Arus Kas (Flow).
-            const flowFields = [
-                'incomeFixed', 'incomeVariable',
-                'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
-                'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
-                'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
-                'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
-            ];
-
-            flowFields.forEach(field => {
+            FLOW_FIELDS.forEach(field => {
                 if (typeof payload[field] === 'number') {
-                    // Pembulatan agar tidak ada desimal aneh
                     payload[field] = Math.round(payload[field] / 12);
                 }
             });
@@ -183,11 +269,8 @@ export function CheckupWizard() {
 
     const netWorth = totalAssets - totalDebt;
 
-    // Helper untuk hitung bulanan (estimasi di UI Review)
-    const getMonthly = (val: number) => Math.round(val / 12);
-
     const totalIncomeAnnual = formData.incomeFixed + formData.incomeVariable;
-    
+
     const totalInstallmentsAnnual = formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness;
     const totalInsuranceAnnual = formData.insuranceLife + formData.insuranceHealth + formData.insuranceHome + formData.insuranceVehicle + formData.insuranceBPJS + formData.insuranceOther;
     const totalSavingsAnnual = formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther;
@@ -196,17 +279,92 @@ export function CheckupWizard() {
     const totalExpenseAnnual = totalInstallmentsAnnual + totalInsuranceAnnual + totalSavingsAnnual + totalLivingExpenseAnnual;
     const surplusDeficitAnnual = totalIncomeAnnual - totalExpenseAnnual;
 
+    // --- DEFINISI MODAL KONFIRMASI (Disimpan di variabel) ---
+    const ResetConfirmationModal = showResetModal && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            {/* Klik luar untuk tutup */}
+            <div className="absolute inset-0" onClick={() => setShowResetModal(false)} />
+
+            <div className="relative bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100 z-10">
+                {/* Header */}
+                <div className="text-center mb-6">
+                    <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-amber-100">
+                        <AlertCircle className="w-7 h-7 text-amber-500" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-800">Konfirmasi Hitung Ulang</h3>
+                    <p className="text-sm text-slate-500 mt-2 leading-relaxed px-4">
+                        Bagaimana Anda ingin memperbaiki data financial checkup ini?
+                    </p>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-3">
+                    <button
+                        onClick={onConfirmEdit}
+                        className="w-full flex items-center justify-center gap-3 p-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-all font-bold shadow-lg shadow-brand-500/20 group"
+                    >
+                        <div className="p-1 bg-white/20 rounded-lg group-hover:scale-110 transition-transform">
+                            <FileText className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                            <span className="block text-xs font-normal opacity-90">Data masih relevan?</span>
+                            <span>Perbaiki / Edit Data Lama</span>
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={onConfirmReset}
+                        className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl transition-all font-bold group"
+                    >
+                        <div className="p-1 bg-slate-100 group-hover:bg-rose-100 rounded-lg transition-colors">
+                            <RefreshCcw className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                            <span className="block text-xs font-normal opacity-70">Data sudah usang?</span>
+                            <span>Reset / Mulai Dari Nol</span>
+                        </div>
+                    </button>
+                </div>
+
+                {/* Close Button */}
+                <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+                    <button
+                        onClick={() => setShowResetModal(false)}
+                        className="text-sm font-bold text-slate-400 hover:text-slate-600 px-6 py-2 rounded-full hover:bg-slate-50 transition-colors"
+                    >
+                        Batal / Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    // --- RENDER LOGIC ---
+
     if (result) {
         return (
-            <CheckupResult
-                data={result}
-                rawData={formData}
-                onReset={() => setResult(null)}
-            />
+            <>
+                <CheckupResult
+                    data={result}
+                    rawData={formData}
+                    onReset={handleResetTrigger}
+                />
+                {ResetConfirmationModal}
+            </>
         );
     }
 
     if (!isClient) return null;
+
+    // --- RENDER LOADING STATE ---
+    if (isFetchingData) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+                <Loader2 className="w-10 h-10 text-brand-600 animate-spin" />
+                <p className="text-slate-500 font-medium animate-pulse">Memuat data terakhir Anda...</p>
+            </div>
+        );
+    }
 
     const steps = [
         { label: "Data Diri", icon: User },
@@ -312,7 +470,8 @@ export function CheckupWizard() {
                 </div>
 
                 {/* CONTENT */}
-                <div className="p-6 md:p-8 space-y-8 min-h-100">
+                <div className="p-6 md:p-8 space-y-8 min-h-100 relative">
+
                     {/* STEP 0: DATA DIRI */}
                     {step === 0 && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -628,7 +787,7 @@ export function CheckupWizard() {
                     {/* STEP 4: REVIEW (LAYOUT BARU - NERACA & ARUS KAS TERPISAH) */}
                     {step === 3 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
-                            
+
                             {/* --- KARTU 1: NERACA (BALANCE SHEET) --- */}
                             <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
                                 <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
@@ -717,7 +876,7 @@ export function CheckupWizard() {
                                             <ReviewRow label="Pemasukan Tetap" value={totalIncomeAnnual - formData.incomeVariable} />
                                             <ReviewRow label="Pemasukan Tidak Tetap" value={formData.incomeVariable} />
                                             {/* Spacer untuk menyeimbangkan tinggi jika item sedikit */}
-                                            <div className="hidden md:block h-6"></div> 
+                                            <div className="hidden md:block h-6"></div>
                                         </div>
                                         {/* Total Pemasukan */}
                                         <div className="mt-6 pt-4 border-t border-slate-100">
@@ -869,6 +1028,66 @@ export function CheckupWizard() {
                     </div>
                 </div>
             )}
+
+            {/* --- MODAL KONFIRMASI RESET (UI BARU) --- */}
+            {showResetModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    {/* Klik luar untuk tutup */}
+                    <div className="absolute inset-0" onClick={() => setShowResetModal(false)} />
+
+                    <div className="relative bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
+                        {/* Header */}
+                        <div className="text-center mb-6">
+                            <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-amber-100">
+                                <AlertCircle className="w-7 h-7 text-amber-500" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-800">Konfirmasi Hitung Ulang</h3>
+                            <p className="text-sm text-slate-500 mt-2 leading-relaxed px-4">
+                                Bagaimana Anda ingin memperbaiki data financial checkup ini?
+                            </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="space-y-3">
+                            <button
+                                onClick={onConfirmEdit}
+                                className="w-full flex items-center justify-center gap-3 p-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-all font-bold shadow-lg shadow-brand-500/20 group"
+                            >
+                                <div className="p-1 bg-white/20 rounded-lg group-hover:scale-110 transition-transform">
+                                    <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="text-left">
+                                    <span className="block text-xs font-normal opacity-90">Data masih relevan?</span>
+                                    <span>Perbaiki / Edit Data Lama</span>
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={onConfirmReset}
+                                className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl transition-all font-bold group"
+                            >
+                                <div className="p-1 bg-slate-100 group-hover:bg-rose-100 rounded-lg transition-colors">
+                                    <RefreshCcw className="w-4 h-4" />
+                                </div>
+                                <div className="text-left">
+                                    <span className="block text-xs font-normal opacity-70">Data sudah usang?</span>
+                                    <span>Reset / Mulai Dari Nol</span>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Close Button */}
+                        <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+                            <button
+                                onClick={() => setShowResetModal(false)}
+                                className="text-sm font-bold text-slate-400 hover:text-slate-600 px-6 py-2 rounded-full hover:bg-slate-50 transition-colors"
+                            >
+                                Batal / Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -971,10 +1190,10 @@ function InputGroup({ icon, label, desc, value, onChange, helpContent, onMonthly
 }
 
 // UPDATE: Component ReviewRow (Letakkan di bagian bawah file checkup-wizard.tsx)
-interface ReviewRowProps { 
-    label: string; 
-    value: number; 
-    isTotal?: boolean; 
+interface ReviewRowProps {
+    label: string;
+    value: number;
+    isTotal?: boolean;
     color?: "emerald" | "rose" | "brand"; // Opsional untuk total
 }
 
@@ -996,7 +1215,7 @@ function ReviewRow({ label, value, isTotal, color }: ReviewRowProps) {
             isTotal && "py-2" // Beri spacing lebih jika total
         )}>
             <span className={cn(
-                "text-sm", 
+                "text-sm",
                 isTotal ? "font-bold text-slate-800 uppercase tracking-wide" : "font-medium text-slate-500"
             )}>
                 {label}

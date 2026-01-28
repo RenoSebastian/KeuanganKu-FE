@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "KeuanganKu - PAM JAYA",
+  title: "KeuanganKu - MAXIPRO",
   description: "Aplikasi Perencanaan Keuangan Karyawan",
   appleWebApp: {
     capable: true,

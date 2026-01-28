@@ -13,8 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { FinancialRecord, HealthAnalysisResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
-import { generateCheckupPDF } from "@/lib/pdf-generator"; // <--- 1. IMPORT PDF GENERATOR
-import { PdfLoadingModal } from "./pdf-loading-modal";
+import { generateCheckupPDF } from "@/lib/pdf-generator"; // Fallback client-side generator (optional)
+import { PdfLoadingModal } from "./pdf-loading-modal"; // <--- 1. IMPORT MODAL
 
 // [STEP 1] Prop Expansion & Mode Definition
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW";
@@ -37,6 +37,8 @@ export function CheckupResult({
     const [saved, setSaved] = useState(false);
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
+
+    // State untuk Modal PDF
     const [showPdfModal, setShowPdfModal] = useState(false);
 
     // Logic: Read Only Flag
@@ -80,19 +82,31 @@ export function CheckupResult({
         if (showPdfModal) return;
 
         try {
+            let idToDownload = (data as any).id || (rawData as any).id;
+
             // 2. Auto-Save Logic
             // Jika data belum disimpan dan bukan mode read-only (Director), simpan dulu otomatis.
-            if (!saved && !isReadOnly) {
-                // Kita panggil handleSave dan tunggu sampai selesai
-                // Pastikan handleSave mengembalikan Promise (async)
-                await handleSave();
+            // Kita lakukan manual call createCheckup disini agar bisa menangkap ID yang baru dibuat.
+            if (!saved && !isReadOnly && !idToDownload) {
+                setSaving(true);
+                try {
+                    const payload = { ...rawData };
+                    if (payload.userProfile.maritalStatus !== "MARRIED") {
+                        delete payload.spouseProfile;
+                    }
+                    const savedRecord = await financialService.createCheckup(payload);
+                    setSaved(true);
+                    idToDownload = (savedRecord as any).id; // Tangkap ID baru
+                } catch (e) {
+                    console.error("Auto-save failed", e);
+                    alert("Gagal menyimpan data otomatis sebelum download.");
+                    return;
+                } finally {
+                    setSaving(false);
+                }
             }
 
-            // 3. ID Resolution
-            // Mencari ID dari 'data' (hasil analisa) atau 'rawData' (input form)
-            // Gunakan casting (as any) jika TypeScript rewel karena tipe union
-            const idToDownload = (data as any).id || (rawData as any).id;
-
+            // 3. Final ID Check
             if (!idToDownload) {
                 alert("Gagal menemukan ID Laporan. Mohon simpan data terlebih dahulu.");
                 return;
@@ -168,6 +182,9 @@ export function CheckupResult({
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-24 md:pb-0">
+
+            {/* --- MOUNT MODAL DISINI --- */}
+            <PdfLoadingModal isOpen={showPdfModal} />
 
             {/* --- HEADER & TOGGLE --- */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
@@ -384,6 +401,7 @@ export function CheckupResult({
                             <Button
                                 variant="outline"
                                 onClick={onReset}
+                                disabled={showPdfModal || saving} // Disable saat loading
                                 className="flex-1 md:flex-none border-slate-300 text-slate-600 hover:bg-slate-50"
                             >
                                 <RefreshCcw className="w-4 h-4 mr-2" /> Hitung Ulang
@@ -391,7 +409,8 @@ export function CheckupResult({
 
                             <Button
                                 variant="ghost"
-                                onClick={handleDownloadPDF} // <--- ACTION PASANG DISINI
+                                onClick={handleDownloadPDF} // <--- ACTION DENGAN MODAL
+                                disabled={showPdfModal || saving} // Disable saat loading
                                 className="flex-1 md:flex-none text-slate-500 hover:text-brand-600 hidden md:flex"
                             >
                                 <Download className="w-4 h-4 mr-2" /> PDF
@@ -399,7 +418,7 @@ export function CheckupResult({
 
                             <Button
                                 onClick={handleSave}
-                                disabled={saving || saved}
+                                disabled={saving || saved || showPdfModal}
                                 className={cn(
                                     "flex-2 md:flex-none min-w-45 font-bold shadow-lg transition-all text-white",
                                     saved ? "bg-emerald-600 hover:bg-emerald-700" : "bg-brand-600 hover:bg-brand-700"

@@ -64,7 +64,7 @@ export default function AdminDashboardPage() {
                 System Overview
               </h1>
               <p className="text-brand-100 text-sm md:text-base max-w-xl leading-relaxed">
-                Pusat kendali ekosistem KeuanganKu PAM JAYA. Pantau metrik vital, kelola akses pengguna, dan konfigurasi sistem.
+                Pusat kendali ekosistem KeuanganKu MAXIPRO. Pantau metrik vital, kelola akses pengguna, dan konfigurasi sistem.
               </p>
            </div>
            

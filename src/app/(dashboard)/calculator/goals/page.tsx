@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,7 @@ const GOAL_OPTIONS: { id: GoalType; label: string; icon: any; color: string; gra
 ];
 
 export default function GoalsPage() {
-    // --- STATE ---
+    // --- STATE INPUT & RESULT ---
     const [selectedGoal, setSelectedGoal] = useState<GoalType>("LAINNYA");
     const [currentCost, setCurrentCost] = useState("");
     const [duration, setDuration] = useState("5");
@@ -63,6 +63,24 @@ export default function GoalsPage() {
 
     const [result, setResult] = useState<GoalSimulationResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const backgroundImages = [
+        '/images/goals/rancangtujuanlainnya1.webp',
+        '/images/goals/rancangtujuanlainnya2.webp'
+    ];
+
+    // --- EFFECT: BACKGROUND ROTATION ---
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentImageIndex((prevIndex) =>
+                prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
+            );
+        }, 5000); // Ganti gambar setiap 5 detik
+
+        return () => clearInterval(interval);
+    }, [backgroundImages.length]);
 
     // --- HANDLERS ---
     const handleMoneyInput = (val: string) => {
@@ -133,7 +151,6 @@ export default function GoalsPage() {
                 investmentRate: investmentRate
             };
 
-            // Helper PDF akan menyesuaikan mapping result (futureValue)
             generateSpecialGoalPDF(inputData, { futureValue: result.futureValue, monthlySaving: result.monthlySaving }, userName);
         }
     };
@@ -144,22 +161,45 @@ export default function GoalsPage() {
     return (
         <div className="min-h-full w-full pb-24 md:pb-12">
 
-            {/* --- HEADER (PAM IDENTITY) --- */}
-            <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-                <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
-                <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
+            {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
+            <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
 
-                <div className="relative z-10 max-w-5xl mx-auto text-center">
-                    <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4">
+                {/* 1. LAYER GAMBAR (ABSOLUTE) */}
+                <div className="absolute inset-0 w-full h-full z-0">
+                    {backgroundImages.map((image, index) => (
+                        <div
+                            key={image}
+                            className={cn(
+                                "absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ease-in-out",
+                                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                            )}
+                            style={{ backgroundImage: `url(${image})` }}
+                        />
+                    ))}
+
+                    {/* Overlay: Gelap + Pattern Wave (jika ada) */}
+                    <div className="absolute inset-0 bg-brand-500/85 mix-blend-multiply" />
+                    <div className="absolute inset-0 bg-linear-to-t from-brand-600 via-transparent to-transparent" />
+
+                    {/* Pattern Overlay (Optional, inherited from original code) */}
+                    <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
+                </div>
+
+                {/* 2. LAYER DEKORASI (Z-10) */}
+                <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
+
+                {/* 3. LAYER KONTEN (Z-20) */}
+                <div className="relative z-20 max-w-5xl mx-auto text-center">
+                    <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
                         <Target className="w-4 h-4 text-cyan-300" />
                         <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Special Goal Planner</span>
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3">
+                    <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
                         Wujudkan Mimpi Anda
                     </h1>
-                    <p className="text-brand-100 text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-90">
-                        Apapun impiannya, mari kita hitung strategi menabung yang tepat untuk mencapainya bersama PAM JAYA.
+                    <p className="text-brand-100 text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-90 drop-shadow-md">
+                        Apapun impiannya, mari kita hitung strategi menabung yang tepat untuk mencapainya bersama MAXIPRO.
                     </p>
                 </div>
             </div>
@@ -249,7 +289,6 @@ export default function GoalsPage() {
                                         <label className="text-xs font-bold text-slate-600">Asumsi Inflasi (Kenaikan Harga)</label>
                                         <span className="text-xs font-bold bg-rose-50 text-rose-600 px-2 py-1 rounded-md border border-rose-100">{inflation}% / thn</span>
                                     </div>
-                                    {/* FIX: Mengirim array [inflation] karena Slider Radix butuh array */}
                                     <Slider
                                         value={inflation}
                                         onChange={(val: number) => { setInflation(val); setResult(null); }}
@@ -265,7 +304,6 @@ export default function GoalsPage() {
                                         <label className="text-xs font-bold text-slate-600">Estimasi Return Investasi</label>
                                         <span className="text-xs font-bold bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md border border-emerald-100">{investmentRate}% / thn</span>
                                     </div>
-                                    {/* FIX: Mengirim array [investmentRate] karena Slider Radix butuh array */}
                                     <Slider
                                         value={investmentRate}
                                         onChange={(val: number) => { setInvestmentRate(val); setResult(null); }}

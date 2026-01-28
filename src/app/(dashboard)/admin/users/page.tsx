@@ -20,7 +20,7 @@ const MOCK_USERS: AdminUser[] = [
   {
     id: "1",
     fullName: "Budi Santoso",
-    email: "budi.s@pamjaya.co.id",
+    email: "budi.s@maxipro.co.id",
     nip: "19880123 201001 1 001",
     unitId: "U-001",
     unitName: "Bidang Keuangan",
@@ -32,7 +32,7 @@ const MOCK_USERS: AdminUser[] = [
   {
     id: "2",
     fullName: "Siti Aminah",
-    email: "siti.aminah@pamjaya.co.id",
+    email: "siti.aminah@maxipro.co.id",
     nip: "19900512 201502 2 005",
     unitId: "U-002",
     unitName: "Bidang SDM",
@@ -44,7 +44,7 @@ const MOCK_USERS: AdminUser[] = [
   {
     id: "3",
     fullName: "Rudi Hermawan",
-    email: "rudi.h@pamjaya.co.id",
+    email: "rudi.h@maxipro.co.id",
     nip: "19750817 200003 1 009",
     unitId: "DIR-001",
     unitName: "Direktorat Utama",
@@ -56,7 +56,7 @@ const MOCK_USERS: AdminUser[] = [
   {
     id: "4",
     fullName: "Admin System",
-    email: "admin@pamjaya.co.id",
+    email: "admin@maxipro.co.id",
     nip: "99999999",
     unitId: "IT-001",
     unitName: "Divisi TI",
@@ -68,7 +68,7 @@ const MOCK_USERS: AdminUser[] = [
   {
     id: "5",
     fullName: "Joko Susilo",
-    email: "joko.s@pamjaya.co.id",
+    email: "joko.s@maxipro.co.id",
     nip: "19951201 201901 1 022",
     unitId: "U-003",
     unitName: "Bidang Operasional",
@@ -116,7 +116,7 @@ export default function UserManagementPage() {
   }
 
   const handleResetPassword = (id: string, name: string) => {
-    if(confirm(`Reset password untuk ${name}?\nPassword akan kembali ke default: PamJaya123!`)) {
+    if(confirm(`Reset password untuk ${name}?\nPassword akan kembali ke default: maxipro123!`)) {
         alert(`Password untuk ${name} berhasil direset!`);
     }
   }
@@ -126,7 +126,7 @@ export default function UserManagementPage() {
       
       {/* --- HEADER (PAM IDENTITY) --- */}
       <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
+         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
 
@@ -208,7 +208,7 @@ export default function UserManagementPage() {
                     <tr key={user.id} className="bg-white hover:bg-brand-50/30 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shadow-inner border border-white">
+                          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shadow-inner border border-white">
                             {user.fullName.split(" ").map(n => n[0]).join("").substring(0,2)}
                           </div>
                           <div>

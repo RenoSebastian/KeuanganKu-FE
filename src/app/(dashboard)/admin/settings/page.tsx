@@ -21,7 +21,7 @@ export default function SystemSettingsPage() {
   const [settings, setSettings] = useState<SystemSettings>({
     defaultInflationRate: 5.5, // %
     defaultInvestmentRate: 6.0, // %
-    companyName: "PAM JAYA",
+    companyName: "MAXIPRO",
     maintenanceMode: false
   });
 

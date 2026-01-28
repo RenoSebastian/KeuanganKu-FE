@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'KeuanganKu - PAM JAYA', // Nama Lengkap Aplikasi
+    name: 'KeuanganKu - MAXIPRO', // Nama Lengkap Aplikasi
     short_name: 'KeuanganKu',      // Nama di bawah icon HP
-    description: 'Aplikasi Perencanaan Keuangan Karyawan PAM JAYA',
+    description: 'Aplikasi Perencanaan Keuangan Karyawan MAXIPRO',
     start_url: '/',
     display: 'standalone',         // Tampilan Native (tanpa browser bar)
     background_color: '#ffffff',
