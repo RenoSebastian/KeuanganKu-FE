@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import api from "@/lib/axios"; // Import Helper Axios
 
 export default function ProfilePage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State Loading & Edit
   const [isLoading, setIsLoading] = useState(true); // Loading awal fetch data
@@ -25,22 +26,27 @@ export default function ProfilePage() {
     email: "",
     role: "",
     unitKerja: "",
-    joinDate: "01 Agustus 2015", // Hardcoded sementara (krn blm ada di DB)
+    joinDate: "01 Agustus 2015", // Hardcoded sementara
+    avatar: "", // Default avatar dari DB
   });
 
   // State Form Input
   const [formData, setFormData] = useState({
     fullName: "",
     dateOfBirth: "", // YYYY-MM-DD
-    gender: "Laki-laki", // Visual Only (Backend blm support)
+    gender: "Laki-laki", // Visual Only
     maritalStatus: "Menikah", // Visual Only
     dependents: 0,
     phone: "0812-3456-7890", // Visual Only
     address: "Jakarta, Indonesia", // Visual Only
+    avatar: "", // Base64 string baru (jika ada upload)
   });
 
   // Backup Data (Untuk fitur Cancel)
   const [backupData, setBackupData] = useState(formData);
+
+  // State Preview Image (Untuk UX instan saat upload)
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
 
   // --- 1. FETCH DATA (GET /users/me) ---
@@ -58,25 +64,26 @@ export default function ProfilePage() {
           role: user.role,
           unitKerja: user.unitKerja?.namaUnit || "Unit Kerja Tidak Diketahui",
           joinDate: "01 Agustus 2015",
+          avatar: user.avatar || "",
         });
 
         // Set Data Form Editable
-        // Konversi Tanggal ISO (2025-01-01T00:00.000Z) ke YYYY-MM-DD
         const dob = user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "";
 
         const initialForm = {
           fullName: user.fullName,
           dateOfBirth: dob,
           dependents: user.dependentCount || 0,
-          // Field di bawah ini belum ada di DB, kita pakai default/dummy dulu
           gender: "Laki-laki",
           maritalStatus: "Menikah",
           phone: "0812-3456-7890",
           address: "Jakarta, Indonesia",
+          avatar: user.avatar || "",
         };
 
         setFormData(initialForm);
         setBackupData(initialForm);
+        setPreviewImage(user.avatar || null);
 
       } catch (error) {
         console.error("Gagal load profil:", error);
@@ -89,15 +96,32 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("alert") === "incomplete") {
-      alert("⚠️ MOHON PERHATIAN!\n\nData profil Anda belum lengkap. Silakan isi Usia dan Gaji Tetap agar fitur Kalkulator bisa berfungsi.");
+  // --- 2. HANDLERS IMAGE PICKER ---
+  const handleAvatarClick = () => {
+    if (isEditing) {
+      fileInputRef.current?.click();
     }
-  }, []);
+  };
 
-  // --- 2. HANDLERS ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Ukuran foto terlalu besar (Max 2MB)");
+        return;
+      }
 
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setPreviewImage(base64String); // Update UI langsung
+        setFormData((prev) => ({ ...prev, avatar: base64String })); // Simpan ke state form
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // --- 3. HANDLERS EDIT FORM ---
   const handleStartEdit = () => {
     setBackupData(formData);
     setIsEditing(true);
@@ -105,30 +129,38 @@ export default function ProfilePage() {
 
   const handleCancel = () => {
     setFormData(backupData);
+    setPreviewImage(userData.avatar || null); // Reset preview ke gambar lama
     setIsEditing(false);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Siapkan Payload (Hanya kirim field yang didukung Backend)
+      // Siapkan Payload
       const payload = {
         fullName: formData.fullName,
-        dateOfBirth: formData.dateOfBirth, // String YYYY-MM-DD valid
+        dateOfBirth: formData.dateOfBirth,
         dependentCount: Number(formData.dependents),
+        avatar: formData.avatar, // Kirim string base64
       };
 
       // Tembak API Patch
       await api.patch("/users/me", payload);
 
       // Update Tampilan Static
-      setUserData((prev: any) => ({ ...prev, fullName: formData.fullName }));
+      setUserData((prev: any) => ({
+        ...prev,
+        fullName: formData.fullName,
+        avatar: formData.avatar
+      }));
 
-      // Update LocalStorage user (agar nama di dashboard berubah tanpa refresh)
+      // Update LocalStorage user
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         parsed.fullName = formData.fullName;
+        // Opsional: simpan avatar di localstorage jika perlu, tapi hati-hati size limit
+        // parsed.avatar = formData.avatar; 
         localStorage.setItem("user", JSON.stringify(parsed));
       }
 
@@ -179,20 +211,35 @@ export default function ProfilePage() {
             <div className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-lg rounded-[2rem] p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden">
               <div className="absolute top-0 w-full h-32 bg-linear-to-b from-blue-50 to-transparent -z-10" />
 
-              <div className="relative group mb-4">
+              <div className="relative group mb-4" onClick={handleAvatarClick}>
                 <div className={cn(
                   "w-28 h-28 md:w-32 md:h-32 rounded-full border-4 shadow-xl overflow-hidden relative transition-all duration-300",
-                  isEditing ? "border-blue-400 scale-105" : "border-white bg-slate-200"
+                  isEditing ? "border-blue-400 scale-105 cursor-pointer" : "border-white bg-slate-200"
                 )}>
-                  <div className="absolute inset-0 bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center text-4xl md:text-5xl text-white font-bold uppercase">
-                    {userData.fullName.charAt(0)}
-                  </div>
+                  {previewImage ? (
+                    <img src={previewImage} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center text-4xl md:text-5xl text-white font-bold uppercase">
+                      {userData.fullName.charAt(0)}
+                    </div>
+                  )}
+
                   {isEditing && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center animate-in fade-in cursor-pointer">
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center animate-in fade-in group-hover:bg-black/50 transition-colors">
                       <Camera className="w-8 h-8 text-white" />
                     </div>
                   )}
                 </div>
+
+                {/* Hidden Input File */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+
                 {/* Mode Badge */}
                 <div className={cn(
                   "absolute bottom-1 right-1 p-2 rounded-full border-2 border-white shadow-sm transition-colors",
@@ -204,6 +251,10 @@ export default function ProfilePage() {
 
               <h2 className="text-xl md:text-2xl font-bold text-slate-800">{userData.fullName}</h2>
               <p className="text-sm text-slate-500 font-medium mt-1">{userData.role} • {userData.nip}</p>
+
+              {isEditing && (
+                <p className="text-[10px] text-blue-500 mt-2 font-semibold animate-pulse">Klik foto untuk mengganti</p>
+              )}
 
               {!isEditing && (
                 <button
