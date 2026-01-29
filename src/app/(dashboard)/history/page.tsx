@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
 import { CheckupDetailResponse } from "@/lib/types";
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW]
 
 // --- HELPER FORMATTER ---
 const formatMoney = (val: number) =>
@@ -33,6 +34,9 @@ export default function HistoryPage() {
   const [selectedCheckup, setSelectedCheckup] = useState<CheckupDetailResponse | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+
+  // State PDF Download
+  const [showPdfModal, setShowPdfModal] = useState(false); // Modal Loading PDF
 
   // --- 1. FETCH DATA (INIT) ---
   useEffect(() => {
@@ -65,6 +69,23 @@ export default function HistoryPage() {
     }
   };
 
+  // --- 3. DOWNLOAD PDF HANDLER ---
+  const handleDownloadPDF = async (id: string) => {
+    if (showPdfModal) return;
+
+    try {
+      setShowPdfModal(true);
+      // Panggil endpoint khusus history PDF
+      await financialService.downloadHistoryPdf(id);
+
+      setTimeout(() => setShowPdfModal(false), 500);
+    } catch (error) {
+      console.error("PDF Error:", error);
+      setShowPdfModal(false);
+      alert("Gagal mengunduh PDF.");
+    }
+  };
+
   // --- FILTERING ---
   const filteredData = historyData.filter(item => {
     const dateStr = formatDate(item.checkDate).toLowerCase();
@@ -73,6 +94,9 @@ export default function HistoryPage() {
 
   return (
     <div className="relative min-h-screen w-full bg-slate-50/50 pb-20">
+
+      {/* 1. MOUNT PDF LOADING MODAL */}
+      <PdfLoadingModal isOpen={showPdfModal} />
 
       {/* Background Decorations */}
       <div className="hidden md:block absolute top-0 right-0 w-125 h-125 bg-blue-100/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
@@ -138,6 +162,7 @@ export default function HistoryPage() {
                 item={item}
                 index={index}
                 onDetail={() => handleViewDetail(item.id)}
+                onDownload={() => handleDownloadPDF(item.id)} // [NEW] Pass handler
               />
             ))}
           </div>
@@ -276,8 +301,19 @@ export default function HistoryPage() {
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowModal(false)}>Tutup</Button>
               {selectedCheckup && (
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  <Download className="w-4 h-4 mr-2" />
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    // Pastikan ID ada di dalam record
+                    if ((selectedCheckup as any).record?.id) {
+                      handleDownloadPDF((selectedCheckup as any).record.id);
+                    } else {
+                      alert("ID Data tidak valid");
+                    }
+                  }}
+                  disabled={showPdfModal}
+                >
+                  {showPdfModal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
                   Cetak Laporan
                 </Button>
               )}
@@ -291,7 +327,7 @@ export default function HistoryPage() {
 }
 
 // --- KOMPONEN KARTU ---
-function HistoryCard({ item, index, onDetail }: { item: any, index: number, onDetail: () => void }) {
+function HistoryCard({ item, index, onDetail, onDownload }: { item: any, index: number, onDetail: () => void, onDownload: () => void }) {
   const statusColor =
     item.status === "SEHAT" ? "bg-green-500" :
       item.status === "WASPADA" ? "bg-yellow-500" : "bg-red-500";
@@ -343,14 +379,21 @@ function HistoryCard({ item, index, onDetail }: { item: any, index: number, onDe
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-2">
-            <span className="text-[10px] text-slate-300 font-mono">#{item.id.slice(0, 8)}</span>
+          <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-2 gap-2">
             <Button
               size="sm"
-              className="bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border-0 text-xs font-bold h-8"
+              variant="outline"
+              className="flex-1 text-xs h-8 border-slate-200 text-slate-600 hover:bg-slate-50"
+              onClick={onDownload}
+            >
+              <Download className="w-3 h-3 mr-1" /> PDF
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border-0 text-xs font-bold h-8"
               onClick={onDetail}
             >
-              Lihat Detail
+              Detail
               <ChevronRight className="w-3 h-3 ml-1" />
             </Button>
           </div>

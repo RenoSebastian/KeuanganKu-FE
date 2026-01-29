@@ -250,5 +250,21 @@ export const financialService = {
       timestamp: string;
     }>("/market/gold-price");
     return response.data;
-  }
+  },
+
+  //history
+  // [NEW] Download History PDF
+  downloadHistoryPdf: async (historyId: string) => {
+    const response = await api.get(`/financial/checkup/history/pdf/${historyId}`, {
+      responseType: 'blob',
+      timeout: 60000,
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Checkup-History-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
 };
