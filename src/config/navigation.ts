@@ -10,7 +10,7 @@ export const NAVIGATION_CONFIG = {
   main: [
     { label: "Dashboard", icon: Home, href: "/" },
     { label: "Financial Checkup", icon: Calculator, href: "/finance/checkup" },
-    { label: "Keuangan", icon: Wallet, href: "/finance" },
+    { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
     { label: "Riwayat", icon: History, href: "/history" },
     { label: "Profil", icon: User, href: "/profile" },
   ],

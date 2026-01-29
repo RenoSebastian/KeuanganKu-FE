@@ -16,7 +16,9 @@ import {
   Phone,
   Mail,
   Building2,
-  HelpCircle
+  HelpCircle,
+  Notebook,
+  Banknote
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -156,38 +158,38 @@ export default function LandingPage() {
             <FeatureCard 
               icon={<GraduationCap className="w-6 h-6 text-white" />}
               color="bg-blue-600"
-              title="Dana Pendidikan"
+              title="Rancang Dana Pendidikan Anak"
               desc="Simulasi biaya sekolah anak dari TK hingga Kuliah dengan memperhitungkan inflasi tahunan."
             />
             <FeatureCard 
               icon={<Umbrella className="w-6 h-6 text-white" />}
               color="bg-indigo-600"
-              title="Perencanaan Pensiun"
+              title="Rancang Dana Hari Tua"
               desc="Pastikan masa purna tugas Anda tetap sejahtera dengan perhitungan Replacement Ratio yang tepat."
             />
             <FeatureCard 
               icon={<ShieldCheck className="w-6 h-6 text-white" />}
               color="bg-rose-600"
-              title="Proteksi Asuransi"
+              title="Rancang Proteksi"
               desc="Hitung kebutuhan Uang Pertanggungan (UP) Jiwa yang ideal untuk melindungi keluarga tercinta."
             />
              <FeatureCard 
               icon={<Wallet className="w-6 h-6 text-white" />}
               color="bg-slate-800"
-              title="Budgeting"
+              title="Atur Anggaran Bulanan"
               desc="Panduan alokasi gaji bulanan."
             />
             <FeatureCard 
               icon={<TrendingUp className="w-6 h-6 text-white" />}
               color="bg-amber-500"
-              title="Goal Setting"
+              title="Rancang Tujuan Lainnya"
               desc="Rencanakan pembelian rumah, kendaraan, atau ibadah haji dengan roadmap tabungan yang terukur."
             />
              <FeatureCard 
-              icon={<CheckCircle2 className="w-6 h-6 text-white" />}
+              icon={<Banknote className="w-6 h-6 text-white" />}
               color="bg-emerald-600"
-              title="Rekomendasi Solusi"
-              desc="Sistem memberikan saran otomatis berdasarkan hasil Financial Checkup Anda."
+              title="Analisa Keuangan Pribadi"
+              desc="Diagnosa kesehatan finansial Anda secara menyeluruh dengan standar perencana keuangan profesional"
             />
           </div>
         </div>
