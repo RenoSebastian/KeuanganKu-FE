@@ -15,7 +15,7 @@ import { BudgetResult, BudgetAllocation } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { BudgetGuide } from "@/components/features/calculator/budget-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
-import { MonthlyHelperModal } from "@/components/features/finance/monthly-helper-modal"; // [NEW] Import Modal Helper
+import { MonthlyHelperModal } from "@/components/features/finance/monthly-helper-modal";
 
 // --- 1. HELPER: MAPPING VISUAL BERDASARKAN TIPE ---
 const getAllocationStyle = (type: BudgetAllocation["type"]) => {
@@ -30,7 +30,7 @@ const getAllocationStyle = (type: BudgetAllocation["type"]) => {
 };
 
 export default function BudgetPage() {
-  // --- STATE INPUT (Sekarang Menyimpan Nilai Tahunan) ---
+  // --- STATE INPUT (Menyimpan Nilai Tahunan) ---
   const [fixedIncome, setFixedIncome] = useState("");
   const [variableIncome, setVariableIncome] = useState("");
 
@@ -47,7 +47,7 @@ export default function BudgetPage() {
   // State Modal PDF & Helper Kalkulator
   const [showPdfModal, setShowPdfModal] = useState(false);
 
-  // [NEW] State untuk menentukan input mana yang sedang dibantu hitung
+  // State untuk menentukan input mana yang sedang dibantu hitung
   const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<"fixedIncome" | "variableIncome" | null>(null);
 
   // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
@@ -75,7 +75,7 @@ export default function BudgetPage() {
         const data = await financialService.getBudgets();
         if (data && data.length > 0) {
           const latestBudget = data[0];
-          // [UPDATED] Load data dari DB (Bulanan) lalu kali 12 untuk ditampilkan sebagai Tahunan di input
+          // Load data dari DB (Bulanan) lalu kali 12 untuk ditampilkan sebagai Tahunan di input
           const fixedAnnual = Number(latestBudget.fixedIncome) * 12;
           const variableAnnual = Number(latestBudget.variableIncome) * 12;
 
@@ -113,9 +113,9 @@ export default function BudgetPage() {
     setter(formatted);
   };
 
-  // [NEW] Handler untuk menerima hasil hitungan dari Modal (Bulanan -> Tahunan)
-  const applyMonthlyToAnnual = (monthlyValue: number) => {
-    const annualValue = monthlyValue * 12;
+  // [FIXED] Handler untuk menerima hasil hitungan dari Modal
+  // Value `annualValue` dari modal SUDAH dikali 12, jadi jangan dikali lagi.
+  const handleHelperApply = (annualValue: number) => {
     const formatted = new Intl.NumberFormat("id-ID").format(annualValue);
 
     if (monthlyHelperTarget === "fixedIncome") {
@@ -141,7 +141,7 @@ export default function BudgetPage() {
     setIsSaving(true);
 
     try {
-      // [UPDATED] Normalisasi: Bagi 12 sebelum kirim ke Backend (karena sistem budget berbasis bulanan)
+      // Normalisasi: Bagi 12 sebelum kirim ke Backend (karena sistem budget berbasis bulanan)
       const fixedMonthly = Math.round(fixedAnnual / 12);
       const variableMonthly = Math.round(variableAnnual / 12);
 
@@ -306,11 +306,11 @@ export default function BudgetPage() {
       {/* 1. MOUNT MODAL PDF & HELPER */}
       <PdfLoadingModal isOpen={showPdfModal} />
 
-      {/* [NEW] Modal Bantu Hitung Bulanan -> Tahunan */}
+      {/* [FIXED] Modal Bantu Hitung - Ganti onSave jadi onApply */}
       <MonthlyHelperModal
         isOpen={monthlyHelperTarget !== null}
         onClose={() => setMonthlyHelperTarget(null)}
-        onApply={applyMonthlyToAnnual}
+        onApply={handleHelperApply}
         title={monthlyHelperTarget === "fixedIncome" ? "Hitung Gaji Tahunan" : "Hitung Bonus Tahunan"}
       />
 
@@ -369,7 +369,7 @@ export default function BudgetPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <label className="text-[10px] font-bold text-brand-600 uppercase tracking-wide">Pemasukkan Tetap (Per Tahun)</label>
-                  {/* [NEW] Button Bantu Hitung */}
+                  {/* Button Bantu Hitung */}
                   <button
                     type="button"
                     onClick={() => setMonthlyHelperTarget("fixedIncome")}
@@ -393,7 +393,7 @@ export default function BudgetPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Pemasukkan Tidak Tetap (Per Tahun)</label>
-                  {/* [NEW] Button Bantu Hitung */}
+                  {/* Button Bantu Hitung */}
                   <button
                     type="button"
                     onClick={() => setMonthlyHelperTarget("variableIncome")}
@@ -472,7 +472,7 @@ export default function BudgetPage() {
                     <p className="text-brand-100 font-bold uppercase tracking-widest text-[10px] mb-1">
                       Safe to Spend ({viewMode === "MONTHLY" ? "Bulan Ini" : "Setahun"})
                     </p>
-                    <h2 className="text-3xl font-black tracking-tight mb-2">
+                    <h2 className="text-3xl font-black tracking-tight mb-2 wrap-break-word"> {/* [FIXED] Layout */}
                       {formatRupiah(displayedResult.safeToSpend)}
                     </h2>
                     <div className="h-1 w-12 bg-white/30 rounded-full mb-2" />
@@ -523,7 +523,8 @@ export default function BudgetPage() {
 
                         <div>
                           <h4 className={cn("font-bold text-sm mb-1", style.text)}>{item.label}</h4>
-                          <p className="text-2xl font-black text-slate-800 tracking-tight">
+                          {/* [FIXED] Layout agar angka tidak bleber */}
+                          <p className="text-xl md:text-2xl font-black text-slate-800 tracking-tight wrap-break-word">
                             {formatRupiah(item.amount)}
                           </p>
                           <p className="text-[10px] text-slate-500 mt-2 leading-relaxed min-h-[2.5em]">
@@ -543,7 +544,8 @@ export default function BudgetPage() {
                         <p className="text-[10px] font-bold text-cyan-600 uppercase mb-1">
                           Surplus (Wajib Ditabung)
                         </p>
-                        <h3 className="text-xl font-black text-cyan-900">{formatRupiah(displayedResult.surplus)}</h3>
+                        {/* [FIXED] Layout surplus */}
+                        <h3 className="text-lg md:text-xl font-black text-cyan-900 wrap-break-word">{formatRupiah(displayedResult.surplus)}</h3>
                       </div>
                       <div className="h-10 w-10 bg-cyan-100 rounded-full flex items-center justify-center text-cyan-600">
                         <PiggyBank className="w-5 h-5" />

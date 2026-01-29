@@ -15,7 +15,7 @@ import { formatRupiah } from "@/lib/financial-math";
 import { GoalSimulationResult, GoalType, GoalSimulationInput } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { GoalsGuide } from "@/components/features/calculator/goals-guide";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 
 // --- KONFIGURASI TEMA PER TUJUAN ---
 const GOAL_OPTIONS: { id: GoalType; label: string; icon: any; color: string; gradient: string; desc: string }[] = [
@@ -109,9 +109,6 @@ export default function GoalsPage() {
         }
 
         setIsLoading(true);
-        // Kita anggap ini juga proses saving karena kita butuh ID untuk PDF nanti
-        // Tapi disini kita hanya simulasi dulu, save dilakukan saat download PDF atau tombol save (jika ada)
-        // Untuk simplifikasi UX, kita hitung simulasi dulu.
 
         try {
             const payload: GoalSimulationInput = {
@@ -163,20 +160,16 @@ export default function GoalsPage() {
 
                 setIsSaving(true);
                 try {
-                    // [FIX] HITUNG FUTURE VALUE & TARGET DATE UNTUK PAYLOAD SAVE
-                    // Backend butuh targetAmount (FV), bukan currentCost (PV)
                     const futureValue = cost * Math.pow(1 + (inflation / 100), years);
 
-                    // Hitung Target Date (Hari ini + Durasi Tahun)
                     const targetDateObj = new Date();
                     targetDateObj.setFullYear(targetDateObj.getFullYear() + years);
-                    const targetDateStr = targetDateObj.toISOString().split('T')[0]; // Format YYYY-MM-DD
+                    const targetDateStr = targetDateObj.toISOString().split('T')[0];
 
-                    // Save Goal to Database dengan format yang benar sesuai CreateGoalDto
                     const response = await financialService.saveGoalPlan({
                         goalName: GOAL_OPTIONS.find(g => g.id === selectedGoal)?.label || 'Goal',
-                        targetAmount: Math.round(futureValue), // [CHANGED] dari currentCost ke targetAmount
-                        targetDate: targetDateStr,             // [CHANGED] dari years ke targetDate
+                        targetAmount: Math.round(futureValue),
+                        targetDate: targetDateStr,
                         inflationRate: inflation,
                         returnRate: investmentRate
                     });
@@ -211,7 +204,6 @@ export default function GoalsPage() {
         }
     };
 
-    // Get current theme based on selection
     const currentTheme = GOAL_OPTIONS.find(g => g.id === selectedGoal) || GOAL_OPTIONS[3];
 
     return (
@@ -236,11 +228,11 @@ export default function GoalsPage() {
                         />
                     ))}
 
-                    {/* Overlay: Gelap + Pattern Wave (jika ada) */}
+                    {/* Overlay: Gelap + Pattern Wave */}
                     <div className="absolute inset-0 bg-brand-500/85 mix-blend-multiply" />
                     <div className="absolute inset-0 bg-linear-to-t from-brand-600 via-transparent to-transparent" />
 
-                    {/* Pattern Overlay (Optional, inherited from original code) */}
+                    {/* Pattern Overlay */}
                     <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
                 </div>
 
@@ -417,25 +409,29 @@ export default function GoalsPage() {
                                             <span className="text-[10px] font-bold uppercase tracking-widest text-white">Rekomendasi Setoran</span>
                                         </div>
 
-                                        <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2 drop-shadow-sm">
+                                        {/* [FIXED] Layout & Break Words */}
+                                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight mb-2 drop-shadow-sm break-words leading-tight">
                                             {formatRupiah(result.monthlySaving)}
                                         </h2>
-                                        <p className="text-white/80 font-medium text-sm mb-8">per bulan</p>
+                                        <p className="text-white/80 font-medium text-m mb-8">per bulan</p>
 
                                         <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md text-left">
-                                            <div className="flex justify-between items-center text-sm mb-1">
+                                            <div className="flex justify-between items-center text-sm mb-1 gap-2">
                                                 <span className="text-white/80 font-medium">Biaya Hari Ini</span>
-                                                <span className="font-bold">{formatRupiah(parseInt(currentCost.replace(/\./g, "")))}</span>
+                                                <span className="font-bold break-all text-right">{formatRupiah(parseInt(currentCost.replace(/\./g, "")))}</span>
                                             </div>
                                             <div className="flex justify-center my-2 opacity-50">
                                                 <ArrowRight className="w-4 h-4 text-white rotate-90" />
                                             </div>
-                                            <div className="flex justify-between items-center">
+                                            <div className="flex justify-between items-center gap-2">
                                                 <div className="flex flex-col">
                                                     <span className="text-white/80 text-xs font-medium">Estimasi Masa Depan</span>
                                                     <span className="text-[10px] opacity-70">({duration} Tahun, Inflasi {inflation}%)</span>
                                                 </div>
-                                                <span className="text-xl font-bold text-white bg-white/20 px-2 py-1 rounded">{formatRupiah(result.futureValue)}</span>
+                                                {/* [FIXED] Break words untuk angka future value */}
+                                                <span className="text-lg sm:text-sm font-bold text-white bg-white/20 px-2 py-1 rounded break-all text-right">
+                                                    {formatRupiah(result.futureValue)}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -453,13 +449,13 @@ export default function GoalsPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                             <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Total Pokok</p>
-                                            <p className="text-sm font-black text-slate-700">
+                                            <p className="text-sm font-black text-slate-700 break-words">
                                                 {formatRupiah(result.monthlySaving * 12 * parseInt(duration))}
                                             </p>
                                         </div>
                                         <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
                                             <p className="text-[10px] text-emerald-600 uppercase font-bold mb-1">Hasil Bunga</p>
-                                            <p className="text-sm font-black text-emerald-700">
+                                            <p className="text-sm font-black text-emerald-700 break-words">
                                                 {formatRupiah(Math.max(0, result.futureValue - (result.monthlySaving * 12 * parseInt(duration))))}
                                             </p>
                                         </div>
@@ -473,7 +469,7 @@ export default function GoalsPage() {
                                     </Button>
                                     <Button
                                         className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
-                                        onClick={handleDownloadPDF} // [UPDATED] Handler PDF
+                                        onClick={handleDownloadPDF}
                                         disabled={isSaving || showPdfModal}
                                     >
                                         {showPdfModal ? (

@@ -617,27 +617,47 @@ export function CheckupWizard() {
                             </div>
 
                             {/* --- LIVE NETWORTH COUNTER (Highlight Akhir Halaman) --- */}
-                            <div className="mt-12 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl ring-4 ring-brand-500/20">
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 rounded-full blur-[80px] -mr-32 -mt-32"></div>
-                                <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[60px] -ml-20 -mb-20"></div>
-                                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                                    <div className="text-center md:text-left">
-                                        <p className="text-brand-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Kekayaan Bersih Saat Ini (Net Worth)</p>
-                                        <h2 className="text-3xl md:text-5xl font-black tracking-tight text-white">
+                            <div className="mt-12 bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl ring-4 ring-brand-500/20">
+                                {/* Background Effects */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none"></div>
+                                <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[60px] -ml-20 -mb-20 pointer-events-none"></div>
+
+                                {/* Content Wrapper */}
+                                <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-8 lg:gap-12">
+
+                                    {/* Left Side: Main Net Worth */}
+                                    <div className="text-center lg:text-left w-full">
+                                        <p className="text-brand-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">
+                                            Kekayaan Bersih Saat Ini (Net Worth)
+                                        </p>
+                                        {/* Angka Utama: Responsive size + break-words agar tidak bleber */}
+                                        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white wrap-break-word leading-tight">
                                             {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(totalAssets - totalDebt)}
                                         </h2>
-                                        <p className="text-slate-400 text-xs mt-2 italic font-medium">Net Worth = Total Aset - Total Utang</p>
+                                        <p className="text-slate-400 text-xs mt-2 italic font-medium">
+                                            Net Worth = Total Aset - Total Utang
+                                        </p>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-                                        <div className="px-6 py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center">
-                                            <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Total Aset</p>
-                                            <p className="text-lg font-bold text-white">{formatRupiah(totalAssets)}</p>
+
+                                    {/* Right Side: Breakdown Cards */}
+                                    <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto shrink-0">
+                                        {/* Card Aset */}
+                                        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center min-w-32.5">
+                                            <p className="text-[9px] text-emerald-300/80 font-bold uppercase mb-1 tracking-wider">Total Aset</p>
+                                            <p className="text-sm sm:text-base md:text-lg font-bold text-white wrap-break-word">
+                                                {formatRupiah(totalAssets)}
+                                            </p>
                                         </div>
-                                        <div className="px-6 py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center">
-                                            <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Total Utang</p>
-                                            <p className="text-lg font-bold text-white-400">{formatRupiah(totalDebt)}</p>
+
+                                        {/* Card Utang */}
+                                        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center min-w-32.5">
+                                            <p className="text-[9px] text-rose-300/80 font-bold uppercase mb-1 tracking-wider">Total Utang</p>
+                                            <p className="text-sm sm:text-base md:text-lg font-bold text-rose-100 wrap-break-word">
+                                                {formatRupiah(totalDebt)}
+                                            </p>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                         </div>
