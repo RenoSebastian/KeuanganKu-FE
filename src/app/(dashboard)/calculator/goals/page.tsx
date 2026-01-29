@@ -13,9 +13,9 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
 import { GoalSimulationResult, GoalType, GoalSimulationInput } from "@/lib/types";
-import { generateSpecialGoalPDF } from "@/lib/pdf";
 import { financialService } from "@/services/financial.service";
 import { GoalsGuide } from "@/components/features/calculator/goals-guide";
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
 
 // --- KONFIGURASI TEMA PER TUJUAN ---
 const GOAL_OPTIONS: { id: GoalType; label: string; icon: any; color: string; gradient: string; desc: string }[] = [
@@ -62,7 +62,12 @@ export default function GoalsPage() {
     const [investmentRate, setInvestmentRate] = useState(6);
 
     const [result, setResult] = useState<GoalSimulationResult | null>(null);
+
+    // State UI
     const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [savedId, setSavedId] = useState<string | null>(null); // ID for PDF
+    const [showPdfModal, setShowPdfModal] = useState(false);     // Modal PDF
 
     // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -88,7 +93,10 @@ export default function GoalsPage() {
         if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
         setCurrentCost(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
         // Reset result jika input berubah agar user menghitung ulang
-        if (result) setResult(null);
+        if (result) {
+            setResult(null);
+            setSavedId(null);
+        }
     };
 
     const handleCalculate = async () => {
@@ -101,6 +109,9 @@ export default function GoalsPage() {
         }
 
         setIsLoading(true);
+        // Kita anggap ini juga proses saving karena kita butuh ID untuk PDF nanti
+        // Tapi disini kita hanya simulasi dulu, save dilakukan saat download PDF atau tombol save (jika ada)
+        // Untuk simplifikasi UX, kita hitung simulasi dulu.
 
         try {
             const payload: GoalSimulationInput = {
@@ -130,28 +141,73 @@ export default function GoalsPage() {
         setCurrentCost("");
         setDuration("5");
         setResult(null);
+        setSavedId(null);
     };
 
-    const handleDownload = () => {
-        if (result) {
-            let userName = "User";
-            if (typeof window !== "undefined") {
-                const savedUser = localStorage.getItem("user");
-                if (savedUser) { userName = JSON.parse(savedUser).name || "User"; }
+    // --- PDF DOWNLOAD HANDLER (SERVER-SIDE) ---
+    const handleDownloadPDF = async () => {
+        if (showPdfModal) return;
+
+        try {
+            let targetId = savedId;
+
+            // 1. AUTO-SAVE jika belum ada ID
+            if (!targetId) {
+                const cost = parseInt(currentCost.replace(/\./g, "")) || 0;
+                const years = parseInt(duration) || 0;
+
+                if (cost === 0 || years === 0) {
+                    alert("Mohon lengkapi data terlebih dahulu.");
+                    return;
+                }
+
+                setIsSaving(true);
+                try {
+                    // [FIX] HITUNG FUTURE VALUE & TARGET DATE UNTUK PAYLOAD SAVE
+                    // Backend butuh targetAmount (FV), bukan currentCost (PV)
+                    const futureValue = cost * Math.pow(1 + (inflation / 100), years);
+
+                    // Hitung Target Date (Hari ini + Durasi Tahun)
+                    const targetDateObj = new Date();
+                    targetDateObj.setFullYear(targetDateObj.getFullYear() + years);
+                    const targetDateStr = targetDateObj.toISOString().split('T')[0]; // Format YYYY-MM-DD
+
+                    // Save Goal to Database dengan format yang benar sesuai CreateGoalDto
+                    const response = await financialService.saveGoalPlan({
+                        goalName: GOAL_OPTIONS.find(g => g.id === selectedGoal)?.label || 'Goal',
+                        targetAmount: Math.round(futureValue), // [CHANGED] dari currentCost ke targetAmount
+                        targetDate: targetDateStr,             // [CHANGED] dari years ke targetDate
+                        inflationRate: inflation,
+                        returnRate: investmentRate
+                    });
+
+                    if (response && (response as any).plan?.id) {
+                        targetId = (response as any).plan.id;
+                        setSavedId(targetId);
+                    }
+                } catch (e) {
+                    console.error("Auto-save failed", e);
+                    alert("Gagal menyimpan data otomatis.");
+                    return;
+                } finally {
+                    setIsSaving(false);
+                }
             }
 
-            const cost = parseInt(currentCost.replace(/\./g, "")) || 0;
-            const years = parseInt(duration) || 0;
+            // 2. Open Modal & Download
+            setShowPdfModal(true);
 
-            const inputData = {
-                goalType: selectedGoal,
-                currentCost: cost,
-                duration: years,
-                inflationRate: inflation,
-                investmentRate: investmentRate
-            };
+            if (targetId) {
+                await financialService.downloadGoalPdf(targetId);
+            }
 
-            generateSpecialGoalPDF(inputData, { futureValue: result.futureValue, monthlySaving: result.monthlySaving }, userName);
+            // 3. Close Modal
+            setTimeout(() => setShowPdfModal(false), 500);
+
+        } catch (error) {
+            console.error("PDF Error:", error);
+            setShowPdfModal(false);
+            alert("Gagal mengunduh PDF. Server sibuk atau timeout.");
         }
     };
 
@@ -160,6 +216,9 @@ export default function GoalsPage() {
 
     return (
         <div className="min-h-full w-full pb-24 md:pb-12">
+
+            {/* 1. MOUNT MODAL LOADING */}
+            <PdfLoadingModal isOpen={showPdfModal} />
 
             {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
             <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
@@ -219,7 +278,7 @@ export default function GoalsPage() {
                                     return (
                                         <button
                                             key={option.id}
-                                            onClick={() => { setSelectedGoal(option.id); setResult(null); }}
+                                            onClick={() => { setSelectedGoal(option.id); setResult(null); setSavedId(null); }}
                                             className={cn(
                                                 "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300 gap-2 h-28",
                                                 isSelected
@@ -273,7 +332,7 @@ export default function GoalsPage() {
                                         <Input
                                             type="number"
                                             value={duration}
-                                            onChange={(e) => { setDuration(e.target.value); setResult(null); }}
+                                            onChange={(e) => { setDuration(e.target.value); setResult(null); setSavedId(null); }}
                                             className="h-14 text-lg font-bold text-center text-slate-800 bg-slate-50 border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl pr-16 pl-4"
                                         />
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold">Tahun</div>
@@ -291,10 +350,9 @@ export default function GoalsPage() {
                                     </div>
                                     <Slider
                                         value={inflation}
-                                        onChange={(val: number) => { setInflation(val); setResult(null); }}
+                                        onChange={(val: number) => { setInflation(val); setResult(null); setSavedId(null); }}
                                         min={0} max={20} step={0.5}
-                                        colorClass="accent-rose-500"
-                                        className="py-2"
+                                        className="accent-rose-500 py-2"
                                     />
                                 </div>
 
@@ -306,17 +364,16 @@ export default function GoalsPage() {
                                     </div>
                                     <Slider
                                         value={investmentRate}
-                                        onChange={(val: number) => { setInvestmentRate(val); setResult(null); }}
+                                        onChange={(val: number) => { setInvestmentRate(val); setResult(null); setSavedId(null); }}
                                         min={0} max={20} step={0.5}
-                                        colorClass="accent-emerald-500"
-                                        className="py-2"
+                                        className="accent-emerald-500 py-2"
                                     />
                                 </div>
                             </div>
 
                             <Button
                                 onClick={handleCalculate}
-                                disabled={isLoading}
+                                disabled={isLoading || isSaving}
                                 className={cn(
                                     "w-full h-12 text-base font-bold shadow-lg shadow-brand-500/20 rounded-xl text-white transition-all hover:scale-[1.02] bg-brand-600 hover:bg-brand-700 disabled:opacity-70 disabled:cursor-not-allowed"
                                 )}
@@ -411,11 +468,20 @@ export default function GoalsPage() {
 
                                 {/* ACTIONS */}
                                 <div className="flex gap-3">
-                                    <Button variant="outline" onClick={handleReset} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
+                                    <Button variant="outline" onClick={handleReset} disabled={showPdfModal} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
                                         <RefreshCcw className="w-4 h-4 mr-2" /> Reset
                                     </Button>
-                                    <Button className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold" onClick={handleDownload}>
-                                        <Download className="w-4 h-4 mr-2" /> Simpan PDF
+                                    <Button
+                                        className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
+                                        onClick={handleDownloadPDF} // [UPDATED] Handler PDF
+                                        disabled={isSaving || showPdfModal}
+                                    >
+                                        {showPdfModal ? (
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        ) : (
+                                            <Download className="w-4 h-4 mr-2" />
+                                        )}
+                                        {showPdfModal ? "Memproses..." : "Simpan Analisa PDF"}
                                     </Button>
                                 </div>
 

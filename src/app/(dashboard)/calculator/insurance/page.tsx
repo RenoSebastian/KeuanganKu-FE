@@ -14,9 +14,9 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
 import { InsuranceResult } from "@/lib/types";
-import { generateInsurancePDF } from "@/lib/pdf";
 import { financialService } from "@/services/financial.service";
 import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
 
 export default function InsurancePage() {
   // --- STATE INPUT ---
@@ -48,7 +48,13 @@ export default function InsurancePage() {
   const [existingInsurance, setExistingInsurance] = useState("");
 
   const [result, setResult] = useState<InsuranceResult | null>(null);
+
+  // State UI
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null); // Simpan ID untuk PDF
+  const [showPdfModal, setShowPdfModal] = useState(false);     // Modal PDF
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
@@ -77,14 +83,21 @@ export default function InsurancePage() {
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 
     if (errors.annualIncome) setErrors((prev) => ({ ...prev, annualIncome: "" }));
-    if (result) setResult(null);
+    // Reset result & savedId jika input berubah
+    if (result) {
+      setResult(null);
+      setSavedId(null);
+    }
   };
 
   const handleYearInput = (val: string, setter: (v: string) => void) => {
     let num = val.replace(/\D/g, "");
     if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
     setter(num);
-    if (result) setResult(null);
+    if (result) {
+      setResult(null);
+      setSavedId(null);
+    }
   };
 
   const parseMoney = (val: string) => parseInt(val.replace(/\./g, "")) || 0;
@@ -106,10 +119,12 @@ export default function InsurancePage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- API INTEGRATION ---
+  // --- API INTEGRATION (CALCULATE & SAVE) ---
   const handleCalculate = async () => {
     if (!validateInputs()) return;
+
     setIsLoading(true);
+    setIsSaving(true);
 
     try {
       const pDebtKPR = parseMoney(debtKPR);
@@ -125,7 +140,7 @@ export default function InsurancePage() {
 
       const response = await financialService.saveInsurancePlan({
         type: "LIFE",
-        dependentCount: 2,
+        dependentCount: 2, // Default atau bisa ditambah input field jika perlu
         monthlyExpense: pIncome / 12,
         existingDebt: totalDebt,
         existingCoverage: pExisting,
@@ -133,6 +148,12 @@ export default function InsurancePage() {
       });
 
       const calc = (response as any).calculation;
+      const plan = (response as any).plan;
+
+      // Simpan ID untuk PDF
+      if (plan?.id) {
+        setSavedId(plan.id);
+      }
 
       setResult({
         totalDebt: totalDebt,
@@ -146,6 +167,7 @@ export default function InsurancePage() {
       alert("Terjadi kesalahan saat menghitung data. Silakan coba lagi.");
     } finally {
       setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -154,32 +176,83 @@ export default function InsurancePage() {
     setAnnualIncome(""); setProtectionDuration("10");
     setFinalExpense(""); setExistingInsurance("");
     setResult(null);
+    setSavedId(null);
     setErrors({});
   };
 
-  const handleDownload = () => {
-    if (result) {
-      let userName = "User";
-      if (typeof window !== "undefined") {
-        const savedUser = localStorage.getItem("user");
-        if (savedUser) { userName = JSON.parse(savedUser).name || "User"; }
+  // --- PDF DOWNLOAD HANDLER (SERVER-SIDE) ---
+  const handleDownloadPDF = async () => {
+    if (showPdfModal) return;
+
+    try {
+      let targetId = savedId;
+
+      // 1. AUTO-SAVE jika belum ada ID
+      if (!targetId) {
+        if (!validateInputs()) {
+          alert("Mohon lengkapi data terlebih dahulu.");
+          return;
+        }
+
+        setIsSaving(true);
+        try {
+          const pDebtKPR = parseMoney(debtKPR);
+          const pDebtKPM = parseMoney(debtKPM);
+          const pDebtProd = parseMoney(debtProductive);
+          const pDebtCons = parseMoney(debtConsumptive);
+          const pDebtOther = parseMoney(debtOther);
+
+          const totalDebt = pDebtKPR + pDebtKPM + pDebtProd + pDebtCons + pDebtOther;
+          const pIncome = parseMoney(annualIncome);
+          const pExisting = parseMoney(existingInsurance);
+
+          const response = await financialService.saveInsurancePlan({
+            type: "LIFE",
+            dependentCount: 2,
+            monthlyExpense: pIncome / 12,
+            existingDebt: totalDebt,
+            existingCoverage: pExisting,
+            protectionDuration: parseInt(protectionDuration) || 10
+          });
+
+          if (response && (response as any).plan?.id) {
+            targetId = (response as any).plan.id;
+            setSavedId(targetId);
+
+            // Update result view juga
+            const calc = (response as any).calculation;
+            const pFinalExpense = parseMoney(finalExpense);
+
+            setResult({
+              totalDebt: totalDebt,
+              incomeReplacementValue: Math.max(0, calc.totalNeeded - totalDebt - pFinalExpense),
+              totalFundNeeded: calc.totalNeeded,
+              shortfall: calc.coverageGap
+            });
+          }
+        } catch (e) {
+          console.error("Auto-save failed", e);
+          alert("Gagal menyimpan data otomatis.");
+          return;
+        } finally {
+          setIsSaving(false);
+        }
       }
 
-      const inputData = {
-        debtKPR: parseMoney(debtKPR),
-        debtKPM: parseMoney(debtKPM),
-        debtProductive: parseMoney(debtProductive),
-        debtConsumptive: parseMoney(debtConsumptive),
-        debtOther: parseMoney(debtOther),
-        annualIncome: parseMoney(annualIncome),
-        protectionDuration: parseInt(protectionDuration) || 0,
-        inflationRate: inflation,
-        investmentRate: returnRate,
-        finalExpense: parseMoney(finalExpense),
-        existingInsurance: parseMoney(existingInsurance),
-      };
+      // 2. Open Modal & Download
+      setShowPdfModal(true);
 
-      generateInsurancePDF(inputData, result, userName);
+      if (targetId) {
+        await financialService.downloadInsurancePdf(targetId);
+      }
+
+      // 3. Close Modal
+      setTimeout(() => setShowPdfModal(false), 500);
+
+    } catch (error) {
+      console.error("PDF Error:", error);
+      setShowPdfModal(false);
+      alert("Gagal mengunduh PDF. Server sibuk atau timeout.");
     }
   };
 
@@ -232,6 +305,9 @@ export default function InsurancePage() {
 
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
+
+      {/* 1. MOUNT MODAL LOADING */}
+      <PdfLoadingModal isOpen={showPdfModal} />
 
       {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
@@ -387,12 +463,11 @@ export default function InsurancePage() {
                       <span>Asumsi Inflasi Tahunan</span>
                       <span>{inflation}%</span>
                     </div>
-                    {/* FIXED: Menggunakan single value & onChange */}
                     <Slider
                       value={inflation}
-                      onChange={(val: number) => { setInflation(val); setResult(null); }}
+                      onChange={(val) => { setInflation(val); setResult(null); }}
                       min={0} max={20} step={0.5}
-                      colorClass="accent-rose-600"
+                      className="accent-rose-600"
                     />
                   </div>
 
@@ -401,12 +476,11 @@ export default function InsurancePage() {
                       <span>Target Return Investasi</span>
                       <span>{returnRate}%</span>
                     </div>
-                    {/* FIXED: Menggunakan single value & onChange */}
                     <Slider
                       value={returnRate}
-                      onChange={(val: number) => { setReturnRate(val); setResult(null); }}
+                      onChange={(val) => { setReturnRate(val); setResult(null); }}
                       min={0} max={20} step={0.5}
-                      colorClass="accent-emerald-600"
+                      className="accent-emerald-600"
                     />
                   </div>
 
@@ -436,7 +510,7 @@ export default function InsurancePage() {
 
             <Button
               onClick={handleCalculate}
-              disabled={isLoading}
+              disabled={isLoading || isSaving}
               className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? (
@@ -535,11 +609,20 @@ export default function InsurancePage() {
 
                 {/* ACTIONS */}
                 <div className="flex gap-3 pt-2">
-                  <Button variant="outline" onClick={handleReset} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
+                  <Button variant="outline" onClick={handleReset} disabled={showPdfModal} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
                     <RefreshCcw className="w-4 h-4 mr-2" /> Reset
                   </Button>
-                  <Button className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold" onClick={handleDownload}>
-                    <Download className="w-4 h-4 mr-2" /> Simpan PDF
+                  <Button
+                    className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
+                    onClick={handleDownloadPDF} // [UPDATED] Handler PDF
+                    disabled={isSaving || showPdfModal}
+                  >
+                    {showPdfModal ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    {showPdfModal ? "Memproses..." : "Simpan Analisa PDF"}
                   </Button>
                 </div>
 

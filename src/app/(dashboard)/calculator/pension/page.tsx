@@ -12,9 +12,9 @@ import {
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
 import { PensionResult } from "@/lib/types";
-import { generatePensionPDF } from "@/lib/pdf";
 import { financialService } from "@/services/financial.service";
 import { PensionGuide } from "@/components/features/calculator/pension-guide";
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
 
 export default function PensionPage() {
   // --- STATE INPUT ---
@@ -28,7 +28,12 @@ export default function PensionPage() {
   const [returnRate, setReturnRate] = useState(12);
 
   const [result, setResult] = useState<PensionResult | null>(null);
+
+  // State UI & Logic
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Untuk tombol save/download
+  const [savedId, setSavedId] = useState<string | null>(null); // ID untuk PDF
+  const [showPdfModal, setShowPdfModal] = useState(false); // Modal PDF
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -78,20 +83,29 @@ export default function PensionPage() {
     if (clean === "0") clean = "";
     if (clean.length > 3) return;
     setter(clean);
-    if (result) setResult(null);
+    // Reset result & savedId jika input berubah (agar user hitung ulang)
+    if (result) {
+      setResult(null);
+      setSavedId(null);
+    }
   };
 
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
     const num = val.replace(/\D/g, "");
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
-    if (result) setResult(null);
+    if (result) {
+      setResult(null);
+      setSavedId(null);
+    }
   };
 
-  // --- UPDATED CALCULATE HANDLER ---
+  // --- CALCULATE & SAVE HANDLER ---
   const handleCalculate = async () => {
     if (!validateInputs()) return;
 
-    setIsLoading(true); // Start Loading
+    setIsLoading(true);
+    // Kita anggap proses ini juga "Saving" karena hit ke backend
+    setIsSaving(true);
 
     try {
       // 1. Prepare Data & Sanitasi
@@ -112,8 +126,14 @@ export default function PensionPage() {
         returnRate: returnRate
       });
 
-      // Response Backend dibungkus dalam object { id, userId, ..., calculation: {...} }
+      // Response Backend dibungkus dalam object { plan: { id, ... }, calculation: {...} }
       const calc = (response as any).calculation;
+      const plan = (response as any).plan;
+
+      // Simpan ID untuk keperluan PDF nanti
+      if (plan?.id) {
+        setSavedId(plan.id);
+      }
 
       // 3. Map Response to UI State
       const yearsToRetire = rAge - cAge;
@@ -133,7 +153,8 @@ export default function PensionPage() {
       console.error("Calculation error:", error);
       alert("Gagal menghitung simulasi. Periksa koneksi internet Anda.");
     } finally {
-      setIsLoading(false); // Stop Loading
+      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -145,32 +166,92 @@ export default function PensionPage() {
     setCurrentFund("");
     setErrors({});
     setResult(null);
+    setSavedId(null);
   };
 
-  const handleDownload = () => {
-    if (result) {
-      let userName = "User";
-      if (typeof window !== "undefined") {
-        const savedUser = localStorage.getItem("user");
-        if (savedUser) { userName = JSON.parse(savedUser).name || "User"; }
+  // --- PDF DOWNLOAD HANDLER (SERVER-SIDE) ---
+  const handleDownloadPDF = async () => {
+    if (showPdfModal) return; // Prevent double click
+
+    try {
+      let targetId = savedId;
+
+      // 1. AUTO-SAVE: Jika belum ada ID (belum dihitung/disimpan), hitung dulu
+      if (!targetId) {
+        if (!validateInputs()) {
+          alert("Mohon lengkapi data terlebih dahulu.");
+          return;
+        }
+
+        setIsSaving(true);
+        try {
+          const cAge = parseInt(currentAge) || 0;
+          const rAge = parseInt(retirementAge) || 0;
+          const rDur = parseInt(retirementDuration) || 20;
+          const expense = parseInt(currentExpense.replace(/\./g, "")) || 0;
+          const fund = parseInt(currentFund.replace(/\./g, "")) || 0;
+
+          const response = await financialService.savePensionPlan({
+            currentAge: cAge,
+            retirementAge: rAge,
+            lifeExpectancy: rAge + rDur,
+            currentExpense: expense,
+            currentSaving: fund,
+            inflationRate: inflation,
+            returnRate: returnRate
+          });
+
+          if (response && (response as any).plan?.id) {
+            targetId = (response as any).plan.id;
+            setSavedId(targetId);
+
+            // Update result view juga biar sinkron
+            const calc = (response as any).calculation;
+            const yearsToRetire = rAge - cAge;
+            const estimatedFvFund = fund * Math.pow(1 + (returnRate / 100), yearsToRetire);
+            setResult({
+              workingYears: yearsToRetire,
+              retirementYears: rDur,
+              fvMonthlyExpense: calc.futureMonthlyExpense || 0,
+              fvExistingFund: estimatedFvFund,
+              totalFundNeeded: calc.totalFundNeeded,
+              shortfall: calc.monthlySaving > 0 ? calc.monthlySaving * 12 * yearsToRetire : 0,
+              monthlySaving: calc.monthlySaving
+            });
+          }
+        } catch (e) {
+          console.error("Auto-save failed", e);
+          alert("Gagal menyimpan data otomatis.");
+          return;
+        } finally {
+          setIsSaving(false);
+        }
       }
 
-      const inputData = {
-        currentAge: parseInt(currentAge) || 0,
-        retirementAge: parseInt(retirementAge) || 0,
-        retirementDuration: parseInt(retirementDuration) || 0,
-        currentExpense: parseInt(currentExpense.replace(/\./g, "")) || 0,
-        currentFund: parseInt(currentFund.replace(/\./g, "")) || 0,
-        inflationRate: inflation,
-        investmentRate: returnRate
-      };
+      // 2. Buka Modal Loading (UX)
+      setShowPdfModal(true);
 
-      generatePensionPDF(inputData, result, userName);
+      // 3. Request PDF ke Backend (Long Process)
+      // Pastikan service financial.service.ts memiliki method downloadPensionPdf
+      if (targetId) {
+        await financialService.downloadPensionPdf(targetId);
+      }
+
+      // 4. Tutup Modal dengan delay sedikit (Smooth transition)
+      setTimeout(() => setShowPdfModal(false), 500);
+
+    } catch (error) {
+      console.error("PDF Error:", error);
+      setShowPdfModal(false);
+      alert("Gagal mengunduh PDF. Server sibuk atau timeout.");
     }
   };
 
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
+
+      {/* --- MOUNT LOADING MODAL --- */}
+      <PdfLoadingModal isOpen={showPdfModal} />
 
       {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
@@ -329,7 +410,7 @@ export default function PensionPage() {
               {/* BUTTON WITH LOADING STATE */}
               <Button
                 onClick={handleCalculate}
-                disabled={isLoading}
+                disabled={isLoading || isSaving}
                 className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
@@ -429,11 +510,20 @@ export default function PensionPage() {
 
                 {/* ACTIONS */}
                 <div className="flex gap-3 pt-2">
-                  <Button variant="outline" onClick={handleReset} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
+                  <Button variant="outline" onClick={handleReset} disabled={showPdfModal} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
                     <RefreshCcw className="w-4 h-4 mr-2" /> Reset
                   </Button>
-                  <Button className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold" onClick={handleDownload}>
-                    <Download className="w-4 h-4 mr-2" /> Simpan Rencana PDF
+                  <Button
+                    className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
+                    onClick={handleDownloadPDF} // [UPDATED]
+                    disabled={isSaving || showPdfModal}
+                  >
+                    {showPdfModal ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    {showPdfModal ? "Memproses..." : "Simpan Rencana PDF"}
                   </Button>
                 </div>
               </div>

@@ -103,10 +103,42 @@ export const financialService = {
     return response.data;
   },
 
+  // [NEW] Download Pension PDF
+  downloadPensionPdf: async (planId: string) => {
+    const response = await api.get(`/financial/pension/pdf/${planId}`, {
+      responseType: 'blob',
+      timeout: 60000,
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Pension-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
+
   // B. Asuransi
   saveInsurancePlan: async (data: InsurancePayload) => {
     const response = await api.post("/financial/calculator/insurance", data);
     return response.data;
+  },
+
+  // [NEW] Download Insurance PDF
+  downloadInsurancePdf: async (planId: string) => {
+    const response = await api.get(`/financial/insurance/pdf/${planId}`, {
+      responseType: 'blob',
+      timeout: 60000, // Tunggu Puppeteer render
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Insurance-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   },
 
   // C. Goals (Tujuan Keuangan)
@@ -122,6 +154,21 @@ export const financialService = {
     const response = await api.post<{ status: string, data: GoalSimulationResult }>("/financial/goals/simulate", data);
     // Kita unwrap data disini agar UI langsung terima result bersih
     return response.data.data;
+  },
+
+  // [NEW] Download Goal PDF
+  downloadGoalPdf: async (planId: string) => {
+    const response = await api.get(`/financial/goals/pdf/${planId}`, {
+      responseType: 'blob',
+      timeout: 60000,
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Goal-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   },
 
   // D. Pendidikan Anak (LENGKAP: CRUD & FIX DATA TYPE)
