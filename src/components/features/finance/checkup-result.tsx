@@ -13,8 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { FinancialRecord, HealthAnalysisResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
-import { generateCheckupPDF } from "@/lib/pdf-generator"; // Fallback client-side generator (optional)
-import { PdfLoadingModal } from "./pdf-loading-modal"; // <--- 1. IMPORT MODAL
+// import { generateCheckupPDF } from "@/lib/pdf-generator"; // Tidak digunakan jika full server-side
+import { PdfLoadingModal } from "./pdf-loading-modal";
 
 // [STEP 1] Prop Expansion & Mode Definition
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW";
@@ -22,9 +22,19 @@ type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW";
 interface CheckupResultProps {
     data: HealthAnalysisResult;
     rawData: FinancialRecord;
-    onReset?: () => void; // Optional karena di mode Director tidak ada reset
-    mode?: ViewMode;      // Optional, default "USER_VIEW"
+    onReset?: () => void;
+    mode?: ViewMode;
 }
+
+// [FIX] Daftar field Arus Kas yang wajib dinormalisasi (Bagi 12) sebelum simpan
+// Karena input di UI Tahunan, tapi DB menyimpan Bulanan.
+const FLOW_FIELDS: (keyof FinancialRecord)[] = [
+    'incomeFixed', 'incomeVariable',
+    'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
+    'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
+    'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
+    'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
+];
 
 export function CheckupResult({
     data,
@@ -44,11 +54,10 @@ export function CheckupResult({
     // Logic: Read Only Flag
     const isReadOnly = mode === "DIRECTOR_VIEW";
 
-    // --- 1. NORMALISASI DATA ---
-    // Prioritaskan data.ratios (hasil mapping BE baru), fallback ke ratiosDetails
+    // --- 1. NORMALISASI DATA UNTUK TAMPILAN ---
     const ratios = data.ratios || (data as any).ratiosDetails || [];
     const score = data.score ?? (data as any).healthScore ?? 0;
-    const globalStatus = data.globalStatus || (data as any).status || "BAHAYA";
+    // const globalStatus = data.globalStatus || (data as any).status || "BAHAYA"; // (Tidak dipakai di UI saat ini, tapi ada datanya)
     const netWorth = data.netWorth ?? (data as any).totalNetWorth ?? 0;
     const monthlySurplus = data.surplusDeficit ?? 0;
 
@@ -56,16 +65,34 @@ export function CheckupResult({
     const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
     const periodLabel = viewMode === "ANNUAL" ? "(Per Tahun)" : "(Per Bulan)";
 
+    // --- [CRITICAL FIX] HELPER NORMALISASI PAYLOAD ---
+    // Fungsi ini mengubah data TAHUNAN (dari UI Wizard) menjadi BULANAN (untuk DB)
+    const getNormalizedPayload = () => {
+        const payload: any = { ...rawData };
+
+        // 1. Sanitasi Spouse jika Single
+        if (payload.userProfile?.maritalStatus !== "MARRIED") {
+            delete payload.spouseProfile;
+        }
+
+        // 2. Normalisasi Field Arus Kas (Bagi 12)
+        FLOW_FIELDS.forEach(field => {
+            if (typeof payload[field] === 'number') {
+                payload[field] = Math.round(payload[field] / 12);
+            }
+        });
+
+        return payload;
+    };
+
     const handleSave = async () => {
         if (isReadOnly) return; // Guard clause
 
         setSaving(true);
         try {
-            const payload = { ...rawData };
-            // Bersihkan data spouse jika single (untuk konsistensi)
-            if (payload.userProfile.maritalStatus !== "MARRIED") {
-                delete payload.spouseProfile;
-            }
+            // [FIX] Gunakan payload yang sudah dinormalisasi
+            const payload = getNormalizedPayload();
+
             await financialService.createCheckup(payload);
             setSaved(true);
         } catch (error: any) {
@@ -76,7 +103,6 @@ export function CheckupResult({
         }
     };
 
-    // --- 4. HANDLE DOWNLOAD PDF (UPDATED WITH MODAL) ---
     const handleDownloadPDF = async () => {
         // 1. Guard Clause: Cegah eksekusi jika modal sedang tampil
         if (showPdfModal) return;
@@ -85,15 +111,13 @@ export function CheckupResult({
             let idToDownload = (data as any).id || (rawData as any).id;
 
             // 2. Auto-Save Logic
-            // Jika data belum disimpan dan bukan mode read-only (Director), simpan dulu otomatis.
-            // Kita lakukan manual call createCheckup disini agar bisa menangkap ID yang baru dibuat.
+            // Jika data belum disimpan dan bukan mode read-only, simpan otomatis.
             if (!saved && !isReadOnly && !idToDownload) {
                 setSaving(true);
                 try {
-                    const payload = { ...rawData };
-                    if (payload.userProfile.maritalStatus !== "MARRIED") {
-                        delete payload.spouseProfile;
-                    }
+                    // [FIX] Gunakan payload yang sudah dinormalisasi di sini juga
+                    const payload = getNormalizedPayload();
+
                     const savedRecord = await financialService.createCheckup(payload);
                     setSaved(true);
                     idToDownload = (savedRecord as any).id; // Tangkap ID baru
@@ -113,24 +137,18 @@ export function CheckupResult({
             }
 
             // 4. ACTIVATE MODAL
-            // Ini akan memunculkan popup "Sedang Menyiapkan Laporan..."
             setShowPdfModal(true);
 
             // 5. TRIGGER DOWNLOAD (Long Running Process)
-            // Axios di service sudah diset timeout 60 detik.
-            // Selama proses ini, Modal akan menampilkan animasi progress bar 0-90%
             await financialService.downloadCheckupPdf(idToDownload);
 
             // 6. FINALIZE
-            // Beri jeda sedikit (500ms) agar user sempat melihat status "Selesai 100%"
-            // sebelum modal tertutup otomatis.
             setTimeout(() => {
                 setShowPdfModal(false);
             }, 500);
 
         } catch (error) {
             // 7. ERROR HANDLING
-            // Jika terjadi timeout atau error server, tutup modal dan beri info.
             setShowPdfModal(false);
             console.error("PDF Download Error:", error);
             alert("Gagal mengunduh PDF. Server mungkin sedang sibuk atau koneksi terputus. Silakan coba lagi.");
@@ -229,7 +247,7 @@ export function CheckupResult({
                 isReadOnly ? "border-slate-300 shadow-slate-200/50" : "border-slate-200"
             )}>
 
-                {/* LEFT: GAUGE & SCORE (NO NUMBER, JUST STATUS) */}
+                {/* LEFT: GAUGE & SCORE */}
                 <div className="lg:col-span-1 p-8 flex flex-col items-center justify-center bg-white relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100">
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-linear-to-r from-red-500 via-amber-400 to-emerald-500" />
                     <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl z-0" />
@@ -247,7 +265,6 @@ export function CheckupResult({
                             />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            {/* GANTI SCORE ANGKA DENGAN TEKS STATUS */}
                             <span className={cn("text-2xl font-black tracking-tight uppercase text-center leading-none px-4", getGlobalStatusColor(score))}>
                                 {getStatusLabel(score)}
                             </span>
@@ -267,7 +284,7 @@ export function CheckupResult({
                 {/* RIGHT: NET WORTH & DIAGNOSIS */}
                 <div className={cn(
                     "lg:col-span-2 p-8 text-white relative overflow-hidden flex flex-col justify-center",
-                    isReadOnly ? "bg-slate-800" : "bg-brand-900" // Warna beda untuk mode Director
+                    isReadOnly ? "bg-slate-800" : "bg-brand-900"
                 )}>
                     <div className="absolute top-0 right-0 p-40 bg-white/5 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
                     <div className="absolute bottom-0 left-0 p-32 bg-white/5 rounded-full blur-[60px] -ml-16 -mb-16 pointer-events-none" />
@@ -401,7 +418,7 @@ export function CheckupResult({
                             <Button
                                 variant="outline"
                                 onClick={onReset}
-                                disabled={showPdfModal || saving} // Disable saat loading
+                                disabled={showPdfModal || saving}
                                 className="flex-1 md:flex-none border-slate-300 text-slate-600 hover:bg-slate-50"
                             >
                                 <RefreshCcw className="w-4 h-4 mr-2" /> Hitung Ulang
@@ -409,8 +426,8 @@ export function CheckupResult({
 
                             <Button
                                 variant="ghost"
-                                onClick={handleDownloadPDF} // <--- ACTION DENGAN MODAL
-                                disabled={showPdfModal || saving} // Disable saat loading
+                                onClick={handleDownloadPDF}
+                                disabled={showPdfModal || saving}
                                 className="flex-1 md:flex-none text-slate-500 hover:text-brand-600 hidden md:flex"
                             >
                                 <Download className="w-4 h-4 mr-2" /> PDF

@@ -554,7 +554,7 @@ export default function InsurancePage() {
                       </span>
                     </div>
 
-                    <h2 className="text-4xl lg:text-5xl font-black mb-3 text-white tracking-tight drop-shadow-sm">
+                    <h2 className="text-2xl lg:text-3xl font-black mb-3 text-white tracking-tight drop-shadow-sm">
                       {formatRupiah(result.shortfall)}
                     </h2>
                     <p className="text-xs text-white/80 opacity-90 leading-relaxed max-w-sm mx-auto mb-8 border-b border-white/20 pb-6">

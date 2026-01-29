@@ -22,10 +22,10 @@ const FINANCE_MENUS = [
         style: "bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-600 group-hover:text-white group-hover:border-orange-600"
       },
       {
-        label: "Rancang Tujuan Khusus",
+        label: "Rencana Khusus",
         emoji: "🎯",
         href: "/calculator/goals",
-        desc: "Cicilan kendaraan, biaya ibadah, dll",
+        desc: "Biaya ibadah, liburan, dll",
         style: "bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600"
       },
       {
@@ -154,7 +154,7 @@ function FeatureCard({ item }: { item: any }) {
           <h4 className="text-xs md:text-sm font-bold text-slate-800 transition-colors group-hover:text-blue-700">
             {item.label}
           </h4>
-          <p className="mt-0.5 md:mt-2 text-[10px] md:text-xs text-slate-500 font-medium leading-snug">
+          <p className="mt-0.5 md:mt-1 text-[10px] md:text-xs text-slate-500 font-medium leading-snug">
             {item.desc}
           </p>
         </div>
