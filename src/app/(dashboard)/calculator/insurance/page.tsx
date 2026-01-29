@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+// [NEW] Import InfoPopover
+import { InfoPopover } from "@/components/ui/info-popover";
 import {
   ShieldCheck, HeartPulse, BadgeDollarSign,
   RefreshCcw, Download, Landmark, Wallet,
@@ -16,7 +18,7 @@ import { formatRupiah } from "@/lib/financial-math";
 import { InsuranceResult } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 
 export default function InsurancePage() {
   // --- STATE INPUT ---
@@ -27,11 +29,11 @@ export default function InsurancePage() {
   const [debtConsumptive, setDebtConsumptive] = useState("");
   const [debtOther, setDebtOther] = useState("");
 
-  // State untuk menyimpan mode input (Total vs Kalkulasi)
+  // State input mode
   const [kprInputMode, setKprInputMode] = useState<'TOTAL' | 'CALC'>('TOTAL');
   const [kpmInputMode, setKpmInputMode] = useState<'TOTAL' | 'CALC'>('TOTAL');
 
-  // State untuk kalkulator bantuan (tidak dikirim ke BE)
+  // State calc helper (temporary values)
   const [kprMonthly, setKprMonthly] = useState("");
   const [kprTenor, setKprTenor] = useState("");
   const [kpmMonthly, setKpmMonthly] = useState("");
@@ -52,26 +54,24 @@ export default function InsurancePage() {
   // State UI
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null); // Simpan ID untuk PDF
-  const [showPdfModal, setShowPdfModal] = useState(false);     // Modal PDF
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
+  // --- STATE BACKGROUND SLIDESHOW ---
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const backgroundImages = [
     '/images/asuransi/rancangproteksi1.webp',
     '/images/asuransi/rancangproteksi2.webp'
   ];
 
-  // --- EFFECT: BACKGROUND ROTATION ---
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) =>
         prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
       );
-    }, 5000); // Ganti gambar setiap 5 detik
-
+    }, 5000);
     return () => clearInterval(interval);
   }, [backgroundImages.length]);
 
@@ -83,7 +83,6 @@ export default function InsurancePage() {
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 
     if (errors.annualIncome) setErrors((prev) => ({ ...prev, annualIncome: "" }));
-    // Reset result & savedId jika input berubah
     if (result) {
       setResult(null);
       setSavedId(null);
@@ -119,7 +118,7 @@ export default function InsurancePage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- API INTEGRATION (CALCULATE & SAVE) ---
+  // --- API INTEGRATION ---
   const handleCalculate = async () => {
     if (!validateInputs()) return;
 
@@ -138,19 +137,21 @@ export default function InsurancePage() {
       const pFinalExpense = parseMoney(finalExpense);
       const pExisting = parseMoney(existingInsurance);
 
+      // [FIXED] Type Error solved by updating src/lib/types.ts
       const response = await financialService.saveInsurancePlan({
         type: "LIFE",
-        dependentCount: 2, // Default atau bisa ditambah input field jika perlu
+        dependentCount: 2,
         monthlyExpense: pIncome / 12,
         existingDebt: totalDebt,
         existingCoverage: pExisting,
-        protectionDuration: parseInt(protectionDuration) || 10
+        protectionDuration: parseInt(protectionDuration) || 10,
+        inflationRate: inflation,        // Now valid
+        investmentReturnRate: returnRate // Now valid
       });
 
       const calc = (response as any).calculation;
       const plan = (response as any).plan;
 
-      // Simpan ID untuk PDF
       if (plan?.id) {
         setSavedId(plan.id);
       }
@@ -180,14 +181,12 @@ export default function InsurancePage() {
     setErrors({});
   };
 
-  // --- PDF DOWNLOAD HANDLER (SERVER-SIDE) ---
   const handleDownloadPDF = async () => {
     if (showPdfModal) return;
 
     try {
       let targetId = savedId;
 
-      // 1. AUTO-SAVE jika belum ada ID
       if (!targetId) {
         if (!validateInputs()) {
           alert("Mohon lengkapi data terlebih dahulu.");
@@ -196,6 +195,7 @@ export default function InsurancePage() {
 
         setIsSaving(true);
         try {
+          // [FIXED] Auto-save logic also includes inflation parameters
           const pDebtKPR = parseMoney(debtKPR);
           const pDebtKPM = parseMoney(debtKPM);
           const pDebtProd = parseMoney(debtProductive);
@@ -212,14 +212,15 @@ export default function InsurancePage() {
             monthlyExpense: pIncome / 12,
             existingDebt: totalDebt,
             existingCoverage: pExisting,
-            protectionDuration: parseInt(protectionDuration) || 10
+            protectionDuration: parseInt(protectionDuration) || 10,
+            inflationRate: inflation,
+            investmentReturnRate: returnRate
           });
 
           if (response && (response as any).plan?.id) {
             targetId = (response as any).plan.id;
             setSavedId(targetId);
 
-            // Update result view juga
             const calc = (response as any).calculation;
             const pFinalExpense = parseMoney(finalExpense);
 
@@ -239,14 +240,10 @@ export default function InsurancePage() {
         }
       }
 
-      // 2. Open Modal & Download
       setShowPdfModal(true);
-
       if (targetId) {
         await financialService.downloadInsurancePdf(targetId);
       }
-
-      // 3. Close Modal
       setTimeout(() => setShowPdfModal(false), 500);
 
     } catch (error) {
@@ -256,63 +253,50 @@ export default function InsurancePage() {
     }
   };
 
-  // Auto-calculate Sisa KPR
-  useEffect(() => {
-    if (kprInputMode === 'CALC') {
-      const monthly = parseInt(kprMonthly.replace(/\./g, "")) || 0;
-      const tenor = parseInt(kprTenor) || 0;
-      const total = monthly * tenor;
-      setDebtKPR(new Intl.NumberFormat("id-ID").format(total));
-    }
-  }, [kprMonthly, kprTenor, kprInputMode]);
-
-  // Auto-calculate Sisa KPM
-  useEffect(() => {
-    if (kpmInputMode === 'CALC') {
-      const monthly = parseInt(kpmMonthly.replace(/\./g, "")) || 0;
-      const tenor = parseInt(kpmTenor) || 0;
-      const total = monthly * tenor;
-      setDebtKPM(new Intl.NumberFormat("id-ID").format(total));
-    }
-  }, [kpmMonthly, kpmTenor, kpmInputMode]);
-
-  // State untuk mengontrol tampilan Modal
+  // --- MODAL & CALCULATOR STATES ---
   const [showKprModal, setShowKprModal] = useState(false);
   const [showKpmModal, setShowKpmModal] = useState(false);
+  const [showIncomeModal, setShowIncomeModal] = useState(false);
 
-  // State penampung angka di dalam Modal (Temporary)
   const [tempMonthly, setTempMonthly] = useState("");
   const [tempTenor, setTempTenor] = useState("");
 
-  // Fungsi untuk menerapkan hasil hitung ke input utama
-  const applyCalculation = (type: 'KPR' | 'KPM') => {
+  // Fungsi Penerapan Kalkulasi
+  const applyCalculation = (type: 'KPR' | 'KPM' | 'INCOME') => {
     const monthly = parseInt(tempMonthly.replace(/\./g, "")) || 0;
-    const tenor = parseInt(tempTenor) || 0;
+
+    // [LOGIC] Jika INCOME, otomatis dikali 12. Jika Utang, ambil dari input user.
+    let tenor = 0;
+    if (type === 'INCOME') {
+      tenor = 12;
+    } else {
+      tenor = parseInt(tempTenor) || 0;
+    }
+
     const total = monthly * tenor;
     const formatted = new Intl.NumberFormat("id-ID").format(total);
 
     if (type === 'KPR') {
       setDebtKPR(formatted);
       setShowKprModal(false);
-    } else {
+    } else if (type === 'KPM') {
       setDebtKPM(formatted);
       setShowKpmModal(false);
+    } else if (type === 'INCOME') {
+      setAnnualIncome(formatted);
+      setShowIncomeModal(false);
     }
-    // Reset temp state
+
     setTempMonthly("");
     setTempTenor("");
   };
 
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
-
-      {/* 1. MOUNT MODAL LOADING */}
       <PdfLoadingModal isOpen={showPdfModal} />
 
-      {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
+      {/* --- HEADER --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
-
-        {/* 1. LAYER GAMBAR (ABSOLUTE) */}
         <div className="absolute inset-0 w-full h-full z-0">
           {backgroundImages.map((image, index) => (
             <div
@@ -324,20 +308,13 @@ export default function InsurancePage() {
               style={{ backgroundImage: `url(${image})` }}
             />
           ))}
-
-          {/* Overlay: Gelap + Pattern Wave */}
           <div className="absolute inset-0 bg-brand-500/85 mix-blend-multiply" />
           <div className="absolute inset-0 bg-linear-to-t from-brand-600 via-brand-600/40 to-transparent" />
-
-          {/* Existing Pattern Overlay */}
           <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
         </div>
-
-        {/* 2. LAYER DEKORASI (Z-10) */}
         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
 
-        {/* 3. LAYER KONTEN (Z-20) */}
         <div className="relative z-20 max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
             <ShieldCheck className="w-4 h-4 text-cyan-300" />
@@ -368,7 +345,6 @@ export default function InsurancePage() {
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* --- SEKSI KPR --- */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center ml-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase">Sisa KPR (Rumah)</label>
@@ -379,7 +355,6 @@ export default function InsurancePage() {
                   <InputGroup value={debtKPR} onChange={e => handleMoneyInput(e.target.value, setDebtKPR)} placeholder="0" />
                 </div>
 
-                {/* --- SEKSI KPM --- */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center ml-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase">Sisa KPM (Kendaraan)</label>
@@ -389,32 +364,18 @@ export default function InsurancePage() {
                   </div>
                   <InputGroup value={debtKPM} onChange={e => handleMoneyInput(e.target.value, setDebtKPM)} placeholder="0" />
                 </div>
-                {/* --- INPUT LAINNYA --- */}
+
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Utang Usaha / Modal</label>
-                  <InputGroup
-                    value={debtProductive}
-                    onChange={e => handleMoneyInput(e.target.value, setDebtProductive)}
-                    placeholder="0"
-                  />
+                  <InputGroup value={debtProductive} onChange={e => handleMoneyInput(e.target.value, setDebtProductive)} placeholder="0" />
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Utang Kartu Kredit</label>
-                  <InputGroup
-                    value={debtConsumptive}
-                    onChange={e => handleMoneyInput(e.target.value, setDebtConsumptive)}
-                    placeholder="0"
-                  />
+                  <InputGroup value={debtConsumptive} onChange={e => handleMoneyInput(e.target.value, setDebtConsumptive)} placeholder="0" />
                 </div>
-
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1">Utang Lainnya</label>
-                  <InputGroup
-                    value={debtOther}
-                    onChange={e => handleMoneyInput(e.target.value, setDebtOther)}
-                    placeholder="0"
-                  />
+                  <InputGroup value={debtOther} onChange={e => handleMoneyInput(e.target.value, setDebtOther)} placeholder="0" />
                 </div>
               </div>
             </div>
@@ -428,8 +389,23 @@ export default function InsurancePage() {
 
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+                  {/* --- MODIFIKASI INPUT GAJI --- */}
                   <div className="space-y-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-brand-600 uppercase">Gaji Bersih Setahun</label>
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-[10px] font-bold text-brand-600 uppercase">Gaji Bersih Setahun</label>
+                      {/* BUTTON BANTU HITUNG GAJI */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempMonthly("");
+                          setShowIncomeModal(true);
+                        }}
+                        className="text-[9px] font-bold text-brand-600 hover:underline flex items-center gap-1"
+                      >
+                        <Calculator className="w-3 h-3" /> Bantu Hitung
+                      </button>
+                    </div>
                     <InputGroup
                       value={annualIncome}
                       onChange={e => handleMoneyInput(e.target.value, setAnnualIncome)}
@@ -441,8 +417,17 @@ export default function InsurancePage() {
                     )}
                     <p className="text-[9px] text-slate-400 ml-1 mt-1">*Total gaji 12 bulan (Take Home Pay)</p>
                   </div>
+
+                  {/* [FIXED] InfoPopover Usage */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Lama Ditanggung</label>
+                    <div className="flex items-center gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Lama Ditanggung</label>
+                      <InfoPopover content={{
+                        title: "Lama Ditanggung",
+                        definition: "Jangka waktu terlama untuk menanggung biaya hidup anggota keluarga (tahun).",
+                        example: "Misal: Anak bungsu usia 5 tahun, mandiri usia 22 tahun. Maka lama ditanggung = 17 tahun."
+                      }} />
+                    </div>
                     <div className="relative group">
                       <Input
                         type="number"
@@ -457,7 +442,6 @@ export default function InsurancePage() {
                 </div>
 
                 <div className="bg-brand-50/50 p-5 rounded-xl space-y-6 border border-brand-100/50">
-                  {/* SLIDER CONFIGURATION: FIXED TYPES */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
                       <span>Asumsi Inflasi Tahunan</span>
@@ -483,7 +467,6 @@ export default function InsurancePage() {
                       className="accent-emerald-600"
                     />
                   </div>
-
                   <p className="text-[10px] text-slate-400 italic leading-tight pt-2 border-t border-brand-100">
                     *Sistem akan menghitung "Nett Rate" (Selisih Investasi - Inflasi) untuk menentukan modal yang dibutuhkan.
                   </p>
@@ -523,8 +506,6 @@ export default function InsurancePage() {
 
           {/* RIGHT COLUMN - RESULT */}
           <div className="lg:col-span-5 space-y-6">
-
-            {/* Component Panduan Diletakkan Di Sini */}
             {!result ? (
               <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 bg-white/50 rounded-[2rem]">
                 <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
@@ -537,8 +518,6 @@ export default function InsurancePage() {
               </div>
             ) : (
               <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
-
-                {/* MAIN RESULT CARD */}
                 <Card className={cn(
                   "text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0 bg-linear-to-br flex flex-col justify-center min-h-75",
                   result.shortfall > 0 ? "from-[#083A52] to-[#0A84B8]" : "from-[#083A52] to-[#0A84B8]"
@@ -581,12 +560,10 @@ export default function InsurancePage() {
                   </div>
                 </Card>
 
-                {/* BREAKDOWN CARD */}
                 <div className="p-6 rounded-2xl shadow-sm border border-slate-100 bg-white space-y-5">
                   <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-brand-600" /> Rincian Penggunaan Dana
                   </h4>
-
                   <div className="space-y-4">
                     <div className="flex justify-between items-center text-sm group">
                       <span className="text-slate-500 group-hover:text-slate-700 transition-colors">1. Bayar Lunas Semua Utang</span>
@@ -601,84 +578,92 @@ export default function InsurancePage() {
                       <span className="font-bold text-slate-700">{formatRupiah(finalExpense ? parseInt(finalExpense.replace(/\./g, "")) : 0)}</span>
                     </div>
                   </div>
-
                   <div className="bg-brand-50 p-4 rounded-xl text-[10px] text-brand-700 leading-relaxed border border-brand-100">
                     <span className="font-bold">Info:</span> Dana "Modal Hidup Keluarga" adalah uang tunai yang harus disimpan (Deposito/SBN) agar bunganya bisa menggantikan gaji bulanan selama {protectionDuration} tahun ke depan.
                   </div>
                 </div>
 
-                {/* ACTIONS */}
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={handleReset} disabled={showPdfModal} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
                     <RefreshCcw className="w-4 h-4 mr-2" /> Reset
                   </Button>
                   <Button
                     className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
-                    onClick={handleDownloadPDF} // [UPDATED] Handler PDF
+                    onClick={handleDownloadPDF}
                     disabled={isSaving || showPdfModal}
                   >
-                    {showPdfModal ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="w-4 h-4 mr-2" />
-                    )}
+                    {showPdfModal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
                     {showPdfModal ? "Memproses..." : "Simpan Analisa PDF"}
                   </Button>
                 </div>
-
               </div>
             )}
             <InsuranceGuide />
           </div>
-
         </div>
       </div>
-      {/* MODAL HELPER KPR/KPM */}
-      {(showKprModal || showKpmModal) && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-5 animate-in fade-in duration-200">
-          {/* Overlay Backdrop */}
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => { setShowKprModal(false); setShowKpmModal(false); }} />
 
-          {/* Content Card */}
+      {/* --- MODAL HELPER (GENERIC: KPR / KPM / INCOME) --- */}
+      {(showKprModal || showKpmModal || showIncomeModal) && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-5 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => { setShowKprModal(false); setShowKpmModal(false); setShowIncomeModal(false); }} />
+
           <div className="relative bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center text-brand-600">
                 <Calculator className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-800">Asisten Kalkulator</h3>
-                <p className="text-xs text-slate-500">Hitung sisa utang dari cicilan rutin.</p>
+                <h3 className="text-xl font-black text-slate-800">
+                  {showIncomeModal ? "Kalkulator Gaji Tahunan" : "Asisten Kalkulator Utang"}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {showIncomeModal ? "Hitung total gaji setahun dari gaji bulanan." : "Hitung sisa utang dari cicilan rutin."}
+                </p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cicilan Per Bulan</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  {showIncomeModal ? "Gaji Bersih Per Bulan" : "Cicilan Per Bulan"}
+                </label>
                 <InputGroup
                   value={tempMonthly}
                   onChange={(e) => handleMoneyInput(e.target.value, setTempMonthly)}
                   placeholder="0"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sisa Tenor (Bulan)</label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={tempTenor}
-                    onChange={(e) => setTempTenor(e.target.value)}
-                    className="h-12 rounded-xl font-bold bg-slate-50 border-slate-200 focus:border-brand-500 pr-12"
-                    placeholder="Contoh: 120"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">Bln</span>
+
+              {/* [FIXED] Input bulan disembunyikan jika mode INCOME */}
+              {!showIncomeModal && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Sisa Tenor (Bulan)
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={tempTenor}
+                      onChange={(e) => setTempTenor(e.target.value)}
+                      className="h-12 rounded-xl font-bold bg-slate-50 border-slate-200 focus:border-brand-500 pr-12"
+                      placeholder="Contoh: 120"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">
+                      Bln
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="pt-4 flex gap-3">
-                <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-slate-200" onClick={() => { setShowKprModal(false); setShowKpmModal(false); }}>
+                <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-slate-200"
+                  onClick={() => { setShowKprModal(false); setShowKpmModal(false); setShowIncomeModal(false); }}>
                   Batal
                 </Button>
-                <Button className="flex-2 h-12 rounded-xl font-bold bg-brand-600 shadow-lg shadow-brand-500/30" onClick={() => applyCalculation(showKprModal ? 'KPR' : 'KPM')}>
+                <Button className="flex-2 h-12 rounded-xl font-bold bg-brand-600 shadow-lg shadow-brand-500/30"
+                  onClick={() => applyCalculation(showIncomeModal ? 'INCOME' : showKprModal ? 'KPR' : 'KPM')}>
                   Terapkan Hasil
                 </Button>
               </div>

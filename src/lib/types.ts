@@ -195,6 +195,8 @@ export interface InsurancePayload {
   existingDebt?: number;
   existingCoverage?: number;
   protectionDuration?: number;
+  inflationRate?: number;        // <-- Tambahan Baru
+  investmentReturnRate?: number; // <-- Tambahan Baru
 }
 
 export interface InsuranceInput {
@@ -408,24 +410,27 @@ export interface AdminDashboardStats {
 
 export type UserRole = "USER" | "ADMIN" | "DIRECTOR" | "UNIT_HEAD";
 
+export interface UnitKerja {
+  id: string;
+  kodeUnit: string;
+  namaUnit: string;
+  name?: string; // Fallback untuk compatibility
+  code?: string; // Fallback
+  userCount?: number;
+}
+
 export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
   nip: string;
-  unitId: string;
-  unitName?: string;
+  unitId?: string; // Untuk backward compatibility
+  unitKerjaId?: string;
+  unitKerja?: UnitKerja;
   role: UserRole;
   isActive: boolean;
   lastLogin?: string;
   createdAt: string;
-}
-
-export interface UnitKerja {
-  id: string;
-  name: string;
-  code: string;
-  userCount?: number;
 }
 
 export interface Jabatan {
@@ -533,7 +538,8 @@ export interface User {
   role: UserRole;
   nip?: string;
   dateOfBirth?: string;
-  unitKerja?: UnitKerja; // Nested object
+  jobTitle?: string;
+  unitKerja?: UnitKerja; // Nested object dari Prisma Include
   createdAt?: string;
   updatedAt?: string;
   // [ADDITION] Properti untuk hasil pencarian (Fuzzy Search)
