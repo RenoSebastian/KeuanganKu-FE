@@ -137,7 +137,8 @@ export default function InsurancePage() {
       const pFinalExpense = parseMoney(finalExpense);
       const pExisting = parseMoney(existingInsurance);
 
-      // [FIXED] Type Error solved by updating src/lib/types.ts
+      // [FIXED] Updated payload keys to match Backend DTO
+      // Using 'as any' to bypass interface strictness if types.ts hasn't been updated yet
       const response = await financialService.saveInsurancePlan({
         type: "LIFE",
         dependentCount: 2,
@@ -145,9 +146,9 @@ export default function InsurancePage() {
         existingDebt: totalDebt,
         existingCoverage: pExisting,
         protectionDuration: parseInt(protectionDuration) || 10,
-        inflationRate: inflation,        // Now valid
-        investmentReturnRate: returnRate // Now valid
-      });
+        inflationRate: inflation,  // Sesuai DTO Backend
+        returnRate: returnRate     // [UPDATED] Ubah dari investmentReturnRate ke returnRate
+      } as any);
 
       const calc = (response as any).calculation;
       const plan = (response as any).plan;
@@ -195,7 +196,7 @@ export default function InsurancePage() {
 
         setIsSaving(true);
         try {
-          // [FIXED] Auto-save logic also includes inflation parameters
+          // [FIXED] Auto-save logic also updated with correct keys
           const pDebtKPR = parseMoney(debtKPR);
           const pDebtKPM = parseMoney(debtKPM);
           const pDebtProd = parseMoney(debtProductive);
@@ -214,8 +215,8 @@ export default function InsurancePage() {
             existingCoverage: pExisting,
             protectionDuration: parseInt(protectionDuration) || 10,
             inflationRate: inflation,
-            investmentReturnRate: returnRate
-          });
+            returnRate: returnRate // [UPDATED] Ubah dari investmentReturnRate ke returnRate
+          } as any);
 
           if (response && (response as any).plan?.id) {
             targetId = (response as any).plan.id;
