@@ -616,46 +616,64 @@ export function CheckupWizard() {
                                 </div>
                             </div>
 
-                            {/* --- LIVE NETWORTH COUNTER (Highlight Akhir Halaman) --- */}
+                            {/* --- LIVE NETWORTH COUNTER (Vertical Layout Optimized) --- */}
                             <div className="mt-12 bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl ring-4 ring-brand-500/20">
-                                {/* Background Effects */}
+
+                                {/* Background Effects (Tetap dipertahankan untuk estetika) */}
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none"></div>
                                 <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[60px] -ml-20 -mb-20 pointer-events-none"></div>
 
-                                {/* Content Wrapper */}
-                                <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-8 lg:gap-12">
+                                {/* Content Wrapper - Diubah menjadi Flex Column Tunggal */}
+                                <div className="relative z-10 flex flex-col gap-6 sm:gap-8">
 
-                                    {/* Left Side: Main Net Worth */}
-                                    <div className="text-center lg:text-left w-full">
-                                        <p className="text-brand-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">
-                                            Kekayaan Bersih Saat Ini (Net Worth)
-                                        </p>
-                                        {/* Angka Utama: Responsive size + break-words agar tidak bleber */}
-                                        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white wrap-break-word leading-tight">
-                                            {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(totalAssets - totalDebt)}
-                                        </h2>
-                                        <p className="text-slate-400 text-xs mt-2 italic font-medium">
-                                            Net Worth = Total Aset - Total Utang
-                                        </p>
-                                    </div>
+                                    {/* SECTION 1: BREAKDOWN (Aset & Utang) */}
+                                    {/* Menggunakan Grid untuk pembagian presisi 50% - 50% */}
+                                    <div className="grid grid-cols-2 gap-4 w-full">
 
-                                    {/* Right Side: Breakdown Cards */}
-                                    <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto shrink-0">
                                         {/* Card Aset */}
-                                        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center min-w-32.5">
-                                            <p className="text-[9px] text-emerald-300/80 font-bold uppercase mb-1 tracking-wider">Total Aset</p>
-                                            <p className="text-sm sm:text-base md:text-lg font-bold text-white wrap-break-word">
+                                        <div className="px-4 py-4 sm:px-6 sm:py-5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center flex flex-col justify-center items-center">
+                                            <p className="text-[10px] sm:text-xs text-emerald-300/80 font-bold uppercase mb-1 tracking-wider">
+                                                Total Aset
+                                            </p>
+                                            <p className="text-base sm:text-lg md:text-xl font-bold text-white break-all">
                                                 {formatRupiah(totalAssets)}
                                             </p>
                                         </div>
 
                                         {/* Card Utang */}
-                                        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center min-w-32.5">
-                                            <p className="text-[9px] text-rose-300/80 font-bold uppercase mb-1 tracking-wider">Total Utang</p>
-                                            <p className="text-sm sm:text-base md:text-lg font-bold text-rose-100 wrap-break-word">
+                                        <div className="px-4 py-4 sm:px-6 sm:py-5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center flex flex-col justify-center items-center">
+                                            <p className="text-[10px] sm:text-xs text-rose-300/80 font-bold uppercase mb-1 tracking-wider">
+                                                Total Utang
+                                            </p>
+                                            <p className="text-base sm:text-lg md:text-xl font-bold text-rose-100 break-all">
                                                 {formatRupiah(totalDebt)}
                                             </p>
                                         </div>
+                                    </div>
+
+                                    {/* VISUAL DIVIDER */}
+                                    {/* Garis pemisah estetik pengganti '=====' agar terlihat lebih modern */}
+                                    <div className="w-full h-px bg-linear-to-r from-transparent via-white/20 to-transparent"></div>
+
+                                    {/* SECTION 2: MAIN NET WORTH */}
+                                    {/* Diberikan full width agar angka panjang aman */}
+                                    <div className="text-center w-full">
+                                        <p className="text-brand-300 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mb-3">
+                                            Kekayaan Bersih Saat Ini (Net Worth)
+                                        </p>
+
+                                        {/* Logic: break-words dan leading-tight mencegah overflow vertikal berlebihan */}
+                                        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white wrap-break-word leading-none">
+                                            {new Intl.NumberFormat("id-ID", {
+                                                style: "currency",
+                                                currency: "IDR",
+                                                maximumFractionDigits: 0
+                                            }).format(totalAssets - totalDebt)}
+                                        </h2>
+
+                                        <p className="text-slate-400 text-xs mt-3 italic font-medium">
+                                            Net Worth = Total Aset - Total Utang
+                                        </p>
                                     </div>
 
                                 </div>
