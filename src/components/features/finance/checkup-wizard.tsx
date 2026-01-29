@@ -481,7 +481,7 @@ export function CheckupWizard() {
                                     <TextInput label="Nama Lengkap" icon={<User className="w-4 h-4" />} value={formData.userProfile.name} onChange={(v) => handleProfileChange("userProfile", "name", v)} />
                                     <div className="grid grid-cols-2 gap-4">
                                         <DateInput label="Tgl Lahir" value={formData.userProfile.dob} onChange={(v) => handleProfileChange("userProfile", "dob", v)} />
-                                        <SelectInput label="Gender" value={formData.userProfile.gender} onChange={(v) => handleProfileChange("userProfile", "gender", v)} options={[{ value: "L", label: "Laki-laki" }, { value: "P", label: "Perempuan" }]} />
+                                        <SelectInput label="Jenis kelamin" value={formData.userProfile.gender} onChange={(v) => handleProfileChange("userProfile", "gender", v)} options={[{ value: "L", label: "Laki-laki" }, { value: "P", label: "Perempuan" }]} />
                                     </div>
                                     <TextInput label="Suku Bangsa" icon={<Users className="w-4 h-4" />} value={formData.userProfile.ethnicity} onChange={(v) => handleProfileChange("userProfile", "ethnicity", v)} />
                                     <SelectInput label="Agama" value={formData.userProfile.religion} onChange={(v) => handleProfileChange("userProfile", "religion", v)} options={[{ value: "ISLAM", label: "Islam" }, { value: "KRISTEN", label: "Kristen" }, { value: "KATOLIK", label: "Katolik" }, { value: "HINDU", label: "Hindu" }, { value: "BUDDHA", label: "Buddha" }, { value: "LAINNYA", label: "Lainnya" }]} />

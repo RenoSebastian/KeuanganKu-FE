@@ -410,7 +410,7 @@ export default function GoalsPage() {
                                         </div>
 
                                         {/* [FIXED] Layout & Break Words */}
-                                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight mb-2 drop-shadow-sm break-words leading-tight">
+                                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight mb-2 drop-shadow-sm wrap-break-wordword leading-tight">
                                             {formatRupiah(result.monthlySaving)}
                                         </h2>
                                         <p className="text-white/80 font-medium text-m mb-8">per bulan</p>
@@ -449,13 +449,13 @@ export default function GoalsPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                             <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Total Pokok</p>
-                                            <p className="text-sm font-black text-slate-700 break-words">
+                                            <p className="text-sm font-black text-slate-700 wrap-break-word">
                                                 {formatRupiah(result.monthlySaving * 12 * parseInt(duration))}
                                             </p>
                                         </div>
                                         <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
                                             <p className="text-[10px] text-emerald-600 uppercase font-bold mb-1">Hasil Bunga</p>
-                                            <p className="text-sm font-black text-emerald-700 break-words">
+                                            <p className="text-sm font-black text-emerald-700 wrap-break-word">
                                                 {formatRupiah(Math.max(0, result.futureValue - (result.monthlySaving * 12 * parseInt(duration))))}
                                             </p>
                                         </div>
