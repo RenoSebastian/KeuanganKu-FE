@@ -50,7 +50,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-4">
             <Link href="/login">
               <Button variant="primary" className="rounded-full px-6 shadow-lg shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 border-none">
-                Login Pegawai
+                Login Aplikasi
               </Button>
             </Link>
           </div>

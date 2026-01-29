@@ -15,6 +15,7 @@ import { BudgetResult, BudgetAllocation } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { BudgetGuide } from "@/components/features/calculator/budget-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { MonthlyHelperModal } from "@/components/features/finance/monthly-helper-modal"; // [NEW] Import Modal Helper
 
 // --- 1. HELPER: MAPPING VISUAL BERDASARKAN TIPE ---
 const getAllocationStyle = (type: BudgetAllocation["type"]) => {
@@ -29,7 +30,7 @@ const getAllocationStyle = (type: BudgetAllocation["type"]) => {
 };
 
 export default function BudgetPage() {
-  // --- STATE INPUT ---
+  // --- STATE INPUT (Sekarang Menyimpan Nilai Tahunan) ---
   const [fixedIncome, setFixedIncome] = useState("");
   const [variableIncome, setVariableIncome] = useState("");
 
@@ -43,8 +44,11 @@ export default function BudgetPage() {
   // State untuk ID Budget yang tersimpan (agar bisa download PDF)
   const [savedId, setSavedId] = useState<string | null>(null);
 
-  // State Modal PDF
+  // State Modal PDF & Helper Kalkulator
   const [showPdfModal, setShowPdfModal] = useState(false);
+
+  // [NEW] State untuk menentukan input mana yang sedang dibantu hitung
+  const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<"fixedIncome" | "variableIncome" | null>(null);
 
   // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -71,12 +75,17 @@ export default function BudgetPage() {
         const data = await financialService.getBudgets();
         if (data && data.length > 0) {
           const latestBudget = data[0];
-          setFixedIncome(new Intl.NumberFormat("id-ID").format(Number(latestBudget.fixedIncome)));
-          setVariableIncome(new Intl.NumberFormat("id-ID").format(Number(latestBudget.variableIncome)));
+          // [UPDATED] Load data dari DB (Bulanan) lalu kali 12 untuk ditampilkan sebagai Tahunan di input
+          const fixedAnnual = Number(latestBudget.fixedIncome) * 12;
+          const variableAnnual = Number(latestBudget.variableIncome) * 12;
+
+          setFixedIncome(new Intl.NumberFormat("id-ID").format(fixedAnnual));
+          setVariableIncome(new Intl.NumberFormat("id-ID").format(variableAnnual));
 
           // Set ID agar bisa langsung download PDF
           setSavedId(latestBudget.id);
 
+          // Hitung result (tetap pakai bulanan untuk logic internal)
           const monthlyRes = calculateSmartBudget(
             Number(latestBudget.fixedIncome),
             Number(latestBudget.variableIncome)
@@ -104,11 +113,27 @@ export default function BudgetPage() {
     setter(formatted);
   };
 
-  const handleCalculateAndSave = async () => {
-    const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
-    const variable = parseInt(variableIncome.replace(/\./g, "")) || 0;
+  // [NEW] Handler untuk menerima hasil hitungan dari Modal (Bulanan -> Tahunan)
+  const applyMonthlyToAnnual = (monthlyValue: number) => {
+    const annualValue = monthlyValue * 12;
+    const formatted = new Intl.NumberFormat("id-ID").format(annualValue);
 
-    if (fixed === 0) {
+    if (monthlyHelperTarget === "fixedIncome") {
+      setFixedIncome(formatted);
+    } else if (monthlyHelperTarget === "variableIncome") {
+      setVariableIncome(formatted);
+    }
+
+    // Reset modal state
+    setMonthlyHelperTarget(null);
+  };
+
+  const handleCalculateAndSave = async () => {
+    // Ambil nilai raw (Tahunan) dari input
+    const fixedAnnual = parseInt(fixedIncome.replace(/\./g, "")) || 0;
+    const variableAnnual = parseInt(variableIncome.replace(/\./g, "")) || 0;
+
+    if (fixedAnnual === 0) {
       alert("Masukkan Pemasukkan Tetap terlebih dahulu.");
       return;
     }
@@ -116,9 +141,13 @@ export default function BudgetPage() {
     setIsSaving(true);
 
     try {
+      // [UPDATED] Normalisasi: Bagi 12 sebelum kirim ke Backend (karena sistem budget berbasis bulanan)
+      const fixedMonthly = Math.round(fixedAnnual / 12);
+      const variableMonthly = Math.round(variableAnnual / 12);
+
       const payload = {
-        fixedIncome: fixed,
-        variableIncome: variable,
+        fixedIncome: fixedMonthly,
+        variableIncome: variableMonthly,
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
       };
@@ -191,7 +220,7 @@ export default function BudgetPage() {
     }
   };
 
-  // [LOGIC BARU] Handle Download PDF
+  // Handle Download PDF
   const handleDownloadPDF = async () => {
     if (showPdfModal) return; // Prevent double click
 
@@ -200,19 +229,23 @@ export default function BudgetPage() {
 
       // 1. AUTO-SAVE: Jika belum ada ID (belum disimpan), simpan dulu
       if (!targetId) {
-        // Cek apakah data valid untuk disimpan
-        const fixed = parseInt(fixedIncome.replace(/\./g, "")) || 0;
-        if (fixed === 0) {
+        // Cek validitas input
+        const fixedAnnual = parseInt(fixedIncome.replace(/\./g, "")) || 0;
+        if (fixedAnnual === 0) {
           alert("Lakukan kalkulasi anggaran terlebih dahulu.");
           return;
         }
 
         setIsSaving(true);
         try {
-          const variable = parseInt(variableIncome.replace(/\./g, "")) || 0;
+          // Normalisasi ke bulanan
+          const fixedMonthly = Math.round(fixedAnnual / 12);
+          const variableAnnual = parseInt(variableIncome.replace(/\./g, "")) || 0;
+          const variableMonthly = Math.round(variableAnnual / 12);
+
           const payload = {
-            fixedIncome: fixed,
-            variableIncome: variable,
+            fixedIncome: fixedMonthly,
+            variableIncome: variableMonthly,
             month: new Date().getMonth() + 1,
             year: new Date().getFullYear(),
           };
@@ -270,8 +303,16 @@ export default function BudgetPage() {
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
 
-      {/* 1. MOUNT MODAL (WAJIB) */}
+      {/* 1. MOUNT MODAL PDF & HELPER */}
       <PdfLoadingModal isOpen={showPdfModal} />
+
+      {/* [NEW] Modal Bantu Hitung Bulanan -> Tahunan */}
+      <MonthlyHelperModal
+        isOpen={monthlyHelperTarget !== null}
+        onClose={() => setMonthlyHelperTarget(null)}
+        onApply={applyMonthlyToAnnual}
+        title={monthlyHelperTarget === "fixedIncome" ? "Hitung Gaji Tahunan" : "Hitung Bonus Tahunan"}
+      />
 
       {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
@@ -324,8 +365,19 @@ export default function BudgetPage() {
             </h3>
 
             <div className="space-y-5">
+              {/* INPUT 1: FIXED INCOME */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-brand-600 uppercase tracking-wide">Pemasukkan Tetap (Gaji)</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold text-brand-600 uppercase tracking-wide">Pemasukkan Tetap (Per Tahun)</label>
+                  {/* [NEW] Button Bantu Hitung */}
+                  <button
+                    type="button"
+                    onClick={() => setMonthlyHelperTarget("fixedIncome")}
+                    className="text-[9px] font-bold text-brand-600 hover:text-brand-700 hover:underline flex items-center gap-1"
+                  >
+                    <Calculator className="w-3 h-3" /> Bantu Hitung
+                  </button>
+                </div>
                 <div className="relative group">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center text-brand-600 font-bold text-xs transition-colors group-focus-within:bg-brand-600 group-focus-within:text-white">Rp</div>
                   <Input
@@ -337,8 +389,19 @@ export default function BudgetPage() {
                 </div>
               </div>
 
+              {/* INPUT 2: VARIABLE INCOME */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Pemasukkan Tidak Tetap</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Pemasukkan Tidak Tetap (Per Tahun)</label>
+                  {/* [NEW] Button Bantu Hitung */}
+                  <button
+                    type="button"
+                    onClick={() => setMonthlyHelperTarget("variableIncome")}
+                    className="text-[9px] font-bold text-slate-500 hover:text-brand-600 hover:underline flex items-center gap-1"
+                  >
+                    <Calculator className="w-3 h-3" /> Bantu Hitung
+                  </button>
+                </div>
                 <div className="relative group">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 font-bold text-xs transition-colors group-focus-within:bg-slate-600 group-focus-within:text-white">Rp</div>
                   <Input
