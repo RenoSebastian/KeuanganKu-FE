@@ -58,9 +58,9 @@ export function PdfLoadingModal({ isOpen }: PdfLoadingModalProps) {
                     <div className="bg-brand-50 rounded-full p-4 relative z-10">
                         <FileText className="w-10 h-10 text-brand-600 animate-bounce" />
                     </div>
-                    <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-sm">
+                    {/* <div className="absolute -bottom-8 bg-white rounded-full p-1 shadow-sm">
                         <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* Title & Status */}

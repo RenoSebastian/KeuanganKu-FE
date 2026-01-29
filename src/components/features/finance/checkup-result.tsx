@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // [UPDATE] Tambah useEffect
 import {
     CheckCircle2, AlertTriangle, XCircle,
     Save, RefreshCcw, FileText, ChevronDown, ChevronUp,
@@ -13,10 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { FinancialRecord, HealthAnalysisResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
-// import { generateCheckupPDF } from "@/lib/pdf-generator"; // Tidak digunakan jika full server-side
 import { PdfLoadingModal } from "./pdf-loading-modal";
 
-// [STEP 1] Prop Expansion & Mode Definition
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW";
 
 interface CheckupResultProps {
@@ -26,8 +24,6 @@ interface CheckupResultProps {
     mode?: ViewMode;
 }
 
-// [FIX] Daftar field Arus Kas yang wajib dinormalisasi (Bagi 12) sebelum simpan
-// Karena input di UI Tahunan, tapi DB menyimpan Bulanan.
 const FLOW_FIELDS: (keyof FinancialRecord)[] = [
     'incomeFixed', 'incomeVariable',
     'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
@@ -43,57 +39,66 @@ export function CheckupResult({
     mode = "USER_VIEW"
 }: CheckupResultProps) {
 
+    // [BEST PRACTICE SOLUTION]
+    // Kita inisialisasi ID dari props jika ada (untuk mode history/director), 
+    // tapi kita biarkan null jika data baru.
+    const [recordId, setRecordId] = useState<string | null>(
+        (data as any)?.id || (rawData as any)?.id || null
+    );
+
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
-
-    // State untuk Modal PDF
     const [showPdfModal, setShowPdfModal] = useState(false);
 
-    // Logic: Read Only Flag
     const isReadOnly = mode === "DIRECTOR_VIEW";
 
-    // --- 1. NORMALISASI DATA UNTUK TAMPILAN ---
+    // Update state jika props berubah (misal navigasi antar history)
+    useEffect(() => {
+        const existingId = (data as any)?.id || (rawData as any)?.id;
+        if (existingId) {
+            setRecordId(existingId);
+            setSaved(true); // Kalau ada ID berarti sudah tersimpan
+        }
+    }, [data, rawData]);
+
     const ratios = data.ratios || (data as any).ratiosDetails || [];
     const score = data.score ?? (data as any).healthScore ?? 0;
-    // const globalStatus = data.globalStatus || (data as any).status || "BAHAYA"; // (Tidak dipakai di UI saat ini, tapi ada datanya)
     const netWorth = data.netWorth ?? (data as any).totalNetWorth ?? 0;
     const monthlySurplus = data.surplusDeficit ?? 0;
 
-    // --- 2. LOGIKA TAMPILAN DINAMIS ---
     const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
     const periodLabel = viewMode === "ANNUAL" ? "(Per Tahun)" : "(Per Bulan)";
 
-    // --- [CRITICAL FIX] HELPER NORMALISASI PAYLOAD ---
-    // Fungsi ini mengubah data TAHUNAN (dari UI Wizard) menjadi BULANAN (untuk DB)
     const getNormalizedPayload = () => {
         const payload: any = { ...rawData };
-
-        // 1. Sanitasi Spouse jika Single
         if (payload.userProfile?.maritalStatus !== "MARRIED") {
             delete payload.spouseProfile;
         }
-
-        // 2. Normalisasi Field Arus Kas (Bagi 12)
         FLOW_FIELDS.forEach(field => {
             if (typeof payload[field] === 'number') {
                 payload[field] = Math.round(payload[field] / 12);
             }
         });
-
         return payload;
     };
 
     const handleSave = async () => {
-        if (isReadOnly) return; // Guard clause
+        if (isReadOnly) return;
 
         setSaving(true);
         try {
-            // [FIX] Gunakan payload yang sudah dinormalisasi
             const payload = getNormalizedPayload();
 
-            await financialService.createCheckup(payload);
+            // [FIX] Tangkap response dari backend
+            const response = await financialService.createCheckup(payload);
+
+            // [FIX] Simpan ID ke state agar tombol download tahu ID nya
+            if (response && (response as any).id) {
+                setRecordId((response as any).id);
+            }
+
             setSaved(true);
         } catch (error: any) {
             console.error("Gagal menyimpan:", error);
@@ -104,23 +109,26 @@ export function CheckupResult({
     };
 
     const handleDownloadPDF = async () => {
-        // 1. Guard Clause: Cegah eksekusi jika modal sedang tampil
         if (showPdfModal) return;
 
         try {
-            let idToDownload = (data as any).id || (rawData as any).id;
+            // [FIX] Prioritaskan ID dari state lokal (recordId), baru dari props
+            let idToDownload = recordId || (data as any).id || (rawData as any).id;
 
-            // 2. Auto-Save Logic
-            // Jika data belum disimpan dan bukan mode read-only, simpan otomatis.
-            if (!saved && !isReadOnly && !idToDownload) {
+            // Logic Auto-Save: Jika belum ada ID sama sekali, simpan dulu
+            if (!isReadOnly && !idToDownload) {
                 setSaving(true);
                 try {
-                    // [FIX] Gunakan payload yang sudah dinormalisasi di sini juga
                     const payload = getNormalizedPayload();
-
                     const savedRecord = await financialService.createCheckup(payload);
+
                     setSaved(true);
-                    idToDownload = (savedRecord as any).id; // Tangkap ID baru
+
+                    // [FIX] Update state lokal dan variabel sementara
+                    if (savedRecord && (savedRecord as any).id) {
+                        idToDownload = (savedRecord as any).id;
+                        setRecordId(idToDownload);
+                    }
                 } catch (e) {
                     console.error("Auto-save failed", e);
                     alert("Gagal menyimpan data otomatis sebelum download.");
@@ -130,30 +138,27 @@ export function CheckupResult({
                 }
             }
 
-            // 3. Final ID Check
             if (!idToDownload) {
                 alert("Gagal menemukan ID Laporan. Mohon simpan data terlebih dahulu.");
                 return;
             }
 
-            // 4. ACTIVATE MODAL
             setShowPdfModal(true);
-
-            // 5. TRIGGER DOWNLOAD (Long Running Process)
             await financialService.downloadCheckupPdf(idToDownload);
 
-            // 6. FINALIZE
             setTimeout(() => {
                 setShowPdfModal(false);
             }, 500);
 
         } catch (error) {
-            // 7. ERROR HANDLING
             setShowPdfModal(false);
             console.error("PDF Download Error:", error);
-            alert("Gagal mengunduh PDF. Server mungkin sedang sibuk atau koneksi terputus. Silakan coba lagi.");
+            alert("Gagal mengunduh PDF. Server mungkin sedang sibuk atau koneksi terputus.");
         }
     };
+
+    // ... (Sisa kode UI sama persis, tidak perlu diubah) ...
+    // Copy-paste bagian return (...) dari kode sebelumnya
 
     // --- HELPER UI ---
     const getStatusColor = (color: string) => {
