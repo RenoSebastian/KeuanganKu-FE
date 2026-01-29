@@ -216,6 +216,21 @@ export const financialService = {
     return response.data;
   },
 
+  downloadEducationPdf: async () => {
+    // Endpoint ini tidak butuh ID karena mengambil ALL plans
+    const response = await api.get(`/financial/education/pdf`, {
+      responseType: 'blob',
+      timeout: 60000,
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Education-Family-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
+
   // ===========================================================================
   // 4. MARKET DATA (INTEGRASI HARGA EMAS BE)
   // ===========================================================================

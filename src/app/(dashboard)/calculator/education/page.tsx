@@ -20,6 +20,7 @@ import { calculatePortfolio } from "@/lib/financial-math";
 import { ChildProfile, PortfolioSummary, PlanInput } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { EducationGuide } from "@/components/features/calculator/education-guide";
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
 
 export default function EducationPage() {
   const [view, setView] = useState<"DASHBOARD" | "WIZARD">("DASHBOARD");
@@ -35,6 +36,9 @@ export default function EducationPage() {
   });
 
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+
+  // State PDF Modal
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -152,8 +156,33 @@ export default function EducationPage() {
     }
   };
 
+  // [NEW] PDF Download Handler
+  const handleDownloadPDF = async () => {
+    if (showPdfModal) return;
+
+    if (children.length === 0) {
+      alert("Belum ada rencana pendidikan yang dibuat.");
+      return;
+    }
+
+    try {
+      setShowPdfModal(true);
+      // Panggil endpoint download PDF untuk SEMUA anak (Family Report)
+      await financialService.downloadEducationPdf();
+
+      setTimeout(() => setShowPdfModal(false), 500);
+    } catch (error) {
+      console.error("PDF Error:", error);
+      setShowPdfModal(false);
+      alert("Gagal mengunduh PDF. Silakan coba lagi.");
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-slate-50/50 pb-24 md:pb-12 overflow-x-hidden selection:bg-cyan-100 selection:text-cyan-900">
+
+      {/* 1. MOUNT MODAL LOADING */}
+      <PdfLoadingModal isOpen={showPdfModal} />
 
       {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-cyan-900">
@@ -321,8 +350,8 @@ export default function EducationPage() {
                         </div>
                       </div>
                       <Slider
-                        value={assumptions.inflation} // FIX: Slider expects array
-                        onChange={(val: number) => setAssumptions(prev => ({ ...prev, inflation: val}))}
+                        value={assumptions.inflation} // [FIX] Array
+                        onChange={(val: number) => setAssumptions(prev => ({ ...prev, inflation: val }))}
                         min={5} max={20} step={1}
                         className="py-2"
                       />
@@ -342,7 +371,7 @@ export default function EducationPage() {
                         </div>
                       </div>
                       <Slider
-                        value={assumptions.returnRate} // FIX: Slider expects array
+                        value={assumptions.returnRate} // [FIX] Array
                         onChange={(val: number) => setAssumptions(prev => ({ ...prev, returnRate: val }))}
                         min={2} max={20} step={1}
                         className="py-2"
@@ -360,9 +389,15 @@ export default function EducationPage() {
                   <Button
                     variant="outline"
                     className="w-full mt-4 rounded-xl h-10 text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800 font-medium text-xs"
-                    onClick={() => alert("Fitur Download PDF akan segera hadir!")}
+                    onClick={handleDownloadPDF} // [UPDATED]
+                    disabled={showPdfModal || children.length === 0}
                   >
-                    <Download className="w-3.5 h-3.5 mr-2" /> Download Laporan
+                    {showPdfModal ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 mr-2" />
+                    )}
+                    {showPdfModal ? "Memproses..." : "Download Laporan Keluarga"}
                   </Button>
                 </Card>
               </div>
