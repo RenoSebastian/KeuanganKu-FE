@@ -10,14 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { LogIn, Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
+// [UPDATE] Added ArrowLeft icon import
+import { LogIn, Eye, EyeOff, Lock, Mail, AlertCircle, ArrowLeft } from "lucide-react";
 import { authService } from "@/services/auth.service";
-import Cookies from "js-cookie"; // Pastikan package ini ada (npm i js-cookie)
+import Cookies from "js-cookie";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl'); // URL tujuan sebelum ditendang middleware
+  const callbackUrl = searchParams.get('callbackUrl');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -34,41 +35,32 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // 1. Panggil API Login
       const response = await authService.login({
         email: formData.email,
         password: formData.password
       });
 
-      // 2. Simpan Token ke Cookie (PENTING untuk Middleware)
-      // Kita set expiry 1 hari sesuai Backend
       if (response.access_token) {
         Cookies.set('token', response.access_token, { expires: 1, secure: true });
-
-        // Opsional: Simpan data user di localStorage untuk akses cepat di Client Component
         localStorage.setItem('user', JSON.stringify(response.user));
       }
 
-      // 3. Redirect Sesuai Role
       const role = response.user.role;
 
-      // Jika ada callbackUrl (misal user tadi mau buka /finance tapi disuruh login dulu)
       if (callbackUrl) {
         router.push(callbackUrl);
       } else {
-        // Default Redirect
         if (role === 'DIRECTOR') {
           router.push('/director/dashboard');
         } else if (role === 'ADMIN') {
           router.push('/admin/dashboard');
         } else {
-          router.push('/dashboard'); // User Biasa
+          router.push('/dashboard');
         }
       }
 
     } catch (err: any) {
       console.error("Login Failed:", err);
-      // Tampilkan pesan error yang user-friendly
       if (err.response?.status === 403 || err.response?.status === 401) {
         setError("Email atau password salah. Silakan coba lagi.");
       } else {
@@ -81,17 +73,27 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 relative overflow-hidden">
-      {/* Background Decoration (Optional, Minimalis) */}
+
+      {/* [UPDATE] Back to Landing Page Button */}
+      <Link
+        href="/"
+        className="absolute top-6 left-6 z-50 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-white/60"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Kembali ke Beranda
+      </Link>
+
+      {/* Background Decoration */}
       <div className="absolute top-0 left-0 w-full h-64 bg-blue-600/10 -skew-y-3 origin-top-left" />
 
       <div className="relative z-10 w-full max-w-md px-6">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg mb-4">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl mb-4">
             <Image
               src="/images/maxipro.webp"
               alt="Logo"
-              width={40}
-              height={40}
+              width={100}
+              height={100}
               className="object-contain"
             />
           </div>
@@ -131,12 +133,6 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="password">Password</Label>
-                {/* <Link 
-                  href="/forgot-password" 
-                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                >
-                  Lupa password?
-                </Link> */}
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
