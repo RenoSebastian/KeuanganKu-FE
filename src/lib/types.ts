@@ -202,6 +202,7 @@ export interface InsurancePayload {
 }
 
 export interface InsuranceInput {
+  investmentRate: number;
   debtKPR: number;
   debtKPM: number;
   debtProductive: number;
