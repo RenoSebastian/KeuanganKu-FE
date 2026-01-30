@@ -134,11 +134,9 @@ export default function InsurancePage() {
 
       const totalDebt = pDebtKPR + pDebtKPM + pDebtProd + pDebtCons + pDebtOther;
       const pIncome = parseMoney(annualIncome);
-      const pFinalExpense = parseMoney(finalExpense);
+      const pFinalExpense = parseMoney(finalExpense); // [NEW] Parsing biaya pemakaman
       const pExisting = parseMoney(existingInsurance);
 
-      // [FIXED] Updated payload keys to match Backend DTO
-      // Using 'as any' to bypass interface strictness if types.ts hasn't been updated yet
       const response = await financialService.saveInsurancePlan({
         type: "LIFE",
         dependentCount: 2,
@@ -146,8 +144,9 @@ export default function InsurancePage() {
         existingDebt: totalDebt,
         existingCoverage: pExisting,
         protectionDuration: parseInt(protectionDuration) || 10,
-        inflationRate: inflation,  // Sesuai DTO Backend
-        returnRate: returnRate     // [UPDATED] Ubah dari investmentReturnRate ke returnRate
+        finalExpense: pFinalExpense, // [ADDED] Kirim ke Backend DTO
+        inflationRate: inflation,
+        returnRate: returnRate
       } as any);
 
       const calc = (response as any).calculation;
@@ -159,7 +158,8 @@ export default function InsurancePage() {
 
       setResult({
         totalDebt: totalDebt,
-        incomeReplacementValue: Math.max(0, calc.totalNeeded - totalDebt - pFinalExpense),
+        // [FIXED LOGIC] Ambil nilai murni dari hasil kalkulasi Backend
+        incomeReplacementValue: calc.incomeReplacementValue,
         totalFundNeeded: calc.totalNeeded,
         shortfall: calc.coverageGap
       });
@@ -196,7 +196,6 @@ export default function InsurancePage() {
 
         setIsSaving(true);
         try {
-          // [FIXED] Auto-save logic also updated with correct keys
           const pDebtKPR = parseMoney(debtKPR);
           const pDebtKPM = parseMoney(debtKPM);
           const pDebtProd = parseMoney(debtProductive);
@@ -206,6 +205,7 @@ export default function InsurancePage() {
           const totalDebt = pDebtKPR + pDebtKPM + pDebtProd + pDebtCons + pDebtOther;
           const pIncome = parseMoney(annualIncome);
           const pExisting = parseMoney(existingInsurance);
+          const pFinalExpense = parseMoney(finalExpense); // [NEW] Parsing biaya pemakaman
 
           const response = await financialService.saveInsurancePlan({
             type: "LIFE",
@@ -214,8 +214,9 @@ export default function InsurancePage() {
             existingDebt: totalDebt,
             existingCoverage: pExisting,
             protectionDuration: parseInt(protectionDuration) || 10,
+            finalExpense: pFinalExpense, // [ADDED] Kirim ke Backend DTO
             inflationRate: inflation,
-            returnRate: returnRate // [UPDATED] Ubah dari investmentReturnRate ke returnRate
+            returnRate: returnRate
           } as any);
 
           if (response && (response as any).plan?.id) {
@@ -223,11 +224,11 @@ export default function InsurancePage() {
             setSavedId(targetId);
 
             const calc = (response as any).calculation;
-            const pFinalExpense = parseMoney(finalExpense);
 
             setResult({
               totalDebt: totalDebt,
-              incomeReplacementValue: Math.max(0, calc.totalNeeded - totalDebt - pFinalExpense),
+              // [FIXED LOGIC] Ambil nilai murni dari hasil kalkulasi Backend
+              incomeReplacementValue: calc.incomeReplacementValue,
               totalFundNeeded: calc.totalNeeded,
               shortfall: calc.coverageGap
             });

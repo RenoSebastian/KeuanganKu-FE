@@ -195,8 +195,10 @@ export interface InsurancePayload {
   existingDebt?: number;
   existingCoverage?: number;
   protectionDuration?: number;
-  inflationRate?: number;        // <-- Tambahan Baru
-  investmentReturnRate?: number; // <-- Tambahan Baru
+  finalExpense?: number;         // [NEW] Tambahkan agar sinkron dengan DTO Backend
+  inflationRate?: number;
+  returnRate?: number;           // [UPDATED] Gunakan returnRate agar konsisten dengan Backend
+  investmentReturnRate?: number; // Keep for legacy if needed
 }
 
 export interface InsuranceInput {
@@ -208,7 +210,7 @@ export interface InsuranceInput {
   annualIncome: number;
   protectionDuration: number;
   inflationRate: number;
-  investmentRate: number;
+  returnRate: number;
   finalExpense: number;
   existingInsurance: number;
 }
@@ -218,6 +220,7 @@ export interface InsuranceResult {
   incomeReplacementValue: number;
   totalFundNeeded: number;
   shortfall: number;
+  otherneeds?: number;
 }
 
 

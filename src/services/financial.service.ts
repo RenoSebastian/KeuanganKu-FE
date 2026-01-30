@@ -120,9 +120,26 @@ export const financialService = {
   },
 
   // B. Asuransi
+  // B. Asuransi
   saveInsurancePlan: async (data: InsurancePayload) => {
     const response = await api.post("/financial/calculator/insurance", data);
-    return response.data;
+
+    // [LOGICAL FIX] Data Transformation Layer
+    // Backend mengembalikan objek { plan, calculation }. 
+    // Kita pastikan hasil kalkulasi dikonversi ke Number untuk keamanan di UI.
+    const raw = response.data;
+    if (raw.calculation) {
+      raw.calculation = {
+        ...raw.calculation,
+        incomeReplacementValue: Number(raw.calculation.incomeReplacementValue || 0),
+        debtClearanceValue: Number(raw.calculation.debtClearanceValue || 0),
+        otherNeeds: Number(raw.calculation.otherNeeds || 0), // [NEW] Biaya Pemakaman
+        totalNeeded: Number(raw.calculation.totalNeeded || 0),
+        coverageGap: Number(raw.calculation.coverageGap || 0),
+      };
+    }
+
+    return raw;
   },
 
   // [NEW] Download Insurance PDF
