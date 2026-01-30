@@ -9,14 +9,27 @@ import { id } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input"; // Menggunakan native date input via Shadcn wrapper
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Logic
 import { useSecureExport } from "@/hooks/use-secure-export";
 import { EntityLabels, RetentionEntityType } from "@/lib/types/retention";
 
-export function ExportControl() {
+/**
+ * Interface Props Kontrak
+ * Wajib disinkronkan dengan pemanggilan di page.tsx
+ */
+interface ExportControlProps {
+    onParamsChange: (entity: RetentionEntityType, date: string) => void;
+    onExportSuccess: () => void;
+}
+
+export function ExportControl({
+    onParamsChange,
+    onExportSuccess
+}: ExportControlProps) {
+
     // --- STATE ---
     const [entityType, setEntityType] = useState<RetentionEntityType>(RetentionEntityType.FINANCIAL_CHECKUP);
     const [cutoffDate, setCutoffDate] = useState<string>("");
@@ -25,44 +38,57 @@ export function ExportControl() {
 
     // --- HOOK INTEGRATION ---
     const { isLoading, triggerExport } = useSecureExport(
+        // Success Callback
         () => {
             setSuccessMsg("File berhasil diunduh! Simpan file ini baik-baik.");
             setErrorMsg(null);
+            // Trigger prop ke parent untuk membuka Verification Zone
+            onExportSuccess();
         },
+        // Error Callback
         (msg) => {
             setErrorMsg(msg);
             setSuccessMsg(null);
         }
     );
 
-    // --- LOGIC GUARDRAILS ---
-
-    // Hitung batas aman (Awal bulan ini). User hanya boleh hapus data < Bulan Ini.
+    // --- LOGIC: DATE CONSTRAINTS ---
     const today = new Date();
     const startOfCurrentMonth = startOfMonth(today);
-    // Default suggestion: 12 bulan lalu
     const defaultSuggestion = format(subMonths(startOfCurrentMonth, 12), "yyyy-MM-dd");
 
+    // --- HANDLERS: INPUT CHANGE ---
+    // Fungsi ini memastikan Parent State (page.tsx) selalu sinkron dengan Local State
+
+    const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newEntity = e.target.value as RetentionEntityType;
+        setEntityType(newEntity);
+        // Reset Flow Keamanan di Parent
+        onParamsChange(newEntity, cutoffDate);
+    };
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newDate = e.target.value;
+        setCutoffDate(newDate);
+        // Reset Flow Keamanan di Parent
+        onParamsChange(entityType, newDate);
+    };
+
     /**
-     * Handler saat tombol export diklik.
-     * Melakukan validasi bisnis sebelum memanggil hook.
+     * Handler tombol Export
      */
     const handleExport = () => {
         setSuccessMsg(null);
         setErrorMsg(null);
 
-        // 1. Validasi Basic
+        // 1. Validasi Input
         if (!cutoffDate) {
             setErrorMsg("Tanggal batas (cutoff) harus dipilih.");
             return;
         }
 
-        // 2. Validasi Safety Date (Constraint Bisnis)
-        // Input 'cutoffDate' adalah string YYYY-MM-DD. Kita parse ke Date object untuk komparasi.
+        // 2. Validasi Safety Date (Logic Guardrail)
         const selectedDate = new Date(cutoffDate);
-
-        // Check: Apakah Selected Date >= Awal Bulan Ini?
-        // Jika ya, TOLAK. Kita tidak boleh menyentuh data bulan berjalan.
         if (!isBefore(selectedDate, startOfCurrentMonth)) {
             setErrorMsg(
                 `Pelanggaran Keamanan: Anda tidak boleh mengarsipkan data bulan berjalan (${format(startOfCurrentMonth, 'MMMM yyyy', { locale: id })}). Pilih tanggal sebelumnya.`
@@ -113,12 +139,11 @@ export function ExportControl() {
                     {/* 1. Entity Selection */}
                     <div className="space-y-2">
                         <Label htmlFor="entity-select">Pilih Data Entitas</Label>
-                        {/* Menggunakan Native Select untuk kompatibilitas maksimal tanpa komponen Shadcn Select */}
                         <select
                             id="entity-select"
-                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                             value={entityType}
-                            onChange={(e) => setEntityType(e.target.value as RetentionEntityType)}
+                            onChange={handleEntityChange}
                             disabled={isLoading}
                         >
                             {Object.entries(EntityLabels).map(([key, label]) => (
@@ -129,7 +154,7 @@ export function ExportControl() {
                         </select>
                     </div>
 
-                    {/* 2. Date Picker (Native) */}
+                    {/* 2. Date Picker */}
                     <div className="space-y-2">
                         <Label htmlFor="cutoff-date">
                             Batas Tanggal Retensi (Cutoff)
@@ -139,8 +164,8 @@ export function ExportControl() {
                                 id="cutoff-date"
                                 type="date"
                                 value={cutoffDate}
-                                onChange={(e) => setCutoffDate(e.target.value)}
-                                max={format(subMonths(startOfCurrentMonth, 1), "yyyy-MM-dd")} // HTML constraint visual
+                                onChange={handleDateChange}
+                                max={format(subMonths(startOfCurrentMonth, 1), "yyyy-MM-dd")}
                                 disabled={isLoading}
                                 className="pl-10"
                             />

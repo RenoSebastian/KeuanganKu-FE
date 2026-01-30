@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Trash2, Loader2 } from "lucide-react";
+import { AlertTriangle, Trash2, Loader2, AlertCircle } from "lucide-react";
 
 // Types & Services
 import { RetentionEntityType, EntityLabels } from "@/lib/types/retention";
@@ -19,7 +19,8 @@ import {
     AlertDialogTrigger,
     AlertDialogFooter,
     AlertDialogCancel,
-} from "@/components/ui/alert-dialog"; // Pastikan komponen ini ada atau sesuaikan path
+    AlertDialogAction, // Menggunakan Action button dari primitif alert-dialog jika perlu styling khusus
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface PruneDialogProps {
@@ -33,10 +34,8 @@ const SAFETY_PHRASE = "SAYA PAHAM DATA AKAN HILANG PERMANEN";
 
 /**
  * PRUNE DIALOG (The Red Button Logic)
- * * Logic Guardrails:
- * 1. Confirmation Lock: Tombol Submit mati sampai Safety Input 100% match.
- * 2. Async Handling: Menangani loading state saat proses penghapusan (batch delete di BE).
- * 3. Token Passing: Mengirim token verifikasi ke BE.
+ * * Type Fixing Note:
+ * Menggunakan variant="danger" sesuai standar UI Button yang ada di project.
  */
 export function PruneDialog({
     entityType,
@@ -81,7 +80,8 @@ export function PruneDialog({
     return (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
             <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full gap-2 font-bold shadow-lg shadow-red-100 hover:shadow-red-200">
+                {/* FIX: Menggunakan variant="danger" alih-alih "destructive" */}
+                <Button variant="danger" className="w-full gap-2 font-bold shadow-lg shadow-red-100 hover:shadow-red-200">
                     <Trash2 className="h-4 w-4" />
                     EXECUTE PRUNE NOW
                 </Button>
@@ -125,10 +125,13 @@ export function PruneDialog({
 
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={isLoading}>Batal</AlertDialogCancel>
+                    {/* Custom Trigger Button di dalam Footer.
+             FIX: Menggunakan variant="danger" 
+          */}
                     <Button
-                        variant="destructive"
+                        variant="danger"
                         onClick={(e) => {
-                            e.preventDefault(); // Mencegah auto-close dialog
+                            e.preventDefault(); // Mencegah auto-close dialog default behaviour
                             handleExecute();
                         }}
                         disabled={!isSafetyMatch || isLoading}
@@ -137,7 +140,7 @@ export function PruneDialog({
                         {isLoading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Processing Batch Delete...
+                                Processing...
                             </>
                         ) : (
                             "Ya, Hapus Permanen"
@@ -148,6 +151,3 @@ export function PruneDialog({
         </AlertDialog>
     );
 }
-
-// Helper icon import (tadi kelupaan di atas)
-import { AlertCircle } from "lucide-react"; 
