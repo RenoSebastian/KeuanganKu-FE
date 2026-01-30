@@ -51,7 +51,7 @@ export default function RegisterPage() {
         fullName: formData.name, 
         email: formData.email,
         password: formData.password,
-        unitKerjaId: "KANTOR_PUSAT", // Default sementara
+        unitKerjaId: "IT-01", // Default sementara
       };
 
       await api.post("/auth/register", payload);
