@@ -153,7 +153,7 @@ export const RISKY_EMPLOYEES_MOCK: RiskyEmployeeDetail[] = [
     unitName: "Divisi Operasional Lapangan", 
     healthScore: 30, 
     debtToIncomeRatio: 72, 
-    lastCheckupDate: "2024-04-20",
+    lastCheckDate: "2024-04-20",
     status: "BAHAYA" 
   },
   { 
@@ -162,7 +162,7 @@ export const RISKY_EMPLOYEES_MOCK: RiskyEmployeeDetail[] = [
     unitName: "Divisi HR & Umum", 
     healthScore: 42, 
     debtToIncomeRatio: 58, 
-    lastCheckupDate: "2024-04-18",
+    lastCheckDate: "2024-04-18",
     status: "WASPADA" 
   },
   { 
@@ -171,7 +171,7 @@ export const RISKY_EMPLOYEES_MOCK: RiskyEmployeeDetail[] = [
     unitName: "Divisi Operasional Lapangan", 
     healthScore: 35, 
     debtToIncomeRatio: 65, 
-    lastCheckupDate: "2024-04-15",
+    lastCheckDate: "2024-04-15",
     status: "BAHAYA" 
   },
 ];
