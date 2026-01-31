@@ -2,19 +2,20 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Optimasi RAM untuk build di VM 4GB
+# Batasi penggunaan RAM Node.js agar tidak crash di VM 4GB
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 COPY package*.json ./
-RUN npm install --network-timeout 100000
+# Perbaikan: Hapus --network-timeout yang menyebabkan error 404
+RUN npm install
 
 COPY . .
 
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Jalankan build
-RUN npm run build
+# Tambahkan flag --webpack agar tidak bentrok dengan Turbopack Next.js 16
+RUN npm run build -- --webpack
 
 # --- Stage 2: Runner ---
 FROM node:20-alpine AS runner
