@@ -1,0 +1,11 @@
+services:
+  keuanganku-fe:
+    build:
+      context: .
+      args:
+        # Gunakan IP Publik VM atau domain Anda agar bisa diakses dari browser
+        - NEXT_PUBLIC_API_URL=http://IP_VM_ANDA:3001
+    container_name: keuanganku-fe
+    restart: always
+    ports:
+      - "8080:3000" # Mapping ke port 8080 agar tidak bentrok dengan renderer (3000)
