@@ -468,6 +468,7 @@ export interface DirectorDashboardStats {
   riskyEmployeesCount: number;
   totalAssetsManaged: number;
   statusCounts?: StatusCountDto; // Optional agar tidak error jika BE lama
+  monthlyHealthTrend?: number[];
 }
 
 export interface UnitHealthRanking {
