@@ -3,9 +3,29 @@ services:
     build:
       context: .
       args:
-        # Suntikkan langsung di sini agar permanen masuk ke build Next.js
-        - NEXT_PUBLIC_API_URL=http://202.10.45.157:3001
+        # Menyuntikkan URL API HTTPS untuk build Next.js
+        - NEXT_PUBLIC_API_URL=https://keuanganku.geocitra.com/api
     container_name: keuanganku-fe
     restart: always
+    
+    # Port 8080 tetap dibuka agar bisa diakses via IP VM jika diperlukan
     ports:
       - "8080:3000"
+
+    # [PENTING] Menghubungkan FE ke network yang sama dengan Nginx & BE
+    networks:
+      - e-daily-report-net
+
+    # Resource Management (Agar VM 4GB tidak OOM)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+# Definisi Jaringan External (e-daily-report_default)
+networks:
+  e-daily-report-net:
+    external: true
+    name: e-daily-report_default
