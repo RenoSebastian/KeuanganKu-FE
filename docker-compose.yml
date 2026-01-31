@@ -3,10 +3,9 @@ services:
     build:
       context: .
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    env_file:
-      - .env.local
+        # Suntikkan langsung di sini agar permanen masuk ke build Next.js
+        - NEXT_PUBLIC_API_URL=http://202.10.45.157:3001
     container_name: keuanganku-fe
     restart: always
     ports:
-      - "8080:3000" # Mapping ke port 8080 agar tidak bentrok dengan renderer (3000)
+      - "8080:3000"
