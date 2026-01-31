@@ -3,8 +3,9 @@ services:
     build:
       context: .
       args:
-        # Gunakan IP Publik VM atau domain Anda agar bisa diakses dari browser
-        - NEXT_PUBLIC_API_URL=http://IP_VM_ANDA:3001
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    env_file:
+      - .env.local
     container_name: keuanganku-fe
     restart: always
     ports:
