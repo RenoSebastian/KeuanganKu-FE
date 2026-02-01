@@ -1,11 +1,12 @@
 import axios, { AxiosError } from "axios";
+import { APP_CONFIG, STORAGE_KEYS, UI_MESSAGES } from "@/lib/constants";
 
 // 1. Buat Instance Axios
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000",
-  // [UPDATED] Timeout ditingkatkan ke 30 detik.
+  baseURL: APP_CONFIG.API_URL,
+  // [UPDATED] Timeout menggunakan konstanta global (default 30s)
   // Penting untuk endpoint berat seperti Submit Quiz atau Export Data.
-  timeout: 30000,
+  timeout: APP_CONFIG.API_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
     "Accept": "application/json",
@@ -19,7 +20,9 @@ api.interceptors.request.use(
   (config) => {
     // Cek apakah kode jalan di browser (client-side)
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
+      // [CLEANUP] Menggunakan Key Constant untuk mengambil token
+      const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+
       // Jika ada token di localStorage, inject sebagai Bearer
       // (Ini fallback jika cookie tidak terdeteksi otomatis)
       if (token) {
@@ -42,14 +45,13 @@ api.interceptors.response.use(
     // [NEW] Handling Timeout (Network Edge Case)
     // Mencegah aplikasi crash/blank saat koneksi putus di tengah request
     if (error.code === 'ECONNABORTED') {
-      const timeoutMessage = 'Koneksi terputus (Timeout). Silakan periksa internet Anda dan coba lagi.';
-      // Kita reject dengan Error object baru agar pesan ini bisa ditangkap UI (misal: Toast)
-      return Promise.reject(new Error(timeoutMessage));
+      // Menggunakan pesan standar dari UI Constants
+      return Promise.reject(new Error(UI_MESSAGES.ERRORS.NETWORK_TIMEOUT));
     }
 
     // [NEW] Handling Network Error (Offline/Server Down)
     if (!error.response) {
-      return Promise.reject(new Error('Gagal terhubung ke server. Periksa koneksi internet Anda.'));
+      return Promise.reject(new Error(UI_MESSAGES.ERRORS.NETWORK_OFFLINE));
     }
 
     // [EXISTING] Handling 401 (Unauthorized) & Auto-Logout
@@ -58,8 +60,8 @@ api.interceptors.response.use(
       typeof window !== "undefined" &&
       !window.location.pathname.includes("/login")
     ) {
-      // Bersihkan sesi lokal
-      localStorage.removeItem("token");
+      // Bersihkan sesi lokal menggunakan Key Constant
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
 
       // Redirect paksa ke login
       window.location.href = "/login";

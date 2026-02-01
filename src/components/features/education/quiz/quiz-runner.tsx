@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // [UPDATED] Import useParams
+import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react'; // [UPDATED] Loader icon
+import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, LogIn } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,39 +11,42 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { QuizTimer } from './quiz-timer';
-import { ResultConfetti } from './result-confetti'; // [NEW]
-import { QuizResultModal } from './quiz-result-modal'; // [NEW]
+import { ResultConfetti } from './result-confetti';
+import { QuizResultModal } from './quiz-result-modal';
 
 import { UserQuizData, employeeEducationService } from '@/services/employee-education.service';
 import { useQuizStorage } from '@/hooks/use-quiz-storage';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { QuizSubmissionResult } from '@/lib/types/education'; // [NEW]
-
-// TODO: Ganti dengan Context User ID yang riil di production
-const MOCK_USER_ID = "user-123";
+import { QuizSubmissionResult } from '@/lib/types/education';
+// [NEW] Import Auth Hook
+import { useAuthUser } from '@/hooks/use-auth-user';
 
 interface QuizRunnerProps {
     quiz: UserQuizData;
 }
 
 export function QuizRunner({ quiz }: QuizRunnerProps) {
-    // [UPDATED] Ambil slug dari URL params untuk API call
+    const router = useRouter();
     const params = useParams();
     const slug = params.slug as string;
 
+    // 1. Resolve User Identity
+    const { user, isLoaded: isAuthLoaded } = useAuthUser();
+
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [result, setResult] = useState<QuizSubmissionResult | null>(null); // [NEW] State Result
+    const [result, setResult] = useState<QuizSubmissionResult | null>(null);
 
-    // 1. Hook State & Persistence
+    // 2. Conditional Hook Initialization
+    const userId = user?.id || "guest-fallback";
+
     const { answers, saveAnswer, clearStorage, isHydrated } = useQuizStorage(
         quiz.id,
-        MOCK_USER_ID,
+        userId,
         quiz.timeLimit
     );
 
-    // 2. Guard: Cegah refresh/close tab
-    // Disable guard jika sedang submitting atau result sudah keluar
+    // Guard: Cegah refresh/close tab jika belum submit sukses
     const hasAnswers = Object.keys(answers).length > 0;
     useUnsavedChanges(hasAnswers && !isSubmitting && !result);
 
@@ -52,25 +55,26 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
     const progressPercent = ((Object.keys(answers).length) / questions.length) * 100;
     const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
-    // Handlers (Sama seperti Fase 3)
+    // --- HANDLERS ---
     const handleOptionSelect = (optionId: string) => saveAnswer(currentQuestion.id, optionId);
     const handleNext = () => { if (currentQuestionIndex < questions.length - 1) setCurrentQuestionIndex(prev => prev + 1); };
     const handlePrev = () => { if (currentQuestionIndex > 0) setCurrentQuestionIndex(prev => prev - 1); };
 
-    // --- [NEW] SUBMISSION LOGIC ---
+    // --- [CRITICAL] ROBUST SUBMIT LOGIC ---
     const handleSubmit = async () => {
-        // 1. Completion Check
         const unansweredCount = questions.length - Object.keys(answers).length;
 
-        // Warning jika ada yang kosong (kecuali dipaksa timer habis)
         if (unansweredCount > 0 && !isSubmitting) {
-            const confirm = window.confirm(`Peringatan: Masih ada ${unansweredCount} soal yang belum dijawab. Nilai soal kosong akan dianggap 0. Lanjutkan?`);
+            const confirm = window.confirm(`Peringatan: Masih ada ${unansweredCount} soal yang belum dijawab. Lanjutkan?`);
             if (!confirm) return;
         }
 
         setIsSubmitting(true);
+
+        // Toast Loading (Persisting until success/error)
+        const toastId = toast.loading('Mengirim jawaban ke server...');
+
         try {
-            // 2. Mapping Payload
             const payload = {
                 answers: Object.entries(answers).map(([qId, oId]) => ({
                     questionId: qId,
@@ -78,35 +82,82 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                 }))
             };
 
-            // 3. API Call
+            // API Call dengan Timeout yang sudah di-tuning di axios.ts
             const submissionResult = await employeeEducationService.submitQuiz(slug, payload);
 
-            // 4. Success Handling
-            clearStorage(); // Hapus draft
-            setResult(submissionResult); // Trigger Modal
-            // Tidak ada redirect manual, Modal yang akan menangani navigasi selanjutnya
+            // [SUCCESS PATH]
+            // Hanya bersihkan storage jika server me-return 200 OK
+            clearStorage();
+            setResult(submissionResult);
+            toast.success('Jawaban berhasil diterima!', { id: toastId });
 
         } catch (error: any) {
+            // [FAILURE PATH - RESILIENCE LAYER]
             console.error("Submission error:", error);
-            toast.error(error.response?.data?.message || "Gagal mengirim jawaban. Periksa koneksi internet Anda.");
-            setIsSubmitting(false); // Reset loading agar user bisa coba lagi
+
+            // Jangan hapus storage! User masih bisa coba lagi.
+            setIsSubmitting(false);
+
+            // Analisis Error untuk pesan yang lebih informatif
+            let errorMessage = "Gagal mengirim jawaban.";
+            let description = "Terjadi kesalahan sistem.";
+
+            if (error.message.includes('Timeout') || error.message.includes('Network Error')) {
+                errorMessage = "Koneksi Bermasalah";
+                description = "Jawaban Anda AMAN tersimpan di browser. Periksa internet dan tekan tombol 'Selesai' lagi.";
+            } else if (error.response?.data?.message) {
+                // Error validasi dari Backend (misal: Time Limit Exceeded)
+                errorMessage = "Gagal Validasi";
+                description = error.response.data.message;
+            }
+
+            toast.error(errorMessage, {
+                id: toastId,
+                description: description,
+                duration: 5000, // Tampil agak lama agar terbaca
+                action: {
+                    label: "Coba Lagi",
+                    onClick: () => handleSubmit() // Retry Action
+                }
+            });
         }
     };
 
     const handleTimeUp = () => {
-        // Auto-submit tanpa konfirmasi user
         if (!result && !isSubmitting) {
-            toast.warning("Waktu habis! Jawaban Anda sedang dikirim...");
+            toast.warning("Waktu habis! Mencoba mengirim jawaban otomatis...");
             handleSubmit();
         }
     };
 
-    if (!isHydrated) return null;
+    // --- RENDER GUARDS ---
+    if (!isHydrated || !isAuthLoaded) {
+        return (
+            <div className="flex h-64 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
+    if (!user) {
+        return (
+            <div className="flex h-64 flex-col items-center justify-center gap-4 text-center">
+                <div className="rounded-full bg-red-100 p-3 text-red-600">
+                    <LogIn className="h-6 w-6" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-semibold">Sesi Berakhir</h3>
+                    <p className="text-muted-foreground">Silakan login kembali untuk melanjutkan kuis.</p>
+                </div>
+                <Button onClick={() => router.push('/login')}>Ke Halaman Login</Button>
+            </div>
+        );
+    }
+
+    // --- UI ---
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
 
-            {/* Visual Effects & Modals */}
             <ResultConfetti show={!!result?.isPassed} />
             <QuizResultModal
                 isOpen={!!result}
@@ -114,7 +165,6 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                 slug={slug}
             />
 
-            {/* --- HEADER: TIMER & PROGRESS --- */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 sticky top-4 z-30 bg-gray-50/90 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-gray-100">
                 <div className="w-full md:w-1/3 space-y-1">
                     <div className="flex justify-between text-xs font-medium text-gray-500">
@@ -130,9 +180,8 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                 />
             </div>
 
-            {/* --- MAIN QUESTION CARD --- */}
-            {/* Disable interaksi jika sedang submitting */}
-            <div className={isSubmitting ? "opacity-50 pointer-events-none" : ""}>
+            {/* Disable interaksi jika sedang submitting, tapi jangan hide (agar user tidak bingung) */}
+            <div className={isSubmitting ? "opacity-70 pointer-events-none grayscale transition-all" : ""}>
                 <Card className="p-6 md:p-10 min-h-100 flex flex-col shadow-md border-0">
                     <div className="flex-1 space-y-6">
                         <div className="flex items-start gap-4">
@@ -153,8 +202,8 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                                 <div
                                     key={option.id}
                                     className={`flex items-center space-x-3 border rounded-lg p-4 cursor-pointer transition-all hover:bg-gray-50 ${answers[currentQuestion.id] === option.id
-                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                            : "border-gray-200"
+                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                        : "border-gray-200"
                                         }`}
                                     onClick={() => handleOptionSelect(option.id)}
                                 >
@@ -181,11 +230,11 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                             <Button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
-                                className="w-40 bg-green-600 hover:bg-green-700 text-white transition-all"
+                                className={`w-40 transition-all ${isSubmitting ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"} text-white`}
                             >
                                 {isSubmitting ? (
                                     <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menilai...
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Mengirim...
                                     </>
                                 ) : (
                                     <>Selesai <CheckCircle2 className="w-4 h-4 ml-2" /></>
@@ -200,7 +249,6 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                 </Card>
             </div>
 
-            {/* --- QUESTION NAVIGATOR --- */}
             <div className="flex flex-wrap gap-2 justify-center pb-10">
                 {questions.map((_, idx) => {
                     const isCurrent = idx === currentQuestionIndex;
@@ -211,8 +259,8 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                             onClick={() => !isSubmitting && setCurrentQuestionIndex(idx)}
                             disabled={isSubmitting}
                             className={`w-3 h-3 rounded-full transition-all ${isCurrent ? "bg-primary scale-125 ring-2 ring-offset-2 ring-primary"
-                                    : isAnswered ? "bg-green-500"
-                                        : "bg-gray-200 hover:bg-gray-300"
+                                : isAnswered ? "bg-green-500"
+                                    : "bg-gray-200 hover:bg-gray-300"
                                 }`}
                             title={`Soal ${idx + 1}`}
                         />

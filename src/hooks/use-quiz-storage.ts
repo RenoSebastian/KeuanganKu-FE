@@ -1,18 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
+import { STORAGE_KEYS } from '@/lib/constants'; // [NEW]
 
 interface QuizState {
-    answers: Record<string, string>; // questionId -> optionId
-    startedAt: number; // Timestamp ms
+    answers: Record<string, string>;
+    startedAt: number;
 }
 
 export function useQuizStorage(quizId: string, userId: string, timeLimitMinutes: number) {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [isHydrated, setIsHydrated] = useState(false);
 
-    // Key unik per user dan per kuis
-    const storageKey = `quiz_state_v1_${userId}_${quizId}`;
+    // [CLEANUP] Konstruksi Key Konsisten
+    const storageKey = `${STORAGE_KEYS.QUIZ_DRAFT_PREFIX}${userId}_${quizId}`;
+    const startTimeKey = `${storageKey}${STORAGE_KEYS.QUIZ_START_TIME_SUFFIX}`;
 
-    // 1. Load from Storage on Mount
+    // 1. Load from Storage
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
@@ -21,15 +23,13 @@ export function useQuizStorage(quizId: string, userId: string, timeLimitMinutes:
             if (stored) {
                 const parsed: QuizState = JSON.parse(stored);
 
-                // --- VALIDATION: EXPIRY CHECK ---
-                // Jika kuis memiliki batas waktu, cek apakah sesi tersimpan masih valid
                 if (timeLimitMinutes > 0) {
                     const now = Date.now();
                     const limitMs = timeLimitMinutes * 60 * 1000;
-                    // Tambahkan buffer 1 menit untuk toleransi latency
                     if (now - parsed.startedAt > limitMs + 60000) {
-                        console.warn("Quiz draft expired. Clearing storage.");
+                        console.warn("Draft expired. Clearing local storage.");
                         localStorage.removeItem(storageKey);
+                        localStorage.removeItem(startTimeKey);
                         setIsHydrated(true);
                         return;
                     }
@@ -38,39 +38,40 @@ export function useQuizStorage(quizId: string, userId: string, timeLimitMinutes:
                 setAnswers(parsed.answers);
             }
         } catch (error) {
-            console.error("Failed to load quiz state:", error);
+            // Silent catch for parsing errors
         } finally {
             setIsHydrated(true);
         }
-    }, [storageKey, timeLimitMinutes]);
+    }, [storageKey, startTimeKey, timeLimitMinutes]);
 
     // 2. Persist Answers
     const saveAnswer = useCallback((questionId: string, optionId: string) => {
         setAnswers((prev) => {
             const newAnswers = { ...prev, [questionId]: optionId };
 
-            // Simpan ke storage (Debouncing tidak diperlukan karena interaksi klik user jarang)
+            const startTimestamp = parseInt(localStorage.getItem(startTimeKey) || Date.now().toString());
+
             const currentState: QuizState = {
                 answers: newAnswers,
-                startedAt: parseInt(localStorage.getItem(`${storageKey}_start`) || Date.now().toString())
+                startedAt: startTimestamp
             };
 
             localStorage.setItem(storageKey, JSON.stringify(currentState));
-            // Simpan start time terpisah jika belum ada
-            if (!localStorage.getItem(`${storageKey}_start`)) {
-                localStorage.setItem(`${storageKey}_start`, Date.now().toString());
+
+            if (!localStorage.getItem(startTimeKey)) {
+                localStorage.setItem(startTimeKey, Date.now().toString());
             }
 
             return newAnswers;
         });
-    }, [storageKey]);
+    }, [storageKey, startTimeKey]);
 
-    // 3. Clear Storage (After Submit)
+    // 3. Clear Storage
     const clearStorage = useCallback(() => {
         localStorage.removeItem(storageKey);
-        localStorage.removeItem(`${storageKey}_start`);
+        localStorage.removeItem(startTimeKey);
         setAnswers({});
-    }, [storageKey]);
+    }, [storageKey, startTimeKey]);
 
     return {
         answers,
