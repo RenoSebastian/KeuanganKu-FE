@@ -11,7 +11,8 @@ import {
   ShieldAlert,
   BarChart3,
   Trophy,
-  Archive // [NEW] Icon untuk Maintenance/Retention
+  Archive,
+  BookOpen
 } from "lucide-react";
 
 export const NAVIGATION_CONFIG = {
@@ -26,8 +27,9 @@ export const NAVIGATION_CONFIG = {
     { label: "Dashboard Admin", icon: LayoutDashboard, href: "/admin/dashboard" },
     { label: "Manajemen User", icon: Users, href: "/admin/users" },
     { label: "Data Master", icon: Database, href: "/admin/master-data" },
+    // [NEW] Menu Manajemen Edukasi & Quiz (Fase 2)
+    { label: "Modul Edukasi", icon: BookOpen, href: "/admin/education" },
     // [NEW] Menu Data Maintenance
-    // Diletakkan sebelum Settings agar Settings tetap di paling bawah (konvensi UX)
     { label: "Data Maintenance", icon: Archive, href: "/admin/maintenance" },
     { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },
   ],

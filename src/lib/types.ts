@@ -597,3 +597,7 @@ export interface HelpContent {
   excludes?: string[]; // Array string: Apa yang TIDAK masuk
   example?: string;    // Contoh konkret angka/kasus
 }
+
+// [NEW] Education Module Types
+export * from './types/education';
+export * from './types/retention'; // Jika belum ada

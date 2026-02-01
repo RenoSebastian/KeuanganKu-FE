@@ -9,67 +9,93 @@ const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password'];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Ambil Token dari Cookies (Prioritas utama untuk Middleware)
-  // Token ini diset oleh Login Page menggunakan js-cookie
+  // 1. Ambil Token dari Cookies
   const token = request.cookies.get('token')?.value || request.cookies.get('accessToken')?.value;
 
-  // 2. Decode Token (Basic Payload Check) untuk tahu Role
-  let userRole = null;
+  // 2. Decode Token untuk tahu Role
+  let userRole: string | null = null;
   if (token) {
     try {
       const decoded = decodeJwt(token);
-      userRole = decoded?.role;
+      userRole = decoded?.role || null;
     } catch (e) {
       console.error("Invalid Token in Middleware");
     }
   }
 
   const isAuth = !!token;
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
   const isRoot = pathname === '/';
-  const isDirectorRoute = pathname.startsWith('/director');
+
+  // Definisi Scope Area
+  const isDirectorArea = pathname.startsWith('/director');
+  const isAdminArea = pathname.startsWith('/admin');
+  const isEducationArea = pathname.startsWith('/admin/education');
 
   // --- SKENARIO A: User SUDAH Login ---
   if (isAuth) {
-    // 1. Jika buka Halaman Login/Register atau Root (Landing Page), 
-    // Redirect paksa ke Dashboard masing-masing (biar gak login ulang)
+    // 1. Redirect dari Public Route/Root ke Dashboard yang Sesuai
     if (isPublicRoute || isRoot) {
-      const targetDashboard = userRole === 'DIRECTOR' ? '/director/dashboard' : '/dashboard';
+      let targetDashboard = '/dashboard'; // Default User
+      if (userRole === 'ADMIN') targetDashboard = '/admin/dashboard';
+      if (userRole === 'DIRECTOR') targetDashboard = '/director/dashboard';
+
       return NextResponse.redirect(new URL(targetDashboard, request.url));
     }
 
-    // 2. Proteksi Halaman Director
-    if (isDirectorRoute) {
-      if (userRole !== 'DIRECTOR') {
-        // User biasa coba masuk area Direksi -> Balikin ke kandang (User Dashboard)
+    // 2. Proteksi Area EDUCATION (Shared Access: Admin & Director)
+    // Ini dicek duluan karena berada di dalam path /admin
+    if (isEducationArea) {
+      const allowedRoles = ['ADMIN', 'DIRECTOR'];
+      if (!userRole || !allowedRoles.includes(userRole)) {
+        // User biasa tidak boleh masuk sini
         return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+      // Jika lolos, return next (biar gak kena cek admin area di bawah)
+      return NextResponse.next();
+    }
+
+    // 3. Proteksi Area ADMIN (General)
+    // Semua path /admin selain education hanya untuk Role ADMIN
+    if (isAdminArea) {
+      if (userRole !== 'ADMIN') {
+        // Director pun ditendang jika coba akses admin core (users/settings)
+        const fallback = userRole === 'DIRECTOR' ? '/director/dashboard' : '/dashboard';
+        return NextResponse.redirect(new URL(fallback, request.url));
+      }
+    }
+
+    // 4. Proteksi Area DIRECTOR
+    if (isDirectorArea) {
+      if (userRole !== 'DIRECTOR') {
+        const fallback = userRole === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+        return NextResponse.redirect(new URL(fallback, request.url));
       }
     }
   }
 
   // --- SKENARIO B: User BELUM Login ---
   if (!isAuth) {
-    // 1. Jika buka Root (/), biarkan saja (Tampilkan Landing Page)
+    // 1. Landing Page boleh diakses
     if (isRoot) {
       return NextResponse.next();
     }
 
-    // 2. Jika buka halaman selain Public Route (misal: /dashboard, /finance),
-    // Redirect ke Login
-    if (!isPublicRoute) {
-      const loginUrl = new URL('/login', request.url);
-      // Simpan URL tujuan agar nanti bisa redirect balik setelah login (UX)
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
+    // 2. Halaman publik boleh diakses
+    if (isPublicRoute) {
+      return NextResponse.next();
     }
+
+    // 3. Sisanya (Dashboard, Protected Routes) -> Redirect ke Login
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Lolos semua pengecekan -> Lanjut
   return NextResponse.next();
 }
 
 // --- HELPER: JWT Decoder (Edge Runtime Compatible) ---
-// Middleware Next.js jalan di Edge, jadi tidak bisa pakai library berat.
 function decodeJwt(token: string) {
   try {
     const base64Url = token.split('.')[1];
@@ -86,18 +112,8 @@ function decodeJwt(token: string) {
   }
 }
 
-// Konfigurasi Matcher (Hanya jalan di path tertentu agar performa optimal)
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images (public images)
-     * - icons (public icons)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|images|icons).*)',
   ],
 };
