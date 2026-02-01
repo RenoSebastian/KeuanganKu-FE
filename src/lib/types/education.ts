@@ -46,11 +46,14 @@ export interface EducationModule {
     publishedAt?: Date | string | null;
     category: EducationCategory;
     sections?: ModuleSection[];
-    // User specific
-    userStatus?: EducationProgressStatus | 'NOT_STARTED';
+
+    // [CRITICAL] User Context Fields
+    // Field ini di-populate oleh Backend saat request dilakukan oleh User Login
+    userStatus?: EducationProgressStatus | null; // null = Belum mulai
+    progressPercentage?: number; // 0-100
 }
 
-// --- QUIZ ENTITIES ---
+// --- ADMIN QUIZ ENTITIES (Full Access) ---
 
 export interface QuizOption {
     id?: string; // Optional saat create baru di FE
@@ -76,6 +79,27 @@ export interface QuizHeader {
     questions: QuizQuestion[];
 }
 
+// --- USER QUIZ ENTITIES (Secure / Zero Leakage) ---
+// Digunakan saat Pegawai mengerjakan kuis. TIDAK BOLEH ada isCorrect.
+
+export interface UserQuizData {
+    id: string;
+    moduleId: string;
+    timeLimit: number;
+    passingScore: number;
+    description?: string;
+    questions: {
+        id: string;
+        questionText: string;
+        type: QuizQuestionType;
+        options: {
+            id: string;
+            optionText: string;
+            // [SECURITY] isCorrect HARAM ada di sini
+        }[];
+    }[];
+}
+
 // --- API DTOs (Payloads sent to BE) ---
 
 export interface CreateModulePayload {
@@ -93,7 +117,7 @@ export interface UpdateModuleStatusPayload {
     status: EducationModuleStatus;
 }
 
-// DTO Khusus Quiz (Mirror UpsertQuizDto)
+// DTO Khusus Quiz Admin (Mirror UpsertQuizDto)
 export interface UpsertQuizPayload {
     passingScore: number;
     timeLimit: number;
@@ -108,5 +132,23 @@ export interface UpsertQuizPayload {
             optionText: string;
             isCorrect: boolean;
         }[];
+    }[];
+}
+
+// --- SUBMISSION DTOs ---
+
+export interface QuizSubmissionResult {
+    score: number;
+    isPassed: boolean;
+    attemptsUsed: number;
+    maxAttempts: number;
+    message: string;
+    // Opsional: Detail jawaban benar/salah jika kebijakan mengizinkan review
+}
+
+export interface SubmitQuizPayload {
+    answers: {
+        questionId: string;
+        selectedOptionId: string;
     }[];
 }
