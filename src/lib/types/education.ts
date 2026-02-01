@@ -9,6 +9,7 @@ export enum EducationModuleStatus {
 
 export enum QuizQuestionType {
     SINGLE_CHOICE = 'SINGLE_CHOICE',
+    MULTIPLE_CHOICE = "MULTIPLE_CHOICE",
     // MULTIPLE_CHOICE (Future Proofing)
 }
 

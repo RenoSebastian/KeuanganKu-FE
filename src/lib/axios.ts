@@ -3,7 +3,7 @@ import { APP_CONFIG, STORAGE_KEYS, UI_MESSAGES } from "@/lib/constants";
 
 // 1. Buat Instance Axios
 const api = axios.create({
-  baseURL: APP_CONFIG.API_URL,
+  baseURL: `${APP_CONFIG.API_URL}/api`,
   // [UPDATED] Timeout menggunakan konstanta global (default 30s)
   // Penting untuk endpoint berat seperti Submit Quiz atau Export Data.
   timeout: APP_CONFIG.API_TIMEOUT_MS,

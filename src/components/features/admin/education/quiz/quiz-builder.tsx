@@ -15,17 +15,17 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { QuestionCard } from './question-card';
 
 import { quizFormSchema, QuizFormValues } from '@/lib/schemas/education-schema';
-import { adminEducationService } from '@/services/education.service';
-import { QuizHeader, UpsertQuizPayload, QuizQuestionType } from '@/lib/types/education';
-// [NEW] Import Guardrail Hook
+import { adminEducationService, UpsertQuizPayload } from '@/services/education.service';
+import { QuizHeader, QuizQuestionType } from '@/lib/types/education';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 interface QuizBuilderProps {
     moduleId: string;
-    initialData?: QuizHeader | null;
+    initialData?: any; // Menggunakan any untuk fleksibilitas mapping data awal
+    onSave?: () => void;
 }
 
-export function QuizBuilder({ moduleId, initialData }: QuizBuilderProps) {
+export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,19 +36,20 @@ export function QuizBuilder({ moduleId, initialData }: QuizBuilderProps) {
             timeLimit: initialData?.timeLimit ?? 30,
             maxAttempts: initialData?.maxAttempts ?? 3,
             description: initialData?.description ?? '',
-            questions: initialData?.questions.length ? initialData.questions.map(q => ({
+            questions: initialData?.questions?.length ? initialData.questions.map((q: any) => ({
                 questionText: q.questionText,
-                type: q.type,
+                type: q.type, // Pastikan tipe dari BE sesuai dengan Enum
                 orderIndex: q.orderIndex,
                 explanation: q.explanation || '',
-                options: q.options.map(o => ({
+                options: q.options.map((o: any) => ({
                     optionText: o.optionText,
                     isCorrect: o.isCorrect
                 }))
             })) : [
                 {
                     questionText: '',
-                    type: QuizQuestionType.SINGLE_CHOICE,
+                    // [FIX] Gunakan Enum Member, bukan string literal
+                    type: QuizQuestionType.MULTIPLE_CHOICE,
                     orderIndex: 1,
                     options: [
                         { optionText: '', isCorrect: false },
@@ -64,23 +65,21 @@ export function QuizBuilder({ moduleId, initialData }: QuizBuilderProps) {
         name: 'questions',
     });
 
-    // [NEW] Guardrail Implementation
-    // Mencegah data loss jika user refresh/close tab
+    // Guardrail: Mencegah data loss
     useUnsavedChanges(methods.formState.isDirty && !methods.formState.isSubmitSuccessful);
 
     const onSubmit: SubmitHandler<QuizFormValues> = async (data) => {
         setIsSubmitting(true);
         try {
+            // [FIX] Payload Construction sesuai kontrak Service terbaru
             const payload: UpsertQuizPayload = {
-                passingScore: Number(data.passingScore),
+                moduleId: moduleId,
                 timeLimit: Number(data.timeLimit),
-                maxAttempts: Number(data.maxAttempts),
-                description: data.description,
+                passingScore: Number(data.passingScore),
                 questions: data.questions.map((q, idx) => ({
                     questionText: q.questionText,
-                    type: q.type,
-                    orderIndex: idx + 1,
-                    explanation: q.explanation,
+                    // [FIX] Pastikan casting type aman ke Enum yang diharapkan Service
+                    type: q.type as 'MULTIPLE_CHOICE' | 'TRUE_FALSE',
                     options: q.options.map(o => ({
                         optionText: o.optionText,
                         isCorrect: o.isCorrect
@@ -88,19 +87,21 @@ export function QuizBuilder({ moduleId, initialData }: QuizBuilderProps) {
                 }))
             };
 
-            await adminEducationService.upsertQuiz(moduleId, payload);
+            await adminEducationService.upsertQuiz(payload);
 
             toast.success('Kuis berhasil disimpan!');
 
-            // Reset form state setelah sukses agar hook tidak menahan navigasi
-            methods.reset(data);
-            router.refresh();
+            methods.reset(data); // Reset dirty state
+
+            if (onSave) {
+                onSave();
+            } else {
+                router.refresh();
+            }
+
         } catch (error: any) {
             console.error("Quiz Submit Error:", error);
-            // Logic Error Handling:
-            // Tampilkan pesan error spesifik dari Backend jika ada
             toast.error(error.response?.data?.message || 'Gagal menyimpan kuis. Periksa koneksi atau input Anda.');
-            // PENTING: Jangan reset form di sini. Biarkan user mencoba lagi.
         } finally {
             setIsSubmitting(false);
         }
@@ -176,7 +177,8 @@ export function QuizBuilder({ moduleId, initialData }: QuizBuilderProps) {
                             type="button"
                             onClick={() => append({
                                 questionText: '',
-                                type: QuizQuestionType.SINGLE_CHOICE,
+                                // [FIX] Gunakan Enum Member saat menambah pertanyaan baru
+                                type: QuizQuestionType.MULTIPLE_CHOICE,
                                 orderIndex: fields.length + 1,
                                 options: [
                                     { optionText: '', isCorrect: false },

@@ -1,5 +1,4 @@
-// src/services/education.service.ts
-import api from '@/lib/axios'; // Menggunakan instance global Anda
+import api from '@/lib/axios';
 import {
     CreateModulePayload,
     EducationCategory,
@@ -7,8 +6,24 @@ import {
     QuizHeader,
     UpdateModulePayload,
     UpdateModuleStatusPayload,
-    UpsertQuizPayload,
 } from '@/lib/types/education';
+
+// [NEW] Define Payload for Upsert Quiz
+export interface UpsertQuizPayload {
+    moduleId: string;
+    timeLimit: number;
+    passingScore: number;
+    questions: {
+        id?: string; // Optional for new questions
+        questionText: string;
+        type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE';
+        options: {
+            id?: string; // Optional for new options
+            optionText: string;
+            isCorrect: boolean;
+        }[];
+    }[];
+}
 
 // --- ADMIN ENDPOINTS ---
 
@@ -16,6 +31,12 @@ export const adminEducationService = {
     // 1. Module Management
     createModule: async (payload: CreateModulePayload) => {
         const { data } = await api.post<EducationModule>('/admin/education/modules', payload);
+        return data;
+    },
+
+    // [ADDED] Get Single Module by ID (for Admin Edit)
+    getModuleById: async (id: string) => {
+        const { data } = await api.get<EducationModule>(`/admin/education/modules/${id}`);
         return data;
     },
 
@@ -37,17 +58,26 @@ export const adminEducationService = {
         return data;
     },
 
-    reorderSections: async (id: string, items: { sectionId: string; newOrder: number }[]) => {
-        const { data } = await api.post(`/admin/education/modules/${id}/reorder-sections`, {
+    reorderSections: async (id: string, items: { id: string; order: number }[]) => {
+        const { data } = await api.put(`/admin/education/modules/${id}/sections/reorder`, {
             items,
         });
         return data;
     },
 
-    // 2. Quiz Management (Transactional)
-    upsertQuiz: async (moduleId: string, payload: UpsertQuizPayload) => {
+    // 2. Quiz Management
+
+    // [ADDED] Get Quiz Config (for Admin Quiz Builder Init)
+    getQuizConfig: async (moduleId: string) => {
+        const { data } = await api.get<UpsertQuizPayload>(`/admin/education/modules/${moduleId}/quiz`);
+        return data;
+    },
+
+    // [UPDATED] Upsert Quiz (Transactional Save)
+    upsertQuiz: async (payload: UpsertQuizPayload) => {
+        // Menggunakan moduleId dari payload untuk membentuk URL
         const { data } = await api.put<QuizHeader>(
-            `/admin/education/modules/${moduleId}/quiz`,
+            `/admin/education/modules/${payload.moduleId}/quiz`,
             payload
         );
         return data;
@@ -74,14 +104,4 @@ export const publicEducationService = {
         const { data } = await api.get<EducationModule>(`/education/modules/${slug}`);
         return data;
     },
-
-    // Fetch Quiz untuk Mode Edit Admin (Bukan untuk User mengerjakan)
-    // Backend endpoint ini belum ada di PublicController, 
-    // Admin menggunakan data dari `getModuleBySlug` yang sudah include `quiz` (jika logic BE mengizinkan)
-    // ATAU kita perlu endpoint khusus GET /admin/education/modules/:id/quiz 
-    // (Asumsi: di admin-education.controller.ts belum ada GET quiz spesifik, 
-    // kita bisa pakai data dari findOne module jika include quiz sudah ada).
-
-    // NOTE: Untuk keamanan, Admin sebaiknya fetch lewat module detail
-    // Jika butuh endpoint khusus, tambahkan di BE. Untuk sekarang kita pakai data Module.
 };
