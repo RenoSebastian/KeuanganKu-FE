@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, LogIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, LogIn, LockKeyhole } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,7 +18,6 @@ import { UserQuizData, employeeEducationService } from '@/services/employee-educ
 import { useQuizStorage } from '@/hooks/use-quiz-storage';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { QuizSubmissionResult } from '@/lib/types/education';
-// [NEW] Import Auth Hook
 import { useAuthUser } from '@/hooks/use-auth-user';
 
 interface QuizRunnerProps {
@@ -30,23 +29,34 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
     const params = useParams();
     const slug = params.slug as string;
 
-    // 1. Resolve User Identity
     const { user, isLoaded: isAuthLoaded } = useAuthUser();
+
+    // [FIX STATE] Simpan userId yang valid terakhir kali dilihat.
+    // Jika user logout/expired di tengah jalan, kita tetap pegang ID lama
+    // agar storage key tidak berubah menjadi 'guest' dan menghilangkan jawaban dari UI.
+    const [stableUserId, setStableUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (user?.id) {
+            setStableUserId(user.id);
+        }
+    }, [user]);
 
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [result, setResult] = useState<QuizSubmissionResult | null>(null);
 
-    // 2. Conditional Hook Initialization
-    const userId = user?.id || "guest-fallback";
+    // Gunakan stableUserId untuk storage key. 
+    // Jika user null (expired), storage tetap bisa dibaca menggunakan ID terakhir.
+    const storageUserId = stableUserId || "initializing";
 
     const { answers, saveAnswer, clearStorage, isHydrated } = useQuizStorage(
         quiz.id,
-        userId,
+        storageUserId,
         quiz.timeLimit
     );
 
-    // Guard: Cegah refresh/close tab jika belum submit sukses
+    // Guard: Prevent refresh
     const hasAnswers = Object.keys(answers).length > 0;
     useUnsavedChanges(hasAnswers && !isSubmitting && !result);
 
@@ -55,23 +65,29 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
     const progressPercent = ((Object.keys(answers).length) / questions.length) * 100;
     const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
-    // --- HANDLERS ---
+    // Handlers
     const handleOptionSelect = (optionId: string) => saveAnswer(currentQuestion.id, optionId);
     const handleNext = () => { if (currentQuestionIndex < questions.length - 1) setCurrentQuestionIndex(prev => prev + 1); };
     const handlePrev = () => { if (currentQuestionIndex > 0) setCurrentQuestionIndex(prev => prev - 1); };
 
-    // --- [CRITICAL] ROBUST SUBMIT LOGIC ---
     const handleSubmit = async () => {
-        const unansweredCount = questions.length - Object.keys(answers).length;
+        // [GUARD] Re-check auth before submit attempt
+        // Jika token mati, jangan biarkan submit karena pasti 401.
+        if (!user) {
+            toast.error("Sesi Anda telah berakhir.", {
+                description: "Silakan login kembali di tab baru, lalu tekan tombol 'Selesai' lagi di sini.",
+                duration: 8000,
+            });
+            return;
+        }
 
+        const unansweredCount = questions.length - Object.keys(answers).length;
         if (unansweredCount > 0 && !isSubmitting) {
             const confirm = window.confirm(`Peringatan: Masih ada ${unansweredCount} soal yang belum dijawab. Lanjutkan?`);
             if (!confirm) return;
         }
 
         setIsSubmitting(true);
-
-        // Toast Loading (Persisting until success/error)
         const toastId = toast.loading('Mengirim jawaban ke server...');
 
         try {
@@ -82,23 +98,16 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                 }))
             };
 
-            // API Call dengan Timeout yang sudah di-tuning di axios.ts
             const submissionResult = await employeeEducationService.submitQuiz(slug, payload);
 
-            // [SUCCESS PATH]
-            // Hanya bersihkan storage jika server me-return 200 OK
             clearStorage();
             setResult(submissionResult);
             toast.success('Jawaban berhasil diterima!', { id: toastId });
 
         } catch (error: any) {
-            // [FAILURE PATH - RESILIENCE LAYER]
             console.error("Submission error:", error);
-
-            // Jangan hapus storage! User masih bisa coba lagi.
             setIsSubmitting(false);
 
-            // Analisis Error untuk pesan yang lebih informatif
             let errorMessage = "Gagal mengirim jawaban.";
             let description = "Terjadi kesalahan sistem.";
 
@@ -106,7 +115,6 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                 errorMessage = "Koneksi Bermasalah";
                 description = "Jawaban Anda AMAN tersimpan di browser. Periksa internet dan tekan tombol 'Selesai' lagi.";
             } else if (error.response?.data?.message) {
-                // Error validasi dari Backend (misal: Time Limit Exceeded)
                 errorMessage = "Gagal Validasi";
                 description = error.response.data.message;
             }
@@ -114,11 +122,8 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
             toast.error(errorMessage, {
                 id: toastId,
                 description: description,
-                duration: 5000, // Tampil agak lama agar terbaca
-                action: {
-                    label: "Coba Lagi",
-                    onClick: () => handleSubmit() // Retry Action
-                }
+                duration: 5000,
+                action: { label: "Coba Lagi", onClick: () => handleSubmit() }
             });
         }
     };
@@ -131,6 +136,8 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
     };
 
     // --- RENDER GUARDS ---
+
+    // 1. Initial Loading
     if (!isHydrated || !isAuthLoaded) {
         return (
             <div className="flex h-64 items-center justify-center">
@@ -139,24 +146,50 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
         );
     }
 
-    if (!user) {
+    // 2. [FIXED] Session Expired / Not Logged In Logic
+    // Jika tidak ada user TAPI kita punya stableUserId (artinya tadi login, lalu expired),
+    // Tampilkan "Session Expired Overlay" di atas kuis, jangan hilangkan kuisnya.
+    // Jika dari awal tidak ada user, redirect login.
+    if (!user && !stableUserId) {
         return (
             <div className="flex h-64 flex-col items-center justify-center gap-4 text-center">
                 <div className="rounded-full bg-red-100 p-3 text-red-600">
                     <LogIn className="h-6 w-6" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-semibold">Sesi Berakhir</h3>
-                    <p className="text-muted-foreground">Silakan login kembali untuk melanjutkan kuis.</p>
+                    <h3 className="text-lg font-semibold">Akses Terbatas</h3>
+                    <p className="text-muted-foreground">Silakan login untuk mengakses kuis.</p>
                 </div>
                 <Button onClick={() => router.push('/login')}>Ke Halaman Login</Button>
             </div>
         );
     }
 
-    // --- UI ---
+    // --- UI UTAMA ---
     return (
-        <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
+        <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 relative">
+
+            {/* [NEW] Session Expired Overlay Guard */}
+            {/* Muncul hanya jika user terlogout di tengah jalan */}
+            {!user && stableUserId && (
+                <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 rounded-xl border-2 border-red-100 animate-in fade-in">
+                    <LockKeyhole className="h-12 w-12 text-red-500 mb-4" />
+                    <h2 className="text-2xl font-bold text-gray-900">Sesi Berakhir</h2>
+                    <p className="text-gray-600 max-w-md mb-6">
+                        Maaf, sesi login Anda telah habis saat mengerjakan kuis.
+                        <br />
+                        <strong>JANGAN TUTUP HALAMAN INI.</strong> Jawaban Anda masih tersimpan aman.
+                    </p>
+                    <div className="flex gap-3">
+                        <Button variant="outline" onClick={() => window.open('/login', '_blank')}>
+                            Login di Tab Baru
+                        </Button>
+                        <Button onClick={() => window.location.reload()}>
+                            Sudah Login? Refresh Halaman
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <ResultConfetti show={!!result?.isPassed} />
             <QuizResultModal
@@ -180,7 +213,6 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
                 />
             </div>
 
-            {/* Disable interaksi jika sedang submitting, tapi jangan hide (agar user tidak bingung) */}
             <div className={isSubmitting ? "opacity-70 pointer-events-none grayscale transition-all" : ""}>
                 <Card className="p-6 md:p-10 min-h-100 flex flex-col shadow-md border-0">
                     <div className="flex-1 space-y-6">
