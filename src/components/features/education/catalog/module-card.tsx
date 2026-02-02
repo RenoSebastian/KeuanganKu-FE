@@ -91,7 +91,7 @@ export function ModuleCard({ module }: ModuleCardProps) {
 
             {/* --- ACTION FOOTER --- */}
             <CardFooter className="p-4 pt-0 mt-auto">
-                <Link href={`/learning/${module.slug}`} className="w-full">
+                <Link href={`/learning/${module.slug}/read`} className="w-full">
                     <Button
                         className={cn(
                             "w-full gap-2",
