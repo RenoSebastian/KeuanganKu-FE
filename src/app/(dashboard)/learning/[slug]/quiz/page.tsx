@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react'; // [FIX] Import 'use' untuk unwrap Promise params
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, X } from 'lucide-react';
@@ -10,30 +10,45 @@ import { QuizRunner } from '@/components/features/education/quiz/quiz-runner';
 import { employeeEducationService, UserQuizData } from '@/services/employee-education.service';
 
 interface QuizPageProps {
-    params: { slug: string };
+    // [FIX] Next.js 15+ params sekarang adalah Promise
+    params: Promise<{ slug: string }>;
 }
 
 export default function QuizPage({ params }: QuizPageProps) {
+    // [FIX] Unwrap params menggunakan React.use()
+    const { slug } = use(params);
+
     const router = useRouter();
     const [quizData, setQuizData] = useState<UserQuizData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // [FIX] Cegah eksekusi jika slug masih undefined atau string 'undefined'
+        if (!slug || slug === 'undefined') return;
+
         const fetchQuiz = async () => {
             try {
                 setIsLoading(true);
-                const data = await employeeEducationService.getQuizBySlug(params.slug);
+                // [FIX] Gunakan variabel slug hasil unwrap
+                const data = await employeeEducationService.getQuizBySlug(slug);
 
                 if (!data || !data.questions || data.questions.length === 0) {
                     toast.error("Kuis belum tersedia untuk materi ini.");
-                    router.push(`/learning/${params.slug}/read`);
+                    router.push(`/learning/${slug}/read`);
                     return;
                 }
 
                 setQuizData(data);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Quiz fetch error:", error);
-                toast.error("Gagal memuat kuis. Silakan coba lagi.");
+
+                // Handle spesifik jika record tidak ditemukan
+                if (error.response?.status === 404) {
+                    toast.error("Data kuis tidak ditemukan di server.");
+                } else {
+                    toast.error("Gagal memuat kuis. Silakan coba lagi.");
+                }
+
                 router.push('/learning');
             } finally {
                 setIsLoading(false);
@@ -41,7 +56,7 @@ export default function QuizPage({ params }: QuizPageProps) {
         };
 
         fetchQuiz();
-    }, [params.slug, router]);
+    }, [slug, router]);
 
     if (isLoading) {
         return (
@@ -57,8 +72,10 @@ export default function QuizPage({ params }: QuizPageProps) {
     if (!quizData) return null;
 
     return (
-        // [CRITICAL] Fixed overlay untuk Distraction Free Mode (Sama seperti Reader)
-        <div className="fixed inset-0 z-50 bg-gray-50 flex flex-col overflow-y-auto">
+        /** * [CRITICAL] Fixed overlay untuk Distraction Free Mode (Immersive Experience)
+         * Menggunakan z-50 untuk menutupi Sidebar dan Header global dashboard.
+         */
+        <div className="fixed inset-0 z-50 bg-gray-50 flex flex-col overflow-y-auto animate-in fade-in duration-300">
 
             {/* Header */}
             <header className="sticky top-0 z-40 bg-white border-b px-4 h-16 flex items-center justify-between shadow-sm">
@@ -67,6 +84,7 @@ export default function QuizPage({ params }: QuizPageProps) {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
+                            // Gunakan window.confirm karena kuis bersifat sensitif terhadap waktu/progress
                             if (confirm("Keluar dari kuis? Progress jawaban tersimpan di draft, tapi waktu akan terus berjalan.")) {
                                 router.push('/learning');
                             }
@@ -79,11 +97,18 @@ export default function QuizPage({ params }: QuizPageProps) {
                         <p className="text-xs text-muted-foreground">Jawab dengan jujur dan teliti</p>
                     </div>
                 </div>
+
+                {/* Info Modul Singkat (Opsional) */}
+                <div className="text-right">
+                    <p className="text-xs font-medium text-primary uppercase tracking-wider">Mode Ujian</p>
+                </div>
             </header>
 
-            {/* Main Content */}
+            {/* Main Content Area */}
             <main className="flex-1 p-4 md:p-8">
-                <QuizRunner quiz={quizData} />
+                <div className="max-w-4xl mx-auto">
+                    <QuizRunner quiz={quizData} />
+                </div>
             </main>
 
         </div>

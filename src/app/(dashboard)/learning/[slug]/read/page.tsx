@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, X } from 'lucide-react';
@@ -14,10 +14,13 @@ import { employeeEducationService } from '@/services/employee-education.service'
 import { EducationModule, EducationProgressStatus } from '@/lib/types/education';
 
 interface ReaderPageProps {
-    params: { slug: string };
+    params: Promise<{ slug: string }>;
 }
 
 export default function ReaderPage({ params }: ReaderPageProps) {
+    // [FIX 1] Unwrap params secara asinkron menggunakan React.use()
+    const { slug } = use(params);
+
     const router = useRouter();
     const [module, setModule] = useState<EducationModule | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -26,10 +29,13 @@ export default function ReaderPage({ params }: ReaderPageProps) {
 
     // 1. Fetch Data & Initialize Session
     useEffect(() => {
+        // [FIX 2] Validasi slug untuk mencegah fetch dengan nilai 'undefined'
+        if (!slug || slug === 'undefined') return;
+
         const initReader = async () => {
             try {
                 setIsLoading(true);
-                const data = await employeeEducationService.getModuleBySlug(params.slug);
+                const data = await employeeEducationService.getModuleBySlug(slug);
 
                 if (!data || !data.sections || data.sections.length === 0) {
                     toast.error("Materi tidak ditemukan atau kosong.");
@@ -39,17 +45,16 @@ export default function ReaderPage({ params }: ReaderPageProps) {
 
                 setModule(data);
 
-                // [LOGIC] Start Tracking Checkpoint
-                // Jika user baru pertama kali buka, set status STARTED.
-                // Jika resume (sudah STARTED), backend tidak perlu mengubah apa-apa, tapi kita kirim sinyal kehadiran.
-                await employeeEducationService.updateProgress(data.id, {
+                /**
+                 * [FIX 3] Update Progress menggunakan SLUG
+                 * Endpoint backend sekarang: POST /api/education/modules/:slug/progress
+                 */
+                await employeeEducationService.updateProgress(slug, {
                     status: EducationProgressStatus.STARTED
                 }).catch(err => console.warn("Failed to init progress", err));
 
-                // TODO: Jika Backend mendukung 'lastReadSectionId', kita bisa hydrate setCurrentSectionIndex di sini
-                // untuk fitur Resume Reading.
-
             } catch (error) {
+                console.error("Reader Error:", error);
                 toast.error("Gagal memuat materi.");
                 router.push('/learning');
             } finally {
@@ -58,7 +63,7 @@ export default function ReaderPage({ params }: ReaderPageProps) {
         };
 
         initReader();
-    }, [params.slug, router]);
+    }, [slug, router]);
 
     // Derived State
     const sections = useMemo(() => module?.sections || [], [module]);
@@ -68,15 +73,14 @@ export default function ReaderPage({ params }: ReaderPageProps) {
     const handleNext = () => {
         if (currentSectionIndex < sections.length - 1) {
             const nextIndex = currentSectionIndex + 1;
-            const nextSectionId = sections[nextIndex]?.id; // Asumsi section punya ID (dari Fase 1 Types)
+            const nextSectionId = sections[nextIndex]?.id;
 
-            // Optimistic UI Update
             setCurrentSectionIndex(nextIndex);
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // Silent Checkpoint Update
-            if (module && nextSectionId) {
-                employeeEducationService.updateProgress(module.id, {
+            // Silent Checkpoint Update menggunakan SLUG
+            if (slug && nextSectionId) {
+                employeeEducationService.updateProgress(slug, {
                     lastSectionId: nextSectionId
                 }).catch(err => console.error("Silent checkpoint failed", err));
             }
@@ -91,22 +95,20 @@ export default function ReaderPage({ params }: ReaderPageProps) {
     };
 
     const handleFinish = async () => {
-        if (!module) return;
+        if (!slug) return;
 
         setIsFinishing(true);
         try {
-            // Final Checkpoint: Mark as COMPLETED
-            await employeeEducationService.updateProgress(module.id, {
+            // Final Checkpoint menggunakan SLUG
+            await employeeEducationService.updateProgress(slug, {
                 status: EducationProgressStatus.COMPLETED
             });
 
             toast.success("Materi selesai dibaca! Bersiap untuk kuis.");
-
-            // Redirect Logic:
-            // Arahkan ke halaman Kuis
-            router.push(`/learning/${params.slug}/quiz`);
+            router.push(`/learning/${slug}/quiz`);
 
         } catch (error) {
+            console.error("Finish Error:", error);
             toast.error("Gagal menyimpan progress. Coba lagi.");
             setIsFinishing(false);
         }
@@ -128,8 +130,6 @@ export default function ReaderPage({ params }: ReaderPageProps) {
 
     // 4. Render Reader Interface
     return (
-        // [CRITICAL] Fixed inset-0 z-50 to overlay existing Dashboard Layout (Sidebar/Header)
-        // Menciptakan "Immersive Mode" tanpa mengubah arsitektur layout global.
         <div className="fixed inset-0 z-50 bg-white flex flex-col animate-in fade-in duration-300">
 
             {/* --- READER HEADER --- */}
@@ -152,13 +152,10 @@ export default function ReaderPage({ params }: ReaderPageProps) {
                         </p>
                     </div>
                 </div>
-
-                {/* Placeholder for Tools (Font size, Theme toggle) - Fase selanjutnya */}
                 <div className="flex items-center gap-2"></div>
             </header>
 
             {/* --- READER CONTENT AREA --- */}
-            {/* ScrollArea untuk konten, padding bottom besar agar tidak tertutup navigator */}
             <ScrollArea className="flex-1 w-full bg-gray-50/50">
                 <div className="max-w-3xl mx-auto px-4 py-8 md:py-12 pb-32">
                     {/* Section Title */}

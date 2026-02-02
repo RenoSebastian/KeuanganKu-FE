@@ -73,11 +73,13 @@ export const employeeEducationService = {
     },
 
     /**
-     * Mengupdate progress (Checkpoint).
-     * Digunakan untuk set STARTED atau COMPLETED.
+     * [UPDATED] Mengupdate progress (Checkpoint).
+     * Menggunakan SLUG agar sinkron dengan route PublicEducationController Backend:
+     * POST /education/modules/:slug/progress
      */
-    updateProgress: async (moduleId: string, payload: { status?: EducationProgressStatus; lastSectionId?: string }) => {
-        const { data } = await api.post('/education/progress', { moduleId, ...payload });
+    updateProgress: async (slug: string, payload: { status?: EducationProgressStatus; lastSectionId?: string }) => {
+        // [FIX] Mengarahkan ke endpoint berbasis slug sesuai update controller backend
+        const { data } = await api.post(`/education/modules/${slug}/progress`, payload);
         return data;
     },
 

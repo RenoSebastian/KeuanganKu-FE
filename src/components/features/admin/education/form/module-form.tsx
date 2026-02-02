@@ -5,7 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, Save, ArrowLeft, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Plus, Trash2, Image as ImageIcon, Upload, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +17,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { moduleFormSchema, ModuleFormValues } from '@/lib/schemas/education-schema';
 import { adminEducationService, publicEducationService } from '@/services/education.service';
 import { EducationCategory, EducationModule } from '@/lib/types/education';
-// [NEW] Import Guardrail Hook
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import api from '@/lib/axios';
 
 interface ModuleFormProps {
     initialData?: EducationModule;
@@ -28,6 +28,7 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
     const router = useRouter();
     const [categories, setCategories] = useState<EducationCategory[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUploading, setIsUploading] = useState<string | null>(null);
 
     const form = useForm<ModuleFormValues>({
         resolver: zodResolver(moduleFormSchema),
@@ -53,8 +54,7 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
         name: 'sections',
     });
 
-    // [NEW] Guardrail: Prevent Accidental Navigation
-    // Hook ini akan memunculkan alert browser jika user refresh/close tab saat isDirty = true
+    // Guardrail: Mencegah data hilang jika user tidak sengaja menutup tab
     useUnsavedChanges(form.formState.isDirty && !form.formState.isSubmitSuccessful);
 
     useEffect(() => {
@@ -69,10 +69,51 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
         loadCategories();
     }, []);
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string, index?: number) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Logical Check: Max 2MB sesuai limit di Backend
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error("Ukuran file terlalu besar (Maksimal 2MB)");
+            return;
+        }
+
+        const uploadKey = index !== undefined ? `section-${index}` : 'thumbnail';
+        setIsUploading(uploadKey);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            // [FIXED] Menyesuaikan route Backend: POST /api/media/upload
+            const res = await api.post('/media/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // Mendapatkan path relatif: "uploads/filename.jpg"
+            const filePath = res.data.url;
+
+            if (index !== undefined) {
+                form.setValue(`sections.${index}.illustrationUrl`, filePath, { shouldDirty: true });
+            } else {
+                form.setValue('thumbnailUrl', filePath, { shouldDirty: true });
+            }
+
+            toast.success("Gambar berhasil diunggah");
+        } catch (error) {
+            console.error("Upload error:", error);
+            toast.error("Gagal mengunggah gambar ke server");
+        } finally {
+            setIsUploading(null);
+        }
+    };
+
     const onSubmit = async (data: ModuleFormValues) => {
         setIsSubmitting(true);
         try {
-            if (initialData) {
+            // [FIX 1] Menangani ID modul untuk proses Update
+            if (initialData?.id) {
                 await adminEducationService.updateModule(initialData.id, data);
                 toast.success('Modul berhasil diperbarui');
             } else {
@@ -80,17 +121,24 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                 toast.success('Modul baru berhasil dibuat');
             }
 
-            // Reset form state agar hook unsaved changes tidak ter-trigger saat redirect
             form.reset(data);
-
             router.push('/admin/education');
             router.refresh();
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Terjadi kesalahan saat menyimpan modul.');
-            // NOTE: Kita TIDAK mereset form jika error, agar user tidak kehilangan inputan mereka
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    /**
+     * Logical Helper: Preview URL Generator
+     * Memastikan gambar muncul baik saat di dev (localhost) maupun production.
+     */
+    const getPreviewUrl = (path: string) => {
+        if (!path) return '';
+        if (path.startsWith('http')) return path;
+        return `${process.env.NEXT_PUBLIC_API_URL}/${path}`;
     };
 
     return (
@@ -99,98 +147,142 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                 <Button variant="ghost" type="button" onClick={() => router.back()} className="text-muted-foreground">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Kembali
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    {initialData ? 'Perbarui Modul' : 'Simpan Modul Baru'}
-                </Button>
+                <div className="flex gap-3">
+                    <Button type="submit" disabled={isSubmitting || !!isUploading}>
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                        {initialData ? 'Perbarui Modul' : 'Simpan Modul Baru'}
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    {/* ... (Render Field yang sama seperti Fase 3) ... */}
-                    {/* Code block untuk render input dipersingkat karena sama persis dengan Fase 3 */}
-                    {/* Fokus di file ini adalah penambahan logic Guardrail dan handling onSubmit */}
-                    <div className="space-y-3">
-                        <Label>Judul Modul</Label>
-                        <Input
-                            {...form.register('title')}
-                            placeholder="Contoh: Strategi Mengelola Keuangan Pribadi"
-                            className="text-lg font-medium"
-                        />
-                        {form.formState.errors.title && <p className="text-xs text-red-500">{form.formState.errors.title.message}</p>}
-                    </div>
+                    <Card className="border-none shadow-sm bg-white">
+                        <CardContent className="pt-6 space-y-6">
+                            <div className="space-y-3">
+                                <Label className="font-bold text-base">Judul Modul</Label>
+                                <Input
+                                    {...form.register('title')}
+                                    placeholder="Contoh: Strategi Mengelola Keuangan Pribadi"
+                                    className="text-lg font-medium h-12"
+                                />
+                                {form.formState.errors.title && <p className="text-xs text-red-500">{form.formState.errors.title.message}</p>}
+                            </div>
 
-                    <div className="space-y-3">
-                        <Label>Ringkasan Singkat (Excerpt)</Label>
-                        <Textarea
-                            {...form.register('excerpt')}
-                            placeholder="Deskripsi singkat yang akan muncul di kartu modul..."
-                            className="h-24 resize-none"
-                        />
-                        {form.formState.errors.excerpt && <p className="text-xs text-red-500">{form.formState.errors.excerpt.message}</p>}
-                    </div>
+                            <div className="space-y-3">
+                                <Label className="font-bold text-base">Ringkasan Singkat (Excerpt)</Label>
+                                <Textarea
+                                    {...form.register('excerpt')}
+                                    placeholder="Deskripsi singkat yang akan muncul di kartu modul..."
+                                    className="h-24 resize-none"
+                                />
+                                {form.formState.errors.excerpt && <p className="text-xs text-red-500">{form.formState.errors.excerpt.message}</p>}
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                    <div className="space-y-4 pt-4 border-t">
+                    <div className="space-y-4 pt-4">
                         <div className="flex items-center justify-between">
-                            <Label className="text-lg font-semibold">Materi Pembelajaran</Label>
+                            <Label className="text-lg font-bold">Materi Pembelajaran</Label>
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => append({ title: '', contentMarkdown: '', sectionOrder: fields.length + 1 })}
+                                onClick={() => append({ title: '', contentMarkdown: '', sectionOrder: fields.length + 1, illustrationUrl: '' })}
                             >
                                 <Plus className="w-4 h-4 mr-2" /> Tambah Halaman
                             </Button>
                         </div>
 
                         <div className="space-y-6">
-                            {fields.map((field, index) => (
-                                <Card key={field.id} className="overflow-hidden border-l-4 border-l-blue-500/20">
-                                    <CardContent className="pt-6 space-y-5">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1 mr-4 space-y-2">
-                                                <Label className="text-xs uppercase text-muted-foreground font-bold">Bagian {index + 1}</Label>
-                                                <Input {...form.register(`sections.${index}.title`)} placeholder="Judul Bagian / Bab..." />
+                            {fields.map((field, index) => {
+                                const currentIllustrationUrl = form.watch(`sections.${index}.illustrationUrl`);
+
+                                return (
+                                    <Card key={field.id} className="overflow-hidden border-l-4 border-l-primary/40 shadow-sm">
+                                        <CardContent className="pt-6 space-y-5">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1 mr-4 space-y-2">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground font-black tracking-widest">Halaman {index + 1}</Label>
+                                                    <Input {...form.register(`sections.${index}.title`)} placeholder="Judul Bagian / Bab..." className="font-semibold" />
+                                                </div>
+                                                {fields.length > 1 && (
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-red-500 hover:bg-red-50">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
                                             </div>
-                                            {fields.length > 1 && (
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-red-500 hover:bg-red-50">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            )}
-                                        </div>
 
-                                        <div className="space-y-2">
-                                            <Label>Konten (Markdown)</Label>
-                                            <Textarea
-                                                {...form.register(`sections.${index}.contentMarkdown`)}
-                                                className="min-h-75 font-mono text-sm leading-relaxed"
-                                                placeholder="# Judul Utama&#10;&#10;Paragraf pembuka materi..."
-                                            />
-                                            {form.formState.errors.sections?.[index]?.contentMarkdown && (
-                                                <p className="text-xs text-red-500">{form.formState.errors.sections[index]?.contentMarkdown?.message}</p>
-                                            )}
-                                        </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium">Konten Materi (Markdown)</Label>
+                                                <Textarea
+                                                    {...form.register(`sections.${index}.contentMarkdown`)}
+                                                    className="min-h-80 font-mono text-sm leading-relaxed bg-slate-50/50"
+                                                    placeholder="# Judul Utama&#10;&#10;Gunakan Markdown untuk format..."
+                                                />
+                                                {form.formState.errors.sections?.[index]?.contentMarkdown && (
+                                                    <p className="text-xs text-red-500">{form.formState.errors.sections[index]?.contentMarkdown?.message}</p>
+                                                )}
+                                            </div>
 
-                                        <div className="space-y-2">
-                                            <Label className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                <ImageIcon className="w-3 h-3" /> Ilustrasi URL (Opsional)
-                                            </Label>
-                                            <Input {...form.register(`sections.${index}.illustrationUrl`)} placeholder="https://example.com/image.jpg" className="text-xs h-8" />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                            <div className="space-y-3">
+                                                <Label className="text-sm font-medium">Gambar Ilustrasi Halaman</Label>
+                                                <div className="flex items-center gap-4">
+                                                    {currentIllustrationUrl ? (
+                                                        <div className="relative w-32 h-20 rounded-md overflow-hidden border bg-muted">
+                                                            <img
+                                                                src={getPreviewUrl(currentIllustrationUrl)}
+                                                                alt="Preview"
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => form.setValue(`sections.${index}.illustrationUrl`, '')}
+                                                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow-lg"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-32 h-20 border-2 border-dashed rounded-md flex flex-col items-center justify-center bg-muted/30 text-muted-foreground">
+                                                            <ImageIcon className="w-6 h-6 mb-1 opacity-20" />
+                                                            <span className="text-[10px]">No Image</span>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex-1">
+                                                        <Input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            id={`file-section-${index}`}
+                                                            onChange={(e) => handleFileUpload(e, 'sections', index)}
+                                                        />
+                                                        <Label
+                                                            htmlFor={`file-section-${index}`}
+                                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-9 px-4 cursor-pointer"
+                                                        >
+                                                            {isUploading === `section-${index}` ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                                                            Ganti Gambar
+                                                        </Label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
 
                 <div className="space-y-6">
-                    <Card className="sticky top-6">
+                    <Card className="sticky top-6 shadow-sm border-t-4 border-t-primary">
                         <CardContent className="pt-6 space-y-6">
                             <div className="space-y-2">
-                                <Label>Kategori</Label>
+                                <Label className="font-bold">Kategori</Label>
                                 <Select
-                                    onValueChange={(val) => form.setValue('categoryId', val, { shouldValidate: true })}
+                                    onValueChange={(val) => form.setValue('categoryId', val, { shouldValidate: true, shouldDirty: true })}
                                     defaultValue={initialData?.category?.id}
                                 >
                                     <SelectTrigger>
@@ -202,23 +294,59 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {form.formState.errors.categoryId && <p className="text-xs text-red-500">{form.formState.errors.categoryId.message}</p>}
+                            </div>
+
+                            <div className="space-y-3">
+                                <Label className="font-bold">Thumbnail Modul (Cover)</Label>
+                                <div className="space-y-4">
+                                    {form.watch('thumbnailUrl') ? (
+                                        <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted shadow-inner">
+                                            <img
+                                                src={getPreviewUrl(form.watch('thumbnailUrl'))}
+                                                alt="Cover Preview"
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <Button
+                                                type="button"
+                                                // [FIX 2] Menggunakan variant 'danger' sesuai dengan ButtonProps UI Anda
+                                                variant="danger"
+                                                size="icon"
+                                                className="absolute top-2 right-2 h-7 w-7"
+                                                onClick={() => form.setValue('thumbnailUrl', '', { shouldDirty: true })}
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="aspect-video border-2 border-dashed rounded-lg flex flex-col items-center justify-center bg-muted/20 text-muted-foreground">
+                                            <Upload className="w-8 h-8 mb-2 opacity-10" />
+                                            <p className="text-xs">Belum ada cover</p>
+                                        </div>
+                                    )}
+
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        id="module-thumbnail"
+                                        onChange={(e) => handleFileUpload(e, 'thumbnailUrl')}
+                                    />
+                                    <Label
+                                        htmlFor="module-thumbnail"
+                                        className="flex items-center justify-center w-full rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-10 px-4 cursor-pointer"
+                                    >
+                                        {isUploading === 'thumbnail' ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                                        Upload Cover
+                                    </Label>
+                                </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Cover Image (URL)</Label>
-                                <Input {...form.register('thumbnailUrl')} placeholder="https://..." />
-                                <p className="text-[10px] text-muted-foreground">Disarankan rasio 16:9</p>
-                                {form.formState.errors.thumbnailUrl && <p className="text-xs text-red-500">{form.formState.errors.thumbnailUrl.message}</p>}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Estimasi Waktu Baca</Label>
+                                <Label className="font-bold">Estimasi Waktu Baca</Label>
                                 <div className="relative">
                                     <Input type="number" {...form.register('readingTime', { valueAsNumber: true })} className="pr-12" />
                                     <span className="absolute right-3 top-2.5 text-sm text-gray-400">Menit</span>
                                 </div>
-                                {form.formState.errors.readingTime && <p className="text-xs text-red-500">{form.formState.errors.readingTime.message}</p>}
                             </div>
                         </CardContent>
                     </Card>
