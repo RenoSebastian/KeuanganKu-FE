@@ -1,39 +1,51 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { ModuleForm } from '@/components/features/admin/education/form/module-form';
-import { publicEducationService } from '@/services/education.service';
+// Import adminEducationService untuk mengambil data modul/materi
+import { adminEducationService } from '@/services/education.service';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function EditModulePage({ params }: { params: { id: string } }) {
+/**
+ * Interface props disesuaikan dengan standar Next.js terbaru
+ * params didefinisikan sebagai Promise
+ */
+interface EditModulePageProps {
+    params: Promise<{ id: string }>;
+}
+
+export default function EditModulePage({ params }: EditModulePageProps) {
+    // 1. Unwrap params menggunakan React.use() untuk mendapatkan ID dari URL
+    const resolvedParams = use(params);
+    const moduleId = resolvedParams.id;
+
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Note: Kita butuh endpoint GetById. 
-        // Jika Public API pakai Slug, kita perlu Endpoint Admin GetById.
-        // Asumsi: Backend sudah menyediakan /education/modules/{id} atau kita fetch list filter client side (fallback).
-        // Untuk efisiensi, saya asumsikan ada endpoint getModuleById di service.
-
-        // WORKAROUND: Fetch single module via Admin Service (perlu ditambahkan di service jika belum ada)
-        // atau gunakan public service jika ID didukung.
-
-        // Simulasi Logic Fetching (Replace with actual Service call)
+        /**
+         * Mengambil data modul berdasarkan ID.
+         * Menggunakan educationService.getModuleById sesuai definisi di service.
+         */
         const fetchData = async () => {
             try {
-                // Karena endpoint public by Slug, kita mungkin perlu cari slug-nya dulu atau adjust endpoint BE.
-                // Untuk sekarang, kita asumsikan ID bisa dipakai atau Anda sudah menyesuaikan BE.
-                // const res = await adminEducationService.getModuleById(params.id); 
-                // setData(res);
-                setLoading(false); // Placeholder
-            } catch (err) {
-                toast.error("Gagal memuat data modul");
+                setLoading(true);
+                // adminEducationService memiliki method getModuleById untuk fetching detail
+                const res = await adminEducationService.getModuleById(moduleId);
+                setData(res);
+            } catch (err: any) {
+                console.error("Fetch Error:", err);
+                toast.error("Gagal memuat data modul: " + (err.message || "Unknown error"));
+            } finally {
+                setLoading(false);
             }
         };
 
-        fetchData();
-    }, [params.id]);
+        if (moduleId) {
+            fetchData();
+        }
+    }, [moduleId]);
 
     if (loading) {
         return (
@@ -43,9 +55,21 @@ export default function EditModulePage({ params }: { params: { id: string } }) {
         );
     }
 
+    // Jika data tidak ditemukan setelah loading selesai
+    if (!data && !loading) {
+        return (
+            <div className="flex h-[50vh] w-full items-center justify-center">
+                <p className="text-muted-foreground">Modul tidak ditemukan.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
             <h2 className="text-3xl font-bold tracking-tight">Edit Materi</h2>
+            {/* Prop 'isEditing' dihapus karena tidak ada di interface ModuleFormProps.
+               Cukup kirimkan initialData, form akan mendeteksi mode edit jika data ada.
+            */}
             <ModuleForm initialData={data} />
         </div>
     );
