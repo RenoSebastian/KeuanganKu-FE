@@ -4,7 +4,7 @@ services:
       context: .
       args:
         # Menyuntikkan URL API HTTPS untuk build Next.js
-        - NEXT_PUBLIC_API_URL=https://keuanganku.geocitra.com/api
+        - NEXT_PUBLIC_API_URL=https://keuanganku.geocitra.com/
     container_name: keuanganku-fe
     restart: always
     
