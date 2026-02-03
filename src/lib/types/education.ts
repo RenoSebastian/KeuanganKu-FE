@@ -135,6 +135,7 @@ export interface UserQuizQuestion {
     type: QuizType;
     imageUrl?: string | null;
     points: number;
+    orderIndex: number;
     options: {
         id: string;
         optionText: string;

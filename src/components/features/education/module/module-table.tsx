@@ -215,9 +215,10 @@ export function ModuleTable() {
                                         <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
                                             {module.level}
                                         </span>
+                                        {/* SESUDAH: Gunakan readingTime sesuai DTO */}
                                         <div className="flex items-center text-xs text-muted-foreground">
                                             <Clock className="w-3 h-3 mr-1" />
-                                            {module.duration || module.readingTime || 0} Menit
+                                            {module.readingTime || 0} Menit
                                         </div>
                                     </div>
                                 </TableCell>

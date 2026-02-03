@@ -51,6 +51,10 @@ export function QuizPreviewModal({ open, onOpenChange, formData }: QuizPreviewMo
                 imageUrl: q.imageUrl || null,
                 // [FIX] Menambahkan default points jika undefined (fallback ke 10)
                 points: Number(q.points) || 10,
+
+                // [FIXED] Menambahkan property orderIndex yang required
+                orderIndex: idx + 1,
+
                 options: q.options.map((o, oIdx) => ({
                     id: `o-${idx}-${oIdx}`,
                     optionText: o.optionText,

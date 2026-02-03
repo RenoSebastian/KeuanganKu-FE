@@ -47,7 +47,7 @@ export interface ExportQuery {
     cutoffDate: string;
 }
 
-export interface PrunePayload extends ExportQuery {
+export interface PruneExecutionPayload extends ExportQuery {
     /**
      * Token keamanan (HMAC) yang diekstrak dari footer file JSON hasil export.
      * Wajib ada untuk otorisasi penghapusan.

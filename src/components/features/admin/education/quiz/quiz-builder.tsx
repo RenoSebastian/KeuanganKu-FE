@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm, useFieldArray, FormProvider, SubmitHandler } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, SubmitHandler, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -32,7 +32,7 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const methods = useForm<QuizFormValues>({
-        resolver: zodResolver(quizConfigSchema),
+        resolver: zodResolver(quizConfigSchema) as Resolver<QuizFormValues>,
         defaultValues: {
             passingScore: initialData?.passingScore ?? 70,
             timeLimit: initialData?.timeLimit ?? 30,
