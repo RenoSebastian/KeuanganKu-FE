@@ -48,7 +48,8 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
                 options: q.options.map((o: any) => ({
                     optionText: o.optionText,
                     isCorrect: o.isCorrect,
-                    imageUrl: o.imageUrl || ''
+                    imageUrl: o.imageUrl || '',
+                    orderIndex: o.orderIndex
                 }))
             })) : [
                 {
@@ -59,8 +60,8 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
                     explanation: '',
                     imageUrl: '',
                     options: [
-                        { optionText: '', isCorrect: false, imageUrl: '' },
-                        { optionText: '', isCorrect: false, imageUrl: '' }
+                        { optionText: '', isCorrect: false, imageUrl: '', orderIndex: 0 },
+                        { optionText: '', isCorrect: false, imageUrl: '', orderIndex: 1 }
                     ]
                 }
             ]
@@ -196,8 +197,8 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
                                 imageUrl: '',
                                 orderIndex: fields.length + 1,
                                 options: [
-                                    { optionText: '', isCorrect: false, imageUrl: '' },
-                                    { optionText: '', isCorrect: false, imageUrl: '' }
+                                    { optionText: '', isCorrect: false, imageUrl: '', orderIndex: 0 },
+                                    { optionText: '', isCorrect: false, imageUrl: '', orderIndex: 1 }
                                 ]
                             })}
                             className="bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"

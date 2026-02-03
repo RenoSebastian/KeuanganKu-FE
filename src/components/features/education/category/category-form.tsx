@@ -8,7 +8,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 
 // Services & API
-import apiClient from "@/lib/axios"; // Menggunakan instance axios yang sudah dikonfigurasi
+import apiClient from "@/lib/axios";
 import { educationService } from "@/services/education.service";
 
 // Types & Schemas
@@ -26,7 +26,6 @@ import {
 import {
     Form,
     FormControl,
-    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -77,31 +76,33 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                 headers: { "Content-Type": "multipart/form-data" },
             });
 
-            // Response structure: { message: string, data: { url: 'uploads/uuid.png', ... } }
-            const uploadedUrl = response.data.data.url;
+            // Adapt response structure (handle wrapped or direct data)
+            const uploadedUrl = response.data.data?.url || response.data.url;
 
             // Update form state
-            form.setValue("iconUrl", uploadedUrl, { shouldValidate: true });
+            form.setValue("iconUrl", uploadedUrl, { shouldValidate: true, shouldDirty: true });
             toast.success("Icon berhasil diupload");
         } catch (error) {
             console.error("Upload error:", error);
             toast.error("Gagal mengupload gambar. Pastikan format JPG/PNG.");
         } finally {
             setIsUploading(false);
-            // Reset input value agar user bisa memilih file yang sama jika perlu
-            e.target.value = "";
+            e.target.value = ""; // Reset input
         }
     };
 
     const handleRemoveImage = () => {
-        form.setValue("iconUrl", "", { shouldValidate: true });
+        form.setValue("iconUrl", "", { shouldValidate: true, shouldDirty: true });
     };
 
-    // Helper untuk menampilkan gambar preview
+    // Helper untuk menampilkan gambar preview dengan path yang benar
     const getImageUrl = (path: string) => {
         if (!path) return "";
         if (path.startsWith("http")) return path;
-        return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/${path}`;
+        const base = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+        if (path.startsWith('api/')) return `${base}/${path}`;
+        if (path.startsWith('uploads/')) return `${base}/api/${path}`;
+        return `${base}/${path}`;
     };
 
     // 3. Submit Handler
@@ -109,7 +110,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
         try {
             setIsSubmitting(true);
 
-            if (initialData) {
+            if (initialData?.id) {
                 // Mode Edit
                 const payload: UpdateCategoryPayload = values;
                 await educationService.updateCategory(initialData.id, payload);
@@ -118,7 +119,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                 // Mode Create
                 const payload: CreateCategoryPayload = {
                     name: values.name,
-                    description: values.description,
+                    description: values.description || "",
                     iconUrl: values.iconUrl,
                 };
                 await educationService.createCategory(payload);

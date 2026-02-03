@@ -19,7 +19,7 @@ export const categorySchema = z.object({
         .min(3, { message: "Nama kategori minimal 3 karakter" })
         .max(50, { message: "Nama kategori maksimal 50 karakter" }),
     description: z.string().optional(),
-    iconUrl: z.string({ required_error: "Icon kategori wajib diupload" })
+    iconUrl: z.string()
         .min(1, { message: "Silakan upload icon terlebih dahulu" })
         .regex(IMAGE_PATH_REGEX, { message: "Format path icon tidak valid" }),
 });
@@ -40,10 +40,11 @@ export const moduleFormSchema = z.object({
         .min(5, { message: "Judul modul minimal 5 karakter" })
         .max(100, { message: "Judul modul maksimal 100 karakter" }),
 
-    categoryId: z.string({ required_error: "Kategori wajib dipilih" })
+    categoryId: z.string()
+        .min(1, { message: "Kategori wajib dipilih" })
         .uuid({ message: "Format ID Kategori tidak valid" }),
 
-    thumbnailUrl: z.string({ required_error: "Cover modul wajib diupload" })
+    thumbnailUrl: z.string()
         .min(1, { message: "Silakan upload cover modul" })
         .regex(IMAGE_PATH_REGEX, { message: "Format path gambar tidak valid" }),
 
@@ -51,9 +52,7 @@ export const moduleFormSchema = z.object({
         .min(10, { message: "Deskripsi singkat minimal 10 karakter" })
         .max(255, { message: "Deskripsi singkat maksimal 255 karakter" }),
 
-    level: z.nativeEnum(EducationLevel, {
-        errorMap: () => ({ message: "Level kesulitan wajib dipilih" })
-    }),
+    level: z.nativeEnum(EducationLevel),
 
     readingTime: z.coerce.number()
         .min(1, { message: "Estimasi waktu baca minimal 1 menit" }),

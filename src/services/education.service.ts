@@ -9,7 +9,27 @@ import {
     UpsertQuizPayload,
     Quiz,
 } from '@/lib/types/education';
-import { DatabaseStats, PruneExecutionPayload } from '@/lib/types/retention';
+import {PruneExecutionPayload } from '@/lib/types/retention';
+
+// Tambahkan export pada interface yang ada
+export interface DatabaseStats {
+    tables: {
+        tableName: string;
+        rowCount: number;
+        totalBytes: number;
+        formattedSize: string;
+        indexBytes: number;
+    }[];
+    totalDatabaseSize: number;
+    formattedTotalSize: string;
+}
+
+// [FIX] Ensure this is exported
+export interface PruneExecutionPayload {
+    entityType: string;
+    cutoffDate: string;
+    pruneToken: string;
+}
 
 /**
  * EDUCATION SERVICE

@@ -36,7 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Custom Components (Akan diimplementasikan di file terpisah untuk modularitas)
+// Custom Components
 import { CategoryFormDialog } from "./category-form-dialog";
 import { DeleteCategoryDialog } from "./delete-category-dialog";
 
@@ -228,7 +228,8 @@ export function CategoryList() {
             {/* Dialog Create */}
             <CategoryFormDialog
                 open={isCreateOpen}
-                onOpenChange={setIsCreateOpen}
+                // [FIX] Explicit type for boolean callback
+                onOpenChange={(open: boolean) => setIsCreateOpen(open)}
                 onSuccess={() => {
                     setIsCreateOpen(false);
                     fetchCategories();
@@ -240,7 +241,8 @@ export function CategoryList() {
             {editingCategory && (
                 <CategoryFormDialog
                     open={!!editingCategory}
-                    onOpenChange={(open) => !open && setEditingCategory(null)}
+                    // [FIX] Explicit type for boolean callback
+                    onOpenChange={(open: boolean) => !open && setEditingCategory(null)}
                     initialData={editingCategory}
                     onSuccess={() => {
                         setEditingCategory(null);
@@ -253,7 +255,8 @@ export function CategoryList() {
             {/* Dialog Delete */}
             <DeleteCategoryDialog
                 open={!!deletingId}
-                onOpenChange={(open) => !open && setDeletingId(null)}
+                // [FIX] Explicit type for boolean callback
+                onOpenChange={(open: boolean) => !open && setDeletingId(null)}
                 categoryId={deletingId || ""}
                 onSuccess={() => {
                     setDeletingId(null);
