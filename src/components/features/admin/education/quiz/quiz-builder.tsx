@@ -14,9 +14,11 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { QuestionCard } from './question-card';
 
-import { quizFormSchema, QuizFormValues } from '@/lib/schemas/education-schema';
-import { adminEducationService, UpsertQuizPayload } from '@/services/education.service';
-import { QuizHeader, QuizQuestionType } from '@/lib/types/education';
+// [FIX] Correct Schema Import Name
+import { quizConfigSchema, QuizFormValues } from '@/lib/schemas/education-schema';
+// [FIX] Use Unified Service and Types from centralized types
+import { educationService } from '@/services/education.service';
+import { UpsertQuizPayload, QuizType } from '@/lib/types/education';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 interface QuizBuilderProps {
@@ -30,7 +32,7 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const methods = useForm<QuizFormValues>({
-        resolver: zodResolver(quizFormSchema) as any,
+        resolver: zodResolver(quizConfigSchema),
         defaultValues: {
             passingScore: initialData?.passingScore ?? 70,
             timeLimit: initialData?.timeLimit ?? 30,
@@ -38,22 +40,27 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
             description: initialData?.description ?? '',
             questions: initialData?.questions?.length ? initialData.questions.map((q: any) => ({
                 questionText: q.questionText,
-                type: q.type, // Pastikan tipe dari BE sesuai dengan Enum
+                type: q.type,
                 orderIndex: q.orderIndex,
+                points: q.points || 10,
                 explanation: q.explanation || '',
+                imageUrl: q.imageUrl || '',
                 options: q.options.map((o: any) => ({
                     optionText: o.optionText,
-                    isCorrect: o.isCorrect
+                    isCorrect: o.isCorrect,
+                    imageUrl: o.imageUrl || ''
                 }))
             })) : [
                 {
                     questionText: '',
-                    // [FIX] Gunakan Enum Member, bukan string literal
-                    type: QuizQuestionType.MULTIPLE_CHOICE,
+                    type: QuizType.SINGLE_CHOICE,
+                    points: 10,
                     orderIndex: 1,
+                    explanation: '',
+                    imageUrl: '',
                     options: [
-                        { optionText: '', isCorrect: false },
-                        { optionText: '', isCorrect: false }
+                        { optionText: '', isCorrect: false, imageUrl: '' },
+                        { optionText: '', isCorrect: false, imageUrl: '' }
                     ]
                 }
             ]
@@ -71,23 +78,29 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
     const onSubmit: SubmitHandler<QuizFormValues> = async (data) => {
         setIsSubmitting(true);
         try {
-            // [FIX] Payload Construction sesuai kontrak Service terbaru
+            // [FIX] Payload Construction
             const payload: UpsertQuizPayload = {
-                moduleId: moduleId,
-                timeLimit: Number(data.timeLimit),
                 passingScore: Number(data.passingScore),
+                timeLimit: Number(data.timeLimit),
+                maxAttempts: Number(data.maxAttempts),
+                description: data.description,
                 questions: data.questions.map((q, idx) => ({
                     questionText: q.questionText,
-                    // [FIX] Pastikan casting type aman ke Enum yang diharapkan Service
-                    type: q.type as 'MULTIPLE_CHOICE' | 'TRUE_FALSE',
-                    options: q.options.map(o => ({
+                    type: q.type,
+                    points: Number(q.points),
+                    imageUrl: q.imageUrl,
+                    explanation: q.explanation,
+                    orderIndex: idx + 1,
+                    options: q.options.map((o, oIdx) => ({
                         optionText: o.optionText,
-                        isCorrect: o.isCorrect
+                        isCorrect: o.isCorrect,
+                        imageUrl: o.imageUrl,
+                        orderIndex: oIdx + 1
                     }))
                 }))
             };
 
-            await adminEducationService.upsertQuiz(payload);
+            await educationService.upsertQuiz(moduleId, payload);
 
             toast.success('Kuis berhasil disimpan!');
 
@@ -177,12 +190,14 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
                             type="button"
                             onClick={() => append({
                                 questionText: '',
-                                // [FIX] Gunakan Enum Member saat menambah pertanyaan baru
-                                type: QuizQuestionType.MULTIPLE_CHOICE,
+                                type: QuizType.SINGLE_CHOICE,
+                                points: 10,
+                                explanation: '',
+                                imageUrl: '',
                                 orderIndex: fields.length + 1,
                                 options: [
-                                    { optionText: '', isCorrect: false },
-                                    { optionText: '', isCorrect: false }
+                                    { optionText: '', isCorrect: false, imageUrl: '' },
+                                    { optionText: '', isCorrect: false, imageUrl: '' }
                                 ]
                             })}
                             className="bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
@@ -202,6 +217,8 @@ export function QuizBuilder({ moduleId, initialData, onSave }: QuizBuilderProps)
                                     key={field.id}
                                     questionIndex={index}
                                     removeQuestion={remove}
+                                    // [FIX] Pass required totalQuestions prop
+                                    totalQuestions={fields.length}
                                 />
                             ))
                         )}

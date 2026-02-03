@@ -104,7 +104,10 @@ export interface EducationModule {
     description?: string; // Optional di list, mungkin ada di detail
     thumbnailUrl?: string | null;
     level: EducationLevel;
-    duration: number; // Estimasi menit (Reading Time)
+
+    // [FIX] Renamed duration -> readingTime to match DTO & Form Schema
+    readingTime: number;
+
     points: number;
     status: EducationModuleStatus;
     publishedAt?: string | null;
@@ -172,7 +175,7 @@ export interface CreateModulePayload {
     categoryId: string;
     excerpt: string;
     level: EducationLevel;
-    readingTime: number; // duration renamed to readingTime in some contexts, keeping consistent with BE DTO mapping
+    readingTime: number;
     points: number;
     thumbnailUrl?: string;
     sections: SectionPayload[];
@@ -206,6 +209,7 @@ export interface QuizQuestionPayload {
 }
 
 export interface UpsertQuizPayload {
+    moduleId?: string; // Optional context helper
     passingScore: number;
     timeLimit: number;
     maxAttempts: number;

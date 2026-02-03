@@ -15,8 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 
 import { moduleFormSchema, ModuleFormValues } from '@/lib/schemas/education-schema';
-import { adminEducationService, publicEducationService } from '@/services/education.service';
-import { EducationCategory, EducationModule } from '@/lib/types/education';
+// [FIX] Use unified service
+import { educationService } from '@/services/education.service';
+import { EducationCategory, EducationModule, EducationLevel } from '@/lib/types/education';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import api from '@/lib/axios';
 
@@ -37,7 +38,10 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
             categoryId: initialData?.category?.id || '',
             thumbnailUrl: initialData?.thumbnailUrl || '',
             excerpt: initialData?.excerpt || '',
+            // [FIX] Ensure readingTime is number and level matches Enum
             readingTime: initialData?.readingTime || 5,
+            level: initialData?.level || EducationLevel.BEGINNER,
+            points: initialData?.points || 0,
             sections: initialData?.sections?.map(s => ({
                 title: s.title || '',
                 contentMarkdown: s.contentMarkdown,
@@ -60,7 +64,8 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
     useEffect(() => {
         const loadCategories = async () => {
             try {
-                const data = await publicEducationService.getCategories();
+                // [FIX] Use unified service
+                const data = await educationService.getCategories();
                 setCategories(data);
             } catch (error) {
                 toast.error('Gagal memuat data kategori.');
@@ -91,7 +96,7 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            const filePath = res.data.url;
+            const filePath = res.data.data.url; // [FIX] Access nested data.url if backend returns wrapped response
 
             if (index !== undefined) {
                 form.setValue(`sections.${index}.illustrationUrl`, filePath, { shouldDirty: true });
@@ -111,12 +116,12 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
     const onSubmit = async (data: ModuleFormValues) => {
         setIsSubmitting(true);
         try {
-            // [FIX 1] TypeScript Safety: Pastikan ID tersedia untuk proses update
+            // [FIX] Use unified service & Ensure updateModule takes ID as first arg
             if (initialData?.id) {
-                await adminEducationService.updateModule(initialData.id, data);
+                await educationService.updateModule(initialData.id, data);
                 toast.success('Modul berhasil diperbarui');
             } else {
-                await adminEducationService.createModule(data);
+                await educationService.createModule(data);
                 toast.success('Modul baru berhasil dibuat');
             }
 
@@ -133,8 +138,6 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
     /**
      * [LOGICAL HELPER]
      * Menangani URL Gambar agar tetap tampil baik di dev maupun prod.
-     * Backend kadang mengembalikan `uploads/xxx` sementara static serving ada di `/api/uploads`.
-     * Prioritaskan `/api/uploads/...` lalu fallback ke `/uploads/...`.
      */
     const getPreviewUrl = (path: string) => {
         if (!path) return '';
@@ -313,6 +316,24 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                 {form.formState.errors.categoryId && <p className="text-xs text-red-500">{form.formState.errors.categoryId.message}</p>}
                             </div>
 
+                            <div className="space-y-2">
+                                <Label className="font-bold">Level Kesulitan</Label>
+                                <Select
+                                    onValueChange={(val) => form.setValue('level', val as EducationLevel, { shouldValidate: true, shouldDirty: true })}
+                                    defaultValue={initialData?.level || EducationLevel.BEGINNER}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih Level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={EducationLevel.BEGINNER}>Beginner</SelectItem>
+                                        <SelectItem value={EducationLevel.INTERMEDIATE}>Intermediate</SelectItem>
+                                        <SelectItem value={EducationLevel.ADVANCED}>Advanced</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {form.formState.errors.level && <p className="text-xs text-red-500">{form.formState.errors.level.message}</p>}
+                            </div>
+
                             {/* MODULE THUMBNAIL UPLOAD */}
                             <div className="space-y-3">
                                 <Label className="font-bold">Thumbnail Modul (Cover)</Label>
@@ -326,7 +347,6 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                             />
                                             <Button
                                                 type="button"
-                                                // [FIX 2] Menggunakan variant 'destructive' sesuai dengan ButtonProps UI Anda
                                                 variant="destructive"
                                                 size="icon"
                                                 className="absolute top-2 right-2 h-7 w-7 shadow-md"
@@ -371,6 +391,19 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                     <span className="absolute right-3 top-2.5 text-sm text-gray-400">Menit</span>
                                 </div>
                                 {form.formState.errors.readingTime && <p className="text-xs text-red-500">{form.formState.errors.readingTime.message}</p>}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="font-bold">Poin Reward</Label>
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        {...form.register('points', { valueAsNumber: true })}
+                                        className="pr-12"
+                                    />
+                                    <span className="absolute right-3 top-2.5 text-sm text-gray-400">Pts</span>
+                                </div>
+                                {form.formState.errors.points && <p className="text-xs text-red-500">{form.formState.errors.points.message}</p>}
                             </div>
                         </CardContent>
                     </Card>
