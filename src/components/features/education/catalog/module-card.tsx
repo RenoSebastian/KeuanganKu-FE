@@ -97,7 +97,7 @@ export function ModuleCard({ module }: ModuleCardProps) {
                             "w-full gap-2",
                             isCompleted ? "bg-secondary text-secondary-foreground hover:bg-secondary/80" : ""
                         )}
-                        variant={isCompleted ? "outline" : "primary"}
+                        variant={isCompleted ? "outline" : "default"}
                     >
                         {isCompleted ? (
                             <>Review Materi <ArrowRight className="w-4 h-4" /></>

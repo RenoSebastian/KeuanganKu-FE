@@ -1,172 +1,53 @@
 @import "tailwindcss";
 
 @plugin "tailwindcss-animate";
-/* @import "tw-animate-css"; */
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-  /* --- 1. BRAND COLORS (PAM JAYA) --- */
-  --color-brand-50: #f0f9ff;
-  --color-brand-100: #e0f2fe;
-  --color-brand-200: #bae6fd;
-  --color-brand-300: #7dd3fc;
-  --color-brand-400: #38bdf8;
-  --color-brand-500: #0093E9; /* Cyan */
-  --color-brand-600: #0284c7;
-  --color-brand-700: #005C97; /* Deep Blue Identity */
-  --color-brand-800: #075985;
-  --color-brand-900: #0c4a6e;
-  --color-brand-950: #082f49;
-
-  /* --- 2. STATUS COLORS --- */
-  --color-status-success: #10b981;
-  --color-status-warning: #f59e0b;
-  --color-status-danger: #e11d48;
-  --color-status-info: #3b82f6;
-
-  /* --- 3. SURFACE COLORS (Fixes your error) --- */
-  --color-surface-ground: #f8fafc;
-  --color-surface-section: #f1f5f9;
-  --color-surface-card: #ffffff;
-  --color-surface-border: #e2e8f0;
-
-  /* --- 4. FONTS --- */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
-
-  /* --- 5. CUSTOM UTILITIES --- */
-  --background-image-pam-gradient: linear-gradient(135deg, #005C97 0%, #0093E9 100%);
-  --background-image-glass-gradient: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%);
-
-  --shadow-glow-blue: 0 0 20px -5px rgba(0, 147, 233, 0.3);
-  --shadow-card-hover: 0 10px 40px -10px rgba(0,0,0,0.08);
-}
-
-/* --- BASE STYLES --- */
-@layer base {
-  body {
-    /* Sekarang class bg-surface-ground sudah pasti dikenali */
-    @apply bg-surface-ground text-slate-800 antialiased;
-
-    /* Subtle Water Ambience Background */
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(0, 147, 233, 0.03) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(0, 92, 151, 0.03) 0px, transparent 50%);
-    background-attachment: fixed;
-  }
-}
-
-/* --- COMPONENT UTILITIES --- */
-@layer components {
-
-  /* Glassmorphism */
-  .glass-panel {
-    @apply bg-white/80 backdrop-blur-xl border border-white/60 shadow-lg shadow-brand-900/5;
-  }
-
-  /* Clean Card */
-  .card-clean {
-    @apply bg-white border border-surface-border rounded-2xl shadow-sm hover:shadow-card-hover transition-all duration-300;
-  }
-
-  /* Typography */
-  .text-heading-xl {
-    @apply font-black text-slate-900 tracking-tight leading-tight;
-  }
-
-  /* Button Variants */
-  .btn-pam-primary {
-    @apply bg-pam-gradient text-white font-bold shadow-lg shadow-brand-500/30 hover:shadow-brand-500/50 hover:-translate-y-0.5 transition-all duration-300;
-  }
-}
-
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
-
-  @keyframes accordion-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-accordion-content-height);
-    }
-  }
-
-  @keyframes accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-    to {
-      height: 0;
-    }
-  }
-}
-
+/* =========================================
+   1. CSS VARIABLES (SHADCN UI + BRAND)
+   ================================********* */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  /* --- Shadcn UI Base (OKLCH) --- */
+  --background: oklch(0.985 0 0);
+  /* Slightly off-white for better contrast */
   --foreground: oklch(0.145 0 0);
+
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
+
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
+
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
+
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
+
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
+
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
+
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+
+  --radius: 0.625rem;
+
+  /* --- Charts --- */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+
+  /* --- Sidebar --- */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -193,6 +74,7 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -211,21 +93,168 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* =========================================
+   2. TAILWIND THEME CONFIGURATION
+   ================================********* */
+@theme {
+  /* --- Brand Colors (PAM JAYA Identity) --- */
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0093E9;
+  /* Primary Brand Cyan */
+  --color-brand-600: #0284c7;
+  --color-brand-700: #005C97;
+  /* Deep Blue Identity */
+  --color-brand-800: #075985;
+  --color-brand-900: #0c4a6e;
+  --color-brand-950: #082f49;
+
+  /* --- Status Colors --- */
+  --color-status-success: #10b981;
+  --color-status-warning: #f59e0b;
+  --color-status-danger: #e11d48;
+  --color-status-info: #3b82f6;
+
+  /* --- Surface Colors --- */
+  --color-surface-ground: #f8fafc;
+  --color-surface-section: #f1f5f9;
+  --color-surface-card: #ffffff;
+  --color-surface-border: #e2e8f0;
+
+  /* --- Fonts --- */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* --- Custom Utilities --- */
+  --background-image-pam-gradient: linear-gradient(135deg, #005C97 0%, #0093E9 100%);
+  --background-image-glass-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 100%);
+
+  --shadow-glow-blue: 0 0 20px -5px rgba(0, 147, 233, 0.3);
+  --shadow-card-hover: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+
+  /* --- Shadcn Variable Mappings --- */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
+  }
+}
+
+/* =========================================
+   3. BASE STYLES
+   ================================********* */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
+    /* Combine Shadcn Base + Brand Identity */
+    @apply bg-background text-foreground antialiased;
+
+    /* Water Ambience Background (Subtle Texture) */
+    background-image:
+      radial-gradient(at 0% 0%, rgba(0, 147, 233, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(0, 92, 151, 0.03) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 }
 
-/* Custom Search Highlighting */
-.search-highlight em {
-  font-style: normal;
-  font-weight: 700;
-  color: #1d4ed8; /* Blue-700 */
-  background-color: #dbeafe; /* Blue-100 */
-  padding: 0 1px;
-  border-radius: 2px;
+/* =========================================
+   4. COMPONENT UTILITIES
+   ================================********* */
+@layer components {
+
+  /* Glassmorphism Effect */
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-xl border border-white/60 shadow-lg shadow-brand-900/5;
+  }
+
+  /* Clean Card Style (Admin & Module Cards) */
+  .card-clean {
+    @apply bg-white border border-surface-border rounded-2xl shadow-sm hover:shadow-card-hover transition-all duration-300;
+  }
+
+  /* Typography Presets */
+  .text-heading-xl {
+    @apply font-black text-slate-900 tracking-tight leading-tight;
+  }
+
+  /* Primary Action Button (Brand Gradient) */
+  .btn-pam-primary {
+    @apply bg-pam-gradient text-white font-bold shadow-lg shadow-brand-500/30 hover:shadow-brand-500/50 hover:-translate-y-0.5 transition-all duration-300;
+  }
+
+  /* Search Highlight (Used in Module Filtering) */
+  .search-highlight em {
+    font-style: normal;
+    font-weight: 700;
+    color: #1d4ed8;
+    /* Blue-700 */
+    background-color: #dbeafe;
+    /* Blue-100 */
+    padding: 0 1px;
+    border-radius: 2px;
+  }
 }

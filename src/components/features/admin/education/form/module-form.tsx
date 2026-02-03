@@ -326,8 +326,8 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                             />
                                             <Button
                                                 type="button"
-                                                // [FIX 2] Menggunakan variant 'danger' sesuai dengan ButtonProps UI Anda
-                                                variant="danger"
+                                                // [FIX 2] Menggunakan variant 'destructive' sesuai dengan ButtonProps UI Anda
+                                                variant="destructive"
                                                 size="icon"
                                                 className="absolute top-2 right-2 h-7 w-7 shadow-md"
                                                 onClick={() => form.setValue('thumbnailUrl', '', { shouldDirty: true })}

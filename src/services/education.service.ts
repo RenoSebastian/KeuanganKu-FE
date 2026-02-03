@@ -1,107 +1,157 @@
-import api from '@/lib/axios';
+import apiClient from '@/lib/axios';
 import {
-    CreateModulePayload,
     EducationCategory,
+    CreateCategoryPayload,
+    UpdateCategoryPayload,
     EducationModule,
-    QuizHeader,
+    CreateModulePayload,
     UpdateModulePayload,
-    UpdateModuleStatusPayload,
+    UpsertQuizPayload,
+    Quiz,
 } from '@/lib/types/education';
+import { DatabaseStats, PruneExecutionPayload } from '@/lib/types/retention';
 
-// [NEW] Define Payload for Upsert Quiz
-export interface UpsertQuizPayload {
-    moduleId: string;
-    timeLimit: number;
-    passingScore: number;
-    questions: {
-        id?: string; // Optional for new questions
-        questionText: string;
-        type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE';
-        options: {
-            id?: string; // Optional for new options
-            optionText: string;
-            isCorrect: boolean;
-        }[];
-    }[];
-}
+/**
+ * EDUCATION SERVICE
+ * Mengelola semua komunikasi HTTP ke endpoint /education dan /retention.
+ * ------------------------------------------------------------------
+ * Service ini mencakup:
+ * 1. Manajemen Kategori (Admin)
+ * 2. Manajemen Modul & Konten (Admin)
+ * 3. Manajemen Kuis (Admin)
+ * 4. Fitur Publik (User)
+ * 5. Retention & Maintenance (Admin)
+ * ------------------------------------------------------------------
+ */
 
-// --- ADMIN ENDPOINTS ---
+export const educationService = {
 
-export const adminEducationService = {
-    // 1. Module Management
-    createModule: async (payload: CreateModulePayload) => {
-        const { data } = await api.post<EducationModule>('/admin/education/modules', payload);
-        return data;
+    // =================================================================
+    // 1. CATEGORY MANAGEMENT (ADMIN)
+    // =================================================================
+
+    async getCategories() {
+        // Digunakan oleh Admin (CRUD) dan User (Filter)
+        const response = await apiClient.get<EducationCategory[]>('/education/categories');
+        return response.data;
     },
 
-    // [ADDED] Get Single Module by ID (for Admin Edit)
-    getModuleById: async (id: string) => {
-        const { data } = await api.get<EducationModule>(`/admin/education/modules/${id}`);
-        return data;
+    async getCategoryById(id: string) {
+        const response = await apiClient.get<EducationCategory>(`/education/categories/${id}`);
+        return response.data;
     },
 
-    updateModule: async (id: string, payload: UpdateModulePayload) => {
-        const { data } = await api.patch<EducationModule>(`/admin/education/modules/${id}`, payload);
-        return data;
+    async createCategory(payload: CreateCategoryPayload) {
+        const response = await apiClient.post<EducationCategory>('/admin/education/categories', payload);
+        return response.data;
     },
 
-    updateStatus: async (id: string, payload: UpdateModuleStatusPayload) => {
-        const { data } = await api.patch<EducationModule>(
-            `/admin/education/modules/${id}/status`,
-            payload
-        );
-        return data;
+    async updateCategory(id: string, payload: UpdateCategoryPayload) {
+        const response = await apiClient.put<EducationCategory>(`/admin/education/categories/${id}`, payload);
+        return response.data;
     },
 
-    deleteModule: async (id: string) => {
-        const { data } = await api.delete(`/admin/education/modules/${id}`);
-        return data;
+    async deleteCategory(id: string) {
+        const response = await apiClient.delete(`/admin/education/categories/${id}`);
+        return response.data;
     },
 
-    reorderSections: async (id: string, items: { id: string; order: number }[]) => {
-        const { data } = await api.put(`/admin/education/modules/${id}/sections/reorder`, {
+    // =================================================================
+    // 2. MODULE MANAGEMENT (ADMIN)
+    // =================================================================
+
+    async getModulesAdmin() {
+        // List modul lengkap untuk table admin
+        const response = await apiClient.get<EducationModule[]>('/admin/education/modules');
+        return response.data;
+    },
+
+    async getModuleDetailAdmin(id: string) {
+        // Detail modul untuk form edit
+        const response = await apiClient.get<EducationModule>(`/admin/education/modules/${id}`);
+        return response.data;
+    },
+
+    async createModule(payload: CreateModulePayload) {
+        const response = await apiClient.post<EducationModule>('/admin/education/modules', payload);
+        return response.data;
+    },
+
+    async updateModule(id: string, payload: UpdateModulePayload) {
+        const response = await apiClient.put<EducationModule>(`/admin/education/modules/${id}`, payload);
+        return response.data;
+    },
+
+    async deleteModule(id: string) {
+        const response = await apiClient.delete(`/admin/education/modules/${id}`);
+        return response.data;
+    },
+
+    // Endpoint khusus untuk mengubah status (Publish/Draft/Archive)
+    async publishModule(id: string) {
+        const response = await apiClient.patch<EducationModule>(`/admin/education/modules/${id}/status`, {
+            status: 'PUBLISHED'
+        });
+        return response.data;
+    },
+
+    async unpublishModule(id: string) {
+        const response = await apiClient.patch<EducationModule>(`/admin/education/modules/${id}/status`, {
+            status: 'DRAFT'
+        });
+        return response.data;
+    },
+
+    async reorderSections(id: string, items: { sectionId: string; newOrder: number }[]) {
+        const response = await apiClient.put(`/admin/education/modules/${id}/sections/reorder`, {
             items,
         });
-        return data;
+        return response.data;
     },
 
-    // 2. Quiz Management
+    // =================================================================
+    // 3. QUIZ MANAGEMENT (ADMIN)
+    // =================================================================
 
-    // [ADDED] Get Quiz Config (for Admin Quiz Builder Init)
-    getQuizConfig: async (moduleId: string) => {
-        const { data } = await api.get<UpsertQuizPayload>(`/admin/education/modules/${moduleId}/quiz`);
-        return data;
+    async getQuizConfiguration(moduleId: string) {
+        // Mengambil konfigurasi kuis yang sudah ada (untuk inisialisasi form builder)
+        const response = await apiClient.get<Quiz>(`/admin/education/modules/${moduleId}/quiz`);
+        return response.data;
     },
 
-    // [UPDATED] Upsert Quiz (Transactional Save)
-    upsertQuiz: async (payload: UpsertQuizPayload) => {
-        // Menggunakan moduleId dari payload untuk membentuk URL
-        const { data } = await api.put<QuizHeader>(
-            `/admin/education/modules/${payload.moduleId}/quiz`,
-            payload
-        );
-        return data;
-    },
-};
-
-// --- PUBLIC/COMMON ENDPOINTS ---
-
-export const publicEducationService = {
-    getCategories: async () => {
-        const { data } = await api.get<EducationCategory[]>('/education/categories');
-        return data;
+    async upsertQuiz(moduleId: string, payload: UpsertQuizPayload) {
+        // Membuat atau memperbarui kuis secara transaksional
+        const response = await apiClient.put<Quiz>(`/admin/education/modules/${moduleId}/quiz`, payload);
+        return response.data;
     },
 
-    getModules: async (params?: { page?: number; limit?: number; category?: string }) => {
-        const { data } = await api.get<{
-            data: EducationModule[];
-            meta: { total: number; page: number; lastPage: number };
-        }>('/education/modules', { params });
-        return data;
+    // =================================================================
+    // 4. RETENTION & MAINTENANCE (ADMIN)
+    // =================================================================
+
+    async getDatabaseStats() {
+        // Mengambil statistik penggunaan storage database
+        const response = await apiClient.get<DatabaseStats>('/admin/retention/stats');
+        return response.data;
     },
 
-    getModuleBySlug: async (slug: string) => {
-        const { data } = await api.get<EducationModule>(`/education/modules/${slug}`);
-        return data;
+    async executePrune(payload: PruneExecutionPayload) {
+        // Eksekusi pembersihan data (Garbage Collection)
+        const response = await apiClient.post('/admin/retention/prune', payload);
+        return response.data;
+    },
+
+    // =================================================================
+    // 5. PUBLIC / LEARNING (USER)
+    // =================================================================
+
+    async getModulesPublic(params?: { category?: string; search?: string }) {
+        const response = await apiClient.get<EducationModule[]>('/education/modules', { params });
+        return response.data;
+    },
+
+    async getModuleBySlug(slug: string) {
+        const response = await apiClient.get<EducationModule>(`/education/modules/${slug}`);
+        return response.data;
     },
 };
