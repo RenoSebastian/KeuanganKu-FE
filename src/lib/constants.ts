@@ -1,7 +1,7 @@
 // src/lib/constants.ts
 
 export const APP_CONFIG = {
-    API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000",
+    API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api",
     // Timeout global untuk request axios (30 detik)
     API_TIMEOUT_MS: 30000,
     // Versi aplikasi untuk cache busting jika diperlukan

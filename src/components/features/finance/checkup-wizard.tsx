@@ -487,8 +487,37 @@ export function CheckupWizard() {
                                     <SelectInput label="Agama" value={formData.userProfile.religion} onChange={(v) => handleProfileChange("userProfile", "religion", v)} options={[{ value: "ISLAM", label: "Islam" }, { value: "KRISTEN", label: "Kristen" }, { value: "KATOLIK", label: "Katolik" }, { value: "HINDU", label: "Hindu" }, { value: "BUDDHA", label: "Buddha" }, { value: "LAINNYA", label: "Lainnya" }]} />
                                     <SelectInput label="Status Perkawinan" value={formData.userProfile.maritalStatus} onChange={(v) => handleProfileChange("userProfile", "maritalStatus", v)} options={[{ value: "SINGLE", label: "Belum Menikah" }, { value: "MARRIED", label: "Menikah" }, { value: "DIVORCED", label: "Pernah Menikah" }]} />
                                     <div className="grid grid-cols-2 gap-4">
-                                        <TextInput label="Jumlah Anak" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.childrenCount} onChange={(v) => handleProfileChange("userProfile", "childrenCount", parseInt(v) || 0)} helpContent={FINANCIAL_HELP_DATA["userProfile.childrenCount"]} />
-                                        <TextInput label="Tanggungan Ortu" type="number" icon={<User className="w-4 h-4" />} value={formData.userProfile.dependentParents} onChange={(v) => handleProfileChange("userProfile", "dependentParents", parseInt(v) || 0)} helpContent={FINANCIAL_HELP_DATA["userProfile.dependentParents"]} />
+                                        <Input
+                                            label="Jumlah Anak"
+                                            type="number"
+                                            min={0}
+                                            clampNumber
+                                            icon={<User className="w-4 h-4" />}
+                                            value={formData.userProfile.childrenCount}
+                                            onChange={(e) =>
+                                                handleProfileChange(
+                                                    "userProfile",
+                                                    "childrenCount",
+                                                    Number(e.target.value)
+                                                )
+                                            }
+                                        />
+
+                                        <Input
+                                            label="Tanggungan Ortu"
+                                            type="number"
+                                            min={0}
+                                            clampNumber
+                                            icon={<User className="w-4 h-4" />}
+                                            value={formData.userProfile.dependentParents}
+                                            onChange={(e) =>
+                                                handleProfileChange(
+                                                    "userProfile",
+                                                    "dependentParents",
+                                                    Number(e.target.value)
+                                                )
+                                            }
+                                        />
                                     </div>
                                     <TextInput label="Pekerjaan" icon={<Briefcase className="w-4 h-4" />} value={formData.userProfile.occupation} onChange={(v) => handleProfileChange("userProfile", "occupation", v)} />
                                     <TextInput label="Kota Domisili" icon={<MapPin className="w-4 h-4" />} value={formData.userProfile.city} onChange={(v) => handleProfileChange("userProfile", "city", v)} />
