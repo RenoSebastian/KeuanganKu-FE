@@ -5,9 +5,10 @@ import { Clock, BookOpen, CheckCircle2, PlayCircle, ArrowRight } from 'lucide-re
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress'; // Asumsi komponen UI ada
+import { Progress } from '@/components/ui/progress';
 import { EducationModule, EducationProgressStatus } from '@/lib/types/education';
 import { cn } from '@/lib/utils';
+import { mediaService } from '@/services/media.service'; // [FIX] Import Media Service
 
 interface ModuleCardProps {
     module: EducationModule;
@@ -19,7 +20,6 @@ export function ModuleCard({ module }: ModuleCardProps) {
     const isStarted = module.userStatus === EducationProgressStatus.STARTED;
 
     // Placeholder progress (Idealnya dari BE, jika belum ada kita simulasi 0 atau 50% jika started)
-    // Untuk fase ini kita gunakan logic sederhana based on status
     const progressValue = isCompleted ? 100 : (isStarted ? 30 : 0);
 
     return (
@@ -28,7 +28,8 @@ export function ModuleCard({ module }: ModuleCardProps) {
             <div className="relative h-48 w-full bg-gray-100 overflow-hidden">
                 {module.thumbnailUrl ? (
                     <img
-                        src={module.thumbnailUrl}
+                        // [FIX] Gunakan mediaService untuk resolve full URL dari backend
+                        src={mediaService.getFullUrl(module.thumbnailUrl)}
                         alt={module.title}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />

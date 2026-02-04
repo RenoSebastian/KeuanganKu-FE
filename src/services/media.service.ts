@@ -72,7 +72,9 @@ export const mediaService = {
         if (!path) return '';
         if (path.startsWith('http')) return path;
 
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+        // [FIX] Mengubah default fallback ke port 4000 (Backend) bukan 3000 (Frontend)
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
         // Menghapus trailing slash dari base dan leading slash dari path untuk mencegah double slash
         const cleanBase = baseUrl.replace(/\/+$/, '');
         const cleanPath = path.replace(/^\/+/, '');

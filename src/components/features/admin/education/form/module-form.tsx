@@ -16,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 import { moduleFormSchema, ModuleFormValues } from '@/lib/schemas/education-schema';
 import { educationService } from '@/services/education.service';
+import { mediaService } from '@/services/media.service'; // [FIX] Import Media Service
 import {
     EducationCategory,
     EducationModule,
@@ -44,7 +45,6 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
             categoryId: initialData?.categoryId || '',
             thumbnailUrl: initialData?.thumbnailUrl || '',
             excerpt: initialData?.excerpt || '',
-            // [FIX] Menggunakan default value yang valid untuk number dan enum
             readingTime: initialData?.readingTime || 5,
             level: initialData?.level || EducationLevel.BEGINNER,
             points: initialData?.points || 0,
@@ -97,6 +97,7 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
             const res = await api.post('/media/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
+
             // Handle response wrapper structure
             const filePath = res.data?.data?.url || res.data?.url;
 
@@ -117,7 +118,6 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
     const onSubmit = async (data: ModuleFormValues) => {
         setIsSubmitting(true);
         try {
-            // [FIX] Strict Type Mapping untuk Payload
             // Memastikan array sections sesuai dengan SectionPayload DTO
             const sectionsPayload: SectionPayload[] = data.sections.map(s => ({
                 title: s.title || '',
@@ -152,14 +152,7 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
         }
     };
 
-    const getPreviewUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http')) return path;
-        const base = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
-        if (path.startsWith('api/')) return `${base}/${path}`;
-        if (path.startsWith('uploads/')) return `${base}/api/${path}`;
-        return `${base}/${path}`;
-    };
+    // [FIX] HAPUS FUNGSI getPreviewUrl LOKAL YANG BERMASALAH
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-20">
@@ -249,7 +242,12 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                                 <div className="flex items-center gap-4">
                                                     {currentIllustrationUrl ? (
                                                         <div className="relative w-32 h-20 rounded-md overflow-hidden border bg-muted shadow-sm">
-                                                            <img src={getPreviewUrl(currentIllustrationUrl)} alt="Preview" className="w-full h-full object-cover" />
+                                                            {/* [FIX] Gunakan mediaService.getFullUrl */}
+                                                            <img
+                                                                src={mediaService.getFullUrl(currentIllustrationUrl)}
+                                                                alt="Preview"
+                                                                className="w-full h-full object-cover"
+                                                            />
                                                             <button type="button" onClick={() => form.setValue(`sections.${index}.illustrationUrl`, '', { shouldDirty: true })} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5"><X className="w-3 h-3" /></button>
                                                         </div>
                                                     ) : (
@@ -324,7 +322,12 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                 <div className="space-y-4">
                                     {form.watch('thumbnailUrl') ? (
                                         <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted">
-                                            <img src={getPreviewUrl(form.watch('thumbnailUrl'))} alt="Cover Preview" className="w-full h-full object-cover" />
+                                            {/* [FIX] Gunakan mediaService.getFullUrl */}
+                                            <img
+                                                src={mediaService.getFullUrl(form.watch('thumbnailUrl'))}
+                                                alt="Cover Preview"
+                                                className="w-full h-full object-cover"
+                                            />
                                             <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7 shadow-md" onClick={() => form.setValue('thumbnailUrl', '', { shouldDirty: true })}><X className="w-4 h-4" /></Button>
                                         </div>
                                     ) : (
