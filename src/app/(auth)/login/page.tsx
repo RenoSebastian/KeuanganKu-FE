@@ -174,7 +174,7 @@ export default function LoginPage() {
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl mb-4">
             <Image
-              src="/images/maxipro.webp"
+              src="/images/logokeuanganku.png"
               alt="Logo"
               width={100}
               height={100}

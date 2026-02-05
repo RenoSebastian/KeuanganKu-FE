@@ -49,7 +49,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-4">
             <Link href="/login">
               <Button
-                variant="primary"
+                variant="default"
                 className="rounded-full px-6 shadow-lg shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 border-none"
               >
                 Login Aplikasi
@@ -174,8 +174,8 @@ export default function LandingPage() {
                 {/* MAXIPRO */}
                 <div className="flex items-center justify-center">
                   <Image
-                    src="/images/maxipro.webp"
-                    alt="Logo MAXIPRO"
+                    src="/images/logokeuanganku.png"
+                    alt="Logo KeuanganKu"
                     width={180}
                     height={90}
                     className="object-contain"

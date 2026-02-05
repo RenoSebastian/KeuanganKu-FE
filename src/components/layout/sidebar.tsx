@@ -93,8 +93,8 @@ export function Sidebar() {
       <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-linear-to-b from-white to-slate-50/50">
         <div className="relative w-10 h-10 drop-shadow-sm">
           <Image 
-            src="/images/maxipro.webp" 
-            alt="Logo MAXIPRO" 
+            src="/images/logokeuanganku.png" 
+            alt="Logo KeuanganKu" 
             fill 
             className="object-contain"
             priority

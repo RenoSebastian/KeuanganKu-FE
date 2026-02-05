@@ -14,7 +14,7 @@ import { formatRupiah } from "@/lib/financial-math";
 import { PensionResult } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { PensionGuide } from "@/components/features/calculator/pension-guide";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 
 export default function PensionPage() {
   // --- STATE INPUT ---
@@ -31,9 +31,9 @@ export default function PensionPage() {
 
   // State UI & Logic
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Untuk tombol save/download
-  const [savedId, setSavedId] = useState<string | null>(null); // ID untuk PDF
-  const [showPdfModal, setShowPdfModal] = useState(false); // Modal PDF
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -50,7 +50,7 @@ export default function PensionPage() {
       setCurrentImageIndex((prevIndex) =>
         prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
       );
-    }, 5000); // Ganti gambar setiap 5 detik
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [backgroundImages.length]);
@@ -83,7 +83,6 @@ export default function PensionPage() {
     if (clean === "0") clean = "";
     if (clean.length > 3) return;
     setter(clean);
-    // Reset result & savedId jika input berubah (agar user hitung ulang)
     if (result) {
       setResult(null);
       setSavedId(null);
@@ -104,11 +103,10 @@ export default function PensionPage() {
     if (!validateInputs()) return;
 
     setIsLoading(true);
-    // Kita anggap proses ini juga "Saving" karena hit ke backend
     setIsSaving(true);
 
     try {
-      // 1. Prepare Data & Sanitasi
+      // 1. Prepare Data
       const cAge = parseInt(currentAge) || 0;
       const rAge = parseInt(retirementAge) || 0;
       const rDur = parseInt(retirementDuration) || 20;
@@ -119,33 +117,30 @@ export default function PensionPage() {
       const response = await financialService.savePensionPlan({
         currentAge: cAge,
         retirementAge: rAge,
-        lifeExpectancy: rAge + rDur, // BE butuh umur harapan hidup total
+        lifeExpectancy: rAge + rDur,
         currentExpense: expense,
-        currentSaving: fund, // Optional field di BE
+        currentSaving: fund,
         inflationRate: inflation,
         returnRate: returnRate
       });
 
-      // Response Backend dibungkus dalam object { plan: { id, ... }, calculation: {...} }
       const calc = (response as any).calculation;
       const plan = (response as any).plan;
 
-      // Simpan ID untuk keperluan PDF nanti
       if (plan?.id) {
         setSavedId(plan.id);
       }
 
       // 3. Map Response to UI State
       const yearsToRetire = rAge - cAge;
-      const estimatedFvFund = fund * Math.pow(1 + (returnRate / 100), yearsToRetire);
 
       setResult({
         workingYears: yearsToRetire,
         retirementYears: rDur,
         fvMonthlyExpense: calc.futureMonthlyExpense || 0,
-        fvExistingFund: estimatedFvFund,
+        fvExistingFund: calc.fvExistingFund,
         totalFundNeeded: calc.totalFundNeeded,
-        shortfall: calc.monthlySaving > 0 ? calc.monthlySaving * 12 * yearsToRetire : 0,
+        shortfall: calc.shortfall,
         monthlySaving: calc.monthlySaving
       });
 
@@ -169,14 +164,14 @@ export default function PensionPage() {
     setSavedId(null);
   };
 
-  // --- PDF DOWNLOAD HANDLER (SERVER-SIDE) ---
+  // --- PDF DOWNLOAD HANDLER ---
   const handleDownloadPDF = async () => {
-    if (showPdfModal) return; // Prevent double click
+    if (showPdfModal) return;
 
     try {
       let targetId = savedId;
 
-      // 1. AUTO-SAVE: Jika belum ada ID (belum dihitung/disimpan), hitung dulu
+      // 1. AUTO-SAVE jika belum ada ID
       if (!targetId) {
         if (!validateInputs()) {
           alert("Mohon lengkapi data terlebih dahulu.");
@@ -205,17 +200,17 @@ export default function PensionPage() {
             targetId = (response as any).plan.id;
             setSavedId(targetId);
 
-            // Update result view juga biar sinkron
+            // Update result view
             const calc = (response as any).calculation;
             const yearsToRetire = rAge - cAge;
-            const estimatedFvFund = fund * Math.pow(1 + (returnRate / 100), yearsToRetire);
+
             setResult({
               workingYears: yearsToRetire,
               retirementYears: rDur,
               fvMonthlyExpense: calc.futureMonthlyExpense || 0,
-              fvExistingFund: estimatedFvFund,
+              fvExistingFund: calc.fvExistingFund,
               totalFundNeeded: calc.totalFundNeeded,
-              shortfall: calc.monthlySaving > 0 ? calc.monthlySaving * 12 * yearsToRetire : 0,
+              shortfall: calc.shortfall,
               monthlySaving: calc.monthlySaving
             });
           }
@@ -228,16 +223,12 @@ export default function PensionPage() {
         }
       }
 
-      // 2. Buka Modal Loading (UX)
       setShowPdfModal(true);
 
-      // 3. Request PDF ke Backend (Long Process)
-      // Pastikan service financial.service.ts memiliki method downloadPensionPdf
       if (targetId) {
         await financialService.downloadPensionPdf(targetId);
       }
 
-      // 4. Tutup Modal dengan delay sedikit (Smooth transition)
       setTimeout(() => setShowPdfModal(false), 500);
 
     } catch (error) {
@@ -250,13 +241,9 @@ export default function PensionPage() {
   return (
     <div className="min-h-full w-full pb-24 md:pb-12">
 
-      {/* --- MOUNT LOADING MODAL --- */}
       <PdfLoadingModal isOpen={showPdfModal} />
 
-      {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
-
-        {/* 1. LAYER GAMBAR (ABSOLUTE) */}
         <div className="absolute inset-0 w-full h-full z-0">
           {backgroundImages.map((image, index) => (
             <div
@@ -268,20 +255,14 @@ export default function PensionPage() {
               style={{ backgroundImage: `url(${image})` }}
             />
           ))}
-
-          {/* Overlay: Gelap + Pattern Wave */}
           <div className="absolute inset-0 bg-brand-300/85 mix-blend-multiply" />
           <div className="absolute inset-0 bg-linear-to-t from-brand-500 via-brand-500/40 to-transparent" />
-
-          {/* Existing Pattern Overlay */}
           <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
         </div>
 
-        {/* 2. LAYER DEKORASI (Z-10) */}
         <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
 
-        {/* 3. LAYER KONTEN (Z-20) */}
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
             <Calculator className="w-4 h-4 text-cyan-300" />
@@ -299,14 +280,12 @@ export default function PensionPage() {
       <div className="relative z-20 max-w-6xl mx-auto px-5 -mt-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* LEFT: INPUT FORM */}
           <div className="lg:col-span-5 space-y-6">
             <Card className="card-clean p-6 md:p-8 bg-white/95 backdrop-blur-xl space-y-6">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4">
                 <User className="w-5 h-5 text-brand-600" /> Profil Pensiun
               </h3>
 
-              {/* Usia Grid */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Usia Kini</label>
@@ -347,7 +326,6 @@ export default function PensionPage() {
                 </div>
               )}
 
-              {/* Input Pemasukan Target */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-600 uppercase ml-1">Target Pemasukan Bulanan</label>
                 <div className="relative group">
@@ -360,11 +338,10 @@ export default function PensionPage() {
                   />
                 </div>
                 <p className="text-[10px] text-slate-400 ml-1">
-                  *Nilai uang saat ini (akan disesuaikan inflasi).
+                  *Gunakan nilai uang saat ini.
                 </p>
               </div>
 
-              {/* Input Saldo Awal */}
               <div className="space-y-1 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
                 <label className="text-xs font-bold text-emerald-700 uppercase ml-1 flex items-center gap-1">
                   <PiggyBank className="w-3 h-3" /> Saldo JHT / DPLK Saat Ini
@@ -407,7 +384,6 @@ export default function PensionPage() {
                 </div>
               </div>
 
-              {/* BUTTON WITH LOADING STATE */}
               <Button
                 onClick={handleCalculate}
                 disabled={isLoading || isSaving}
@@ -422,7 +398,6 @@ export default function PensionPage() {
             </Card>
           </div>
 
-          {/* RIGHT: RESULT DISPLAY */}
           <div className="lg:col-span-7 space-y-6">
             {!result ? (
               <div className="h-full min-h-100 flex flex-col items-center justify-center text-center opacity-60 p-8 border-2 border-dashed border-indigo-200/50 rounded-[2rem] bg-white/50">
@@ -435,7 +410,6 @@ export default function PensionPage() {
             ) : (
               <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
 
-                {/* Visual Timeline */}
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                   <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-slate-400" /> Roadmap Kehidupan
@@ -462,7 +436,6 @@ export default function PensionPage() {
                   </div>
                 </div>
 
-                {/* MAIN RESULT CARD (Indigo Gradient) */}
                 <Card className="bg-linear-to-br from-indigo-600 to-violet-700 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                   <div className="relative z-10 space-y-8">
@@ -474,7 +447,7 @@ export default function PensionPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-emerald-300 text-[10px] font-bold uppercase mb-1">FV Saldo Awal</p>
+                        <p className="text-emerald-300 text-[10px] font-bold uppercase mb-1">FV Saldo Awal (Investasi)</p>
                         <p className="text-xl font-bold text-emerald-100 truncate" title={formatRupiah(result.fvExistingFund)}>
                           {formatRupiah(result.fvExistingFund)}
                         </p>
@@ -496,26 +469,24 @@ export default function PensionPage() {
                   </div>
                 </Card>
 
-                {/* INFO CARD */}
                 <Card className="p-5 rounded-2xl flex items-center justify-between border-l-4 border-l-orange-400 bg-white shadow-sm">
                   <div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Nilai Masa Depan (FV) Target</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Estimasi Biaya Hidup (Masa Depan)</p>
                     <p className="text-xl font-black text-slate-800 mt-1">{formatRupiah(result.fvMonthlyExpense)} <span className="text-xs font-normal text-slate-400">/ bulan</span></p>
-                    <p className="text-[10px] text-slate-400 mt-1 italic">Akibat inflasi {inflation}% selama {result.workingYears} tahun.</p>
+                    <p className="text-[10px] text-slate-400 mt-1 italic">*Nilai ini sudah termasuk inflasi {inflation}% per tahun.</p>
                   </div>
                   <div className="h-12 w-12 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 shadow-sm">
                     <TrendingUp className="w-6 h-6" />
                   </div>
                 </Card>
 
-                {/* ACTIONS */}
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={handleReset} disabled={showPdfModal} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
                     <RefreshCcw className="w-4 h-4 mr-2" /> Reset
                   </Button>
                   <Button
                     className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
-                    onClick={handleDownloadPDF} // [UPDATED]
+                    onClick={handleDownloadPDF}
                     disabled={isSaving || showPdfModal}
                   >
                     {showPdfModal ? (

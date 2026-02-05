@@ -161,8 +161,8 @@ export default function DashboardPage() {
         <div className="flex flex-col items-center mb-6 md:hidden">
           <div className="relative w-32 h-12 mb-4">
             <Image
-              src="/images/maxipro.webp"
-              alt="Logo MAXIPRO"
+              src="/images/logokeuanganku.png"
+              alt="Logo KeuanganKu"
               fill
               className="object-contain"
               priority
