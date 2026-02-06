@@ -1,409 +1,220 @@
-import Link from "next/link";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+"use client";
+
+import { useState } from "react";
 import {
-  ArrowRight,
-  ShieldCheck,
-  TrendingUp,
-  GraduationCap,
-  Umbrella,
-  Wallet,
-  Activity,
-  CheckCircle2,
-  Lock,
-  LineChart,
-  Phone,
-  Mail,
-  Building2,
-  HelpCircle,
-  Notebook,
-  Banknote
+  CheckCircle2, TrendingUp, Activity, Download,
+  FileText, ArrowRight, Wallet, PieChart as PieChartIcon,
+  ChevronDown, ChevronUp, Info
 } from "lucide-react";
 
-export default function LandingPage() {
+// UI Components
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+// Recharts Components
+import {
+  PieChart, Pie, Cell, ResponsiveContainer,
+  Tooltip, Legend
+} from "recharts";
+
+import { FinancialQuizView } from "./financial-quiz-view";
+
+const ASSET_DATA = [
+  { name: "Tabungan & Kas", value: 15, color: "#2563eb" }, // Blue 600
+  { name: "Investasi", value: 35, color: "#7c3aed" },      // Violet 600
+  { name: "Aset Guna (Rumah/Kendaraan)", value: 40, color: "#f59e0b" }, // Amber 500
+  { name: "Lainnya", value: 10, color: "#64748b" },        // Slate 500
+];
+
+const MOCK_DATA = {
+  score: 78,
+  netWorth: 450000000,
+  surplusDeficit: 7500000,
+  ratios: [
+    { id: "1", label: "Dana Darurat", value: 4.5, statusColor: "YELLOW", benchmark: "6x Pengeluaran" },
+    { id: "2", label: "Rasio Menabung", value: 25, statusColor: "GREEN_DARK", benchmark: ">10%" },
+    { id: "3", label: "Rasio Cicilan", value: 20, statusColor: "GREEN_LIGHT", benchmark: "<35%" },
+    { id: "4", label: "Aset Lancar", value: 12, statusColor: "RED", benchmark: ">15%" },
+  ]
+};
+
+export default function Page() {
+  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
+  const [showLegend, setShowLegend] = useState(false); // State untuk minimize legenda
+
+  if (isQuizMode) return <FinancialQuizView onBack={() => setIsQuizMode(false)} />;
+
   return (
-    <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-white">
+    <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500 pb-32">
 
-      {/* 1. NAVBAR (Sticky & Glassmorphism) */}
-      <nav className="sticky top-0 z-50 w-full border-b border-white/20 bg-white/70 backdrop-blur-xl shadow-sm">
-        <div className="container mx-auto px-4 lg:px-8 h-20 flex items-center justify-between">
-
-          {/* LOGO + SLOGAN */}
-          <div className="flex flex-col items-center justify-center">
-            <div className="relative w-32 h-12">
-              <Image
-                src="/images/logokeuanganku.png"
-                alt="Logo KeuanganKu"
-                fill
-                className="object-contain"
-              />
-            </div>
-
-            <span className="text-[9px] text-slate-500 font-bold tracking-widest uppercase mt-0.5 text-center">
-              Sistem Kesehatan Finansial
-            </span> 
-          </div>
-
-          {/* BUTTON */}
-          <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button
-                variant="default"
-                className="rounded-full px-6 shadow-lg shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 border-none"
-              >
-                Login Aplikasi
-              </Button>
-            </Link>
-          </div>
-
-        </div>
-      </nav>
-
-      {/* 2. HERO SECTION (Immersive Background) */}
-      <section className="relative pt-24 pb-40 lg:pt-32 lg:pb-60 overflow-hidden">
-        {/* Background Image Full Cover */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="/images/bg1.png"
-            alt="Background Office"
-            fill
-            className="object-cover object-center"
-            priority
-          />
-          {/* Overlay Gradient: Agar teks tetap terbaca jelas di atas gambar */}
-          <div className="absolute inset-0 bg-linear-to-r from-white/45 via-white/25 to-transparent"></div>
-          <div className="absolute inset-0 bg-linear-to-b from-transparent via-white/15 to-white"></div>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-black text-slate-800 flex items-center gap-2">
+            <Wallet className="w-8 h-8 text-blue-600" />
+            Dashboard Finansial
+          </h2>
+          <p className="text-slate-500 text-sm">Analisa sebaran kekayaan tanpa perlu backend.</p>
         </div>
 
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-blue-100 text-blue-700 text-sm font-bold mb-8 shadow-md">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-25"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
-              </span>
-              Portal Resmi Karyawan MAXIPRO
+        <div className="flex bg-white border p-1 rounded-xl shadow-sm w-fit">
+          <button onClick={() => setViewMode("MONTHLY")} className={cn("px-4 py-2 rounded-lg text-xs font-bold transition-all", viewMode === "MONTHLY" ? "bg-slate-800 text-white shadow-md" : "text-slate-500")}>Bulanan</button>
+          <button onClick={() => setViewMode("ANNUAL")} className={cn("px-4 py-2 rounded-lg text-xs font-bold transition-all", viewMode === "ANNUAL" ? "bg-slate-800 text-white shadow-md" : "text-slate-500")}>Tahunan</button>
+        </div>
+      </div>
+
+      {/* Hero Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 bg-white">
+
+        {/* KIRI: PIE CHART AREA */}
+        <div className="p-8 flex flex-col bg-slate-50/50 border-b lg:border-b-0 lg:border-r border-slate-100 min-h-[400px]">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <PieChartIcon className="w-5 h-5 text-blue-600" />
+              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-tight">Sebaran Aset</h4>
             </div>
+            {/* Tombol Minimize Legenda */}
+            <button
+              onClick={() => setShowLegend(!showLegend)}
+              className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-500 flex items-center gap-1 text-[10px] font-bold"
+            >
+              {showLegend ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              LEGENDA
+            </button>
+          </div>
 
-            <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6 leading-[1.15] drop-shadow-sm">
-              Kelola Keuangan, <br />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-cyan-600">
-                Wujudkan Sejahtera.
-              </span>
-            </h1>
+          <div className="w-full h-64 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={ASSET_DATA}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={0} // 0 = Pie Chart Penuh (Tidak bolong)
+                  outerRadius={90}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                >
+                  {ASSET_DATA.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={2} stroke="#fff" />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                />
+                {showLegend && <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }} />}
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-            <p className="text-lg md:text-xl text-slate-700 mb-10 leading-relaxed font-medium">
-              Platform internal yang didedikasikan untuk membantu keluarga besar MAXIPRO merencanakan masa depan finansial yang lebih aman, terukur, dan bahagia.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/login">
-                <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-lg rounded-full bg-blue-700 hover:bg-blue-800 shadow-xl shadow-blue-700/30 border-none transition-transform hover:scale-105">
-                  Mulai Checkup Sekarang <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
-              <Link href="#info">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto h-14 px-8 text-lg rounded-full bg-white/80 backdrop-blur-sm border-slate-300 hover:bg-white text-slate-700">
-                  <HelpCircle className="mr-2 w-5 h-5" /> Pusat Bantuan
-                </Button>
-              </Link>
+          <div className="mt-auto pt-6 border-t border-slate-200">
+            <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <Info className="w-4 h-4 text-blue-500" /> Skor Kesehatan
+              </div>
+              <span className="text-xl font-black text-blue-600">{MOCK_DATA.score}%</span>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* 3. VALUE PROPOSITION (Floating Cards) */}
-      <section className="relative z-20 -mt-24 pb-24">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1 */}
-            <div className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center text-center hover:-translate-y-1 transition-transform">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 text-blue-600">
-                <Activity className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Checkup Rutin</h3>
-              <p className="text-slate-500">Pantau skor kesehatan finansial Anda setiap bulan secara otomatis.</p>
+        {/* KANAN: FINANCIAL INFO */}
+        <div className="lg:col-span-2 p-8 bg-slate-900 text-white flex flex-col justify-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none" />
+
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div className="space-y-1">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Kekayaan Bersih (Total Net Worth)</p>
+              <h3 className="text-4xl font-mono font-bold tracking-tighter text-white">
+                Rp {MOCK_DATA.netWorth.toLocaleString('id-ID')}
+              </h3>
+              <div className="h-1 w-16 bg-blue-500 rounded-full opacity-50" />
             </div>
-            {/* Card 2 */}
-            <div className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center text-center hover:-translate-y-1 transition-transform relative overflow-hidden">
-              <div className="absolute top-0 w-full h-1 bg-linear-to-r from-blue-500 to-cyan-500"></div>
-              <div className="w-16 h-16 bg-cyan-50 rounded-2xl flex items-center justify-center mb-6 text-cyan-600">
-                <ShieldCheck className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Data Terproteksi</h3>
-              <p className="text-slate-500">Privasi adalah prioritas. Data Anda dienkripsi tingkat enterprise.</p>
-            </div>
-            {/* Card 3 */}
-            <div className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center text-center hover:-translate-y-1 transition-transform">
-              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 text-emerald-600">
-                <TrendingUp className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Simulasi Cerdas</h3>
-              <p className="text-slate-500">Hitung dana pensiun & pendidikan anak dengan akurasi tinggi.</p>
+            <div className="space-y-1">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Sisa Dana {viewMode === "ANNUAL" ? "Tahunan" : "Bulanan"}</p>
+              <h3 className="text-4xl font-mono font-bold tracking-tighter text-emerald-400">
+                +Rp {(viewMode === "ANNUAL" ? MOCK_DATA.surplusDeficit * 12 : MOCK_DATA.surplusDeficit).toLocaleString('id-ID')}
+              </h3>
+              <div className="h-1 w-16 bg-emerald-500 rounded-full opacity-50" />
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* 4. ABOUT SECTION */}
-      <section className="relative py-28 bg-linear-to-b from-white via-slate-50 to-white overflow-hidden">
-        {/* Decorative blur */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 -right-24 w-96 h-96 bg-cyan-100/40 rounded-full blur-3xl" />
-
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-
-            {/* LEFT: LOGO PARTNER */}
-            {/* LEFT: PARTNER LOGOS */}
-            <div className="flex flex-col items-center lg:items-start gap-10">
-
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold tracking-widest uppercase">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-30"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
-                </span>
-                Powered By
-              </div>
-
-
-              <div className="flex items-center gap-8 bg-white rounded-3xl px-10 py-8 shadow-xl shadow-slate-200/60 border border-slate-100">
-
-                {/* MAXIPRO */}
-                <div className="flex items-center justify-center">
-                  <Image
-                    src="/images/logokeuanganku.png"
-                    alt="Logo KeuanganKu"
-                    width={180}
-                    height={90}
-                    className="object-contain"
-                  />
-                </div>
-
-                {/* Divider */}
-                <div className="w-px h-16 bg-slate-200" />
-
-                {/* GEOCITRA */}
-                <div className="flex items-center justify-center">
-                  <Image
-                    src="/images/logogeocitra.png"
-                    alt="Logo Geocitra"
-                    width={120}
-                    height={120}
-                    className="object-contain"
-                  />
-                </div>
-
-              </div>
+          <div className="relative z-10 bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-md space-y-3">
+            <div className="flex items-center gap-2 text-blue-400 font-bold text-sm uppercase tracking-wide">
+              <Activity className="w-4 h-4" /> Diagnosa Otomatis
             </div>
-
-
-            {/* RIGHT: ABOUT TEXT */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold mb-6">
-                Tentang Kami
-              </div>
-
-              <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-6 leading-tight">
-                Membangun Kesejahteraan Finansial <br className="hidden sm:block" />
-                <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-cyan-600">
-                  Karyawan Secara Berkelanjutan
-                </span>
-              </h2>
-
-              <div className="space-y-4 text-slate-600 text-lg leading-relaxed">
-                <p>
-                  <strong className="text-slate-800">KeuanganKu</strong> adalah aplikasi perencanaan
-                  keuangan yang dirancang untuk membantu karyawan memahami kondisi keuangan
-                  pribadinya, mengelola arus kas bulanan secara sehat, serta menyusun tujuan
-                  keuangan jangka pendek, menengah, dan panjang.
-                </p>
-
-                <p>
-                  Aplikasi ini hadir untuk meningkatkan literasi dan kesejahteraan finansial
-                  karyawan sekaligus mendukung program{" "}
-                  <strong>Employee Wellbeing</strong> perusahaan melalui edukasi keuangan yang
-                  berkelanjutan, terukur, dan mudah diakses.
-                </p>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-
-
-      {/* 4. FEATURES GRID (Clean & Professional) */}
-      <section id="features" className="py-24 bg-slate-50/50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16 max-w-2xl mx-auto">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Fitur Andalan</h2>
-            <p className="text-slate-600 text-lg">
-              Dirancang khusus untuk memenuhi kebutuhan perencanaan keuangan keluarga besar.
+            <p className="text-sm leading-relaxed text-slate-300">
+              "Struktur aset Anda didominasi oleh <strong className="text-amber-400">Aset Guna (Rumah/Kendaraan)</strong>. Untuk meningkatkan kesehatan finansial, pertimbangkan untuk meningkatkan porsi <strong className="text-blue-400">Investasi</strong> hingga menyentuh angka 40% dari total kekayaan bersih."
             </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard
-              icon={<GraduationCap className="w-6 h-6 text-white" />}
-              color="bg-blue-600"
-              title="Rancang Dana Pendidikan Anak"
-              desc="Simulasi biaya sekolah anak dari TK hingga Kuliah dengan memperhitungkan inflasi tahunan."
-            />
-            <FeatureCard
-              icon={<Umbrella className="w-6 h-6 text-white" />}
-              color="bg-indigo-600"
-              title="Rancang Dana Hari Tua"
-              desc="Pastikan masa purna tugas Anda tetap sejahtera dengan perhitungan Replacement Ratio yang tepat."
-            />
-            <FeatureCard
-              icon={<ShieldCheck className="w-6 h-6 text-white" />}
-              color="bg-rose-600"
-              title="Rancang Proteksi"
-              desc="Hitung kebutuhan Uang Pertanggungan (UP) Jiwa yang ideal untuk melindungi keluarga tercinta."
-            />
-            <FeatureCard
-              icon={<Wallet className="w-6 h-6 text-white" />}
-              color="bg-slate-800"
-              title="Atur Anggaran Bulanan"
-              desc="Panduan alokasi gaji bulanan."
-            />
-            <FeatureCard
-              icon={<TrendingUp className="w-6 h-6 text-white" />}
-              color="bg-amber-500"
-              title="Rancang Tujuan Lainnya"
-              desc="Rencanakan pembelian rumah, kendaraan, atau ibadah haji dengan roadmap tabungan yang terukur."
-            />
-            <FeatureCard
-              icon={<Banknote className="w-6 h-6 text-white" />}
-              color="bg-emerald-600"
-              title="Analisa Keuangan Pribadi"
-              desc="Diagnosa kesehatan finansial Anda secara menyeluruh dengan standar perencana keuangan profesional"
-            />
-          </div>
         </div>
-      </section>
+      </div>
 
-      {/* 5. CONTACT & SUPPORT (Replacing the old CTA) */}
-      <section id="info" className="relative py-24 overflow-hidden bg-slate-900 text-white">
-        {/* Background Image Darkened */}
-        <div className="absolute inset-0 z-0 opacity-20">
-          <Image
-            src="/images/bg2.png"
-            alt="Office Background"
-            fill
-            className="object-cover"
-          />
-        </div>
+      {/* Indikator Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {MOCK_DATA.ratios.map((ratio) => (
+          <Card key={ratio.id} className="p-5 border-0 shadow-sm bg-white hover:shadow-md transition-shadow group">
+            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 group-hover:text-blue-500 transition-colors">{ratio.label}</h4>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-slate-800">{ratio.value}</span>
+              <span className="text-sm font-bold text-slate-400 uppercase">{ratio.id === "1" ? "kali" : "%"}</span>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-100">
+              Target: {ratio.benchmark}
+            </div>
+          </Card>
+        ))}
+      </div>
 
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-
-            {/* Left: Contact Info */}
+      {/* Action Bar */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-4xl z-50">
+        <Card className="p-4 shadow-2xl bg-white/90 backdrop-blur-xl border border-slate-200 rounded-3xl flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="flex items-center gap-4 pl-2">
+            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+              <PlayCircleIcon className="w-5 h-5" />
+            </div>
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm font-semibold mb-6">
-                <Building2 className="w-4 h-4" /> Internal Division
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">Butuh Bantuan Akses?</h2>
-              <p className="text-slate-300 text-lg mb-10 leading-relaxed">
-                Jika Anda mengalami kendala saat login atau memiliki pertanyaan terkait fitur aplikasi KeuanganKu, silakan hubungi tim Human Capital (HC) atau IT Support kami.
-              </p>
-
-              <div className="space-y-6">
-                <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                  <div className="bg-blue-600 p-3 rounded-xl">
-                    <Phone className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg">Hotline HC</h4>
-                    <p className="text-slate-400">Ext. 1234 (Senin - Jumat, 08:00 - 16:00)</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                  <div className="bg-blue-600 p-3 rounded-xl">
-                    <Mail className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg">Email Support</h4>
-                    <p className="text-slate-400">hc.support@maxipro.co.id</p>
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs font-black text-slate-800 uppercase tracking-tight leading-none mb-1">Edukasi Lanjutan</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Cek Level Literasi Keuangan Anda</p>
             </div>
-
-            {/* Right: Quick Links / About */}
-            <div className="bg-white text-slate-900 p-8 rounded-3xl shadow-2xl">
-              <h3 className="text-2xl font-bold mb-6">Tentang Aplikasi</h3>
-              <p className="text-slate-600 mb-6 leading-relaxed">
-                <strong className="text-blue-700">Sistem KeuanganKu</strong> adalah inisiatif strategis untuk meningkatkan literasi dan kesejahteraan finansial seluruh karyawan.
-              </p>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span className="text-slate-700 font-medium">100% Gratis untuk Karyawan</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span className="text-slate-700 font-medium">Kalkulasi Standar Perencana Keuangan</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span className="text-slate-700 font-medium">Rahasia & Aman</span>
-                </li>
-              </ul>
-
-              <div className="pt-6 border-t border-slate-100 text-center">
-                <p className="text-sm text-slate-500 mb-4">Sudah punya akun pegawai?</p>
-                <Link href="/login" className="block">
-                  <Button size="lg" className="w-full bg-slate-900 text-white hover:bg-slate-800 rounded-xl h-12">
-                    Login ke Dashboard
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
           </div>
-        </div>
-      </section>
 
-      {/* FOOTER */}
-      <footer className="bg-white border-t border-slate-200 py-8">
-        <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2 grayscale opacity-70">
-            <Image
-              src="/images/logogeocitra.png"
-              alt="Logo Geocitra"
-              width={128}
-              height={128}
-              className="object-contain"
-            />
-            <span className="font-semibold text-slate-700 text-sm">Keuanganku Sistem Kesehatan Finansial </span>
+          <div className="flex gap-2 w-full md:w-auto">
+            <Button variant="outline" className="flex-1 md:flex-none h-12 px-6 rounded-2xl font-bold text-slate-600 border-slate-200">
+              <Download className="w-4 h-4 mr-2" /> PDF
+            </Button>
+            <Button
+              onClick={() => setIsQuizMode(true)}
+              className="flex-1 md:flex-none h-12 bg-blue-600 hover:bg-blue-700 text-white font-black px-10 rounded-2xl shadow-xl shadow-blue-200 uppercase tracking-widest text-xs"
+            >
+              Mulai Kuis <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
-          <p className="text-xs text-slate-400 text-center md:text-right">
-            © {new Date().getFullYear()} Geocitra. Hak Cipta Dilindungi Undang-Undang. <br />
-            Untuk Kalangan Sendiri (Internal Use Only).
-          </p>
-        </div>
-      </footer>
+        </Card>
+      </div>
     </div>
   );
 }
 
-// Sub-component untuk Card Fitur
-function FeatureCard({ icon, color, title, desc }: { icon: React.ReactNode, color: string, title: string, desc: string }) {
+// Icon helper
+function PlayCircleIcon(props: any) {
   return (
-    <Card className="group border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-white p-6 rounded-2xl h-full flex flex-col">
-      <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center shadow-md mb-5 group-hover:scale-110 transition-transform duration-300`}>
-        {icon}
-      </div>
-      <h3 className="text-lg font-bold text-slate-900 mb-2">{title}</h3>
-      <p className="text-slate-600 leading-relaxed text-sm grow">
-        {desc}
-      </p>
-    </Card>
-  );
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="10 8 16 12 10 16 10 8" />
+    </svg>
+  )
 }
