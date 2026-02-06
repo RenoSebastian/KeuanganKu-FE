@@ -1,29 +1,27 @@
-'use client'; // [CRITICAL] Wajib di baris pertama untuk menggunakan Hooks
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { QuizBuilder } from '@/components/features/admin/education/quiz/quiz-builder';
-import { adminEducationService } from '@/services/education.service';
+// [FIX] Gunakan educationService sesuai export di file service
+import { educationService } from '@/services/education.service';
 
 export default function ManageQuizPage() {
-    // 1. Ambil ID dari URL menggunakan useParams (Client Side Way)
     const params = useParams();
-    // Validasi ID (bisa string atau array tergantung konfigurasi route)
     const moduleId = typeof params?.id === 'string' ? params.id : '';
 
     const [initialData, setInitialData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    // 2. Fetch Data Quiz saat komponen dimuat
     useEffect(() => {
         if (!moduleId) return;
 
         const loadQuizData = async () => {
             try {
                 setLoading(true);
-                // Menggunakan service yang sudah diperbarui di step sebelumnya
-                const data = await adminEducationService.getQuizConfig(moduleId);
+                // [FIX] Gunakan method getQuizConfiguration (bukan getQuizConfig)
+                const data = await educationService.getQuizConfiguration(moduleId);
                 setInitialData(data);
             } catch (error: any) {
                 // Jika 404 (Quiz belum ada), biarkan initialData null agar QuizBuilder masuk mode create
@@ -38,7 +36,6 @@ export default function ManageQuizPage() {
         loadQuizData();
     }, [moduleId]);
 
-    // 3. Render Loading State
     if (loading) {
         return (
             <div className="flex flex-1 items-center justify-center min-h-100">
@@ -47,7 +44,6 @@ export default function ManageQuizPage() {
         );
     }
 
-    // 4. Render Main Content
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
             <div className="flex items-center justify-between space-y-2">
@@ -62,7 +58,6 @@ export default function ManageQuizPage() {
                     <QuizBuilder
                         moduleId={moduleId}
                         initialData={initialData}
-                        // Optional: Tambahkan callback jika ingin refresh data setelah save
                         onSave={() => window.location.reload()}
                     />
                 ) : (

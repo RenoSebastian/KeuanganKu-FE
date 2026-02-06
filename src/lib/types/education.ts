@@ -175,6 +175,7 @@ export interface CreateModulePayload {
     title: string;
     categoryId: string;
     excerpt: string;
+    description?: string; // [UPDATE] Ditambahkan agar sesuai dengan Entity
     level: EducationLevel;
     readingTime: number;
     points: number;

@@ -2,7 +2,7 @@ import api from '@/lib/axios';
 import {
     DatabaseStats,
     ExportQuery,
-    PrunePayload,
+    PruneExecutionPayload, // [FIX] Menggunakan nama tipe yang benar sesuai retention.ts
     PruneResponse
 } from '@/lib/types/retention';
 
@@ -52,7 +52,8 @@ export const MaintenanceService = {
      * Mengeksekusi penghapusan data permanen.
      * Endpoint: DELETE /admin/retention/prune
      */
-    executePrune: async (payload: PrunePayload): Promise<PruneResponse> => {
+    executePrune: async (payload: PruneExecutionPayload): Promise<PruneResponse> => {
+        // [FIX] Menggunakan tipe PruneExecutionPayload pada parameter
         const response = await api.delete<PruneResponse>('/admin/retention/prune', {
             data: payload, // Body request untuk DELETE method
         });

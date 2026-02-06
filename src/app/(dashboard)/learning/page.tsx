@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Metadata } from 'next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, BookOpenCheck } from 'lucide-react';
+import { Search, BookOpenCheck } from 'lucide-react';
 import { ModuleGrid } from '@/components/features/education/catalog/module-grid';
 import { employeeEducationService } from '@/services/employee-education.service';
 import { EducationModule, EducationCategory } from '@/lib/types/education';
@@ -45,10 +44,13 @@ export default function LearningCatalogPage() {
     }, []);
 
     // Filter Logic (Client Side for instant feedback on small datasets)
-    // Untuk dataset besar, logic ini harus dipindah ke Server Side (API Params)
     const filteredModules = modules.filter(m => {
         const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = selectedCategory ? m.category.id === selectedCategory : true;
+        
+        // [FIX] Gunakan m.categoryId (wajib) alih-alih m.category.id (optional/populated)
+        // Ini mencegah error "possibly undefined" saat build
+        const matchesCategory = selectedCategory ? m.categoryId === selectedCategory : true;
+        
         return matchesSearch && matchesCategory;
     });
 
@@ -90,7 +92,7 @@ export default function LearningCatalogPage() {
 
                 <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
                     <Button
-                        variant={selectedCategory === '' ? "primary" : "outline"}
+                        variant={selectedCategory === '' ? "default" : "outline"}
                         size="sm"
                         onClick={() => setSelectedCategory('')}
                         className="whitespace-nowrap"
@@ -100,7 +102,7 @@ export default function LearningCatalogPage() {
                     {categories.map((cat) => (
                         <Button
                             key={cat.id}
-                            variant={selectedCategory === cat.id ? "primary" : "outline"}
+                            variant={selectedCategory === cat.id ? "default" : "outline"}
                             size="sm"
                             onClick={() => setSelectedCategory(cat.id)}
                             className="whitespace-nowrap"

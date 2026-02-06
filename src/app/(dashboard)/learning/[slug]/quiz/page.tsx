@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useState, use } from 'react'; // [FIX] Import 'use' untuk unwrap Promise params
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { QuizRunner } from '@/components/features/education/quiz/quiz-runner';
-import { employeeEducationService, UserQuizData } from '@/services/employee-education.service';
+import { employeeEducationService } from '@/services/employee-education.service';
+// [FIX] Import UserQuizData dari Library Types (Single Source of Truth), bukan dari Service
+import { UserQuizData } from '@/lib/types/education';
 
 interface QuizPageProps {
-    // [FIX] Next.js 15+ params sekarang adalah Promise
     params: Promise<{ slug: string }>;
 }
 
@@ -23,13 +24,11 @@ export default function QuizPage({ params }: QuizPageProps) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // [FIX] Cegah eksekusi jika slug masih undefined atau string 'undefined'
         if (!slug || slug === 'undefined') return;
 
         const fetchQuiz = async () => {
             try {
                 setIsLoading(true);
-                // [FIX] Gunakan variabel slug hasil unwrap
                 const data = await employeeEducationService.getQuizBySlug(slug);
 
                 if (!data || !data.questions || data.questions.length === 0) {
@@ -42,7 +41,6 @@ export default function QuizPage({ params }: QuizPageProps) {
             } catch (error: any) {
                 console.error("Quiz fetch error:", error);
 
-                // Handle spesifik jika record tidak ditemukan
                 if (error.response?.status === 404) {
                     toast.error("Data kuis tidak ditemukan di server.");
                 } else {
@@ -72,9 +70,6 @@ export default function QuizPage({ params }: QuizPageProps) {
     if (!quizData) return null;
 
     return (
-        /** * [CRITICAL] Fixed overlay untuk Distraction Free Mode (Immersive Experience)
-         * Menggunakan z-50 untuk menutupi Sidebar dan Header global dashboard.
-         */
         <div className="fixed inset-0 z-50 bg-gray-50 flex flex-col overflow-y-auto animate-in fade-in duration-300">
 
             {/* Header */}
@@ -84,7 +79,6 @@ export default function QuizPage({ params }: QuizPageProps) {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                            // Gunakan window.confirm karena kuis bersifat sensitif terhadap waktu/progress
                             if (confirm("Keluar dari kuis? Progress jawaban tersimpan di draft, tapi waktu akan terus berjalan.")) {
                                 router.push('/learning');
                             }
@@ -98,7 +92,6 @@ export default function QuizPage({ params }: QuizPageProps) {
                     </div>
                 </div>
 
-                {/* Info Modul Singkat (Opsional) */}
                 <div className="text-right">
                     <p className="text-xs font-medium text-primary uppercase tracking-wider">Mode Ujian</p>
                 </div>

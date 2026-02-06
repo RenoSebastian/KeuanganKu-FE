@@ -256,7 +256,7 @@ export default function EditUserPage({ params }: PageProps) {
 
             <div className="pt-6 flex gap-4 border-t border-slate-100">
               <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()} disabled={isSaving}>Batal</Button>
-              <Button type="submit" disabled={isSaving} variant="primary" className="flex-2">
+              <Button type="submit" disabled={isSaving} variant="default" className="flex-2">
                 {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</> : "Simpan Perubahan"}
               </Button>
             </div>

@@ -80,8 +80,8 @@ export function PruneDialog({
     return (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
             <AlertDialogTrigger asChild>
-                {/* FIX: Menggunakan variant="danger" alih-alih "destructive" */}
-                <Button variant="danger" className="w-full gap-2 font-bold shadow-lg shadow-red-100 hover:shadow-red-200">
+                {/* FIX: Menggunakan variant="destructive" alih-alih "destructive" */}
+                <Button variant="destructive" className="w-full gap-2 font-bold shadow-lg shadow-red-100 hover:shadow-red-200">
                     <Trash2 className="h-4 w-4" />
                     EXECUTE PRUNE NOW
                 </Button>
@@ -129,7 +129,7 @@ export function PruneDialog({
              FIX: Menggunakan variant="danger" 
           */}
                     <Button
-                        variant="danger"
+                        variant="destructive"
                         onClick={(e) => {
                             e.preventDefault(); // Mencegah auto-close dialog default behaviour
                             handleExecute();

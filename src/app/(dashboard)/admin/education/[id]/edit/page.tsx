@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import { ModuleForm } from '@/components/features/admin/education/form/module-form';
 // Import adminEducationService untuk mengambil data modul/materi
-import { adminEducationService } from '@/services/education.service';
+import { educationService } from '@/services/education.service';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,7 +32,7 @@ export default function EditModulePage({ params }: EditModulePageProps) {
             try {
                 setLoading(true);
                 // adminEducationService memiliki method getModuleById untuk fetching detail
-                const res = await adminEducationService.getModuleById(moduleId);
+                const res = await educationService.getModuleById(moduleId);
                 setData(res);
             } catch (err: any) {
                 console.error("Fetch Error:", err);

@@ -526,12 +526,12 @@ export interface LoginDto {
 }
 
 export interface RegisterDto {
-  name: string;
+  fullName: string;
   email: string;
   password: string;
   role?: string;
   nip?: string;
-  unitKerjaId?: string;
+  unitKerja?: string;
 }
 
 // [UPDATED] USER INTERFACE SINKRON DENGAN BACKEND PRISMA SCHEMA
@@ -571,6 +571,8 @@ export interface AuthResponse {
   access_token: string;
   user: User;
 }
+
+
 
 // ============================================================================
 // 9. HYBRID SEARCH TYPES (NEW INTEGRAION)

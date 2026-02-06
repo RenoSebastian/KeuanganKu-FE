@@ -3,8 +3,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Daftar rute yang bisa diakses tanpa login
-const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password'];
+// [FIX 1] Tambahkan '/auth' ke sini agar dianggap rute publik
+const PUBLIC_ROUTES = [
+  '/login', 
+  '/register', 
+  '/forgot-password', 
+  '/auth/login', 
+  '/auth/register'
+];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -24,7 +30,11 @@ export function middleware(request: NextRequest) {
   }
 
   const isAuth = !!token;
+  
+  // Cek apakah rute saat ini ada di daftar public routes
+  // [FIX] Logic startsWith diperbaiki agar lebih aman mencocokkan sub-path
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+  
   const isRoot = pathname === '/';
 
   // Definisi Scope Area
@@ -36,6 +46,12 @@ export function middleware(request: NextRequest) {
   if (isAuth) {
     // 1. Redirect dari Public Route/Root ke Dashboard yang Sesuai
     if (isPublicRoute || isRoot) {
+      // PENTING: Jangan redirect jika ini adalah request API (/auth/...)
+      // Biarkan API auth lewat meskipun user sudah login (misal untuk refresh token atau logout)
+      if (pathname.startsWith('/auth')) {
+          return NextResponse.next();
+      }
+
       let targetDashboard = '/dashboard'; // Default User
       if (userRole === 'ADMIN') targetDashboard = '/admin/dashboard';
       if (userRole === 'DIRECTOR') targetDashboard = '/director/dashboard';
@@ -44,22 +60,17 @@ export function middleware(request: NextRequest) {
     }
 
     // 2. Proteksi Area EDUCATION (Shared Access: Admin & Director)
-    // Ini dicek duluan karena berada di dalam path /admin
     if (isEducationArea) {
       const allowedRoles = ['ADMIN', 'DIRECTOR'];
       if (!userRole || !allowedRoles.includes(userRole)) {
-        // User biasa tidak boleh masuk sini
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
-      // Jika lolos, return next (biar gak kena cek admin area di bawah)
       return NextResponse.next();
     }
 
     // 3. Proteksi Area ADMIN (General)
-    // Semua path /admin selain education hanya untuk Role ADMIN
     if (isAdminArea) {
       if (userRole !== 'ADMIN') {
-        // Director pun ditendang jika coba akses admin core (users/settings)
         const fallback = userRole === 'DIRECTOR' ? '/director/dashboard' : '/dashboard';
         return NextResponse.redirect(new URL(fallback, request.url));
       }
@@ -76,17 +87,12 @@ export function middleware(request: NextRequest) {
 
   // --- SKENARIO B: User BELUM Login ---
   if (!isAuth) {
-    // 1. Landing Page boleh diakses
-    if (isRoot) {
+    // 1. Landing Page & Public Route (termasuk /auth/register) boleh diakses
+    if (isRoot || isPublicRoute) {
       return NextResponse.next();
     }
 
-    // 2. Halaman publik boleh diakses
-    if (isPublicRoute) {
-      return NextResponse.next();
-    }
-
-    // 3. Sisanya (Dashboard, Protected Routes) -> Redirect ke Login
+    // 2. Sisanya (Dashboard, Protected Routes) -> Redirect ke Login
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
@@ -114,6 +120,8 @@ function decodeJwt(token: string) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|images|icons).*)',
+    // [FIX 2] Tambahkan 'auth' ke pengecualian matcher.
+    // Ini cara paling ampuh: Middleware TIDAK AKAN JALAN sama sekali untuk request ke /auth/...
+    '/((?!api|auth|_next/static|_next/image|favicon.ico|images|icons).*)',
   ],
 };

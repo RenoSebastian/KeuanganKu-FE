@@ -8,24 +8,14 @@ import {
     UpdateModulePayload,
     UpsertQuizPayload,
     Quiz,
-    UserQuizData,
     DatabaseStats,
 } from '@/lib/types/education';
 import { PruneExecutionPayload } from '@/lib/types/retention';
 
 /**
- * EDUCATION SERVICE
- * Mengelola semua komunikasi HTTP ke endpoint /education dan /retention.
- * ------------------------------------------------------------------
- * Service ini mencakup:
- * 1. Manajemen Kategori (Admin)
- * 2. Manajemen Modul & Konten (Admin)
- * 3. Manajemen Kuis (Admin)
- * 4. Fitur Publik (User)
- * 5. Retention & Maintenance (Admin)
- * ------------------------------------------------------------------
+ * EDUCATION SERVICE (UPDATED)
+ * Sinkron dengan DTO education.ts dan kebutuhan Page Admin
  */
-
 export const educationService = {
 
     // =================================================================
@@ -68,8 +58,11 @@ export const educationService = {
         return response.data;
     },
 
-    async getModuleDetailAdmin(id: string) {
-        // Detail modul untuk form edit
+    async getModuleById(id: string) {
+        // [NOTE] Digunakan oleh Admin Edit Page
+        // Endpoint ini harusnya admin-specific jika ada data sensitif, 
+        // tapi public endpoint juga bisa dipakai jika datanya sama.
+        // Kita gunakan endpoint Admin untuk keamanan.
         const response = await apiClient.get<EducationModule>(`/admin/education/modules/${id}`);
         return response.data;
     },
@@ -89,7 +82,7 @@ export const educationService = {
         return response.data;
     },
 
-    // Endpoint khusus untuk mengubah status (Publish/Draft/Archive)
+    // Endpoint khusus untuk mengubah status (Publish/Draft)
     async publishModule(id: string) {
         const response = await apiClient.patch<EducationModule>(`/admin/education/modules/${id}/status`, {
             status: 'PUBLISHED'
@@ -104,25 +97,17 @@ export const educationService = {
         return response.data;
     },
 
-    async reorderSections(id: string, items: { sectionId: string; newOrder: number }[]) {
-        const response = await apiClient.put(`/admin/education/modules/${id}/sections/reorder`, {
-            items,
-        });
-        return response.data;
-    },
-
     // =================================================================
     // 3. QUIZ MANAGEMENT (ADMIN)
     // =================================================================
 
+    // [CRITICAL FIX] Method ini yang dicari oleh page.tsx
     async getQuizConfiguration(moduleId: string) {
-        // Mengambil konfigurasi kuis yang sudah ada (untuk inisialisasi form builder)
         const response = await apiClient.get<Quiz>(`/admin/education/modules/${moduleId}/quiz`);
         return response.data;
     },
 
     async upsertQuiz(moduleId: string, payload: UpsertQuizPayload) {
-        // Membuat atau memperbarui kuis secara transaksional
         const response = await apiClient.put<Quiz>(`/admin/education/modules/${moduleId}/quiz`, payload);
         return response.data;
     },
@@ -132,13 +117,12 @@ export const educationService = {
     // =================================================================
 
     async getDatabaseStats() {
-        // Mengambil statistik penggunaan storage database
         const response = await apiClient.get<DatabaseStats>('/admin/retention/stats');
         return response.data;
     },
 
+    // [CRITICAL FIX] Menggunakan nama method executePrune sesuai interface
     async executePrune(payload: PruneExecutionPayload) {
-        // Eksekusi pembersihan data (Garbage Collection)
         const response = await apiClient.post('/admin/retention/prune', payload);
         return response.data;
     },
@@ -157,3 +141,6 @@ export const educationService = {
         return response.data;
     },
 };
+
+// Export alias jika ada komponen lama yang import 'adminEducationService'
+export const adminEducationService = educationService;

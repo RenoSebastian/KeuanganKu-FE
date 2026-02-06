@@ -15,7 +15,7 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Tambahkan flag --webpack agar tidak bentrok dengan Turbopack Next.js 16
-RUN npm run build -- --webpack
+RUN npm run build --webpack
 
 # --- Stage 2: Runner ---
 FROM node:20-alpine AS runner

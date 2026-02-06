@@ -3,9 +3,10 @@ import {
     EducationModule,
     EducationCategory,
     EducationProgressStatus,
-    QuizQuestionType,
     QuizSubmissionResult,
-    SubmitQuizPayload
+    SubmitQuizPayload,
+    // [FIX] Import UserQuizData dari source of truth
+    UserQuizData
 } from '@/lib/types/education';
 
 // Response Wrapper untuk List Data
@@ -19,28 +20,8 @@ interface ModuleListResponse {
     };
 }
 
-// [SECURE INTERFACE] 
-// Interface ini mencerminkan output dari PublicQuizSerializer Backend.
-// Field sensitif seperti 'isCorrect' dan 'explanation' DIBUANG untuk keamanan.
-export interface UserQuizData {
-    id: string;
-    moduleId: string;
-    timeLimit: number; // dalam menit
-    passingScore: number;
-    description?: string;
-    questions: {
-        id: string;
-        questionText: string;
-        type: QuizQuestionType;
-        orderIndex: number;
-        options: {
-            id: string;
-            optionText: string;
-            // [SECURITY NOTE] Field 'isCorrect' tidak ada di sini.
-            // Frontend tidak boleh tahu jawaban benar sebelum submit.
-        }[];
-    }[];
-}
+// [FIX] Hapus definisi interface lokal UserQuizData yang menyebabkan konflik
+// Gunakan UserQuizData dari '@/lib/types/education' yang sudah di-import di atas.
 
 export const employeeEducationService = {
 
@@ -78,7 +59,6 @@ export const employeeEducationService = {
      * POST /education/modules/:slug/progress
      */
     updateProgress: async (slug: string, payload: { status?: EducationProgressStatus; lastSectionId?: string }) => {
-        // [FIX] Mengarahkan ke endpoint berbasis slug sesuai update controller backend
         const { data } = await api.post(`/education/modules/${slug}/progress`, payload);
         return data;
     },

@@ -6,229 +6,244 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { 
-  UserPlus, Mail, Lock, User, Loader2, Building2, 
-  BadgeCheck, Eye, EyeOff, AlertCircle 
-} from "lucide-react";
-import api from "@/lib/axios";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BadgeCheck, Briefcase, Mail, Lock, User, Loader2, Building2 } from "lucide-react";
+import { toast } from "sonner";
+import { authService } from "@/services/auth.service";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  
   const [formData, setFormData] = useState({
-    nip: "", 
-    name: "",
+    fullName: "",
+    nip: "",
+    unitKerja: "",
+    role: "USER", // Default role
     email: "",
     password: "",
-    passwordConfirm: "",
+    confirmPassword: ""
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError(""); // Clear error saat user mengetik
+  };
+
+  const handleRoleChange = (value: string) => {
+    setFormData({ ...formData, role: value });
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
 
-    if (formData.password !== formData.passwordConfirm) {
-      setError("Konfirmasi password tidak cocok!");
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Konfirmasi password tidak cocok!");
       setIsLoading(false);
       return;
     }
 
     try {
-      // Mapping data sesuai DTO Backend
-      const payload = {
+      // Panggil Service Register - Typescript akan happy sekarang karena RegisterDto sudah update
+      await authService.register({
+        fullName: formData.fullName,
         nip: formData.nip,
-        fullName: formData.name, 
+        unitKerja: formData.unitKerja,
+        role: formData.role,
         email: formData.email,
-        password: formData.password,
-        unitKerjaId: "IT-01", // Default sementara
-      };
+        password: formData.password
+      });
 
-      await api.post("/auth/register", payload);
-
-      // Redirect ke login setelah sukses
-      // Kita bisa tambahkan toast/alert sukses di sini jika ada librarynya
-      alert("Registrasi Berhasil! Silakan login untuk melanjutkan.");
+      toast.success("Registrasi berhasil! Silakan login.");
       router.push("/login");
-
     } catch (error: any) {
       console.error("Register Error:", error);
-      const msg = error.response?.data?.message 
-        ? (Array.isArray(error.response.data.message) 
-            ? error.response.data.message.join(", ") 
-            : error.response.data.message)
-        : "Gagal mendaftar. Cek kembali data Anda.";
-      
-      setError(msg);
+      toast.error(error.message || "Gagal melakukan registrasi.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-surface-ground relative overflow-hidden py-10">
-      
-      {/* --- BACKGROUND DECORATION (Consistent with Login) --- */}
-      <div className="absolute inset-0 bg-brand-900">
-         <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-10 mix-blend-overlay"></div>
-         <div className="absolute top-0 left-0 w-2008h-200brand-500/20 rounded-full blur-[120px] pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-         <div className="absolute bottom-0 right-0 w-150 h-150 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none translate-x-1/3 translate-y-1/3" />
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
+      {/* Left Side - Image/Brand */}
+      <div className="hidden md:flex flex-col bg-slate-900 text-white p-10 justify-between relative overflow-hidden">
+        <div className="z-10">
+          <div className="flex items-center gap-2 mb-2">
+            <Image 
+              src="/images/logogeocitra.png" 
+              alt="Logo Geo Citra" 
+              width={40} 
+              height={40} 
+              className="brightness-0 invert"
+            />
+            <h1 className="text-2xl font-bold tracking-tight">GeoCitra</h1>
+          </div>
+          <p className="text-slate-400">Financial Planning & Employee Education Platform</p>
+        </div>
+
+        <div className="z-10 space-y-6">
+          <h2 className="text-4xl font-extrabold leading-tight">
+            Mulai Perjalanan <br/> <span className="text-blue-400">Finansial Cerdas</span>
+          </h2>
+          <p className="text-lg text-slate-300 max-w-md">
+            Bergabunglah dengan ribuan pegawai lainnya untuk mengelola keuangan, dana pensiun, dan asuransi dengan lebih bijak.
+          </p>
+        </div>
+
+        {/* Abstract Background Element */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg px-5">
-        <Card className="p-8 md:p-10 bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl shadow-brand-900/30 rounded-[2.5rem]">
-          
-          {/* HEADER SECTION */}
-          <div className="flex flex-col items-center mb-8 text-center">
-             <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mb-4 shadow-inner text-brand-600">
-                <Building2 className="w-8 h-8" />
-             </div>
-             <h1 className="text-2xl font-black text-brand-900 tracking-tight">
-               Registrasi Pegawai
-             </h1>
-             <p className="text-sm text-slate-500 font-medium mt-1 max-w-xs">
-               Bergabung dengan ekosistem koperasi digital MAXIPRO
-             </p>
-          </div>
-
-          {/* ERROR ALERT */}
-          {error && (
-            <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-start gap-3 animate-in slide-in-from-top-2">
-              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              <p className="text-xs font-bold text-rose-600 leading-relaxed">{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleRegister} className="space-y-5">
-            
-            {/* NIP Field */}
-            <div className="space-y-2">
-              <Label variant="field">Nomor Induk Pegawai (NIP)</Label>
-              <div className="relative group">
-                <BadgeCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
-                <Input 
-                  name="nip"
-                  placeholder="Contoh: 19900101..." 
-                  className="pl-12 h-12 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium font-mono"
-                  value={formData.nip}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Nama Lengkap */}
-            <div className="space-y-2">
-              <Label variant="field">Nama Lengkap</Label>
-              <div className="relative group">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
-                <Input 
-                  name="name"
-                  placeholder="Nama Sesuai SK" 
-                  className="pl-12 h-12 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div className="space-y-2">
-              <Label variant="field">Email Kantor</Label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
-                <Input 
-                  name="email"
-                  type="email"
-                  placeholder="nama@maxipro.co.id" 
-                  className="pl-12 h-12 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Password Fields Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label variant="field">Password</Label>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
-                  <Input 
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="******" 
-                    className="pl-10 pr-10 h-11 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
+      {/* Right Side - Form */}
+      <div className="flex items-center justify-center p-6 bg-slate-50">
+        <Card className="w-full max-w-lg border-none shadow-xl bg-white/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center text-slate-800">Buat Akun Baru</CardTitle>
+            <CardDescription className="text-center">
+              Lengkapi data diri Anda untuk mengakses dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleRegister} className="space-y-4">
               
+              {/* Full Name */}
               <div className="space-y-2">
-                <Label variant="field">Ulangi Password</Label>
+                <Label>Nama Lengkap</Label>
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-600 transition-colors" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                   <Input 
-                    name="passwordConfirm"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="******" 
-                    className="pl-10 pr-10 h-11 bg-slate-50 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium"
-                    value={formData.passwordConfirm}
+                    name="fullName"
+                    placeholder="Contoh: Budi Santoso" 
+                    className="pl-10 bg-white" 
+                    value={formData.fullName}
                     onChange={handleChange}
                     required
                   />
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-brand-600 transition-colors focus:outline-none"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
                 </div>
               </div>
-            </div>
 
-            <Button 
-              type="submit" 
-              variant="primary"
-              fullWidth
-              size="lg"
-              className="mt-6 rounded-xl shadow-lg shadow-brand-600/30 transition-all hover:scale-[1.02]"
-              disabled={isLoading}
-            >
-              {isLoading ? "Memproses..." : (
-                <span className="flex items-center gap-2">
-                  <UserPlus className="w-5 h-5" /> Daftar Sekarang
-                </span>
-              )}
-            </Button>
+              {/* NIP Field */}
+              <div className="space-y-2">
+                <Label>Nomor Induk Pegawai (NIP)</Label>
+                <div className="relative group">
+                  <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                  <Input 
+                    name="nip"
+                    placeholder="Masukkan NIP Anda" 
+                    className="pl-10 bg-white"
+                    value={formData.nip}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
 
-          </form>
+              {/* Unit Kerja & Role Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Unit Kerja</Label>
+                  <div className="relative group">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors z-10" />
+                    <Input 
+                      name="unitKerja"
+                      placeholder="Divisi IT" 
+                      className="pl-10 bg-white"
+                      value={formData.unitKerja}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
 
-          {/* FOOTER LINK */}
-          <div className="mt-8 text-center pt-6 border-t border-slate-100">
-            <p className="text-xs text-slate-500 font-medium">
-              Sudah memiliki akun aktif?{" "}
-              <Link href="/login" className="text-brand-600 font-bold hover:text-brand-700 hover:underline transition-all">
+                <div className="space-y-2">
+                  <Label>Role Akses</Label>
+                  <Select onValueChange={handleRoleChange} defaultValue="USER">
+                    <SelectTrigger className="bg-white pl-10 relative">
+                      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <SelectValue placeholder="Pilih Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USER">Pegawai (User)</SelectItem>
+                      <SelectItem value="ADMIN">Admin Unit</SelectItem>
+                      <SelectItem value="DIRECTOR">Direksi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className="space-y-2">
+                <Label>Email Perusahaan</Label>
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                  <Input 
+                    name="email"
+                    type="email" 
+                    placeholder="nama@perusahaan.co.id" 
+                    className="pl-10 bg-white"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <div className="relative group">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                    <Input 
+                      name="password"
+                      type="password" 
+                      placeholder="******" 
+                      className="pl-10 bg-white"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Konfirmasi</Label>
+                  <div className="relative group">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                    <Input 
+                      name="confirmPassword"
+                      type="password" 
+                      placeholder="******" 
+                      className="pl-10 bg-white"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11 mt-4" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mendaftarkan...
+                  </>
+                ) : (
+                  "Daftar Sekarang"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter className="justify-center border-t pt-4">
+            <p className="text-sm text-slate-600">
+              Sudah punya akun?{" "}
+              <Link href="/login" className="text-blue-600 font-bold hover:underline">
                 Login disini
               </Link>
             </p>
-          </div>
-
+          </CardFooter>
         </Card>
       </div>
     </div>

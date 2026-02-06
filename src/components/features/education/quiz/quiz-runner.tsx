@@ -14,10 +14,11 @@ import { QuizTimer } from "./quiz-timer";
 import { ResultConfetti } from "./result-confetti";
 import { QuizResultModal } from "./quiz-result-modal";
 
-import { UserQuizData, employeeEducationService } from "@/services/employee-education.service";
+import { employeeEducationService } from "@/services/employee-education.service";
+// [FIX] Import Type dari Type Definition, bukan dari Service
+import { UserQuizData, QuizSubmissionResult } from "@/lib/types/education"; 
 import { useQuizStorage } from "@/hooks/use-quiz-storage";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { QuizSubmissionResult } from "@/lib/types/education";
 import { useAuthUser } from "@/hooks/use-auth-user";
 
 interface QuizRunnerProps {
