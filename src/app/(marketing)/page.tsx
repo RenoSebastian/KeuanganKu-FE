@@ -42,7 +42,7 @@ export default function LandingPage() {
 
             <span className="text-[9px] text-slate-500 font-bold tracking-widest uppercase mt-0.5 text-center">
               Sistem Kesehatan Finansial
-            </span>
+            </span> 
           </div>
 
           {/* BUTTON */}
