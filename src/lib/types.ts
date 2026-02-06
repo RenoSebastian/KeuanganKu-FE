@@ -551,6 +551,8 @@ export interface User {
   noWa?: string;        // [ADDITION] Nomor WhatsApp
   agencyName?: string;  // [ADDITION] Nama Perusahaan Asuransi
   agentLevel?: string;  // [ADDITION] Jabatan/Level Agen
+  companyName?: string;
+  goals?: string;
   // ----------------------------------------
 
   unitKerja?: UnitKerja;

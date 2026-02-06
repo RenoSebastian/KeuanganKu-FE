@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
-  Sparkles, TrendingUp, Calendar, ArrowRight,
-  Calculator, ShieldCheck, Target, Lightbulb,
-  Wallet, Loader2, Users, FileText, CheckCircle2,
-  Briefcase, Quote, User
+  Calendar,
+  Target, Lightbulb,
+  Users, FileText,
+  Quote, User, Pencil,
+  Loader2
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -28,16 +29,14 @@ const AGENT_QUOTES = [
   "Konsistensi adalah kunci. Teruslah bergerak, teruslah melayani."
 ];
 
-// Helper format uang (untuk komisi/target di masa depan)
-const formatMoney = (val: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
-
 export default function DashboardPage() {
   const router = useRouter();
 
   // --- STATE MANAGEMENT ---
   const [userData, setUserData] = useState<UserType | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
+
+  // State untuk Quote
   const [quote, setQuote] = useState("");
 
   const currentDate = new Date().toLocaleDateString("id-ID", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -94,7 +93,7 @@ export default function DashboardPage() {
   ];
 
   useEffect(() => {
-    // 1. Set Random Quote on Mount
+    // 1. Set Random Quote on Mount (Always Quotes)
     const randomQuote = AGENT_QUOTES[Math.floor(Math.random() * AGENT_QUOTES.length)];
     setQuote(randomQuote);
 
@@ -118,12 +117,11 @@ export default function DashboardPage() {
     fetchUser();
   }, []);
 
-  // Safe Display Name Logic
+  // [INTEGRATION] Safe Display Name & Profile Logic
   const displayName = userData?.fullName || "Partner Agen";
   const agentLevel = userData?.agentLevel || "Financial Consultant";
   const agencyName = userData?.agencyName || "Agency Partner";
-  // Menampilkan ID Unit Kerja jika ada, sebagai tambahan info kecil
-  const unitCode = userData?.unitKerja?.kodeUnit || "";
+  const companyName = userData?.companyName || "Mitra Perusahaan";
 
   return (
     <div className="relative min-h-full w-full pb-32 md:pb-12 bg-slate-50/30">
@@ -191,7 +189,7 @@ export default function DashboardPage() {
           {/* --- LEFT COLUMN (Hero & Menu) --- */}
           <div className="md:col-span-8 space-y-8">
 
-            {/* 1. IDENTITY HERO CARD (UPDATED: FRAMED DESIGN) */}
+            {/* 1. IDENTITY HERO CARD (LEFT SIDE ALWAYS QUOTES) */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative flex flex-col md:flex-row min-h-85">
 
               {/* Background Accent Gradient */}
@@ -200,14 +198,13 @@ export default function DashboardPage() {
               {/* Left Side: Quotes & Motivation */}
               <div className="flex-1 p-6 md:p-10 flex flex-col justify-center relative z-10 order-2 md:order-1">
                 <div className="flex items-center gap-2 mb-6">
-                  {/* Badge Kode Unit Kerja (Optional) */}
-                  {unitCode && (
-                    <span className="px-3 py-1 bg-yellow-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-full border border-slate-200">
-                      Nama Agency
-                    </span>
-                  )}
+                  {/* Badge Nama Agency */}
+                  <span className="px-3 py-1 bg-yellow-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-full border border-slate-200">
+                    {agencyName}
+                  </span>
                 </div>
 
+                {/* Random Quotes Always Here */}
                 <h2 className="text-2xl md:text-3xl font-black text-slate-800 mb-6 leading-tight italic">
                   "{quote}"
                 </h2>
@@ -236,22 +233,19 @@ export default function DashboardPage() {
                 {/* Main Card Container (The Frame) */}
                 <div className="relative w-56 h-72 bg-white shadow-2xl overflow-hidden flex flex-col group transition-all duration-500 hover:shadow-xl hover:-translate-y-1 rounded-sm border border-slate-200">
 
-                  {/* --- LAYER 1: FRAME SISI KIRI (NAMA PERUSAHAAN / AGENCY) --- */}
+                  {/* --- LAYER 1: FRAME SISI KIRI (JABATAN / LEVEL) --- */}
                   <div className="absolute top-0 bottom-0 left-0 w-10 bg-slate-900 z-20
                 flex flex-col items-center border-r border-slate-700">
-
                     <div className="flex-1 flex items-center justify-center">
                       <span className="text-white font-black tracking-[0.25em]
-                     text-[10px] -rotate-90 whitespace-nowrap
-                     uppercase opacity-90">
-                        Level Agent
+                      text-[10px] -rotate-90 whitespace-nowrap
+                      uppercase opacity-90">
+                        {agentLevel}
                       </span>
                     </div>
-
                     {/* Hiasan fleksibel */}
                     <div className="mb-4 w-1 flex-[0.2] bg-blue-500 rounded-full" />
                   </div>
-
 
                   {/* --- LAYER 2: IMAGE (UNDERLAY) --- */}
                   <div className="absolute inset-0 z-0 bg-linear-to-br from-slate-200 to-white flex items-end justify-center pl-10">
@@ -273,20 +267,16 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  {/* --- LAYER 3: FRAME SISI BAWAH/KANAN (NAMA & JABATAN) --- */}
+                  {/* --- LAYER 3: FRAME SISI BAWAH/KANAN (NAMA & PERUSAHAAN) --- */}
                   <div className="absolute bottom-0 right-0 z-30 flex justify-end w-full pl-10">
                     {/* Container Nama melayang dari kanan */}
                     <div className="bg-white/95 backdrop-blur-md py-3 px-5 shadow-lg border-l-4 border-blue-600 rounded-l-sm min-w-37.5 relative animate-in slide-in-from-right-4 duration-700">
-
-                      {/* LABEL DI ATAS NAMA: TAMPILKAN AGENT LEVEL */}
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-1 truncate max-w-35">
-                        Perusahaan Agen
+                        {companyName}
                       </p>
-
                       <h3 className="text-slate-900 font-black text-sm uppercase tracking-wider truncate max-w-35">
-                        Nama Agent
+                        {displayName}
                       </h3>
-
                       {/* Aksen sudut kanan bawah */}
                       <div className="absolute bottom-0 right-0 w-3 h-3 bg-slate-900 clip-triangle-corner" />
                     </div>
@@ -299,11 +289,9 @@ export default function DashboardPage() {
 
                   {/* Status Indicator */}
                   <div className="absolute top-3 right-3 w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-sm z-30" title="Active" />
-
                 </div>
               </div>
             </div>
-            {/* --- END IDENTITY HERO CARD --- */}
 
             {/* 2. MENU WORKSTATION */}
             <div className="space-y-4">
@@ -354,19 +342,39 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-slate-500">Closing Rate</span>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                </div>
-                <div className="flex items-end gap-2">
-                  <span className="text-3xl font-black text-slate-800">85%</span>
-                  <span className="text-[10px] font-bold text-emerald-600 mb-1.5 flex items-center">
-                    <TrendingUp className="w-3 h-3 mr-1" /> +2.4%
+              {/* [REPLACED] CLOSING RATE -> MY PRIORITY GOAL */}
+              <div className="p-4 rounded-xl border border-blue-100 bg-blue-50 relative overflow-hidden group">
+                <div className="flex justify-between items-start mb-3 relative z-10">
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-full border border-blue-100 shadow-xs">
+                    My Main Goal
                   </span>
+                  <Target className="w-5 h-5 text-blue-600" />
                 </div>
-                <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full w-[85%] animate-pulse" />
+
+                <div className="relative z-10">
+                  {userData?.goals ? (
+                    <p className="text-sm font-bold text-slate-700 leading-relaxed italic line-clamp-3">
+                      "{userData.goals}"
+                    </p>
+                  ) : (
+                    <div className="text-center py-2">
+                      <p className="text-xs text-slate-500 mb-2 font-medium">Belum ada goals yang diset.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs bg-white hover:bg-blue-100 text-blue-600 border-blue-200"
+                        onClick={() => router.push('/profile')}
+                      >
+                        <Pencil className="w-3 h-3 mr-1" />
+                        Tulis Goals
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Decoration */}
+                <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transition-transform duration-500 group-hover:scale-110">
+                  <Target className="w-24 h-24 -mr-6 -mb-6 text-blue-800" />
                 </div>
               </div>
             </div>
@@ -477,4 +485,3 @@ function MenuCard({ title, emoji, onClick }: MenuCardProps) {
     </button>
   );
 }
-
