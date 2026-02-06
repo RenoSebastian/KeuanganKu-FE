@@ -13,17 +13,21 @@ import {
   Trophy,
   Archive,
   BookOpen,
-  BookOpenCheck // Icon baru untuk Learning Center
+  BookOpenCheck,
+  Activity // [NEW] Icon untuk Risk Profile
 } from "lucide-react";
 
 export const NAVIGATION_CONFIG = {
   // Menu Umum (Pegawai/User Biasa)
   main: [
-    { label: "Dashboard", icon: Home, href: "/dashboard" }, // Updated href standard
+    { label: "Dashboard", icon: Home, href: "/dashboard" },
 
-    // [NEW] Learning Center Module (Fase 1-5 Integration)
-    // Diletakkan strategis agar mudah diakses pegawai
+    // [NEW] Learning Center Module
     { label: "Learning Center", icon: BookOpenCheck, href: "/learning" },
+
+    // [NEW] Risk Profile Module
+    // Diletakkan disini sebagai langkah awal sebelum perencanaan keuangan mendalam
+    { label: "Profil Risiko", icon: Activity, href: "/risk-profile" },
 
     { label: "Financial Checkup", icon: Calculator, href: "/finance/checkup" },
     { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
@@ -36,7 +40,6 @@ export const NAVIGATION_CONFIG = {
     { label: "Dashboard Admin", icon: LayoutDashboard, href: "/admin/dashboard" },
     { label: "Manajemen User", icon: Users, href: "/admin/users" },
     { label: "Data Master", icon: Database, href: "/admin/master-data" },
-    // Manajemen Konten Edukasi (Sisi Admin)
     { label: "Modul Edukasi", icon: BookOpen, href: "/admin/education" },
     { label: "Data Maintenance", icon: Archive, href: "/admin/maintenance" },
     { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },
