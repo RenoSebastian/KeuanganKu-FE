@@ -5,6 +5,7 @@ export interface UserPayload {
     id: string;
     email: string;
     role: string;
+    unitKerja?: string;
     iat: number;
     exp: number;
 }

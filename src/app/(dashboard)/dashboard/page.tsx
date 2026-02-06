@@ -335,7 +335,7 @@ export default function DashboardPage() {
                   bg="bg-blue-50"
                 />
                 <StatBox
-                  label="Laporan PDF"
+                  label="Total Report"
                   value="45"
                   icon={<FileText className="w-4 h-4 text-orange-500" />}
                   bg="bg-orange-50"

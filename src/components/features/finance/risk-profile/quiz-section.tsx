@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Info, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -111,15 +111,12 @@ interface QuizSectionProps {
 
 export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
-
-    // State Lokal: Map index pertanyaan ke jawaban user (0: 'A', 1: 'C', dst)
     const [answersMap, setAnswersMap] = useState<Record<number, string>>({});
 
     const currentQuestion = QUESTIONS[currentIndex];
     const totalQuestions = QUESTIONS.length;
     const progress = ((currentIndex + 1) / totalQuestions) * 100;
 
-    // Handle Pilih Jawaban
     const handleSelectOption = (value: string) => {
         setAnswersMap((prev) => ({
             ...prev,
@@ -127,7 +124,6 @@ export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
         }));
     };
 
-    // Navigasi Next
     const handleNext = () => {
         if (currentIndex < totalQuestions - 1) {
             setCurrentIndex((prev) => prev + 1);
@@ -136,57 +132,72 @@ export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
         }
     };
 
-    // Navigasi Prev
     const handlePrev = () => {
         if (currentIndex > 0) {
             setCurrentIndex((prev) => prev - 1);
         }
     };
 
-    // Transform Data & Emit
     const handleFinish = () => {
-        // Convert Map object ke Array String yang terurut sesuai index 0-9
         const sortedAnswers: string[] = [];
         for (let i = 0; i < totalQuestions; i++) {
             sortedAnswers.push(answersMap[i]);
         }
-
-        // Emit ke parent untuk dikirim ke BE
         onFinish(sortedAnswers);
     };
 
     const isCurrentAnswered = !!answersMap[currentIndex];
 
     return (
-        <div className="w-full max-w-2xl mx-auto">
-            {/* Progress Bar */}
-            <div className="mb-6 space-y-2">
-                <div className="flex justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    <span>Pertanyaan {currentIndex + 1} dari {totalQuestions}</span>
-                    <span>{Math.round(progress)}% Selesai</span>
+        <div className="w-full max-w-3xl mx-auto space-y-8 animate-in fade-in duration-700">
+            {/* Header: Pro-Agent Context in Blue */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
+                <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2">
+                        <Sparkles className="w-3 h-3" />
+                        Professional Discovery Tool
+                    </p>
+                    <h2 className="text-xl font-bold text-slate-900">Profiling Risiko Klien</h2>
                 </div>
-                <Progress value={progress} className="h-2 bg-slate-100" indicatorClassName="bg-blue-600" />
+                <div className="flex items-center gap-3 bg-white p-2 px-4 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="text-right">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase">Progres</p>
+                        <p className="text-xs font-black text-slate-700">{currentIndex + 1} / {totalQuestions}</p>
+                    </div>
+                    <div className="w-px h-6 bg-slate-200" />
+                    <span className="text-sm font-black text-blue-600">{Math.round(progress)}%</span>
+                </div>
             </div>
 
-            <Card className="border-0 shadow-lg md:p-6 p-4 relative overflow-hidden">
-                {/* Background Decoration */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50 pointer-events-none" />
+            {/* Progress Bar Blue */}
+            <div className="px-2">
+                <Progress value={progress} className="h-2 bg-slate-100 rounded-full" indicatorClassName="bg-blue-600 transition-all duration-500" />
+            </div>
+
+            <Card className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] p-6 md:p-10 relative overflow-hidden bg-white">
+                {/* Subtle Decorative Blue Gradient */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
 
                 <div className="relative z-10">
-                    <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 leading-relaxed">
-                        {currentQuestion.text}
-                    </h3>
+                    <div className="flex items-start gap-4 mb-8">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shrink-0 shadow-lg">
+                            {currentIndex + 1}
+                        </div>
+                        <h3 className="text-xl md:text-2xl font-bold text-slate-800 leading-tight">
+                            {currentQuestion.text}
+                        </h3>
+                    </div>
 
                     <RadioGroup
                         value={answersMap[currentIndex] || ""}
                         onValueChange={handleSelectOption}
-                        className="space-y-3"
+                        className="grid grid-cols-1 gap-4"
                     >
                         {currentQuestion.options.map((option) => {
                             const isSelected = answersMap[currentIndex] === option.value;
 
                             return (
-                                <div key={option.value}>
+                                <div key={option.value} className="relative">
                                     <RadioGroupItem
                                         value={option.value}
                                         id={`opt-${option.value}`}
@@ -194,23 +205,30 @@ export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
                                     />
                                     <Label
                                         htmlFor={`opt-${option.value}`}
-                                        className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 group
-                      ${isSelected
-                                                ? "border-blue-600 bg-blue-50/50 shadow-sm"
-                                                : "border-slate-100 hover:border-blue-200 hover:bg-slate-50"
+                                        className={`flex items-center p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 group
+                                            ${isSelected
+                                                ? "border-blue-600 bg-blue-50/50 shadow-[0_10px_20px_rgba(37,99,235,0.1)]"
+                                                : "border-slate-50 hover:border-blue-200 hover:bg-slate-50"
                                             }
-                    `}
+                                        `}
                                     >
                                         <div className={`
-                      w-6 h-6 rounded-full border flex items-center justify-center mr-4 shrink-0 transition-colors
-                      ${isSelected ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 text-transparent group-hover:border-blue-400"}
-                    `}>
-                                            <span className="text-xs font-bold">{option.value}</span>
+                                            w-8 h-8 rounded-lg border-2 flex items-center justify-center mr-5 shrink-0 transition-all duration-300
+                                            ${isSelected
+                                                ? "bg-blue-600 border-blue-600 text-white rotate-360"
+                                                : "bg-white border-slate-200 text-slate-400 group-hover:border-blue-400"
+                                            }
+                                        `}>
+                                            <span className="text-xs font-black">{option.value}</span>
                                         </div>
-                                        <span className={`text-sm md:text-base ${isSelected ? "font-semibold text-blue-800" : "text-slate-600"}`}>
+                                        <span className={`text-sm md:text-lg transition-colors ${isSelected ? "font-bold text-blue-900" : "font-medium text-slate-600"}`}>
                                             {option.label}
                                         </span>
-                                        {isSelected && <CheckCircle2 className="ml-auto w-5 h-5 text-blue-600" />}
+                                        {isSelected && (
+                                            <div className="ml-auto bg-blue-600 rounded-full p-1 animate-in zoom-in">
+                                                <CheckCircle2 className="w-4 h-4 text-white" />
+                                            </div>
+                                        )}
                                     </Label>
                                 </div>
                             );
@@ -218,33 +236,39 @@ export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
                     </RadioGroup>
 
                     {/* Navigation Actions */}
-                    <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-100">
+                    <div className="flex justify-between items-center mt-12 pt-8 border-t border-slate-100">
                         <Button
                             variant="ghost"
                             onClick={handlePrev}
                             disabled={currentIndex === 0 || isLoading}
-                            className="text-slate-500 hover:text-slate-800"
+                            className="text-slate-400 hover:text-blue-600 font-bold px-6"
                         >
-                            <ChevronLeft className="w-4 h-4 mr-1" /> Sebelumnya
+                            <ChevronLeft className="w-5 h-5 mr-2" /> Kembali
                         </Button>
 
                         <Button
                             onClick={handleNext}
                             disabled={!isCurrentAnswered || isLoading}
-                            className={`px-6 font-bold transition-all ${currentIndex === totalQuestions - 1
-                                ? "bg-green-600 hover:bg-green-700 text-white"
-                                : "bg-blue-600 hover:bg-blue-700 text-white"
+                            className={`px-10 h-14 rounded-2xl font-black text-base transition-all active:scale-95 shadow-xl ${currentIndex === totalQuestions - 1
+                                ? "bg-slate-900 hover:bg-black text-white shadow-slate-900/20"
+                                : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
                                 }`}
                         >
                             {currentIndex === totalQuestions - 1 ? (
-                                isLoading ? "Memproses..." : "Lihat Hasil"
+                                isLoading ? "Memproses Data..." : "Lihat Analisis"
                             ) : (
-                                <>Selanjutnya <ChevronRight className="w-4 h-4 ml-1" /></>
+                                <>Lanjutkan <ChevronRight className="w-5 h-5 ml-2" /></>
                             )}
                         </Button>
                     </div>
                 </div>
             </Card>
+
+            {/* Support Info */}
+            <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 font-bold uppercase tracking-widest bg-white/50 py-3 rounded-2xl border border-slate-100">
+                <Info className="w-3 h-3 text-blue-500" />
+                Instrumen Analisis Keuangan Profesional
+            </div>
         </div>
     );
 }
