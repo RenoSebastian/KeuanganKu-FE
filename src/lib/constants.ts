@@ -1,10 +1,15 @@
 // src/lib/constants.ts
 
+// src/lib/constants.ts
 export const APP_CONFIG = {
+<<<<<<< Updated upstream
     API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api",
     // Timeout global untuk request axios (30 detik)
+=======
+    // Tambahkan /api di sini agar service tidak perlu menulisnya lagi
+    API_URL: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api`,
+>>>>>>> Stashed changes
     API_TIMEOUT_MS: 30000,
-    // Versi aplikasi untuk cache busting jika diperlukan
     APP_VERSION: 'v1.0.0',
 };
 
