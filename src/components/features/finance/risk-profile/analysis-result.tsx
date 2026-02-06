@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Download, RefreshCw, AlertCircle, FileCheck, ShieldCheck, Presentation } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from "recharts";
+import { Download, RefreshCw, AlertCircle, ShieldCheck, Presentation } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector, Legend } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RiskProfileResponse } from "@/lib/types/risk-profile";
+// IMPORT MODAL LOADING PDF
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 
 interface AnalysisResultProps {
     data: RiskProfileResponse;
@@ -21,15 +23,10 @@ const renderActiveShape = (props: any) => {
     const sin = Math.sin(-RADIAN * midAngle);
     const cos = Math.cos(-RADIAN * midAngle);
 
-    // Titik awal garis (dekat lingkaran)
     const sx = cx + (outerRadius + 6) * cos;
     const sy = cy + (outerRadius + 6) * sin;
-
-    // Titik tekuk garis (dikurangi jaraknya agar tidak terlalu keluar)
     const mx = cx + (outerRadius + 18) * cos;
     const my = cy + (outerRadius + 18) * sin;
-
-    // Titik ujung garis (posisi horizontal teks)
     const ex = mx + (cos >= 0 ? 1 : -1) * 12;
     const ey = my;
     const textAnchor = cos >= 0 ? 'start' : 'end';
@@ -40,18 +37,15 @@ const renderActiveShape = (props: any) => {
                 cx={cx}
                 cy={cy}
                 innerRadius={innerRadius}
-                outerRadius={outerRadius + 6} // Pembesaran saat hover dikurangi agar hemat tempat
+                outerRadius={outerRadius + 6}
                 startAngle={startAngle}
                 endAngle={endAngle}
                 fill={fill}
                 stroke="#ffffff"
                 strokeWidth={2}
             />
-            {/* Garis penunjuk lebih tipis */}
             <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={1} />
             <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
-
-            {/* Teks Nama: Ukuran font dikurangi ke 11px atau 12px */}
             <text
                 x={ex + (cos >= 0 ? 1 : -1) * 6}
                 y={ey}
@@ -61,8 +55,6 @@ const renderActiveShape = (props: any) => {
             >
                 {payload.name}
             </text>
-
-            {/* Teks Persentase: Ukuran font dikurangi ke 10px */}
             <text
                 x={ex + (cos >= 0 ? 1 : -1) * 6}
                 y={ey}
@@ -84,28 +76,42 @@ export function AnalysisResult({
     isDownloading = false
 }: AnalysisResultProps) {
     const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
+    // STATE UNTUK LOADING MODAL
+    const [showPdfModal, setShowPdfModal] = useState(false);
 
     const onPieEnter = useCallback((_: any, index: number) => {
         setActiveIndex(index);
     }, []);
 
-    // Pembaruan Warna: Menggunakan warna yang lebih Solid & Vibrant
+    // WRAPPER UNTUK DOWNLOAD PDF
+    const handleDownloadClick = async () => {
+        setShowPdfModal(true); // Buka modal loading
+        try {
+            await onDownloadPdf(); // Jalankan fungsi asli
+        } finally {
+            setShowPdfModal(false); // Tutup modal setelah selesai (sukses/gagal)
+        }
+    };
+
     const chartData = [
-        { name: "Konservatif", value: data.allocation.lowRisk, color: "#10b981" }, // Emerald Green
-        { name: "Moderat", value: data.allocation.mediumRisk, color: "#facc15" },    // Bright Yellow (Vibrant)
-        { name: "Agresif", value: data.allocation.highRisk, color: "#ef4444" },    // Red
+        { name: "Konservatif", value: data.allocation.lowRisk, color: "#10b981" },
+        { name: "Moderat", value: data.allocation.mediumRisk, color: "#facc15" },
+        { name: "Agresif", value: data.allocation.highRisk, color: "#ef4444" },
     ].filter(item => item.value > 0);
 
     const getThemeColor = (profile: string) => {
         if (profile === 'Konservatif') return "bg-emerald-50 text-emerald-700 border-emerald-200";
         if (profile === 'Agresif') return "bg-red-50 text-red-700 border-red-200";
-        return "bg-yellow-50 text-yellow-700 border-yellow-200"; // Moderat Theme
+        return "bg-yellow-50 text-yellow-700 border-yellow-200";
     };
 
     const themeClass = getThemeColor(data.riskProfile);
 
     return (
         <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+            {/* COMPONENT LOADING MODAL */}
+            <PdfLoadingModal isOpen={showPdfModal || isDownloading} />
 
             {/* Header Result */}
             <div className="text-center space-y-3">
@@ -119,7 +125,6 @@ export function AnalysisResult({
             </div>
 
             <div className="grid md:grid-cols-2 gap-8 relative z-0 items-stretch">
-
                 {/* Kolom Kiri: Profil & Strategi */}
                 <Card className="border-0 shadow-2xl rounded-[2rem] overflow-hidden order-2 md:order-1 relative z-0 flex flex-col bg-white">
                     <div className={`p-10 text-center border-b ${themeClass}`}>
@@ -147,7 +152,7 @@ export function AnalysisResult({
                     </CardContent>
                 </Card>
 
-                {/* Kolom Kanan: Chart Alokasi (Ukuran Diperbesar) */}
+                {/* Kolom Kanan: Chart Alokasi */}
                 <Card className="border-slate-100 shadow-xl rounded-[2rem] flex flex-col order-1 md:order-2 relative z-20 overflow-visible bg-white">
                     <CardContent className="p-8 overflow-visible h-full flex flex-col">
                         <div className="mb-6">
@@ -161,18 +166,21 @@ export function AnalysisResult({
                             <ResponsiveContainer width="100%" height="100%" className="overflow-visible">
                                 <PieChart style={{ overflow: "visible" }}>
                                     <Pie
-                                        {...({ activeIndex } as any)}
-                                        activeShape={renderActiveShape}
-                                        onMouseEnter={onPieEnter}
-                                        data={chartData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius="0%" // Diubah menjadi Donat agar lebih modern
-                                        outerRadius="55%" // Diperbesar secara visual
-                                        dataKey="value"
-                                        stroke="#ffffff"
-                                        strokeWidth={4}
-                                        paddingAngle={4}
+                                        // Menggunakan type casting 'as any' untuk melewati pengecekan strict prop activeIndex & activeShape
+                                        {...({
+                                            activeIndex: activeIndex,
+                                            activeShape: renderActiveShape,
+                                            onMouseEnter: onPieEnter,
+                                            data: chartData,
+                                            cx: "50%",
+                                            cy: "50%",
+                                            innerRadius: "0%",
+                                            outerRadius: "55%",
+                                            dataKey: "value",
+                                            stroke: "#ffffff",
+                                            strokeWidth: 4,
+                                            paddingAngle: 4,
+                                        } as any)}
                                     >
                                         {chartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
@@ -181,7 +189,12 @@ export function AnalysisResult({
                                     <Legend
                                         verticalAlign="bottom"
                                         iconType="circle"
-                                        wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase' }}
+                                        wrapperStyle={{
+                                            paddingTop: '20px',
+                                            fontSize: '10px',
+                                            fontWeight: '600',
+                                            textTransform: 'uppercase'
+                                        }}
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
@@ -216,16 +229,16 @@ export function AnalysisResult({
                         </Button>
 
                         <Button
-                            onClick={onDownloadPdf}
-                            disabled={isDownloading}
+                            // PAKAI HANDLER BARU
+                            onClick={handleDownloadClick}
+                            disabled={showPdfModal || isDownloading}
                             className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-black shadow-lg shadow-blue-900/40 px-10 h-12 rounded-xl"
                         >
-                            {isDownloading ? "Mencetak..." : "Download Laporan"}
+                            {(showPdfModal || isDownloading) ? "Mencetak..." : "Download Laporan"}
                         </Button>
                     </div>
                 </CardContent>
             </Card>
-
         </div>
     );
 }
