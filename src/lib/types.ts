@@ -534,20 +534,30 @@ export interface RegisterDto {
   unitKerjaId?: string;
 }
 
-// [UPDATED] USER INTERFACE SESUAI BACKEND
+// [UPDATED] USER INTERFACE SINKRON DENGAN BACKEND PRISMA SCHEMA
 export interface User {
   id: string;
   email: string;
-  fullName: string; // sesuaikan dengan backend (fullName bukan name)
-  name?: string;    // fallback
+  fullName: string;
+  name?: string;    // Fallback
   role: UserRole;
   nip?: string;
   dateOfBirth?: string;
-  jobTitle?: string;
-  unitKerja?: UnitKerja; // Nested object dari Prisma Include
+
+  // --- [NEW] ADDITIONAL PROFILE FIELDS ---
+  avatar?: string;      // [ADDITION] Foto diri (Base64 String)
+  gender?: string;      // [ADDITION] Jenis Kelamin
+  address?: string;     // [ADDITION] Alamat Domisili
+  noWa?: string;        // [ADDITION] Nomor WhatsApp
+  agencyName?: string;  // [ADDITION] Nama Perusahaan Asuransi
+  agentLevel?: string;  // [ADDITION] Jabatan/Level Agen
+  // ----------------------------------------
+
+  unitKerja?: UnitKerja;
   createdAt?: string;
   updatedAt?: string;
-  // [ADDITION] Properti untuk hasil pencarian (Fuzzy Search)
+
+  // Properti untuk hasil pencarian & dashboard
   financialChecks?: {
     status: HealthStatus;
     healthScore: number;
@@ -598,6 +608,6 @@ export interface HelpContent {
   example?: string;    // Contoh konkret angka/kasus
 }
 
-// [NEW] Education Module Types
-export * from './types/education';
-export * from './types/retention'; // Jika belum ada
+// // [NEW] Education Module Types
+// export * from './types/education';
+// export * from './types/retention'; // Jika belum ada
