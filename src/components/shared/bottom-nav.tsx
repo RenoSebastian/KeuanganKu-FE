@@ -1,92 +1,122 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Home, PieChart, History, User, Building2, Wallet } from "lucide-react"; 
+import { LayoutGrid, ClipboardCheck, User, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
 
 export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const [role, setRole] = useState<string | null>(null);
 
-  // Cek Role saat component mount (Client Side)
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      setRole(user.role);
-    }
-  }, []);
-
+  // Konfigurasi Menu
   const menuItems = [
-    { label: "Home", icon: Home, href: "/" },
-    { label: "Keuangan", icon: Wallet, href: "/finance" }, // ✅ Menu Finance
-    { label: "Hitung", icon: PieChart, href: "/calculator/budget" }, // Tengah
-    { label: "Riwayat", icon: History, href: "/history" },
-    
-    // Logic Role Director (Kondisional)
-    role === "DIRECTOR" 
-      ? { label: "Direksi", icon: Building2, href: "/director" }
-      : { label: "Profil", icon: User, href: "/profile" }
+    {
+      label: "Dashboard",
+      icon: LayoutGrid,
+      href: "/dashboard",
+      isPrimary: false
+    },
+    {
+      label: "Keuangan",
+      icon: Wallet,
+      href: "/finance",
+      isPrimary: false
+    },
+    // [HIGHLIGHT] Menu Checkup dibuat menonjol (Floating)
+    {
+      label: "Checkup",
+      icon: ClipboardCheck,
+      href: "/finance/checkup",
+      isPrimary: false
+    },
+    {
+      label: "Profil",
+      icon: User,
+      href: "/profile",
+      isPrimary: false
+    }
   ];
 
   return (
-    // 🔥 UPDATE: Menggunakan class 'backdrop-blur-xl' dan border halus sesuai tema Fase 1
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-      
-      <div className="flex justify-around items-center h-20 max-w-md mx-auto px-2">
-        {menuItems.map((item) => {
-          // Logic Active: Support sub-path (misal /finance/detail tetap aktif di menu Finance)
-          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-          const Icon = item.icon;
-          
-          return (
-            <button
-              key={item.href}
-              onClick={() => router.push(item.href)}
-              className={cn(
-                "group flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 relative",
-                // Menggunakan warna Brand PAM (brand-600) bukan default blue
-                isActive 
-                  ? "text-brand-600 -translate-y-1" 
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-              )}
-            >
-              {/* Background Glow saat Active (Subtle) */}
-              {isActive && (
-                <div className="absolute inset-0 bg-brand-50 rounded-2xl -z-10 animate-in zoom-in duration-300" />
-              )}
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
 
-              <div className={cn(
-                "relative p-1.5 transition-all duration-300",
-                isActive && "scale-105"
-              )}>
-                {/* Icon dengan sentuhan fill brand-100 saat aktif */}
-                <Icon 
+      {/* Container Background dengan efek Glassmorphism & Shadow halus */}
+      <div className="bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+        <div className="flex justify-between items-end h-16 max-w-md mx-auto px-6 relative">
+
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+
+            // Logic Active State yang Strict
+            // Mencegah '/finance' menyala saat kita berada di '/finance/checkup'
+            let isActive = false;
+            if (item.href === "/finance") {
+              isActive = pathname.startsWith("/finance") && !pathname.startsWith("/finance/checkup");
+            } else {
+              isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            }
+
+            // RENDER: Primary Button (Tengah / Checkup)
+            if (item.isPrimary) {
+              return (
+                <div key={item.href} className="relative -top-5 group">
+                  <button
+                    onClick={() => router.push(item.href)}
                     className={cn(
-                        "w-6 h-6 transition-colors duration-300", 
-                        isActive ? "fill-brand-100/50 stroke-brand-600" : "stroke-slate-400"
-                    )} 
-                    strokeWidth={isActive ? 2.5 : 2} 
-                />
-              </div>
-              
-              {/* Label Text Animasi */}
-              <span className={cn(
-                "text-[9px] font-bold transition-all duration-300 absolute bottom-1.5",
-                isActive ? "opacity-100 translate-y-0 text-brand-700" : "opacity-0 translate-y-2"
-              )}>
-                {item.label}
-              </span>
+                      "flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all duration-300",
+                      "bg-linear-to-tr from-blue-600 to-indigo-600 text-white border-4 border-slate-50",
+                      isActive ? "shadow-blue-500/40 translate-y-0 scale-110" : "shadow-slate-400/20 hover:scale-105"
+                    )}
+                  >
+                    <Icon className="w-6 h-6" strokeWidth={2.5} />
+                  </button>
+                  <span className={cn(
+                    "absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold tracking-wide transition-colors",
+                    isActive ? "text-indigo-600" : "text-slate-400"
+                  )}>
+                    {item.label}
+                  </span>
+                </div>
+              );
+            }
 
-              {/* Dot Indikator Kecil jika tidak aktif (Estetika) */}
-              {!isActive && (
-                  <span className="absolute bottom-2 w-0.5 h-0.5 bg-slate-300 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-              )}
-            </button>
-          );
-        })}
+            // RENDER: Standard Menu Item
+            return (
+              <button
+                key={item.href}
+                onClick={() => router.push(item.href)}
+                className="group flex flex-col items-center justify-center w-12 h-full pb-2 relative outline-none"
+              >
+                {/* Icon Wrapper */}
+                <div className={cn(
+                  "p-1.5 rounded-xl transition-all duration-300 mb-1",
+                  isActive ? "bg-blue-50 text-blue-600" : "text-slate-400 group-hover:text-slate-600"
+                )}>
+                  <Icon
+                    className={cn(
+                      "w-6 h-6 transition-all duration-300",
+                      isActive && "fill-blue-200/50"
+                    )}
+                    strokeWidth={isActive ? 2.5 : 2}
+                  />
+                </div>
+
+                {/* Label */}
+                <span className={cn(
+                  "text-[10px] font-medium transition-all duration-300",
+                  isActive ? "text-blue-700 font-bold" : "text-slate-400"
+                )}>
+                  {item.label}
+                </span>
+
+                {/* Active Indicator Dot */}
+                {isActive && (
+                  <span className="absolute bottom-1 w-1 h-1 bg-blue-600 rounded-full animate-in zoom-in" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

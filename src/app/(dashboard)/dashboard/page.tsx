@@ -47,42 +47,42 @@ export default function DashboardPage() {
       title: "Alat Simulasi Klien",
       items: [
         {
-          label: "Input Data Klien",
+          label: "Analisa Keuangan Pribadi",
           emoji: "📝",
           href: "/finance/checkup",
           desc: "Financial Checkup Lengkap",
           style: "bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-600 group-hover:text-white group-hover:border-cyan-600"
         },
         {
-          label: "Analisa Cashflow",
+          label: "Rancang Anggaran",
           emoji: "🧮",
           href: "/calculator/budget",
           desc: "Cek kesehatan arus kas",
           style: "bg-blue-50 text-blue-600 border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600"
         },
         {
-          label: "Simulasi Pendidikan",
+          label: "Rencana dana Pendidikan",
           emoji: "🎓",
           href: "/calculator/education",
           desc: "Hitung biaya kuliah anak",
           style: "bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-600 group-hover:text-white group-hover:border-orange-600"
         },
         {
-          label: "Hitung UP Jiwa",
+          label: "Rencana Dana Hari Tua",
           emoji: "🛡️",
           href: "/calculator/insurance",
           desc: "Kebutuhan proteksi income",
           style: "bg-rose-50 text-rose-600 border-rose-100 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600"
         },
         {
-          label: "Perencanaan Pensiun",
+          label: "Rancang Proteksi",
           emoji: "☂️",
           href: "/calculator/pension",
           desc: "Ilustrasi dana hari tua",
           style: "bg-purple-50 text-purple-600 border-purple-100 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600"
         },
         {
-          label: "Tujuan Khusus",
+          label: "Rencana Khusus",
           emoji: "🎯",
           href: "/calculator/goals",
           desc: "Ibadah, Mobil, Rumah",
