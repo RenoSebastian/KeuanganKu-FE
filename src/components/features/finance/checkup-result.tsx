@@ -351,7 +351,7 @@ export function CheckupResult({
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                         <div className="w-1.5 h-6 bg-slate-800 rounded-full" />
-                        Rincian 8 Indikator Vital
+                       Indikator 8 Rasio Keuangan
                     </h3>
                     <span className="text-xs text-slate-500 hidden md:inline-block">*Klik kartu untuk melihat detail</span>
                 </div>

@@ -267,15 +267,19 @@ export default function LandingPage() {
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3">
                   <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
-                  <span className="text-slate-700 font-medium">Visualisasi Risiko yang Tidak Abstrak </span>
+                  <span className="text-slate-700 font-medium">Visualisasi kebutuhan dan manajemen risiko sesuai data yang diberikan oleh klien</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
-                  <span className="text-slate-700 font-medium">Bebas Hafalan Skrip </span>
+                  <span className="text-slate-700 font-medium">Dapat digunakan kapan saja, user friendly dan memberikan kenyamanan bagi agen & klien</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
-                  <span className="text-slate-700 font-medium">Fleksibel Lintas Perusahaan Asuransi </span>
+                  <span className="text-slate-700 font-medium">Bersifat umum dan dapat digunakan oleh seluruh agen asuransi dan konsultan keuangan</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+                  <span className="text-slate-700 font-medium">Aman dan dapat dipercaya</span>
                 </li>
               </ul>
               <div className="pt-6 border-t border-slate-100 text-center">

@@ -94,14 +94,14 @@ export function AnalysisResult({
     };
 
     const chartData = [
-        { name: "Konservatif", value: data.allocation.lowRisk, color: "#10b981" },
-        { name: "Moderat", value: data.allocation.mediumRisk, color: "#facc15" },
-        { name: "Agresif", value: data.allocation.highRisk, color: "#ef4444" },
+        { name: "Cash Fund", value: data.allocation.lowRisk, color: "#10b981" },
+        { name: "Fix Income Fund", value: data.allocation.mediumRisk, color: "#facc15" },
+        { name: "Equity Fund", value: data.allocation.highRisk, color: "#ef4444" },
     ].filter(item => item.value > 0);
 
     const getThemeColor = (profile: string) => {
-        if (profile === 'Konservatif') return "bg-emerald-50 text-emerald-700 border-emerald-200";
-        if (profile === 'Agresif') return "bg-red-50 text-red-700 border-red-200";
+        if (profile === 'Cash Fund') return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (profile === 'Equity Fund') return "bg-red-50 text-red-700 border-red-200";
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
     };
 

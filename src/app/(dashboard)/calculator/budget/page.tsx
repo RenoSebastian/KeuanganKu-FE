@@ -168,7 +168,7 @@ export default function BudgetPage() {
               percentage: 45,
               amount: Number(response.budget.livingCost),
               type: "NEEDS",
-              description: "Makan, Transport, Listrik & Pulsa."
+              description: "Belanja Keluarga, Transport, Rekreasi, Dll."
             },
             {
               label: "Hutang Produktif",
