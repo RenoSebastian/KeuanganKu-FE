@@ -1,506 +1,553 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 import {
   Calculator, User, Briefcase, TrendingUp,
-  RefreshCcw, Download, Hourglass, PiggyBank, AlertCircle, Loader2
+  RefreshCcw, Download, Hourglass, PiggyBank,
+  AlertCircle, Loader2, Save, Upload, FileJson,
+  MapPin, Calendar, CheckCircle2, Play
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
-import { PensionResult } from "@/lib/types";
+import { CreatePensionSimulationDto, PensionSimulationResult } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { PensionGuide } from "@/components/features/calculator/pension-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { toast } from "sonner";
+
+// Import Visual Components (Fase 2)
+import { PensionTimelineCard } from "@/components/features/calculator/pension/pension-timeline-card";
+import { PensionRealityCard } from "@/components/features/calculator/pension/pension-reality-card";
+import { PensionSolutionCard } from "@/components/features/calculator/pension/pension-solution-card";
 
 export default function PensionPage() {
-  // --- STATE INPUT ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- STATE: CLIENT IDENTITY ---
+  const [clientData, setClientData] = useState({
+    clientName: "",
+    clientDob: "",
+    clientCity: "",
+    clientJob: "",
+    clientPhone: ""
+  });
+
+  // --- STATE: FINANCIAL PARAMETERS ---
   const [currentAge, setCurrentAge] = useState<string>("");
   const [retirementAge, setRetirementAge] = useState<string>("55");
-  const [retirementDuration, setRetirementDuration] = useState<string>("20");
+  const [lifeExpectancy, setLifeExpectancy] = useState<string>("75");
+
   const [currentExpense, setCurrentExpense] = useState<string>("");
-  const [currentFund, setCurrentFund] = useState<string>("");
+  const [currentSaving, setCurrentSaving] = useState<string>("");
 
   const [inflation, setInflation] = useState(5);
-  const [returnRate, setReturnRate] = useState(12);
+  const [returnRate, setReturnRate] = useState(10);
 
-  const [result, setResult] = useState<PensionResult | null>(null);
+  // --- STATE: RESULT & FILES ---
+  const [result, setResult] = useState<PensionSimulationResult | null>(null);
 
-  // State UI & Logic
+  // State file di memory (Blob URL)
+  const [generatedFiles, setGeneratedFiles] = useState<{
+    pdfUrl: string | null;
+    mgcToken: string | null;
+    filenameMgc: string | null;
+    filenamePdf: string | null;
+  } | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
+  // --- BACKGROUND SLIDESHOW ---
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const backgroundImages = [
     '/images/pensiun/rancangdanaharitua1.webp',
     '/images/pensiun/rancangdanaharitua2.webp'
   ];
 
-  // --- EFFECT: BACKGROUND ROTATION ---
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
-      );
+      setCurrentImageIndex((prev) => (prev === backgroundImages.length - 1 ? 0 : prev + 1));
     }, 5000);
-
     return () => clearInterval(interval);
   }, [backgroundImages.length]);
 
-  // --- VALIDATION LOGIC ---
-  const validateInputs = () => {
-    const newErrors: Record<string, string> = {};
-    const cAge = parseInt(currentAge) || 0;
-    const rAge = parseInt(retirementAge) || 0;
-    const rDur = parseInt(retirementDuration) || 0;
-
-    if (!currentAge) newErrors.currentAge = "Wajib diisi";
-    if (!retirementAge) newErrors.retirementAge = "Wajib diisi";
-    if (!currentExpense) newErrors.currentExpense = "Wajib diisi";
-
-    if (cAge > 0 && rAge > 0 && cAge >= rAge) {
-      newErrors.currentAge = "Harus lebih muda";
-      newErrors.retirementAge = "Harus lebih tua";
-    }
-
-    if (rDur === 0) newErrors.retirementDuration = "Min 1 thn";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // --- HANDLERS ---
-  const handleYearInput = (val: string, setter: (v: string) => void) => {
-    let clean = val.replace(/\D/g, "");
-    if (clean === "0") clean = "";
-    if (clean.length > 3) return;
-    setter(clean);
-    if (result) {
-      setResult(null);
-      setSavedId(null);
-    }
+  // --- HANDLERS: INPUT ---
+  const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setClientData({ ...clientData, [e.target.name]: e.target.value });
   };
 
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
     const num = val.replace(/\D/g, "");
-    setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+    if (num.length > 1 && num.startsWith("0")) {
+      setter(num.substring(1).replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+    } else {
+      setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+    }
+
+    // Reset result jika input berubah (Force user to re-calculate)
     if (result) {
       setResult(null);
-      setSavedId(null);
+      setGeneratedFiles(null);
     }
   };
 
-  // --- CALCULATE & SAVE HANDLER ---
-  const handleCalculate = async () => {
-    if (!validateInputs()) return;
+  const parseMoney = (val: string) => parseInt(val.replace(/\./g, "")) || 0;
+  const parseNum = (val: string) => parseInt(val) || 0;
+
+  // ===========================================================================
+  // 1. CORE LOGIC: SIMULATE / PREVIEW
+  // ===========================================================================
+  const handleSimulate = async () => {
+    // 1. Validasi
+    if (!clientData.clientName || !clientData.clientCity || !currentExpense) {
+      toast.error("Data Belum Lengkap", { description: "Nama, Kota, dan Pengeluaran Saat Ini wajib diisi." });
+      return;
+    }
+
+    const cAge = parseNum(currentAge);
+    const rAge = parseNum(retirementAge);
+
+    if (cAge >= rAge) {
+      toast.error("Logika Usia Salah", { description: "Usia pensiun harus lebih besar dari usia saat ini." });
+      return;
+    }
 
     setIsLoading(true);
-    setIsSaving(true);
+    setShowPdfModal(true);
 
     try {
-      // 1. Prepare Data
-      const cAge = parseInt(currentAge) || 0;
-      const rAge = parseInt(retirementAge) || 0;
-      const rDur = parseInt(retirementDuration) || 20;
-      const expense = parseInt(currentExpense.replace(/\./g, "")) || 0;
-      const fund = parseInt(currentFund.replace(/\./g, "")) || 0;
-
-      // 2. Call Backend API
-      const response = await financialService.savePensionPlan({
+      // 2. Prepare Payload
+      const payload: CreatePensionSimulationDto = {
+        ...clientData,
         currentAge: cAge,
         retirementAge: rAge,
-        lifeExpectancy: rAge + rDur,
-        currentExpense: expense,
-        currentSaving: fund,
+        lifeExpectancy: parseNum(lifeExpectancy),
+        currentExpense: parseMoney(currentExpense),
+        currentSaving: parseMoney(currentSaving),
         inflationRate: inflation,
         returnRate: returnRate
+      };
+
+      // 3. Call API (Stateless)
+      const response = await financialService.simulateAgentPension(payload);
+
+      // --- STEP A: HANDLE TOKEN (HEADER) -> UI UPDATE ---
+      const token = response.headers['x-mgc-token'];
+      if (!token) throw new Error("Token data tidak ditemukan.");
+
+      const payloadBase64 = token.split('.')[0];
+      const jsonString = atob(payloadBase64);
+      const decodedData = JSON.parse(jsonString);
+
+      setResult(decodedData.result); // Update UI Kanan
+
+      // --- STEP B: HANDLE PDF BLOB -> MEMORY ---
+      const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+      const pdfUrl = window.URL.createObjectURL(pdfBlob);
+      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Klien';
+
+      setGeneratedFiles({
+        pdfUrl,
+        mgcToken: token,
+        filenameMgc: `Backup_Pensiun_${cleanName}.mgc`,
+        filenamePdf: `Rencana_Pensiun_${cleanName}.pdf`
       });
 
-      const calc = (response as any).calculation;
-      const plan = (response as any).plan;
-
-      if (plan?.id) {
-        setSavedId(plan.id);
-      }
-
-      // 3. Map Response to UI State
-      const yearsToRetire = rAge - cAge;
-
-      setResult({
-        workingYears: yearsToRetire,
-        retirementYears: rDur,
-        fvMonthlyExpense: calc.futureMonthlyExpense || 0,
-        fvExistingFund: calc.fvExistingFund,
-        totalFundNeeded: calc.totalFundNeeded,
-        shortfall: calc.shortfall,
-        monthlySaving: calc.monthlySaving
-      });
+      toast.success("Analisa Selesai", { description: "Silakan cek hasil perhitungan di panel kanan." });
 
     } catch (error) {
-      console.error("Calculation error:", error);
-      alert("Gagal menghitung simulasi. Periksa koneksi internet Anda.");
+      console.error("Simulation error:", error);
+      toast.error("Gagal Simulasi", { description: "Terjadi kesalahan saat memproses data." });
     } finally {
       setIsLoading(false);
-      setIsSaving(false);
+      setShowPdfModal(false);
     }
+  };
+
+  // ===========================================================================
+  // 2. CORE LOGIC: DOWNLOAD MANUAL
+  // ===========================================================================
+  const handleDownloadFile = (type: 'PDF' | 'MGC') => {
+    if (!generatedFiles) {
+      toast.error("Belum Ada Data", { description: "Silakan lakukan simulasi terlebih dahulu." });
+      return;
+    }
+
+    if (type === 'PDF' && generatedFiles.pdfUrl) {
+      const link = document.createElement('a');
+      link.href = generatedFiles.pdfUrl;
+      link.setAttribute('download', generatedFiles.filenamePdf || "Laporan_Pensiun.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Download PDF", { description: "Laporan resmi berhasil diunduh." });
+    }
+    else if (type === 'MGC' && generatedFiles.mgcToken) {
+      const blob = new Blob([generatedFiles.mgcToken], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = generatedFiles.filenameMgc || "Backup_Data.mgc";
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.info("Download Backup", { description: "File data (.mgc) berhasil disimpan." });
+    }
+  };
+
+  // --- CORE LOGIC 3: IMPORT .MGC ---
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        const tokenContent = event.target?.result as string;
+        const response = await financialService.decodeSimulationToken(tokenContent);
+
+        if (response.data.meta?.module && response.data.meta.module !== 'PENSION') {
+          toast.error("Format Salah", { description: "File ini bukan data simulasi Pensiun." });
+          return;
+        }
+
+        const { client, financial } = response.data;
+
+        // Populate Form
+        setClientData({
+          clientName: client.name,
+          clientDob: client.dob,
+          clientCity: client.city,
+          clientJob: client.job || "",
+          clientPhone: client.phone || ""
+        });
+
+        // Numeric Inputs
+        setCurrentAge(String(financial.currentAge));
+        setRetirementAge(String(financial.retirementAge));
+        setLifeExpectancy(String(financial.lifeExpectancy));
+
+        // Financials (Format Rupiah)
+        const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
+        setCurrentExpense(fmt(financial.currentExpense));
+        setCurrentSaving(fmt(financial.currentSaving));
+
+        // Sliders
+        setInflation(financial.inflationRate);
+        setReturnRate(financial.returnRate);
+
+        toast.success("Restore Berhasil", { description: "Data simulasi telah dimuat kembali." });
+        setResult(null); // Reset result agar user klik "Hitung" lagi (re-validasi)
+        setGeneratedFiles(null);
+
+      } catch (error) {
+        toast.error("File Rusak", { description: "Gagal membaca file backup." });
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleReset = () => {
-    setCurrentAge("");
-    setRetirementAge("55");
-    setRetirementDuration("20");
-    setCurrentExpense("");
-    setCurrentFund("");
-    setErrors({});
-    setResult(null);
-    setSavedId(null);
-  };
-
-  // --- PDF DOWNLOAD HANDLER ---
-  const handleDownloadPDF = async () => {
-    if (showPdfModal) return;
-
-    try {
-      let targetId = savedId;
-
-      // 1. AUTO-SAVE jika belum ada ID
-      if (!targetId) {
-        if (!validateInputs()) {
-          alert("Mohon lengkapi data terlebih dahulu.");
-          return;
-        }
-
-        setIsSaving(true);
-        try {
-          const cAge = parseInt(currentAge) || 0;
-          const rAge = parseInt(retirementAge) || 0;
-          const rDur = parseInt(retirementDuration) || 20;
-          const expense = parseInt(currentExpense.replace(/\./g, "")) || 0;
-          const fund = parseInt(currentFund.replace(/\./g, "")) || 0;
-
-          const response = await financialService.savePensionPlan({
-            currentAge: cAge,
-            retirementAge: rAge,
-            lifeExpectancy: rAge + rDur,
-            currentExpense: expense,
-            currentSaving: fund,
-            inflationRate: inflation,
-            returnRate: returnRate
-          });
-
-          if (response && (response as any).plan?.id) {
-            targetId = (response as any).plan.id;
-            setSavedId(targetId);
-
-            // Update result view
-            const calc = (response as any).calculation;
-            const yearsToRetire = rAge - cAge;
-
-            setResult({
-              workingYears: yearsToRetire,
-              retirementYears: rDur,
-              fvMonthlyExpense: calc.futureMonthlyExpense || 0,
-              fvExistingFund: calc.fvExistingFund,
-              totalFundNeeded: calc.totalFundNeeded,
-              shortfall: calc.shortfall,
-              monthlySaving: calc.monthlySaving
-            });
-          }
-        } catch (e) {
-          console.error("Auto-save failed", e);
-          alert("Gagal menyimpan data otomatis.");
-          return;
-        } finally {
-          setIsSaving(false);
-        }
-      }
-
-      setShowPdfModal(true);
-
-      if (targetId) {
-        await financialService.downloadPensionPdf(targetId);
-      }
-
-      setTimeout(() => setShowPdfModal(false), 500);
-
-    } catch (error) {
-      console.error("PDF Error:", error);
-      setShowPdfModal(false);
-      alert("Gagal mengunduh PDF. Server sibuk atau timeout.");
+    if (confirm("Reset seluruh form?")) {
+      setClientData({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
+      setCurrentAge(""); setRetirementAge("55"); setLifeExpectancy("75");
+      setCurrentExpense(""); setCurrentSaving("");
+      setResult(null);
+      setGeneratedFiles(null);
     }
   };
 
   return (
-    <div className="min-h-full w-full pb-24 md:pb-12">
+    <div className="min-h-full w-full pb-24 md:pb-12 bg-slate-50/50">
 
       <PdfLoadingModal isOpen={showPdfModal} />
 
+      {/* --- HEADER SECTION --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
         <div className="absolute inset-0 w-full h-full z-0">
           {backgroundImages.map((image, index) => (
-            <div
-              key={image}
-              className={cn(
-                "absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ease-in-out",
-                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-              )}
+            <div key={image}
+              className={cn("absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000", index === currentImageIndex ? 'opacity-100' : 'opacity-0')}
               style={{ backgroundImage: `url(${image})` }}
             />
           ))}
-          <div className="absolute inset-0 bg-brand-300/85 mix-blend-multiply" />
-          <div className="absolute inset-0 bg-linear-to-t from-brand-500 via-brand-500/40 to-transparent" />
-          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
+          <div className="absolute inset-0 bg-brand-900/85 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-linear-to-t from-brand-800 via-transparent to-transparent" />
         </div>
 
-        <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
-
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
-            <Calculator className="w-4 h-4 text-cyan-300" />
-            <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Pension Planner</span>
+        <div className="relative z-20 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
+              <Calculator className="w-4 h-4 text-cyan-300" />
+              <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Pension Planner</span>
+            </div>
+            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
+              Dana Pensiun
+            </h1>
+            <p className="text-brand-100 text-sm md:text-base max-w-lg leading-relaxed opacity-90 drop-shadow-md">
+              Rencanakan masa depan sejahtera dengan kekuatan dana Anda saat ini bersama MAXIPRO.
+            </p>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
-            Dana Pensiun
-          </h1>
-          <p className="text-brand-100 text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-90 drop-shadow-md">
-            Rencanakan masa depan sejahtera dengan kekuatan dana Anda saat ini bersama MAXIPRO.
-          </p>
+
+          {/* Import Button */}
+          <Card className="bg-white/10 backdrop-blur-md border-white/20 p-4 rounded-xl flex items-center gap-4 max-w-sm w-full hover:bg-white/15 transition-colors cursor-pointer group"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              {isImporting ? <Loader2 className="w-5 h-5 text-cyan-300 animate-spin" /> : <Upload className="w-5 h-5 text-cyan-300" />}
+            </div>
+            <div className="text-left">
+              <h4 className="text-sm font-bold text-white">Import File .mgc</h4>
+              <p className="text-xs text-brand-200">Load data simulasi sebelumnya</p>
+            </div>
+            <input type="file" ref={fileInputRef} accept=".mgc" className="hidden" onChange={handleFileUpload} />
+          </Card>
         </div>
       </div>
 
-      <div className="relative z-20 max-w-6xl mx-auto px-5 -mt-20">
+      {/* --- MAIN CONTENT --- */}
+      <div className="relative z-20 max-w-6xl mx-auto px-4 md:px-6 -mt-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          <div className="lg:col-span-5 space-y-6">
-            <Card className="card-clean p-6 md:p-8 bg-white/95 backdrop-blur-xl space-y-6">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4">
-                <User className="w-5 h-5 text-brand-600" /> Profil Pensiun
+          {/* LEFT: INPUT FORM */}
+          <div className="lg:col-span-6 space-y-6">
+
+            {/* 1. DATA KLIEN */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
+              <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <User className="w-4 h-4 text-brand-600" /> Profil Klien
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs font-semibold text-slate-500">Nama Lengkap</Label>
+                  <Input name="clientName" placeholder="Contoh: Budi Santoso" value={clientData.clientName} onChange={handleClientChange} className="mt-1" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Tanggal Lahir</Label>
+                    <div className="relative mt-1">
+                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input type="date" name="clientDob" value={clientData.clientDob} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Kota Domisili</Label>
+                    <div className="relative mt-1">
+                      <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input name="clientCity" placeholder="Bandung" value={clientData.clientCity} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-slate-500">Pekerjaan</Label>
+                  <div className="relative mt-1">
+                    <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                    <Input name="clientJob" placeholder="Swasta" value={clientData.clientJob} onChange={handleClientChange} className="pl-9" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* 2. PARAMETER PENSIUN */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
+              <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <Hourglass className="w-4 h-4 text-brand-600" /> Target Waktu
+              </h3>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase">Usia Kini</Label>
+                  <Input
+                    type="number"
+                    value={currentAge}
+                    onChange={e => { setCurrentAge(e.target.value); setResult(null); }}
+                    className="h-12 bg-slate-50 text-center font-bold border-slate-200 focus:border-brand-500"
+                    placeholder="30"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-indigo-500 uppercase">Usia Pensiun</Label>
+                  <Input
+                    type="number"
+                    value={retirementAge}
+                    onChange={e => { setRetirementAge(e.target.value); setResult(null); }}
+                    className="h-12 bg-indigo-50 text-center font-bold text-indigo-700 border-indigo-200 focus:border-indigo-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase">Harapan Hidup</Label>
+                  <Input
+                    type="number"
+                    value={lifeExpectancy}
+                    onChange={e => { setLifeExpectancy(e.target.value); setResult(null); }}
+                    className="h-12 bg-slate-50 text-center font-bold border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <PiggyBank className="w-4 h-4 text-brand-600" /> Kondisi Keuangan
               </h3>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Usia Kini</label>
-                  <Input
-                    type="text" inputMode="numeric" placeholder="25"
-                    value={currentAge}
-                    onChange={e => handleYearInput(e.target.value, setCurrentAge)}
-                    className={cn("bg-slate-50 border-slate-200 text-center font-bold focus:ring-brand-500", errors.currentAge && "border-red-500 bg-red-50")}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Usia Pensiun</label>
-                  <Input
-                    type="text" inputMode="numeric" placeholder="55"
-                    value={retirementAge}
-                    onChange={e => handleYearInput(e.target.value, setRetirementAge)}
-                    className={cn("bg-indigo-50 border-indigo-200 text-indigo-700 text-center font-bold focus:ring-indigo-500", errors.retirementAge && "border-red-500 bg-red-50")}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase flex flex-col leading-tight">
-                    <span>Lama Pensiun</span>
-                    <span className="text-[8px] text-slate-400 font-normal">(Tahun)</span>
-                  </label>
-                  <Input
-                    type="text" inputMode="numeric" placeholder="20"
-                    value={retirementDuration}
-                    onChange={e => handleYearInput(e.target.value, setRetirementDuration)}
-                    className={cn("bg-slate-50 border-slate-200 text-center font-bold focus:ring-brand-500", errors.retirementDuration && "border-red-500 bg-red-50")}
-                  />
-                </div>
-              </div>
-
-              {(errors.currentAge || errors.retirementAge) && (
-                <div className="text-[10px] text-red-500 font-bold flex items-center gap-1 bg-red-50 p-2 rounded-lg -mt-2">
-                  <AlertCircle className="w-3 h-3" />
-                  {errors.currentAge === "Harus lebih muda" ? "Usia kini harus lebih kecil dari pensiun!" : "Mohon lengkapi data usia."}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 uppercase ml-1">Target Pemasukan Bulanan</label>
-                <div className="relative group">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rp</span>
-                  <Input
-                    className={cn("pl-12 h-12 text-lg font-bold bg-white border-indigo-200 focus:ring-indigo-500 transition-all", errors.currentExpense && "border-red-500 bg-red-50")}
-                    placeholder="0"
-                    value={currentExpense}
-                    onChange={e => handleMoneyInput(e.target.value, setCurrentExpense)}
-                  />
-                </div>
-                <p className="text-[10px] text-slate-400 ml-1">
-                  *Gunakan nilai uang saat ini.
-                </p>
-              </div>
-
-              <div className="space-y-1 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                <label className="text-xs font-bold text-emerald-700 uppercase ml-1 flex items-center gap-1">
-                  <PiggyBank className="w-3 h-3" /> Saldo JHT / DPLK Saat Ini
-                </label>
-                <div className="relative group">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-emerald-600">Rp</span>
-                  <Input
-                    className="pl-12 h-12 text-lg font-bold bg-white border-emerald-200 focus:ring-emerald-500 text-emerald-800 transition-all"
-                    placeholder="0"
-                    value={currentFund}
-                    onChange={e => handleMoneyInput(e.target.value, setCurrentFund)}
-                  />
-                </div>
-              </div>
-
-              <div className="bg-slate-50 p-4 rounded-xl space-y-6 border border-slate-100">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-500">
-                    <span>Asumsi Inflasi</span>
-                    <span>{inflation}% / tahun</span>
+                  <Label className="text-xs font-bold text-slate-500 uppercase">Biaya Hidup Bulanan (Saat Ini)</Label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rp</span>
+                    <Input
+                      value={currentExpense}
+                      onChange={e => handleMoneyInput(e.target.value, setCurrentExpense)}
+                      className="pl-12 h-12 font-bold text-lg"
+                      placeholder="0"
+                    />
                   </div>
-                  <Slider
-                    value={inflation}
-                    onChange={(val) => setInflation(val)}
-                    min={0} max={15} step={0.5}
-                    className="accent-red-500"
-                  />
+                  <p className="text-[10px] text-slate-400">*Gaya hidup yang ingin dipertahankan saat pensiun</p>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-500">
-                    <span>Return Investasi</span>
-                    <span>{returnRate}% / tahun</span>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-emerald-600 uppercase">Aset Pensiun Yang Sudah Ada</Label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-emerald-500">Rp</span>
+                    <Input
+                      value={currentSaving}
+                      onChange={e => handleMoneyInput(e.target.value, setCurrentSaving)}
+                      className="pl-12 h-12 font-bold text-lg border-emerald-200 bg-emerald-50/30 text-emerald-800 focus:border-emerald-500"
+                      placeholder="0"
+                    />
                   </div>
-                  <Slider
-                    value={returnRate}
-                    onChange={(val) => setReturnRate(val)}
-                    min={4} max={20} step={0.5}
-                    className="accent-emerald-500"
-                  />
+                  <p className="text-[10px] text-emerald-600/70">*Saldo JHT, DPLK, atau Reksadana</p>
                 </div>
               </div>
-
-              <Button
-                onClick={handleCalculate}
-                disabled={isLoading || isSaving}
-                className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menghitung...</>
-                ) : (
-                  "Hitung Strategi"
-                )}
-              </Button>
             </Card>
+
+            {/* 3. ASUMSI EKONOMI */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
+              <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-brand-600" /> Asumsi Ekonomi
+              </h3>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
+                    <span>Inflasi Tahunan</span>
+                    <span>{inflation}%</span>
+                  </div>
+                  <Slider value={inflation} onChange={(v) => { setInflation(v); setResult(null); }} min={0} max={15} step={0.5} className="accent-rose-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
+                    <span>Return Investasi</span>
+                    <span>{returnRate}%</span>
+                  </div>
+                  <Slider value={returnRate} onChange={(v) => { setReturnRate(v); setResult(null); }} min={0} max={20} step={0.5} className="accent-emerald-500" />
+                </div>
+              </div>
+            </Card>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={handleReset} className="flex-1 h-12 rounded-xl border-slate-300">
+                <RefreshCcw className="w-4 h-4 mr-2" /> Reset
+              </Button>
+              <Button
+                onClick={handleSimulate}
+                disabled={isLoading}
+                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Play className="w-5 h-5 mr-2" />}
+                Lihat Analisa
+              </Button>
+            </div>
+
           </div>
 
-          <div className="lg:col-span-7 space-y-6">
+          {/* RIGHT: RESULT DISPLAY */}
+          <div className="lg:col-span-6 space-y-6">
             {!result ? (
-              <div className="h-full min-h-100 flex flex-col items-center justify-center text-center opacity-60 p-8 border-2 border-dashed border-indigo-200/50 rounded-[2rem] bg-white/50">
-                <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-                  <Hourglass className="w-10 h-10 text-indigo-300" />
+              <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 bg-white/50 rounded-[2rem]">
+                <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                  <Hourglass className="w-10 h-10 text-slate-300" />
                 </div>
-                <h3 className="text-xl font-bold text-indigo-900">Menunggu Data</h3>
-                <p className="text-indigo-700 text-sm">Masukkan data profil untuk melihat simulasi.</p>
+                <h3 className="text-xl font-bold text-slate-700">Area Hasil Simulasi</h3>
+                <p className="text-slate-500 text-sm mt-2 max-w-xs leading-relaxed">
+                  Lengkapi data di samping, lalu klik <strong>"Lihat Analisa"</strong> untuk menampilkan strategi pensiun.
+                </p>
               </div>
             ) : (
               <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
 
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                  <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-slate-400" /> Roadmap Kehidupan
-                  </h4>
-                  <div className="relative pt-6 pb-2">
-                    <div className="h-2 bg-slate-100 rounded-full w-full absolute top-1/2 -translate-y-1/2"></div>
-                    <div className="flex justify-between relative z-10">
-                      <div className="text-center">
-                        <div className="w-4 h-4 bg-slate-800 rounded-full mx-auto mb-2 border-4 border-white shadow"></div>
-                        <p className="text-[10px] font-bold text-slate-500">Sekarang</p>
-                        <p className="text-xs font-bold text-slate-800">{currentAge} Th</p>
+                {/* 1. DOWNLOAD CENTER */}
+                {generatedFiles && (
+                  <Card className="bg-emerald-50 border-emerald-200 p-4 rounded-xl flex flex-col items-center gap-4 shadow-sm">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shrink-0">
+                        <CheckCircle2 className="w-5 h-5" />
                       </div>
-                      <div className="text-center">
-                        <div className="w-4 h-4 bg-indigo-600 rounded-full mx-auto mb-2 border-4 border-white shadow"></div>
-                        <p className="text-[10px] font-bold text-indigo-600">Pensiun</p>
-                        <p className="text-xs font-bold text-indigo-700">{retirementAge} Th</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="w-4 h-4 bg-emerald-500 rounded-full mx-auto mb-2 border-4 border-white shadow"></div>
-                        <p className="text-[10px] font-bold text-emerald-600">Tercover</p>
-                        <p className="text-xs font-bold text-emerald-700">{result.retirementYears} Th</p>
+                      <div className="grow">
+                        <h4 className="font-bold text-emerald-800 text-sm">Analisa Selesai</h4>
+                        <p className="text-xs text-emerald-600">Dokumen siap diunduh.</p>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <Card className="bg-linear-to-br from-indigo-600 to-violet-700 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0">
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                  <div className="relative z-10 space-y-8">
-                    <div className="grid grid-cols-2 gap-4 pb-6 border-b border-white/20">
-                      <div>
-                        <p className="text-indigo-200 text-[10px] font-bold uppercase mb-1">Target Dana ({result.retirementYears} Th)</p>
-                        <p className="text-xl font-bold truncate" title={formatRupiah(result.totalFundNeeded)}>
-                          {formatRupiah(result.totalFundNeeded)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-emerald-300 text-[10px] font-bold uppercase mb-1">FV Saldo Awal (Investasi)</p>
-                        <p className="text-xl font-bold text-emerald-100 truncate" title={formatRupiah(result.fvExistingFund)}>
-                          {formatRupiah(result.fvExistingFund)}
-                        </p>
-                      </div>
+                    <div className="flex gap-2 w-full">
+                      <Button size="sm" onClick={() => handleDownloadFile('PDF')} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-10 rounded-lg">
+                        <Download className="w-4 h-4 mr-2" /> Download Laporan PDF
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleDownloadFile('MGC')} className="w-12 h-10 border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-100 rounded-lg" title="Simpan Backup (.mgc)">
+                        <FileJson className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <div className="text-center">
-                      <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/20 mb-3">
-                        <TrendingUp className="w-3 h-3 text-white" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-white">Investasi Bulanan (Kekurangan)</span>
-                      </div>
+                  </Card>
+                )}
 
-                      <h2 className="text-4xl md:text-5xl font-black mb-3 text-white tracking-tight drop-shadow-sm">
-                        {formatRupiah(result.monthlySaving)}
-                      </h2>
-                      <p className="text-xs text-indigo-100 opacity-80 leading-relaxed max-w-sm mx-auto">
-                        Jika Anda menabung nominal ini, dana pensiun Anda aman untuk membiayai hidup selama {result.retirementYears} tahun (sesuai input).
-                      </p>
-                    </div>
-                  </div>
-                </Card>
+                {/* 2. TIMELINE CARD */}
+                <PensionTimelineCard
+                  currentAge={parseNum(currentAge)}
+                  retirementAge={parseNum(retirementAge)}
+                  lifeExpectancy={parseNum(lifeExpectancy)}
+                />
 
-                <Card className="p-5 rounded-2xl flex items-center justify-between border-l-4 border-l-orange-400 bg-white shadow-sm">
+                {/* 3. SOLUTION CARD (THE HERO) */}
+                <PensionSolutionCard
+                  monthlySaving={result.monthlySaving}
+                  totalFundNeeded={result.totalFundNeeded}
+                  shortfall={result.shortfall}
+                  returnRate={returnRate}
+                  isSafe={result.shortfall <= 0}
+                />
+
+                {/* 4. REALITY CHECK (SHOCK THERAPY) */}
+                <PensionRealityCard
+                  currentMonthlyExpense={parseMoney(currentExpense)}
+                  futureMonthlyExpense={result.futureMonthlyExpense}
+                  inflationRate={inflation}
+                  yearsDuration={result.yearsToRetire}
+                />
+
+                {/* 5. NOTES */}
+                <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl flex gap-4 items-start">
+                  <div className="p-2 bg-blue-100 rounded-full text-blue-600 mt-1 shrink-0"><AlertCircle className="w-5 h-5" /></div>
                   <div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Estimasi Biaya Hidup (Masa Depan)</p>
-                    <p className="text-xl font-black text-slate-800 mt-1">{formatRupiah(result.fvMonthlyExpense)} <span className="text-xs font-normal text-slate-400">/ bulan</span></p>
-                    <p className="text-[10px] text-slate-400 mt-1 italic">*Nilai ini sudah termasuk inflasi {inflation}% per tahun.</p>
+                    <h4 className="text-xs font-bold text-blue-800 uppercase mb-2">Penting Diingat</h4>
+                    <p className="text-sm text-blue-800 leading-relaxed font-medium">
+                      Perhitungan ini menggunakan asumsi bunga majemuk (compound interest).
+                      Semakin awal memulai, semakin ringan beban tabungan bulanan karena efek waktu.
+                    </p>
                   </div>
-                  <div className="h-12 w-12 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 shadow-sm">
-                    <TrendingUp className="w-6 h-6" />
-                  </div>
-                </Card>
-
-                <div className="flex gap-3 pt-2">
-                  <Button variant="outline" onClick={handleReset} disabled={showPdfModal} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
-                    <RefreshCcw className="w-4 h-4 mr-2" /> Reset
-                  </Button>
-                  <Button
-                    className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
-                    onClick={handleDownloadPDF}
-                    disabled={isSaving || showPdfModal}
-                  >
-                    {showPdfModal ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="w-4 h-4 mr-2" />
-                    )}
-                    {showPdfModal ? "Memproses..." : "Simpan Rencana PDF"}
-                  </Button>
                 </div>
+
               </div>
             )}
             <PensionGuide />
           </div>
+
         </div>
       </div>
     </div>

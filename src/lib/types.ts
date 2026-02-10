@@ -705,7 +705,7 @@ export interface HelpContent {
 }
 
 // ============================================================================
-// 10. AGENT SIMULATION TYPES (BUDGETING & INSURANCE)
+// 10. AGENT SIMULATION TYPES (BUDGETING, INSURANCE, & PENSION)
 // ============================================================================
 
 export interface CreateBudgetSimulationDto {
@@ -718,7 +718,7 @@ export interface CreateBudgetSimulationDto {
   variableIncome?: number;
 }
 
-// [NEW] INSURANCE SIMULATION INPUT
+// [INSURANCE SIMULATION]
 export interface CreateInsuranceSimulationDto {
   // Identity
   clientName: string;
@@ -739,7 +739,6 @@ export interface CreateInsuranceSimulationDto {
   returnRate?: number;
 }
 
-// [NEW] INSURANCE SIMULATION OUTPUT (Decoded from .mgc Token)
 export interface InsuranceSimulationResult {
   // Granular
   annualExpense: number;
@@ -752,6 +751,38 @@ export interface InsuranceSimulationResult {
   totalNeeded: number;
   coverageGap: number;
   recommendation: string;
+}
+
+// [NEW] PENSION SIMULATION INPUT (STATELESS)
+export interface CreatePensionSimulationDto {
+  // Identity
+  clientName: string;
+  clientDob: string;
+  clientCity: string;
+  clientJob?: string;
+  clientPhone?: string;
+
+  // Financial Params
+  currentAge: number;
+  retirementAge: number;
+  lifeExpectancy?: number;
+  currentExpense: number;
+  currentSaving?: number;
+
+  // Assumptions
+  inflationRate?: number;
+  returnRate?: number;
+}
+
+// [NEW] PENSION SIMULATION OUTPUT (Decoded from .mgc Token)
+export interface PensionSimulationResult {
+  yearsToRetire: number;
+  retirementDuration: number;
+  futureMonthlyExpense: number; // Shock Therapy Value
+  totalFundNeeded: number;
+  fvExistingFund: number;
+  shortfall: number;
+  monthlySaving: number; // Solution Value
 }
 
 export interface SimulationResponse {
