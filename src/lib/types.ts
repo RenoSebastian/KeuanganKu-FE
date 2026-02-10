@@ -705,28 +705,59 @@ export interface HelpContent {
 }
 
 // ============================================================================
-// 10. AGENT SIMULATION TYPES
+// 10. AGENT SIMULATION TYPES (BUDGETING & INSURANCE)
 // ============================================================================
 
 export interface CreateBudgetSimulationDto {
-  // Client Identity
   clientName: string;
   clientDob: string; // Format ISO 'YYYY-MM-DD'
   clientPhone?: string;
-
-  // Demographics
   clientCity: string;
   clientJob: string;
-
-  // Financial Data
   fixedIncome: number;
   variableIncome?: number;
+}
+
+// [NEW] INSURANCE SIMULATION INPUT
+export interface CreateInsuranceSimulationDto {
+  // Identity
+  clientName: string;
+  clientDob: string;
+  clientCity: string;
+  clientJob: string;
+  clientPhone?: string;
+
+  // Calculation Params
+  type: 'LIFE' | 'HEALTH' | 'CRITICAL_ILLNESS';
+  dependentCount: number;
+  monthlyExpense: number;
+  existingDebt: number;
+  existingCoverage: number;
+  protectionDuration: number;
+  finalExpense?: number; // Optional
+  inflationRate?: number;
+  returnRate?: number;
+}
+
+// [NEW] INSURANCE SIMULATION OUTPUT (Decoded from .mgc Token)
+export interface InsuranceSimulationResult {
+  // Granular
+  annualExpense: number;
+  nettRatePercentage: string;
+  incomeReplacementValue: number;
+  debtClearanceValue: number;
+  otherNeeds: number;
+
+  // Aggregated
+  totalNeeded: number;
+  coverageGap: number;
+  recommendation: string;
 }
 
 export interface SimulationResponse {
   message: string;
   data: {
-    preview: any; // Bisa didetailkan lagi sesuai return BE
+    preview: any;
     download: {
       pdf_url: string;
       mgc_token: string;

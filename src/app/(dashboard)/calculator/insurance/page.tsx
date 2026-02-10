@@ -1,43 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-// [NEW] Import InfoPopover
 import { InfoPopover } from "@/components/ui/info-popover";
 import {
   ShieldCheck, HeartPulse, BadgeDollarSign,
   RefreshCcw, Download, Landmark, Wallet,
   TrendingUp, AlertCircle, CheckCircle2, Loader2,
-  Calculator
+  Calculator, User, MapPin, Briefcase, Calendar, Save, Upload, FileJson
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
-import { InsuranceResult } from "@/lib/types";
+import { CreateInsuranceSimulationDto, InsuranceSimulationResult } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { toast } from "sonner";
+
+// [NEW] Import Visual Components
+import { GapAnalysisGauge } from "@/components/features/calculator/insurance/gap-analysis-gauge";
+import { InsuranceResultCard } from "@/components/features/calculator/insurance/insurance-result-card";
+import { Label } from "@/components/ui/label";
 
 export default function InsurancePage() {
-  // --- STATE INPUT ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- STATE: CLIENT IDENTITY ---
+  const [clientData, setClientData] = useState({
+    clientName: "",
+    clientDob: "",
+    clientCity: "",
+    clientJob: "",
+    clientPhone: ""
+  });
+
+  // --- STATE: FINANCIAL PARAMETERS ---
   // Card 1: Utang
   const [debtKPR, setDebtKPR] = useState("");
   const [debtKPM, setDebtKPM] = useState("");
   const [debtProductive, setDebtProductive] = useState("");
   const [debtConsumptive, setDebtConsumptive] = useState("");
   const [debtOther, setDebtOther] = useState("");
-
-  // State input mode
-  const [kprInputMode, setKprInputMode] = useState<'TOTAL' | 'CALC'>('TOTAL');
-  const [kpmInputMode, setKpmInputMode] = useState<'TOTAL' | 'CALC'>('TOTAL');
-
-  // State calc helper (temporary values)
-  const [kprMonthly, setKprMonthly] = useState("");
-  const [kprTenor, setKprTenor] = useState("");
-  const [kpmMonthly, setKpmMonthly] = useState("");
-  const [kpmTenor, setKpmTenor] = useState("");
 
   // Card 2: Proteksi Penghasilan
   const [annualIncome, setAnnualIncome] = useState("");
@@ -49,17 +55,28 @@ export default function InsurancePage() {
   const [finalExpense, setFinalExpense] = useState("");
   const [existingInsurance, setExistingInsurance] = useState("");
 
-  const [result, setResult] = useState<InsuranceResult | null>(null);
+  // --- STATE: RESULT & UI ---
+  const [result, setResult] = useState<InsuranceSimulationResult | null>(null);
 
-  // State UI
+  // Data hasil generate untuk re-download
+  const [generatedFiles, setGeneratedFiles] = useState<{
+    pdfUrl: string | null;
+    mgcToken: string | null;
+    filenameMgc: string | null;
+  } | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Helper Calculator State
+  const [showKprModal, setShowKprModal] = useState(false);
+  const [showKpmModal, setShowKpmModal] = useState(false);
+  const [showIncomeModal, setShowIncomeModal] = useState(false);
+  const [tempMonthly, setTempMonthly] = useState("");
+  const [tempTenor, setTempTenor] = useState("");
 
-  // --- STATE BACKGROUND SLIDESHOW ---
+  // --- BACKGROUND SLIDESHOW ---
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const backgroundImages = [
     '/images/asuransi/rancangproteksi1.webp',
@@ -68,207 +85,241 @@ export default function InsurancePage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
-      );
+      setCurrentImageIndex((prev) => (prev === backgroundImages.length - 1 ? 0 : prev + 1));
     }, 5000);
     return () => clearInterval(interval);
   }, [backgroundImages.length]);
 
   // --- HANDLERS ---
+  const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setClientData({ ...clientData, [e.target.name]: e.target.value });
+  };
 
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
     let num = val.replace(/\D/g, "");
     if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
-
-    if (errors.annualIncome) setErrors((prev) => ({ ...prev, annualIncome: "" }));
+    // Reset result jika input berubah agar data konsisten
     if (result) {
       setResult(null);
-      setSavedId(null);
-    }
-  };
-
-  const handleYearInput = (val: string, setter: (v: string) => void) => {
-    let num = val.replace(/\D/g, "");
-    if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
-    setter(num);
-    if (result) {
-      setResult(null);
-      setSavedId(null);
+      setGeneratedFiles(null);
     }
   };
 
   const parseMoney = (val: string) => parseInt(val.replace(/\./g, "")) || 0;
 
-  const validateInputs = () => {
-    const newErrors: Record<string, string> = {};
-    const income = parseMoney(annualIncome);
-    const debt = parseMoney(debtKPR) + parseMoney(debtKPM) + parseMoney(debtProductive) + parseMoney(debtConsumptive) + parseMoney(debtOther);
-
-    if (income === 0 && debt === 0) {
-      newErrors.annualIncome = "Wajib diisi (atau isi data utang)";
+  // --- CORE LOGIC 1: SIMULATE & DOWNLOAD (STATELESS) ---
+  const handleSimulate = async () => {
+    // 1. Validasi Input Dasar
+    if (!clientData.clientName || !clientData.clientCity || !annualIncome) {
+      toast.error("Data Tidak Lengkap", { description: "Mohon isi Nama, Kota, dan Penghasilan." });
+      return;
     }
-
-    if (parseInt(protectionDuration) <= 0) {
-      newErrors.protectionDuration = "Min 1 thn";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // --- API INTEGRATION ---
-  const handleCalculate = async () => {
-    if (!validateInputs()) return;
 
     setIsLoading(true);
-    setIsSaving(true);
+    setShowPdfModal(true); // Tampilkan indikator loading PDF
 
     try {
-      const pDebtKPR = parseMoney(debtKPR);
-      const pDebtKPM = parseMoney(debtKPM);
-      const pDebtProd = parseMoney(debtProductive);
-      const pDebtCons = parseMoney(debtConsumptive);
-      const pDebtOther = parseMoney(debtOther);
+      // 2. Prepare Payload
+      const totalDebt =
+        parseMoney(debtKPR) +
+        parseMoney(debtKPM) +
+        parseMoney(debtProductive) +
+        parseMoney(debtConsumptive) +
+        parseMoney(debtOther);
 
-      const totalDebt = pDebtKPR + pDebtKPM + pDebtProd + pDebtCons + pDebtOther;
-      const pIncome = parseMoney(annualIncome);
-      const pFinalExpense = parseMoney(finalExpense); // [NEW] Parsing biaya pemakaman
-      const pExisting = parseMoney(existingInsurance);
+      const monthlyExpense = parseMoney(annualIncome) / 12; // Asumsi Income = Expense untuk Replacement
 
-      const response = await financialService.saveInsurancePlan({
-        type: "LIFE",
-        dependentCount: 2,
-        monthlyExpense: pIncome / 12,
+      const payload: CreateInsuranceSimulationDto = {
+        ...clientData,
+        type: 'LIFE', // Default logic saat ini
+        dependentCount: 2, // Default atau bisa ditambah input field nanti
+        monthlyExpense,
         existingDebt: totalDebt,
-        existingCoverage: pExisting,
+        existingCoverage: parseMoney(existingInsurance),
         protectionDuration: parseInt(protectionDuration) || 10,
-        finalExpense: pFinalExpense, // [ADDED] Kirim ke Backend DTO
+        finalExpense: parseMoney(finalExpense),
         inflationRate: inflation,
         returnRate: returnRate
-      } as any);
+      };
 
-      const calc = (response as any).calculation;
-      const plan = (response as any).plan;
+      // 3. Call API (Stateless Stream)
+      const response = await financialService.simulateAgentInsurance(payload);
 
-      if (plan?.id) {
-        setSavedId(plan.id);
+      // --- STEP A: HANDLE PDF (BODY) ---
+      const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+      const pdfUrl = window.URL.createObjectURL(pdfBlob);
+
+      // Auto-Download PDF
+      const pdfLink = document.createElement('a');
+      pdfLink.href = pdfUrl;
+      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_');
+      pdfLink.setAttribute('download', `Simulasi_Asuransi_${cleanName}.pdf`);
+      document.body.appendChild(pdfLink);
+      pdfLink.click();
+      pdfLink.remove();
+
+      // --- STEP B: HANDLE TOKEN (HEADER) ---
+      const token = response.headers['x-mgc-token'];
+
+      if (token) {
+        // 1. Auto-Download .mgc
+        const mgcBlob = new Blob([token], { type: 'text/plain' });
+        const mgcUrl = window.URL.createObjectURL(mgcBlob);
+        const mgcLink = document.createElement('a');
+        mgcLink.href = mgcUrl;
+        const filenameMgc = `Backup_Asuransi_${cleanName}.mgc`;
+        mgcLink.setAttribute('download', filenameMgc);
+        document.body.appendChild(mgcLink);
+        mgcLink.click();
+        mgcLink.remove();
+        window.URL.revokeObjectURL(mgcUrl);
+
+        // Simpan state untuk re-download
+        setGeneratedFiles({ pdfUrl, mgcToken: token, filenameMgc });
+
+        // 2. Client-Side Hydration (Decode Token -> UI Update)
+        try {
+          const payloadBase64 = token.split('.')[0];
+          const jsonString = atob(payloadBase64);
+          const decodedData = JSON.parse(jsonString);
+
+          // Struktur data: { meta, client, financial, result: InsuranceSimulationResult }
+          const beResult = decodedData.result;
+
+          // Set Result State untuk Panel Kanan
+          setResult(beResult);
+
+          toast.success("Dokumen Siap", { description: "Laporan PDF dan File Backup berhasil diunduh." });
+
+        } catch (decodeErr) {
+          console.error("Gagal decode token UI:", decodeErr);
+          toast.warning("Download Parsial", { description: "PDF berhasil, namun gagal menampilkan preview grafik." });
+        }
+      } else {
+        toast.error("Warning", { description: "PDF diterima, tetapi Token Data tidak ditemukan." });
       }
 
-      setResult({
-        totalDebt: totalDebt,
-        // [FIXED LOGIC] Ambil nilai murni dari hasil kalkulasi Backend
-        incomeReplacementValue: calc.incomeReplacementValue,
-        totalFundNeeded: calc.totalNeeded,
-        shortfall: calc.coverageGap
-      });
-
     } catch (error) {
-      console.error("Gagal menghitung asuransi:", error);
-      alert("Terjadi kesalahan saat menghitung data. Silakan coba lagi.");
+      console.error("Simulasi Error:", error);
+      toast.error("Gagal Simulasi", { description: "Terjadi kesalahan sistem saat memproses data." });
     } finally {
       setIsLoading(false);
-      setIsSaving(false);
+      setShowPdfModal(false);
+    }
+  };
+
+  // --- CORE LOGIC 2: IMPORT .MGC ---
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        const tokenContent = event.target?.result as string;
+        // Panggil Service Decode
+        const response = await financialService.decodeSimulationToken(tokenContent);
+
+        // Cek Tipe Modul (Safety Check)
+        if (response.data.meta?.module && response.data.meta.module !== 'INSURANCE') {
+          toast.error("Format Salah", { description: "File ini bukan data simulasi Asuransi." });
+          return;
+        }
+
+        const { client, financial } = response.data;
+
+        // Auto-fill Form Identity
+        setClientData({
+          clientName: client.name,
+          clientDob: client.dob,
+          clientCity: client.city,
+          clientJob: client.job,
+          clientPhone: client.phone || ""
+        });
+
+        // Auto-fill Financial Data
+        // Convert number to formatted string IDR
+        const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
+
+        // Breakdown Hutang (Jika ada detail di 'financial', kita coba map)
+        // Note: DTO simpanan hanya menyimpan 'existingDebt' total.
+        // Jadi kita taruh totalnya di 'debtOther' atau 'debtProductive' sebagai fallback,
+        // atau kosongkan rincian dan isi salah satu field agar totalnya pas.
+        setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive("");
+        setDebtOther(fmt(financial.existingDebt || 0)); // Taruh total di Other agar aman
+
+        // Income & Expense
+        // 'monthlyExpense' di DTO adalah basisnya. Kita asumsikan annualIncome = monthly * 12
+        setAnnualIncome(fmt((financial.monthlyExpense || 0) * 12));
+
+        setProtectionDuration(String(financial.protectionDuration || 10));
+        setInflation(financial.inflationRate || 5);
+        setReturnRate(financial.returnRate || 6);
+
+        setFinalExpense(fmt(financial.finalExpense || 0));
+        setExistingInsurance(fmt(financial.existingCoverage || 0));
+
+        toast.success("Import Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
+
+        // Reset Result agar user klik "Hitung" lagi (re-validasi)
+        setResult(null);
+        setGeneratedFiles(null);
+
+      } catch (error) {
+        toast.error("File Corrupt", { description: "File .mgc tidak valid atau rusak." });
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  // --- HELPER: MANUAL RE-DOWNLOAD ---
+  const triggerManualDownload = (type: 'PDF' | 'MGC') => {
+    if (!generatedFiles) return;
+
+    if (type === 'PDF' && generatedFiles.pdfUrl) {
+      const link = document.createElement('a');
+      link.href = generatedFiles.pdfUrl;
+      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Simulasi';
+      link.setAttribute('download', `Simulasi_Asuransi_${cleanName}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    else if (type === 'MGC' && generatedFiles.mgcToken) {
+      const blob = new Blob([generatedFiles.mgcToken], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Backup';
+      a.download = generatedFiles.filenameMgc || `Backup_Asuransi_${cleanName}.mgc`;
+      a.click();
+      window.URL.revokeObjectURL(url);
     }
   };
 
   const handleReset = () => {
-    setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive(""); setDebtOther("");
-    setAnnualIncome(""); setProtectionDuration("10");
-    setFinalExpense(""); setExistingInsurance("");
-    setResult(null);
-    setSavedId(null);
-    setErrors({});
-  };
-
-  const handleDownloadPDF = async () => {
-    if (showPdfModal) return;
-
-    try {
-      let targetId = savedId;
-
-      if (!targetId) {
-        if (!validateInputs()) {
-          alert("Mohon lengkapi data terlebih dahulu.");
-          return;
-        }
-
-        setIsSaving(true);
-        try {
-          const pDebtKPR = parseMoney(debtKPR);
-          const pDebtKPM = parseMoney(debtKPM);
-          const pDebtProd = parseMoney(debtProductive);
-          const pDebtCons = parseMoney(debtConsumptive);
-          const pDebtOther = parseMoney(debtOther);
-
-          const totalDebt = pDebtKPR + pDebtKPM + pDebtProd + pDebtCons + pDebtOther;
-          const pIncome = parseMoney(annualIncome);
-          const pExisting = parseMoney(existingInsurance);
-          const pFinalExpense = parseMoney(finalExpense); // [NEW] Parsing biaya pemakaman
-
-          const response = await financialService.saveInsurancePlan({
-            type: "LIFE",
-            dependentCount: 2,
-            monthlyExpense: pIncome / 12,
-            existingDebt: totalDebt,
-            existingCoverage: pExisting,
-            protectionDuration: parseInt(protectionDuration) || 10,
-            finalExpense: pFinalExpense, // [ADDED] Kirim ke Backend DTO
-            inflationRate: inflation,
-            returnRate: returnRate
-          } as any);
-
-          if (response && (response as any).plan?.id) {
-            targetId = (response as any).plan.id;
-            setSavedId(targetId);
-
-            const calc = (response as any).calculation;
-
-            setResult({
-              totalDebt: totalDebt,
-              // [FIXED LOGIC] Ambil nilai murni dari hasil kalkulasi Backend
-              incomeReplacementValue: calc.incomeReplacementValue,
-              totalFundNeeded: calc.totalNeeded,
-              shortfall: calc.coverageGap
-            });
-          }
-        } catch (e) {
-          console.error("Auto-save failed", e);
-          alert("Gagal menyimpan data otomatis.");
-          return;
-        } finally {
-          setIsSaving(false);
-        }
-      }
-
-      setShowPdfModal(true);
-      if (targetId) {
-        await financialService.downloadInsurancePdf(targetId);
-      }
-      setTimeout(() => setShowPdfModal(false), 500);
-
-    } catch (error) {
-      console.error("PDF Error:", error);
-      setShowPdfModal(false);
-      alert("Gagal mengunduh PDF. Server sibuk atau timeout.");
+    if (confirm("Reset seluruh data input?")) {
+      setClientData({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
+      setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive(""); setDebtOther("");
+      setAnnualIncome(""); setProtectionDuration("10");
+      setFinalExpense(""); setExistingInsurance("");
+      setResult(null);
+      setGeneratedFiles(null);
     }
   };
 
-  // --- MODAL & CALCULATOR STATES ---
-  const [showKprModal, setShowKprModal] = useState(false);
-  const [showKpmModal, setShowKpmModal] = useState(false);
-  const [showIncomeModal, setShowIncomeModal] = useState(false);
-
-  const [tempMonthly, setTempMonthly] = useState("");
-  const [tempTenor, setTempTenor] = useState("");
-
-  // Fungsi Penerapan Kalkulasi
+  // --- MODAL CALCULATOR HELPER ---
   const applyCalculation = (type: 'KPR' | 'KPM' | 'INCOME') => {
     const monthly = parseInt(tempMonthly.replace(/\./g, "")) || 0;
-
-    // [LOGIC] Jika INCOME, otomatis dikali 12. Jika Utang, ambil dari input user.
     let tenor = 0;
+
     if (type === 'INCOME') {
       tenor = 12;
     } else {
@@ -294,51 +345,102 @@ export default function InsurancePage() {
   };
 
   return (
-    <div className="min-h-full w-full pb-24 md:pb-12">
+    <div className="min-h-full w-full pb-24 md:pb-12 bg-slate-50/50">
       <PdfLoadingModal isOpen={showPdfModal} />
 
-      {/* --- HEADER --- */}
+      {/* --- HEADER SECTION --- */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
         <div className="absolute inset-0 w-full h-full z-0">
           {backgroundImages.map((image, index) => (
-            <div
-              key={image}
-              className={cn(
-                "absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ease-in-out",
-                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-              )}
+            <div key={image}
+              className={cn("absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000", index === currentImageIndex ? 'opacity-100' : 'opacity-0')}
               style={{ backgroundImage: `url(${image})` }}
             />
           ))}
           <div className="absolute inset-0 bg-brand-500/85 mix-blend-multiply" />
           <div className="absolute inset-0 bg-linear-to-t from-brand-600 via-brand-600/40 to-transparent" />
-          <div className="absolute inset-0 bg-[url('/images/wave-pattern.svg')] opacity-[0.05] mix-blend-overlay"></div>
         </div>
-        <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
 
-        <div className="relative z-20 max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
-            <ShieldCheck className="w-4 h-4 text-cyan-300" />
-            <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Insurance Planner</span>
+        <div className="relative z-20 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
+              <ShieldCheck className="w-4 h-4 text-cyan-300" />
+              <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Agent Tools</span>
+            </div>
+            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
+              Insurance Planner
+            </h1>
+            <p className="text-brand-100 text-sm md:text-base max-w-lg leading-relaxed opacity-90 drop-shadow-md">
+              Hitung kebutuhan Uang Pertanggungan (UP) ideal klien Anda secara profesional dan akurat.
+            </p>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
-            Perencanaan Asuransi
-          </h1>
-          <p className="text-brand-100 text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-90 drop-shadow-md">
-            Hitung kebutuhan Uang Pertanggungan (UP) untuk melindungi masa depan finansial keluarga Anda bersama maxipro.
-          </p>
+
+          <Card className="bg-white/10 backdrop-blur-md border-white/20 p-4 rounded-xl flex items-center gap-4 max-w-sm w-full hover:bg-white/15 transition-colors cursor-pointer group"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              {isImporting ? <Loader2 className="w-5 h-5 text-cyan-300 animate-spin" /> : <Upload className="w-5 h-5 text-cyan-300" />}
+            </div>
+            <div className="text-left">
+              <h4 className="text-sm font-bold text-white">Import File .mgc</h4>
+              <p className="text-xs text-brand-200">Load data simulasi asuransi sebelumnya</p>
+            </div>
+            <input type="file" ref={fileInputRef} accept=".mgc" className="hidden" onChange={handleFileUpload} />
+          </Card>
         </div>
       </div>
 
-      <div className="relative z-20 max-w-6xl mx-auto px-5 -mt-20">
+      {/* --- MAIN CONTENT --- */}
+      <div className="relative z-20 max-w-6xl mx-auto px-4 md:px-6 -mt-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* LEFT COLUMN - INPUTS */}
+          {/* LEFT: INPUT FORM */}
           <div className="lg:col-span-7 space-y-6">
 
-            {/* Card 1: Kewajiban / Utang */}
-            <div className="card-clean p-6 md:p-8 bg-white/95 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/60">
+            {/* 1. DATA KLIEN */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
+              <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <User className="w-4 h-4 text-brand-600" /> Profil Klien
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs font-semibold text-slate-500">Nama Lengkap</Label>
+                  <Input name="clientName" placeholder="Contoh: Budi Santoso" value={clientData.clientName} onChange={handleClientChange} className="mt-1" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Tanggal Lahir</Label>
+                    <div className="relative mt-1">
+                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input type="date" name="clientDob" value={clientData.clientDob} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Nomor HP (Opsional)</Label>
+                    <Input name="clientPhone" placeholder="0812..." value={clientData.clientPhone} onChange={handleClientChange} className="mt-1" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Kota Domisili</Label>
+                    <div className="relative mt-1">
+                      <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input name="clientCity" placeholder="Bandung" value={clientData.clientCity} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Pekerjaan</Label>
+                    <div className="relative mt-1">
+                      <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input name="clientJob" placeholder="PNS" value={clientData.clientJob} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* 2. KEWAJIBAN / UTANG */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
                 <BadgeDollarSign className="w-5 h-5 text-brand-600" /> 1. Sisa Utang Keluarga
               </h3>
@@ -380,29 +482,21 @@ export default function InsurancePage() {
                   <InputGroup value={debtOther} onChange={e => handleMoneyInput(e.target.value, setDebtOther)} placeholder="0" />
                 </div>
               </div>
-            </div>
+            </Card>
 
-            {/* Card 2: Income Replacement */}
-            <div className="card-clean p-6 md:p-8 bg-white/95 backdrop-blur-xl">
+            {/* 3. DANA BIAYA HIDUP */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
                 <Wallet className="w-5 h-5 text-brand-600" /> 2. Dana Biaya Hidup Keluarga
               </h3>
-              <p className="text-xs text-slate-500 mb-6 -mt-2">Berapa dana yang dibutuhkan keluarga untuk bertahan hidup tanpa penghasilan utama?</p>
-
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-                  {/* --- MODIFIKASI INPUT GAJI --- */}
                   <div className="space-y-1 md:col-span-2">
                     <div className="flex justify-between items-center ml-1">
                       <label className="text-[10px] font-bold text-brand-600 uppercase">Gaji Bersih Setahun</label>
-                      {/* BUTTON BANTU HITUNG GAJI */}
                       <button
                         type="button"
-                        onClick={() => {
-                          setTempMonthly("");
-                          setShowIncomeModal(true);
-                        }}
+                        onClick={() => { setTempMonthly(""); setShowIncomeModal(true); }}
                         className="text-[9px] font-bold text-brand-600 hover:underline flex items-center gap-1"
                       >
                         <Calculator className="w-3 h-3" /> Bantu Hitung
@@ -412,15 +506,9 @@ export default function InsurancePage() {
                       value={annualIncome}
                       onChange={e => handleMoneyInput(e.target.value, setAnnualIncome)}
                     />
-                    {errors.annualIncome && (
-                      <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1">
-                        <AlertCircle className="w-3 h-3" /> {errors.annualIncome}
-                      </p>
-                    )}
                     <p className="text-[9px] text-slate-400 ml-1 mt-1">*Total gaji 12 bulan (Take Home Pay)</p>
                   </div>
 
-                  {/* [FIXED] InfoPopover Usage */}
                   <div className="space-y-1">
                     <div className="flex items-center gap-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase">Lama Ditanggung</label>
@@ -435,7 +523,12 @@ export default function InsurancePage() {
                         type="number"
                         placeholder="10"
                         value={protectionDuration}
-                        onChange={e => handleYearInput(e.target.value, setProtectionDuration)}
+                        onChange={e => {
+                          let num = e.target.value.replace(/\D/g, "");
+                          if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
+                          setProtectionDuration(num);
+                          if (result) setResult(null);
+                        }}
                         className="h-12 bg-slate-50 text-center font-bold text-slate-800 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl pr-12 pl-4"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Tahun</span>
@@ -469,15 +562,12 @@ export default function InsurancePage() {
                       className="accent-emerald-600"
                     />
                   </div>
-                  <p className="text-[10px] text-slate-400 italic leading-tight pt-2 border-t border-brand-100">
-                    *Sistem akan menghitung "Nett Rate" (Selisih Investasi - Inflasi) untuk menentukan modal yang dibutuhkan.
-                  </p>
                 </div>
               </div>
-            </div>
+            </Card>
 
-            {/* Card 3: Lainnya */}
-            <div className="card-clean p-6 md:p-8 bg-white/95 backdrop-blur-xl">
+            {/* 4. LAINNYA */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
                 <Landmark className="w-5 h-5 text-brand-600" /> 3. Biaya Duka & Asuransi Existing
               </h3>
@@ -491,123 +581,99 @@ export default function InsurancePage() {
                   <InputGroup value={existingInsurance} onChange={e => handleMoneyInput(e.target.value, setExistingInsurance)} />
                 </div>
               </div>
+            </Card>
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={handleReset} className="flex-1 h-12 rounded-xl border-slate-300">
+                <RefreshCcw className="w-4 h-4 mr-2" /> Reset
+              </Button>
+              <Button
+                onClick={handleSimulate}
+                disabled={isLoading}
+                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
+                Simulasi & Download
+              </Button>
             </div>
 
-            <Button
-              onClick={handleCalculate}
-              disabled={isLoading || isSaving}
-              className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menghitung...</>
-              ) : (
-                "Hitung Total Kebutuhan Proteksi"
-              )}
-            </Button>
           </div>
 
-          {/* RIGHT COLUMN - RESULT */}
+          {/* RIGHT: RESULT DISPLAY */}
           <div className="lg:col-span-5 space-y-6">
             {!result ? (
               <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 bg-white/50 rounded-[2rem]">
                 <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                   <HeartPulse className="w-10 h-10 text-slate-300" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-700">Menunggu Data</h3>
+                <h3 className="text-xl font-bold text-slate-700">Area Hasil Simulasi</h3>
                 <p className="text-slate-500 text-sm mt-2 max-w-xs leading-relaxed">
-                  Lengkapi data di samping untuk melihat analisa kebutuhan asuransi Anda.
+                  Isi data klien di samping, lalu klik "Simulasi & Download" untuk melihat analisa.
                 </p>
               </div>
             ) : (
               <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
-                <Card className={cn(
-                  "text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden border-0 bg-linear-to-br flex flex-col justify-center min-h-75",
-                  result.shortfall > 0 ? "from-[#083A52] to-[#0A84B8]" : "from-[#083A52] to-[#0A84B8]"
-                )}>
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
 
-                  <div className="relative z-10 text-center">
-                    <div className="inline-flex items-center gap-2 bg-black/10 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/10 mb-6">
-                      {result.shortfall > 0 ? <AlertCircle className="w-4 h-4 text-rose-200" /> : <CheckCircle2 className="w-4 h-4 text-emerald-200" />}
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">
-                        {result.shortfall > 0 ? "Kekurangan Proteksi" : "Proteksi Sudah Cukup"}
-                      </span>
-                    </div>
-
-                    <h2 className="text-2xl lg:text-3xl font-black mb-3 text-white tracking-tight drop-shadow-sm">
-                      {formatRupiah(result.shortfall)}
-                    </h2>
-                    <p className="text-xs text-white/80 opacity-90 leading-relaxed max-w-sm mx-auto mb-8 border-b border-white/20 pb-6">
-                      {result.shortfall > 0
-                        ? "Disarankan menambah Uang Pertanggungan (UP) sebesar nilai ini agar keluarga aman secara finansial."
-                        : "Selamat! Aset asuransi Anda saat ini sudah cukup menutupi estimasi kebutuhan dana darurat keluarga."
-                      }
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-left">
-                        <p className="text-white/60 text-[10px] font-bold uppercase mb-1">Total Dana Dibutuhkan</p>
-                        <p className="text-lg font-bold truncate" title={formatRupiah(result.totalFundNeeded)}>
-                          {formatRupiah(result.totalFundNeeded)}
-                        </p>
+                {/* 1. DOWNLOAD CENTER */}
+                {generatedFiles && (
+                  <Card className="bg-green-50 border-green-200 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                        <FileJson className="w-5 h-5" />
                       </div>
-                      <div className="text-right">
-                        <p className="text-white/60 text-[10px] font-bold uppercase mb-1">Asuransi Lama</p>
-                        <p className="text-lg font-bold text-white truncate" title={formatRupiah(existingInsurance ? parseInt(existingInsurance.replace(/\./g, "")) : 0)}>
-                          {formatRupiah(existingInsurance ? parseInt(existingInsurance.replace(/\./g, "")) : 0)}
-                        </p>
+                      <div>
+                        <h4 className="font-bold text-green-800 text-sm">Dokumen Terbentuk</h4>
+                        <p className="text-xs text-green-600">File PDF & Backup telah diunduh.</p>
                       </div>
                     </div>
-                  </div>
-                </Card>
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <Button size="sm" variant="outline" onClick={() => triggerManualDownload('MGC')} className="flex-1 border-green-300 text-green-700 bg-white hover:bg-green-100">
+                        <Download className="w-3 h-3 mr-2" /> .mgc
+                      </Button>
+                      <Button size="sm" onClick={() => triggerManualDownload('PDF')} className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-sm">
+                        <Download className="w-3 h-3 mr-2" /> PDF
+                      </Button>
+                    </div>
+                  </Card>
+                )}
 
-                <div className="p-6 rounded-2xl shadow-sm border border-slate-100 bg-white space-y-5">
-                  <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-brand-600" /> Rincian Penggunaan Dana
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center text-sm group">
-                      <span className="text-slate-500 group-hover:text-slate-700 transition-colors">1. Bayar Lunas Semua Utang</span>
-                      <span className="font-bold text-slate-700">{formatRupiah(result.totalDebt)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm group">
-                      <span className="text-slate-500 group-hover:text-slate-700 transition-colors">2. Modal Hidup Keluarga ({protectionDuration} Thn)</span>
-                      <span className="font-bold text-slate-700">{formatRupiah(result.incomeReplacementValue)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm group">
-                      <span className="text-slate-500 group-hover:text-slate-700 transition-colors">3. Biaya Pemakaman & RS</span>
-                      <span className="font-bold text-slate-700">{formatRupiah(finalExpense ? parseInt(finalExpense.replace(/\./g, "")) : 0)}</span>
-                    </div>
-                  </div>
-                  <div className="bg-brand-50 p-4 rounded-xl text-[10px] text-brand-700 leading-relaxed border border-brand-100">
-                    <span className="font-bold">Info:</span> Dana "Modal Hidup Keluarga" adalah uang tunai yang harus disimpan (Deposito/SBN) agar bunganya bisa menggantikan gaji bulanan selama {protectionDuration} tahun ke depan.
+                {/* 2. GAP GAUGE */}
+                <GapAnalysisGauge
+                  totalNeeded={result.totalNeeded}
+                  existingCoverage={parseMoney(existingInsurance)}
+                  coverageGap={result.coverageGap}
+                />
+
+                {/* 3. BREAKDOWN CARD (Pilar A & B) */}
+                <InsuranceResultCard
+                  incomeReplacement={result.incomeReplacementValue}
+                  annualExpense={result.annualExpense}
+                  duration={parseInt(protectionDuration)}
+                  debtClearance={result.debtClearanceValue + result.otherNeeds}
+                  existingDebt={result.debtClearanceValue}
+                  finalExpense={result.otherNeeds}
+                />
+
+                {/* 4. RECOMMENDATION */}
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start">
+                  <div className="p-1 bg-blue-100 rounded-full text-blue-600 mt-0.5"><ShieldCheck className="w-4 h-4" /></div>
+                  <div>
+                    <h4 className="text-xs font-bold text-blue-800 uppercase mb-1">Catatan Analis</h4>
+                    <p className="text-sm text-blue-700 leading-relaxed">{result.recommendation}</p>
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-2">
-                  <Button variant="outline" onClick={handleReset} disabled={showPdfModal} className="flex-1 rounded-xl h-11 border-slate-300 text-slate-600 hover:bg-slate-50">
-                    <RefreshCcw className="w-4 h-4 mr-2" /> Reset
-                  </Button>
-                  <Button
-                    className="flex-2 rounded-xl h-11 bg-slate-800 hover:bg-slate-900 shadow-xl text-white font-bold"
-                    onClick={handleDownloadPDF}
-                    disabled={isSaving || showPdfModal}
-                  >
-                    {showPdfModal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-                    {showPdfModal ? "Memproses..." : "Simpan Analisa PDF"}
-                  </Button>
-                </div>
               </div>
             )}
             <InsuranceGuide />
           </div>
+
         </div>
       </div>
 
-      {/* --- MODAL HELPER (GENERIC: KPR / KPM / INCOME) --- */}
+      {/* --- MODAL HELPER (GENERIC) --- */}
       {(showKprModal || showKpmModal || showIncomeModal) && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-5 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5 animate-in fade-in duration-200">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
             onClick={() => { setShowKprModal(false); setShowKpmModal(false); setShowIncomeModal(false); }} />
 
@@ -638,7 +704,6 @@ export default function InsurancePage() {
                 />
               </div>
 
-              {/* [FIXED] Input bulan disembunyikan jika mode INCOME */}
               {!showIncomeModal && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -677,6 +742,7 @@ export default function InsurancePage() {
   );
 }
 
+// --- SUB-COMPONENT: INPUT GROUP ---
 interface InputGroupProps extends React.InputHTMLAttributes<HTMLInputElement> {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;

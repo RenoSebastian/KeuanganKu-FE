@@ -24,7 +24,9 @@ import {
   SimulateGoalDto,
   GoalPlanData,
   CreateEducationPlanDto,
-  EducationPlanData
+  EducationPlanData,
+  // [NEW] DTO Asuransi Simulasi
+  CreateInsuranceSimulationDto
 } from "@/lib/types";
 
 export const financialService = {
@@ -295,6 +297,17 @@ export const financialService = {
   simulateAgentBudget: async (data: CreateBudgetSimulationDto): Promise<AxiosResponse<Blob>> => {
     // [CRITICAL] responseType: 'blob' wajib ada agar axios tidak parsing binary sebagai string JSON rusak
     return await api.post("/financial/simulation/budget", data, {
+      responseType: 'blob'
+    });
+  },
+
+  /**
+   * simulateAgentInsurance
+   * [NEW] Simulasi Asuransi Stateless
+   * Mengembalikan PDF Blob + Header Token .mgc
+   */
+  simulateAgentInsurance: async (data: CreateInsuranceSimulationDto): Promise<AxiosResponse<Blob>> => {
+    return await api.post("/financial/simulation/insurance", data, {
       responseType: 'blob'
     });
   },
