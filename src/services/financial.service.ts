@@ -8,7 +8,9 @@ import {
   EducationPayload,
   EducationPlanResponse,
   GoalSimulationInput,
-  GoalSimulationResult
+  GoalSimulationResult,
+  CreateBudgetSimulationDto,
+  SimulationResponse,
 } from "@/lib/types";
 
 export const financialService = {
@@ -284,4 +286,16 @@ export const financialService = {
     link.click();
     link.remove();
   },
+
+  // 1. POST Simulasi & Generate File
+  async simulateAgentBudget(data: CreateBudgetSimulationDto) {
+    const response = await api.post('/financial/simulation/budget', data);
+    return response.data; // Return { preview, download, recommendation }
+  },
+
+  // 2. POST Import File .mgc
+  async decodeSimulationToken(token: string) {
+    const response = await api.post('/financial/simulation/decode', { simulationToken: token });
+    return response.data; // Return data asli untuk autofill form
+  }
 };

@@ -1,23 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Calculator, Wallet, BadgePercent, TrendingUp,
   AlertTriangle, ShieldCheck, PiggyBank, RefreshCcw, Download,
-  CalendarDays, CalendarRange, Loader2, Save
+  CalendarDays, CalendarRange, Loader2, Save, Upload, FileJson,
+  User, MapPin, Briefcase, Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { calculateSmartBudget, formatRupiah } from "@/lib/financial-math";
-import { BudgetResult, BudgetAllocation } from "@/lib/types";
+import { formatRupiah } from "@/lib/financial-math";
+import { BudgetResult, BudgetAllocation, CreateBudgetSimulationDto } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { BudgetGuide } from "@/components/features/calculator/budget-guide";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 import { MonthlyHelperModal } from "@/components/features/finance/monthly-helper-modal";
+import { toast } from "sonner"; // [FIXED] Pakai Sonner langsung
 
-// --- 1. HELPER: MAPPING VISUAL BERDASARKAN TIPE ---
+// --- 1. HELPER: MAPPING VISUAL ---
 const getAllocationStyle = (type: BudgetAllocation["type"]) => {
   switch (type) {
     case "NEEDS": return { bg: "bg-blue-50", border: "border-blue-100", text: "text-blue-700", icon: Wallet, iconColor: "text-blue-500" };
@@ -29,260 +31,217 @@ const getAllocationStyle = (type: BudgetAllocation["type"]) => {
   }
 };
 
-export default function BudgetPage() {
-  // --- STATE INPUT (Menyimpan Nilai Tahunan) ---
+export default function AgentBudgetPage() {
+  // [FIXED] Removed 'useToast' hook call
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- STATE: CLIENT IDENTITY ---
+  const [clientData, setClientData] = useState({
+    clientName: "",
+    clientDob: "",
+    clientCity: "",
+    clientJob: "",
+    clientPhone: ""
+  });
+
+  // --- STATE: FINANCIAL (Input Tahunan) ---
   const [fixedIncome, setFixedIncome] = useState("");
   const [variableIncome, setVariableIncome] = useState("");
 
-  // --- STATE RESULT (DUAL VIEW) ---
+  // --- STATE: RESULT & OUTPUT ---
   const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
   const [result, setResult] = useState<BudgetResult | null>(null);
+  const [recommendation, setRecommendation] = useState<string>("");
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  // Data hasil generate untuk didownload user
+  const [generatedFiles, setGeneratedFiles] = useState<{
+    pdfUrl: string | null;
+    mgcToken: string | null;
+    filenameMgc: string | null;
+  } | null>(null);
 
-  // State untuk ID Budget yang tersimpan (agar bisa download PDF)
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
-  // State Modal PDF & Helper Kalkulator
-  const [showPdfModal, setShowPdfModal] = useState(false);
-
-  // State untuk menentukan input mana yang sedang dibantu hitung
+  // Helper Modal State
   const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<"fixedIncome" | "variableIncome" | null>(null);
 
-  // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
+  // --- BACKGROUND SLIDESHOW ---
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const backgroundImages = [
     '/images/budgeting/rancanganggaran1.webp',
     '/images/budgeting/rancanganggaran2.webp'
   ];
 
-  // --- EFFECT: BACKGROUND ROTATION ---
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
-      );
+      setCurrentImageIndex((prev) => (prev === backgroundImages.length - 1 ? 0 : prev + 1));
     }, 5000);
-
     return () => clearInterval(interval);
   }, [backgroundImages.length]);
 
-  // --- EFFECT: LOAD DATA AWAL ---
-  useEffect(() => {
-    const fetchBudget = async () => {
-      try {
-        const data = await financialService.getBudgets();
-        if (data && data.length > 0) {
-          const latestBudget = data[0];
-          // Load data dari DB (Bulanan) lalu kali 12 untuk ditampilkan sebagai Tahunan di input
-          const fixedAnnual = Number(latestBudget.fixedIncome) * 12;
-          const variableAnnual = Number(latestBudget.variableIncome) * 12;
-
-          setFixedIncome(new Intl.NumberFormat("id-ID").format(fixedAnnual));
-          setVariableIncome(new Intl.NumberFormat("id-ID").format(variableAnnual));
-
-          // Set ID agar bisa langsung download PDF
-          setSavedId(latestBudget.id);
-
-          // Hitung result (tetap pakai bulanan untuk logic internal)
-          const monthlyRes = calculateSmartBudget(
-            Number(latestBudget.fixedIncome),
-            Number(latestBudget.variableIncome)
-          );
-          setResult(monthlyRes);
-        }
-      } catch (error) {
-        console.error("Gagal memuat budget:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBudget();
-  }, []);
-
-  // --- HANDLERS ---
-  const handleMoneyInput = (val: string, setter: (v: string) => void) => {
-    const rawValue = val.replace(/\D/g, "");
-    if (!rawValue) {
-      setter("");
-      return;
-    }
-    const formatted = new Intl.NumberFormat("id-ID").format(parseInt(rawValue));
-    setter(formatted);
+  // --- HANDLERS: INPUT ---
+  const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setClientData({ ...clientData, [e.target.name]: e.target.value });
   };
 
-  // [FIXED] Handler untuk menerima hasil hitungan dari Modal
-  // Value `annualValue` dari modal SUDAH dikali 12, jadi jangan dikali lagi.
+  const handleMoneyInput = (val: string, setter: (v: string) => void) => {
+    const rawValue = val.replace(/\D/g, "");
+    if (!rawValue) { setter(""); return; }
+    setter(new Intl.NumberFormat("id-ID").format(parseInt(rawValue)));
+  };
+
   const handleHelperApply = (annualValue: number) => {
     const formatted = new Intl.NumberFormat("id-ID").format(annualValue);
-
-    if (monthlyHelperTarget === "fixedIncome") {
-      setFixedIncome(formatted);
-    } else if (monthlyHelperTarget === "variableIncome") {
-      setVariableIncome(formatted);
-    }
-
-    // Reset modal state
+    if (monthlyHelperTarget === "fixedIncome") setFixedIncome(formatted);
+    else if (monthlyHelperTarget === "variableIncome") setVariableIncome(formatted);
     setMonthlyHelperTarget(null);
   };
 
-  const handleCalculateAndSave = async () => {
-    // Ambil nilai raw (Tahunan) dari input
-    const fixedAnnual = parseInt(fixedIncome.replace(/\./g, "")) || 0;
-    const variableAnnual = parseInt(variableIncome.replace(/\./g, "")) || 0;
-
-    if (fixedAnnual === 0) {
-      alert("Masukkan Pemasukkan Tetap terlebih dahulu.");
+  // --- CORE LOGIC 1: SIMULATE & GENERATE ---
+  const handleSimulate = async () => {
+    // 1. Validasi Input
+    if (!clientData.clientName || !clientData.clientCity || !fixedIncome) {
+      toast.error("Data Tidak Lengkap", { description: "Mohon isi Nama, Kota, dan Gaji Tetap." });
       return;
     }
 
-    setIsSaving(true);
-
+    setIsLoading(true);
     try {
-      // Normalisasi: Bagi 12 sebelum kirim ke Backend (karena sistem budget berbasis bulanan)
-      const fixedMonthly = Math.round(fixedAnnual / 12);
-      const variableMonthly = Math.round(variableAnnual / 12);
+      // 2. Prepare Payload (Convert Tahunan -> Bulanan untuk logic BE)
+      const fixedRaw = parseInt(fixedIncome.replace(/\./g, "")) || 0;
+      const variableRaw = parseInt(variableIncome.replace(/\./g, "")) || 0;
 
-      const payload = {
+      const fixedMonthly = Math.round(fixedRaw / 12);
+      const variableMonthly = Math.round(variableRaw / 12);
+
+      const payload: CreateBudgetSimulationDto = {
+        ...clientData,
         fixedIncome: fixedMonthly,
         variableIncome: variableMonthly,
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
       };
 
-      const response = await financialService.createBudget(payload);
+      // 3. Call API
+      const response = await financialService.simulateAgentBudget(payload);
 
-      if (response && response.budget) {
-        // Simpan ID baru
-        setSavedId(response.budget.id);
+      // 4. Map Result BE -> FE Visualization
+      const beData = response.data.preview;
 
-        const mappedResult: BudgetResult = {
-          safeToSpend: Number(response.budget.livingCost),
-          totalFixedAllocated: Number(response.budget.totalExpense),
-          surplus: Number(response.budget.balance),
-          allocations: [
-            {
-              label: "Kebutuhan Hidup",
-              percentage: 45,
-              amount: Number(response.budget.livingCost),
-              type: "NEEDS",
-              description: "Belanja Keluarga, Transport, Rekreasi, Dll."
-            },
-            {
-              label: "Hutang Produktif",
-              percentage: 20,
-              amount: Number(response.budget.productiveDebt),
-              type: "DEBT_PROD",
-              description: "Cicilan KPR atau Modal Usaha."
-            },
-            {
-              label: "Hutang Konsumtif",
-              percentage: 15,
-              amount: Number(response.budget.consumptiveDebt),
-              type: "DEBT_CONS",
-              description: "Cicilan Motor, HP, atau Kartu Kredit."
-            },
-            {
-              label: "Asuransi",
-              percentage: 10,
-              amount: Number(response.budget.insurance),
-              type: "INSURANCE",
-              description: "Premi Jiwa & Kesehatan keluarga."
-            },
-            {
-              label: "Tabungan & Investasi",
-              percentage: 10,
-              amount: Number(response.budget.saving),
-              type: "SAVING",
-              description: "Dana Darurat & Investasi masa depan."
-            }
-          ]
-        };
-        setResult(mappedResult);
-      }
+      const mappedResult: BudgetResult = {
+        safeToSpend: beData.allocation.livingCost,
+        totalFixedAllocated:
+          beData.allocation.debtConsumptive +
+          beData.allocation.debtProductive +
+          beData.allocation.insurance +
+          beData.allocation.saving,
+        surplus: beData.analysis.totalRecommendedSavings - beData.allocation.saving, // Surplus logic
+        allocations: [
+          { type: "NEEDS", label: "Biaya Hidup (45%)", percentage: 45, amount: beData.allocation.livingCost, description: "Kebutuhan harian, makan, transport." },
+          { type: "DEBT_PROD", label: "Hutang Produktif (20%)", percentage: 20, amount: beData.allocation.debtProductive, description: "Cicilan KPR, Modal kerja." },
+          { type: "DEBT_CONS", label: "Hutang Konsumtif (15%)", percentage: 15, amount: beData.allocation.debtConsumptive, description: "Cicilan HP, Paylater." },
+          { type: "INSURANCE", label: "Proteksi (10%)", percentage: 10, amount: beData.allocation.insurance, description: "Premi asuransi keluarga." },
+          { type: "SAVING", label: "Tabungan (10%)", percentage: 10, amount: beData.allocation.saving, description: "Investasi rutin & Dana darurat." },
+        ]
+      };
+
+      setResult(mappedResult);
+      setRecommendation(response.data.recommendation);
+      setGeneratedFiles({
+        pdfUrl: response.data.download.pdf_url,
+        mgcToken: response.data.download.mgc_token,
+        filenameMgc: response.data.download.filename_mgc
+      });
+
+      // [FIXED] Use sonner syntax
+      toast.success("Simulasi Berhasil", { description: "Laporan siap diunduh." });
 
     } catch (error) {
-      console.error("Gagal menyimpan budget:", error);
-      alert("Gagal menyimpan data. Silakan coba lagi.");
+      console.error(error);
+      toast.error("Gagal Simulasi", { description: "Terjadi kesalahan sistem." });
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
   };
 
-  const handleReset = () => {
-    if (confirm("Reset formulir anggaran?")) {
+  // --- CORE LOGIC 2: IMPORT .MGC ---
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        const tokenContent = event.target?.result as string;
+        // Panggil Service Decode
+        const response = await financialService.decodeSimulationToken(tokenContent);
+
+        const { client, financial } = response.data;
+
+        // Auto-fill Form
+        setClientData({
+          clientName: client.name,
+          clientDob: client.dob,
+          clientCity: client.city,
+          clientJob: client.job,
+          clientPhone: client.phone || ""
+        });
+
+        // Restore Angka (Financial Data dari MGC biasanya sudah raw number)
+        // Kita kali 12 lagi untuk display Tahunan di Input
+        const fixedAnnual = (financial.fixedIncome || 0) * 12;
+        const variableAnnual = (financial.variableIncome || 0) * 12;
+
+        setFixedIncome(new Intl.NumberFormat("id-ID").format(fixedAnnual));
+        setVariableIncome(new Intl.NumberFormat("id-ID").format(variableAnnual));
+
+        toast.success("Import Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
+
+        // Reset Result agar user klik "Hitung" lagi untuk re-validasi
+        setResult(null);
+        setGeneratedFiles(null);
+
+      } catch (error) {
+        toast.error("File Corrupt", { description: "File .mgc tidak valid atau telah dimodifikasi." });
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  // --- HELPER: DOWNLOAD ---
+  const triggerDownload = (type: 'PDF' | 'MGC') => {
+    if (!generatedFiles) return;
+
+    if (type === 'PDF' && generatedFiles.pdfUrl) {
+      window.open(`${process.env.NEXT_PUBLIC_API_URL}${generatedFiles.pdfUrl}`, '_blank');
+    }
+    else if (type === 'MGC' && generatedFiles.mgcToken) {
+      const blob = new Blob([generatedFiles.mgcToken], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = generatedFiles.filenameMgc || "data_simulasi.mgc";
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+  };
+
+  const resetForm = () => {
+    if (confirm("Reset seluruh data input?")) {
+      setClientData({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
       setFixedIncome("");
       setVariableIncome("");
       setResult(null);
-      setSavedId(null);
+      setGeneratedFiles(null);
     }
   };
 
-  // Handle Download PDF
-  const handleDownloadPDF = async () => {
-    if (showPdfModal) return; // Prevent double click
-
-    try {
-      let targetId = savedId;
-
-      // 1. AUTO-SAVE: Jika belum ada ID (belum disimpan), simpan dulu
-      if (!targetId) {
-        // Cek validitas input
-        const fixedAnnual = parseInt(fixedIncome.replace(/\./g, "")) || 0;
-        if (fixedAnnual === 0) {
-          alert("Lakukan kalkulasi anggaran terlebih dahulu.");
-          return;
-        }
-
-        setIsSaving(true);
-        try {
-          // Normalisasi ke bulanan
-          const fixedMonthly = Math.round(fixedAnnual / 12);
-          const variableAnnual = parseInt(variableIncome.replace(/\./g, "")) || 0;
-          const variableMonthly = Math.round(variableAnnual / 12);
-
-          const payload = {
-            fixedIncome: fixedMonthly,
-            variableIncome: variableMonthly,
-            month: new Date().getMonth() + 1,
-            year: new Date().getFullYear(),
-          };
-
-          // Panggil API createBudget
-          const response = await financialService.createBudget(payload);
-          if (response && response.budget) {
-            targetId = response.budget.id; // Tangkap ID baru
-            setSavedId(targetId);        // Update state
-          }
-        } catch (e) {
-          console.error("Auto-save failed", e);
-          alert("Gagal menyimpan data otomatis.");
-          return;
-        } finally {
-          setIsSaving(false);
-        }
-      }
-
-      // 2. Buka Modal Loading (UX)
-      setShowPdfModal(true);
-
-      // 3. Request PDF ke Backend (Long Process)
-      if (targetId) {
-        await financialService.downloadBudgetPdf(targetId);
-      }
-
-      // 4. Tutup Modal dengan delay sedikit (Smooth transition)
-      setTimeout(() => setShowPdfModal(false), 500);
-
-    } catch (error) {
-      console.error("PDF Error:", error);
-      setShowPdfModal(false);
-      alert("Gagal mengunduh PDF. Server sibuk atau timeout.");
-    }
-  };
-
+  // --- PREPARE DATA FOR DISPLAY (SWITCHABLE VIEW) ---
   const displayedResult = viewMode === "MONTHLY" ? result : (result ? {
     ...result,
     safeToSpend: result.safeToSpend * 12,
@@ -291,22 +250,10 @@ export default function BudgetPage() {
     allocations: result.allocations.map(a => ({ ...a, amount: a.amount * 12 }))
   } : null);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-125">
-        <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium">Memuat data anggaran...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-full w-full pb-24 md:pb-12">
+    <div className="min-h-full w-full pb-24 md:pb-12 bg-slate-50/50">
 
-      {/* 1. MOUNT MODAL PDF & HELPER */}
-      <PdfLoadingModal isOpen={showPdfModal} />
-
-      {/* [FIXED] Modal Bantu Hitung - Ganti onSave jadi onApply */}
+      {/* Helper Modal */}
       <MonthlyHelperModal
         isOpen={monthlyHelperTarget !== null}
         onClose={() => setMonthlyHelperTarget(null)}
@@ -314,271 +261,252 @@ export default function BudgetPage() {
         title={monthlyHelperTarget === "fixedIncome" ? "Hitung Gaji Tahunan" : "Hitung Bonus Tahunan"}
       />
 
-      {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
+      {/* HEADER SECTION */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
-
-        {/* 1. LAYER GAMBAR (ABSOLUTE) */}
+        {/* Background Layers */}
         <div className="absolute inset-0 w-full h-full z-0">
           {backgroundImages.map((image, index) => (
-            <div
-              key={image}
-              className={cn(
-                "absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ease-in-out",
-                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-              )}
+            <div key={image}
+              className={cn("absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000", index === currentImageIndex ? 'opacity-100' : 'opacity-0')}
               style={{ backgroundImage: `url(${image})` }}
             />
           ))}
-
-          {/* Overlay Gradient agar Text terbaca jelas */}
-          <div className="absolute inset-0 bg-brand-600/80 mix-blend-multiply" />
-          <div className="absolute inset-0 bg-linear-to-t from-brand-700 via-brand-700/50 to-transparent" />
+          <div className="absolute inset-0 bg-brand-900/90 mix-blend-multiply" />
         </div>
 
-        {/* 2. LAYER DEKORASI (Z-10) */}
-        <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
-
-        {/* 3. LAYER KONTEN (Z-20) */}
-        <div className="relative z-20 max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
-            <Calculator className="w-4 h-4 text-cyan-300" />
-            <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Smart Budgeting</span>
+        {/* Header Content */}
+        <div className="relative z-20 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4">
+              <Calculator className="w-4 h-4 text-cyan-300" />
+              <span className="text-[10px] font-bold text-cyan-100 uppercase">Agent Tools</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black text-white mb-2">Budget Simulator</h1>
+            <p className="text-brand-100 text-sm max-w-lg">Alat bantu agen untuk merancang anggaran ideal bagi klien.</p>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
-            Rancang Anggaran
-          </h1>
-          <p className="text-brand-100 text-sm md:text-base max-w-lg mx-auto leading-relaxed drop-shadow-md">
-            Metode cerdas membagi penghasilan untuk kebutuhan, keinginan, dan tabungan masa depan.
-          </p>
+
+          {/* IMPORT ZONE */}
+          <Card className="bg-white/10 backdrop-blur-md border-white/20 p-4 rounded-xl flex items-center gap-4 max-w-sm w-full hover:bg-white/15 transition-colors cursor-pointer group"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              {isImporting ? <Loader2 className="w-5 h-5 text-cyan-300 animate-spin" /> : <Upload className="w-5 h-5 text-cyan-300" />}
+            </div>
+            <div className="text-left">
+              <h4 className="text-sm font-bold text-white">Import File .mgc</h4>
+              <p className="text-xs text-brand-200">Load data simulasi klien sebelumnya</p>
+            </div>
+            <input type="file" ref={fileInputRef} accept=".mgc" className="hidden" onChange={handleFileUpload} />
+          </Card>
         </div>
       </div>
 
-      <div className="relative z-20 max-w-5xl mx-auto px-5 -mt-20">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      {/* MAIN CONTENT */}
+      <div className="relative z-20 max-w-6xl mx-auto px-4 md:px-6 -mt-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* --- LEFT: INPUT FORM (Clean UI) --- */}
-          <Card className="md:col-span-5 p-6 md:p-8 rounded-[2rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl card-clean">
-            <BudgetGuide />
-            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-brand-600" /> Input Pemasukan
-            </h3>
+          {/* LEFT: INPUT FORM */}
+          <div className="lg:col-span-5 space-y-6">
 
-            <div className="space-y-5">
-              {/* INPUT 1: FIXED INCOME */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-brand-600 uppercase tracking-wide">Pemasukkan Tetap (Per Tahun)</label>
-                  {/* Button Bantu Hitung */}
-                  <button
-                    type="button"
-                    onClick={() => setMonthlyHelperTarget("fixedIncome")}
-                    className="text-[9px] font-bold text-brand-600 hover:text-brand-700 hover:underline flex items-center gap-1"
-                  >
-                    <Calculator className="w-3 h-3" /> Bantu Hitung
-                  </button>
+            {/* 1. DATA KLIEN */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
+              <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <User className="w-4 h-4 text-brand-600" /> Profil Klien
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs font-semibold text-slate-500">Nama Lengkap</Label>
+                  <Input name="clientName" placeholder="Contoh: Budi Santoso" value={clientData.clientName} onChange={handleClientChange} className="mt-1" />
                 </div>
-                <div className="relative group">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center text-brand-600 font-bold text-xs transition-colors group-focus-within:bg-brand-600 group-focus-within:text-white">Rp</div>
-                  <Input
-                    className="pl-14 h-14 text-lg font-bold bg-slate-50 border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl transition-all"
-                    placeholder="0"
-                    value={fixedIncome}
-                    onChange={e => handleMoneyInput(e.target.value, setFixedIncome)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Tanggal Lahir</Label>
+                    <div className="relative mt-1">
+                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input type="date" name="clientDob" value={clientData.clientDob} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Nomor HP (Opsional)</Label>
+                    <Input name="clientPhone" placeholder="0812..." value={clientData.clientPhone} onChange={handleClientChange} className="mt-1" />
+                  </div>
                 </div>
-              </div>
-
-              {/* INPUT 2: VARIABLE INCOME */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Pemasukkan Tidak Tetap (Per Tahun)</label>
-                  {/* Button Bantu Hitung */}
-                  <button
-                    type="button"
-                    onClick={() => setMonthlyHelperTarget("variableIncome")}
-                    className="text-[9px] font-bold text-slate-500 hover:text-brand-600 hover:underline flex items-center gap-1"
-                  >
-                    <Calculator className="w-3 h-3" /> Bantu Hitung
-                  </button>
-                </div>
-                <div className="relative group">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 font-bold text-xs transition-colors group-focus-within:bg-slate-600 group-focus-within:text-white">Rp</div>
-                  <Input
-                    className="pl-14 h-12 font-bold bg-slate-50 border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl"
-                    placeholder="0"
-                    value={variableIncome}
-                    onChange={e => handleMoneyInput(e.target.value, setVariableIncome)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Kota Domisili</Label>
+                    <div className="relative mt-1">
+                      <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input name="clientCity" placeholder="Bandung" value={clientData.clientCity} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-500">Pekerjaan</Label>
+                    <div className="relative mt-1">
+                      <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input name="clientJob" placeholder="PNS" value={clientData.clientJob} onChange={handleClientChange} className="pl-9" />
+                    </div>
+                  </div>
                 </div>
               </div>
+            </Card>
 
-              <Button
-                onClick={handleCalculateAndSave}
-                disabled={isSaving || showPdfModal}
-                className="w-full h-12 bg-brand-600 hover:bg-brand-700 font-bold text-base shadow-lg shadow-brand-500/20 mt-2 rounded-xl transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menyimpan...</>
-                ) : (
-                  <><Save className="w-4 h-4 mr-2" /> Hitung & Simpan</>
-                )}
-              </Button>
-            </div>
-          </Card>
+            {/* 2. DATA KEUANGAN */}
+            <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-brand-600" /> Data Keuangan
+                </h3>
+              </div>
 
-          {/* --- RIGHT: RESULT DISPLAY --- */}
-          <div className="md:col-span-7 space-y-6">
+              <div className="space-y-5">
+                {/* FIXED INCOME */}
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <Label className="text-xs text-slate-500 font-semibold">Pemasukan Tetap (Setahun)</Label>
+                    <button onClick={() => setMonthlyHelperTarget("fixedIncome")} className="text-[10px] text-brand-600 font-bold hover:underline flex gap-1 items-center">
+                      <Calculator className="w-3 h-3" /> Bantu Hitung
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded">Rp</div>
+                    <Input className="pl-12 font-bold text-lg h-12" placeholder="0" value={fixedIncome} onChange={(e) => handleMoneyInput(e.target.value, setFixedIncome)} />
+                  </div>
+                </div>
+
+                {/* VARIABLE INCOME */}
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <Label className="text-xs text-slate-500 font-semibold">Pemasukan Tidak Tetap (Setahun)</Label>
+                    <button onClick={() => setMonthlyHelperTarget("variableIncome")} className="text-[10px] text-brand-600 font-bold hover:underline flex gap-1 items-center">
+                      <Calculator className="w-3 h-3" /> Bantu Hitung
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">Rp</div>
+                    <Input className="pl-12 font-bold h-11" placeholder="0" value={variableIncome} onChange={(e) => handleMoneyInput(e.target.value, setVariableIncome)} />
+                  </div>
+                </div>
+
+                {/* ACTIONS */}
+                <div className="grid grid-cols-4 gap-2 pt-2">
+                  <Button variant="outline" onClick={resetForm} className="col-span-1 rounded-xl h-12 border-slate-300">
+                    <RefreshCcw className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    onClick={handleSimulate}
+                    disabled={isLoading}
+                    className="col-span-3 rounded-xl h-12 bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 font-bold"
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    Simulasi & Generate
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* RIGHT: RESULT DISPLAY */}
+          <div className="lg:col-span-7 space-y-6">
             {!displayedResult ? (
-              <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-[2rem] bg-white/50">
+              <div className="h-full min-h-100 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-300 rounded-[2rem] bg-white/50">
                 <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                   <BadgePercent className="w-8 h-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-700">Belum Ada Data</h3>
-                <p className="text-slate-500 text-sm mt-1 max-w-xs">Masukkan nominal gaji di panel kiri untuk melihat rekomendasi alokasi.</p>
+                <h3 className="text-lg font-bold text-slate-700">Area Hasil Simulasi</h3>
+                <p className="text-slate-500 text-sm mt-1 max-w-xs">Isi data klien dan keuangan di sebelah kiri, lalu klik "Simulasi" untuk melihat rekomendasi.</p>
               </div>
             ) : (
               <div className="animate-in slide-in-from-bottom-8 duration-700 space-y-6">
 
-                {/* TAB SWITCHER */}
-                <div className="bg-white p-1.5 rounded-xl flex gap-1 shadow-sm border border-slate-200 w-fit">
-                  <button
-                    onClick={() => setViewMode("MONTHLY")}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
-                      viewMode === "MONTHLY" ? "bg-brand-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
-                    )}
-                  >
-                    <CalendarDays className="w-3.5 h-3.5" /> Bulanan
-                  </button>
-                  <button
-                    onClick={() => setViewMode("ANNUAL")}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
-                      viewMode === "ANNUAL" ? "bg-cyan-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
-                    )}
-                  >
-                    <CalendarRange className="w-3.5 h-3.5" /> Tahunan
-                  </button>
-                </div>
-
-                {/* SAFE TO SPEND CARD */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className={cn(
-                    "text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden border-0 flex flex-col justify-center",
-                    viewMode === "MONTHLY" ? "bg-pam-gradient" : "bg-linear-to-br from-cyan-600 to-blue-700"
-                  )}>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    <p className="text-brand-100 font-bold uppercase tracking-widest text-[10px] mb-1">
-                      Safe to Spend ({viewMode === "MONTHLY" ? "Bulan Ini" : "Setahun"})
-                    </p>
-                    <h2 className="text-3xl font-black tracking-tight mb-2 wrap-break-word"> {/* [FIXED] Layout */}
-                      {formatRupiah(displayedResult.safeToSpend)}
-                    </h2>
-                    <div className="h-1 w-12 bg-white/30 rounded-full mb-2" />
-                    <p className="text-[10px] text-brand-50 opacity-90 leading-relaxed">
-                      Batas aman untuk Makan, Transport, & Gaya Hidup. Pastikan tidak melebihi angka ini.
-                    </p>
-                  </Card>
-
-                  {/* DONUT CHART VISUALIZATION */}
-                  <Card className="p-4 rounded-[2rem] bg-white border border-slate-100 flex items-center gap-6 shadow-sm">
-                    <div className="relative w-24 h-24 rounded-full shrink-0"
-                      style={{
-                        background: "conic-gradient(#3b82f6 0% 45%, #f59e0b 45% 65%, #f43f5e 65% 80%, #6366f1 80% 90%, #10b981 90% 100%)"
-                      }}>
-                      <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center flex-col shadow-inner">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase">Total</span>
-                        <span className="text-xs font-black text-slate-800">100%</span>
+                {/* 1. DOWNLOAD CENTER (Muncul setelah sukses) */}
+                {generatedFiles && (
+                  <Card className="bg-green-50 border-green-200 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                        <FileJson className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-green-800 text-sm">Dokumen Terbentuk!</h4>
+                        <p className="text-xs text-green-600">Silahkan unduh laporan PDF dan file backup (.mgc).</p>
                       </div>
                     </div>
-                    <div className="space-y-1.5 text-[10px] font-bold text-slate-600">
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" /> Hidup (45%)</div>
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" /> Hutang P (20%)</div>
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500" /> Hutang K (15%)</div>
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500" /> Asuransi (10%)</div>
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Investasi (10%)</div>
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <Button size="sm" variant="outline" onClick={() => triggerDownload('MGC')} className="flex-1 border-green-300 text-green-700 bg-white hover:bg-green-100">
+                        <Download className="w-3 h-3 mr-2" /> Backup .mgc
+                      </Button>
+                      <Button size="sm" onClick={() => triggerDownload('PDF')} className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-sm">
+                        <Download className="w-3 h-3 mr-2" /> Laporan PDF
+                      </Button>
+                    </div>
+                  </Card>
+                )}
+
+                {/* 2. VIEW TOGGLE & HEADER */}
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-black text-slate-800">Hasil Analisa</h2>
+                  <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
+                    <button onClick={() => setViewMode("MONTHLY")} className={cn("px-3 py-1.5 rounded-md text-xs font-bold transition-all", viewMode === "MONTHLY" ? "bg-brand-600 text-white shadow" : "text-slate-500 hover:bg-slate-50")}>Bulanan</button>
+                    <button onClick={() => setViewMode("ANNUAL")} className={cn("px-3 py-1.5 rounded-md text-xs font-bold transition-all", viewMode === "ANNUAL" ? "bg-cyan-600 text-white shadow" : "text-slate-500 hover:bg-slate-50")}>Tahunan</button>
+                  </div>
+                </div>
+
+                {/* 3. SAFE TO SPEND CARD */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className={cn("text-white p-6 rounded-[2rem] shadow-lg relative overflow-hidden border-0 flex flex-col justify-center", viewMode === "MONTHLY" ? "bg-brand-600" : "bg-cyan-600")}>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                    <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mb-1">Safe to Spend ({viewMode === "MONTHLY" ? "Bulan Ini" : "Setahun"})</p>
+                    <h2 className="text-3xl font-black tracking-tight mb-2 truncate">{formatRupiah(displayedResult.safeToSpend)}</h2>
+                    <p className="text-[10px] text-white/90">Batas aman untuk gaya hidup agar tidak boncos.</p>
+                  </Card>
+
+                  {/* SURPLUS INFO */}
+                  <Card className="bg-white p-5 rounded-[2rem] border border-slate-200 flex items-center justify-between shadow-sm">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Potensi Tabungan (Surplus)</p>
+                      <h3 className="text-xl font-black text-emerald-600 truncate">{formatRupiah(displayedResult.surplus)}</h3>
+                      <p className="text-[10px] text-slate-400 mt-1">Termasuk alokasi gaji tidak tetap</p>
+                    </div>
+                    <div className="h-12 w-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+                      <PiggyBank className="w-6 h-6" />
                     </div>
                   </Card>
                 </div>
 
-                {/* ALLOCATION GRID */}
+                {/* 4. ALLOCATION GRID */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {displayedResult.allocations.map((item, idx) => {
                     const style = getAllocationStyle(item.type);
                     const Icon = style.icon;
                     return (
-                      <div key={idx} className={cn(
-                        "p-5 rounded-2xl border flex flex-col justify-between h-full transition-all hover:scale-[1.02] hover:shadow-md",
-                        style.bg, style.border
-                      )}>
+                      <div key={idx} className={cn("p-5 rounded-2xl border flex flex-col justify-between h-full transition-all hover:scale-[1.02]", style.bg, style.border)}>
                         <div className="flex justify-between items-start mb-3">
-                          <div className={cn("p-2 rounded-xl bg-white shadow-sm", style.iconColor)}>
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <span className={cn("text-xs font-black px-2 py-1 rounded-lg bg-white/50 border border-black/5", style.text)}>
-                            {item.percentage}%
-                          </span>
+                          <div className={cn("p-2 rounded-xl bg-white shadow-sm", style.iconColor)}><Icon className="w-5 h-5" /></div>
+                          <span className={cn("text-xs font-black px-2 py-1 rounded-lg bg-white/50 border border-black/5", style.text)}>{item.percentage}%</span>
                         </div>
-
                         <div>
                           <h4 className={cn("font-bold text-sm mb-1", style.text)}>{item.label}</h4>
-                          {/* [FIXED] Layout agar angka tidak bleber */}
-                          <p className="text-xl md:text-2xl font-black text-slate-800 tracking-tight wrap-break-word">
-                            {formatRupiah(item.amount)}
-                          </p>
-                          <p className="text-[10px] text-slate-500 mt-2 leading-relaxed min-h-[2.5em]">
-                            {item.description}
-                          </p>
+                          <p className="text-xl font-black text-slate-800 tracking-tight truncate">{formatRupiah(item.amount)}</p>
+                          <p className="text-[10px] text-slate-500 mt-2">{item.description}</p>
                         </div>
                       </div>
                     )
                   })}
                 </div>
 
-                {/* SURPLUS & ACTIONS */}
-                <div className="flex flex-col md:flex-row gap-4">
-                  {displayedResult.surplus > 0 && (
-                    <Card className="flex-1 bg-cyan-50 border-cyan-100 p-5 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-bold text-cyan-600 uppercase mb-1">
-                          Surplus (Wajib Ditabung)
-                        </p>
-                        {/* [FIXED] Layout surplus */}
-                        <h3 className="text-lg md:text-xl font-black text-cyan-900 wrap-break-word">{formatRupiah(displayedResult.surplus)}</h3>
-                      </div>
-                      <div className="h-10 w-10 bg-cyan-100 rounded-full flex items-center justify-center text-cyan-600">
-                        <PiggyBank className="w-5 h-5" />
-                      </div>
-                    </Card>
-                  )}
-
-                  <div className="flex gap-2 flex-1">
-                    <Button
-                      variant="outline"
-                      onClick={handleReset}
-                      disabled={showPdfModal}
-                      className="flex-1 h-auto rounded-xl border-slate-300 text-slate-600 hover:bg-slate-50"
-                    >
-                      <RefreshCcw className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      className="flex-3 h-auto rounded-xl bg-slate-800 hover:bg-slate-900 shadow-xl"
-                      onClick={handleDownloadPDF}
-                      disabled={showPdfModal || isSaving}
-                    >
-                      {showPdfModal ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4 mr-2" />
-                      )}
-                      {showPdfModal ? "Memproses..." : "Download PDF"}
-                    </Button>
+                {/* 5. RECOMMENDATION BOX */}
+                {recommendation && (
+                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start">
+                    <div className="p-1 bg-blue-100 rounded-full text-blue-600 mt-0.5"><ShieldCheck className="w-4 h-4" /></div>
+                    <div>
+                      <h4 className="text-xs font-bold text-blue-800 uppercase mb-1">Catatan Analis</h4>
+                      <p className="text-sm text-blue-700 leading-relaxed">{recommendation}</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
               </div>
             )}
+            <BudgetGuide />
           </div>
 
         </div>

@@ -615,3 +615,32 @@ export interface HelpContent {
 // // [NEW] Education Module Types
 // export * from './types/education';
 // export * from './types/retention'; // Jika belum ada
+
+// [NEW] Agent Simulation Types
+export interface CreateBudgetSimulationDto {
+  // Client Identity
+  clientName: string;
+  clientDob: string; // Format ISO 'YYYY-MM-DD'
+  clientPhone?: string;
+
+  // Demographics
+  clientCity: string;
+  clientJob: string;
+
+  // Financial Data
+  fixedIncome: number;
+  variableIncome?: number;
+}
+
+export interface SimulationResponse {
+  message: string;
+  data: {
+    preview: any; // Bisa didetailkan lagi sesuai return BE
+    download: {
+      pdf_url: string;
+      mgc_token: string;
+      filename_mgc: string;
+    };
+    recommendation: string;
+  };
+}
