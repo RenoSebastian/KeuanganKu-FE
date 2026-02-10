@@ -46,11 +46,14 @@ export interface EducationStagePayload {
 export interface EducationPayload {
   childName: string;
   childDob: string; // YYYY-MM-DD
-  method?: "ARITHMETIC" | "GEOMETRIC";
+  method?: "STATIC" | "GEOMETRIC"; // Updated to match BE enum
   inflationRate?: number;
   returnRate?: number;
-  stages: EducationStagePayload[];
+  stages?: EducationStagePayload[]; // Optional if logic handled in BE
 }
+
+// [FIX] Alias DTO untuk Service
+export interface CreateEducationPlanDto extends EducationPayload { }
 
 export interface StageBreakdownItem {
   requiredSaving: number;
@@ -59,7 +62,7 @@ export interface StageBreakdownItem {
   stage: string;
   stageId: string;
   level: EducationLevel;
-  costType: "ENTRY" | "ANNUAL";
+  costType: "ENTRY" | "ANNUAL"; // Changed from ENTRY | MONTHLY to match BE
   currentCost: number;
   yearsToStart: number;
 
@@ -87,6 +90,9 @@ export interface EducationPlanResponse {
   };
   calculation: EducationCalculationResult;
 }
+
+// [FIX] Alias Data Response untuk Service
+export interface EducationPlanData extends EducationPlanResponse { }
 
 export interface StageDetailItem {
   item: string;
@@ -142,15 +148,39 @@ export interface BudgetAllocation {
 
 export interface BudgetResult {
   safeToSpend: number;
-  allocations: BudgetAllocation[];
   totalFixedAllocated: number;
   surplus: number;
+  allocations: BudgetAllocation[];
 }
 
 export interface BudgetPayload {
   monthlyIncome: number;
   variableIncome: number;
-  // Backend akan menghitung alokasi (50/30/20) secara otomatis
+}
+
+// [FIX] DTO untuk Create Budget ke Backend
+export interface CreateBudgetDto {
+  month: number;
+  year: number;
+  fixedIncome: number;
+  variableIncome: number;
+  livingCost?: number;
+  productiveDebt?: number;
+  consumptiveDebt?: number;
+  insurance?: number;
+  saving?: number;
+}
+
+// [FIX] History Data untuk List
+export interface BudgetPlanHistory {
+  id: string;
+  month: number;
+  year: number;
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+  status: string;
+  createdAt: string;
 }
 
 
@@ -166,6 +196,18 @@ export interface PensionPayload {
   currentSaving?: number;
   inflationRate?: number;
   returnRate?: number;
+}
+
+// [FIX] Alias DTO & Response Data
+export interface CreatePensionDto extends PensionPayload { }
+
+export interface PensionPlanData {
+  id: string;
+  currentAge: number;
+  retirementAge: number;
+  totalFundNeeded: number;
+  monthlySaving: number;
+  createdAt: string;
 }
 
 export interface PensionInput {
@@ -201,6 +243,22 @@ export interface InsurancePayload {
   investmentReturnRate?: number; // Keep for legacy if needed
 }
 
+// [FIX] Alias DTO & Response Data
+export interface CreateInsuranceDto extends InsurancePayload {
+  // Field wajib di Backend, optional di UI Payload interface sebelumnya
+  existingDebt: number;
+  existingCoverage: number;
+  protectionDuration: number;
+}
+
+export interface InsurancePlanData {
+  id: string;
+  type: string;
+  coverageNeeded: number;
+  recommendation: string;
+  createdAt: string;
+}
+
 export interface InsuranceInput {
   investmentRate: number;
   debtKPR: number;
@@ -234,25 +292,43 @@ export interface GoalPayload {
   goalName: string;
   targetAmount: number; // Nilai Future Value yang sudah dihitung
   targetDate: string;   // Tanggal tercapai (Date.now() + years)
-  inflationRate?: number;
-  returnRate?: number;
+  inflationRate: number;
+  returnRate: number;
+  monthlySaving?: number; // Optional for simulation
+}
+
+// [FIX] Alias DTO & Response Data
+export interface CreateGoalDto extends GoalPayload { }
+
+export interface GoalPlanData {
+  id: string;
+  goalName: string;
+  targetAmount: number;
+  futureValue: number;
+  monthlySaving: number;
+  createdAt: string;
 }
 
 // Interface untuk SIMULATE (SimulateGoalDto)
-export interface GoalSimulationInput {
-  currentCost: number;    // PV (Nilai Sekarang)
-  years: number;          // n (Durasi Tahun)
-  inflationRate: number;  // i
-  returnRate: number;     // r
+export interface SimulateGoalDto {
+  targetAmount: number;
+  years: number;
+  inflationRate: number;
+  returnRate: number;
+}
+
+export interface GoalSimulationInput extends SimulateGoalDto {
+  currentCost?: number; // Legacy support
 }
 
 // Interface Output Simulasi (Backend Response)
 export interface GoalSimulationResult {
-  futureValue: number;    // FV (Nilai Masa Depan)
-  monthlySaving: number;  // PMT (Tabungan Bulanan)
+  futureTargetAmount: number; // Matches BE response property
+  monthlySaving: number;      // PMT (Tabungan Bulanan)
+  years: number;
 }
 
-// Legacy Support (Jika masih ada komponen lama yg pakai ini, bisa dihapus bertahap)
+// Legacy Support
 export type GoalType = "IBADAH" | "LIBURAN" | "PERNIKAHAN" | "LAINNYA";
 export interface SpecialGoalInput {
   goalType: GoalType;
@@ -282,11 +358,13 @@ export interface PersonalInfo {
   dependentParents: number;
   occupation: string;
   city: string;
+  phone?: string; // Added phone
 }
 
 // [VERIFIED] Struktur ini sinkron 100% dengan field di Backend Prisma Schema
-// Digunakan untuk Payload Form (Create) dan Hydration (Edit Last Data)
 export interface FinancialRecord {
+  id?: string;
+  checkDate?: string;
   userProfile: PersonalInfo;
   spouseProfile?: PersonalInfo;
 
@@ -359,17 +437,22 @@ export interface FinancialRecord {
   expenseLifestyle: number;
 }
 
+// [FIX] Alias DTO
+export interface CreateFinancialRecordDto extends FinancialRecord { }
+
 export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL" | "SANGAT SEHAT";
 
-// [VERIFIED] Ratio Detail Interface - Sesuai dengan Output Backend JSON
+// [VERIFIED] Ratio Detail Interface
 export interface RatioDetail {
   id: string;
   label: string;
   value: number;
-  benchmark: string;
-  statusColor: string; // 'GREEN_DARK' | 'GREEN_LIGHT' | 'YELLOW' | 'RED'
+  benchmark: string; // or threshold
+  statusColor: string;
   recommendation: string;
   status?: string;
+  threshold?: string; // Add threshold for compatibility
+  description?: string;
 }
 
 export interface HealthAnalysisResult {
@@ -378,10 +461,19 @@ export interface HealthAnalysisResult {
   ratios: RatioDetail[];
   netWorth: number;
   surplusDeficit: number;
-  generatedAt: string;
-  // Fallback props untuk data dari DB raw
-  incomeFixed?: number;
-  incomeVariable?: number;
+  generatedAt?: string;
+}
+
+// [FIX] Intersection Type for Full Data
+export interface FinancialCheckupData extends FinancialRecord, HealthAnalysisResult { }
+
+// [FIX] History List Item
+export interface FinancialRecordHistory {
+  id: string;
+  checkDate: string;
+  healthScore: number;
+  status: string;
+  totalNetWorth: number;
 }
 
 // [NEW] Interface Khusus untuk Response "Lihat Detail" (Modal Pop-up)
@@ -584,11 +676,11 @@ export interface SearchResultMetadata {
 }
 
 export interface SearchResult {
-  id: string;          // ID unik untuk list key (misal: "db_PERSON_123")
-  redirectId: string;  // ID asli untuk navigasi (UUID User / Unit)
+  id: string;           // ID unik untuk list key (misal: "db_PERSON_123")
+  redirectId: string;   // ID asli untuk navigasi (UUID User / Unit)
   type: "PERSON" | "UNIT";
-  title: string;       // Nama User / Nama Unit
-  subtitle: string;    // Email / Kode Unit
+  title: string;        // Nama User / Nama Unit
+  subtitle: string;     // Email / Kode Unit
   metadata: SearchResultMetadata;
 }
 
@@ -612,11 +704,10 @@ export interface HelpContent {
   example?: string;    // Contoh konkret angka/kasus
 }
 
-// // [NEW] Education Module Types
-// export * from './types/education';
-// export * from './types/retention'; // Jika belum ada
+// ============================================================================
+// 10. AGENT SIMULATION TYPES
+// ============================================================================
 
-// [NEW] Agent Simulation Types
 export interface CreateBudgetSimulationDto {
   // Client Identity
   clientName: string;

@@ -402,7 +402,6 @@ export default function AgentBudgetPage() {
                 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
                   <Wallet className="w-4 h-4 text-brand-600" /> Data Keuangan
                 </h3>
-                <BudgetGuide />
               </div>
 
               <div className="space-y-5">
@@ -551,6 +550,7 @@ export default function AgentBudgetPage() {
 
               </div>
             )}
+            <BudgetGuide />
           </div>
 
         </div>
