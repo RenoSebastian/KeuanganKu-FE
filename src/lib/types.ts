@@ -797,3 +797,42 @@ export interface SimulationResponse {
     recommendation: string;
   };
 }
+
+// ============================================================================
+// 11. GOAL SIMULATION TYPES (STATELESS)
+// ============================================================================
+
+// [NEW] GOAL SIMULATION INPUT (STATELESS)
+export interface CreateGoalSimulationDto {
+  // Identity
+  clientName: string;
+  clientDob: string;
+  clientCity: string;
+  clientJob?: string;
+  clientPhone?: string;
+
+  // Goal Params
+  goalName: string;
+  targetAmount: number;
+  targetDate: string; // YYYY-MM-DD
+  currentSaving?: number; // Modal Awal
+
+  // Economics
+  inflationRate?: number;
+  returnRate?: number;
+}
+
+// [NEW] GOAL SIMULATION OUTPUT (Decoded from .mgc Token)
+export interface GoalSimulationResult {
+  // Time
+  yearsDuration: number;
+  monthsDuration: number;
+
+  // Future Values
+  futureTargetAmount: number;   // Target dana kena inflasi
+  futureExistingFund: number;   // Modal awal kena investasi
+
+  // Calculation
+  netTarget: number;            // Kekurangan (Gap)
+  monthlySaving: number;        // PMT (Solusi)
+}

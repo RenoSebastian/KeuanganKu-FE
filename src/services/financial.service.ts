@@ -25,10 +25,10 @@ import {
   GoalPlanData,
   CreateEducationPlanDto,
   EducationPlanData,
-  // [NEW] DTO Asuransi Simulasi
+  // [NEW] DTO Simulasi
   CreateInsuranceSimulationDto,
-  // [NEW] DTO Pensiun Simulasi
-  CreatePensionSimulationDto
+  CreatePensionSimulationDto,
+  CreateGoalSimulationDto
 } from "@/lib/types";
 
 export const financialService = {
@@ -321,6 +321,17 @@ export const financialService = {
    */
   simulateAgentPension: async (data: CreatePensionSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/pension", data, {
+      responseType: 'blob'
+    });
+  },
+
+  /**
+   * simulateAgentGoal
+   * [NEW] Simulasi Tujuan Keuangan Stateless
+   * Mengembalikan PDF Blob + Header Token .mgc
+   */
+  simulateAgentGoal: async (data: CreateGoalSimulationDto): Promise<AxiosResponse<Blob>> => {
+    return await api.post("/financial/simulation/goals", data, {
       responseType: 'blob'
     });
   },
