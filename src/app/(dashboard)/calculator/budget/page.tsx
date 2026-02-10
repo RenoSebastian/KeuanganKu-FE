@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import {
   Calculator, Wallet, BadgePercent, TrendingUp,
   AlertTriangle, ShieldCheck, PiggyBank, RefreshCcw, Download,
-  CalendarDays, CalendarRange, Loader2, Save, Upload, FileJson,
-  User, MapPin, Briefcase, Calendar
+  Loader2, Save, Upload, FileJson, User, MapPin, Briefcase, Calendar,
+  Play, CheckCircle2 // Icon tambahan
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
@@ -17,6 +17,7 @@ import { BudgetResult, BudgetAllocation, CreateBudgetSimulationDto } from "@/lib
 import { financialService } from "@/services/financial.service";
 import { BudgetGuide } from "@/components/features/calculator/budget-guide";
 import { MonthlyHelperModal } from "@/components/features/finance/monthly-helper-modal";
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // Pastikan import ini ada
 import { toast } from "sonner";
 
 // --- 1. HELPER: MAPPING VISUAL ---
@@ -52,12 +53,17 @@ export default function AgentBudgetPage() {
   const [result, setResult] = useState<BudgetResult | null>(null);
   const [recommendation, setRecommendation] = useState<string>("");
 
-  // State untuk file yang "baru saja" di-generate (untuk tombol re-download manual)
-  const [lastGeneratedPdfUrl, setLastGeneratedPdfUrl] = useState<string | null>(null);
-  const [lastMgcToken, setLastMgcToken] = useState<string | null>(null);
+  // [NEW] State untuk menampung file di memori (Blob URL)
+  const [generatedFiles, setGeneratedFiles] = useState<{
+    pdfUrl: string | null;
+    mgcToken: string | null;
+    filenameMgc: string | null;
+    filenamePdf: string | null;
+  } | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false); // Untuk visual loading
 
   // Helper Modal State
   const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<"fixedIncome" | "variableIncome" | null>(null);
@@ -79,12 +85,19 @@ export default function AgentBudgetPage() {
   // --- HANDLERS: INPUT ---
   const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setClientData({ ...clientData, [e.target.name]: e.target.value });
+    // Optional: Reset result jika nama berubah
   };
 
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
     const rawValue = val.replace(/\D/g, "");
     if (!rawValue) { setter(""); return; }
     setter(new Intl.NumberFormat("id-ID").format(parseInt(rawValue)));
+
+    // [UX] Reset hasil jika angka berubah agar user hitung ulang
+    if (result) {
+      setResult(null);
+      setGeneratedFiles(null);
+    }
   };
 
   const handleHelperApply = (annualValue: number) => {
@@ -92,17 +105,26 @@ export default function AgentBudgetPage() {
     if (monthlyHelperTarget === "fixedIncome") setFixedIncome(formatted);
     else if (monthlyHelperTarget === "variableIncome") setVariableIncome(formatted);
     setMonthlyHelperTarget(null);
+
+    if (result) {
+      setResult(null);
+      setGeneratedFiles(null);
+    }
   };
 
-  // --- CORE LOGIC 1: SIMULATE & DOWNLOAD (STATELESS) ---
-  const handleSimulate = async () => {
+  // ===========================================================================
+  // 1. CORE LOGIC: PREVIEW / HITUNG (TANPA DOWNLOAD)
+  // ===========================================================================
+  const handleCalculateOnly = async () => {
     // 1. Validasi Input
     if (!clientData.clientName || !clientData.clientCity || !fixedIncome) {
-      toast.error("Data Tidak Lengkap", { description: "Mohon isi Nama, Kota, dan Gaji Tetap." });
+      toast.error("Data Belum Lengkap", { description: "Mohon isi Nama, Kota, dan Gaji Tetap." });
       return;
     }
 
     setIsLoading(true);
+    setShowPdfModal(true); // Visual feedback "Sedang memproses..."
+
     try {
       // 2. Prepare Payload (Konversi Tahunan -> Bulanan untuk logic BE)
       const fixedRaw = parseInt(fixedIncome.replace(/\./g, "")) || 0;
@@ -117,92 +139,97 @@ export default function AgentBudgetPage() {
         variableIncome: variableMonthly,
       };
 
-      // 3. Call API (Menerima Blob PDF + Header Token)
+      // 3. Call API
       const response = await financialService.simulateAgentBudget(payload);
 
-      // --- STEP A: HANDLE PDF (BODY) ---
-      // Buat URL object dari Blob yang diterima
+      // --- STEP A: HANDLE TOKEN (UNTUK UI) ---
+      const token = response.headers['x-mgc-token'];
+      if (!token) throw new Error("Token data tidak ditemukan dalam response.");
+
+      // Decode Token untuk UI Preview
+      const payloadBase64 = token.split('.')[0];
+      const jsonString = atob(payloadBase64);
+      const decodedData = JSON.parse(jsonString);
+      const beResult = decodedData.result;
+
+      // Map Result ke UI Component
+      const mappedResult: BudgetResult = {
+        safeToSpend: beResult.allocation.livingCost,
+        totalFixedAllocated:
+          beResult.allocation.debtConsumptive +
+          beResult.allocation.debtProductive +
+          beResult.allocation.insurance +
+          beResult.allocation.saving,
+        surplus: beResult.meta.variableIncome,
+        allocations: [
+          { type: "NEEDS", label: "Biaya Hidup (45%)", percentage: 45, amount: beResult.allocation.livingCost, description: "Kebutuhan harian, makan, transport." },
+          { type: "DEBT_PROD", label: "Hutang Produktif (20%)", percentage: 20, amount: beResult.allocation.debtProductive, description: "Cicilan KPR, Modal kerja." },
+          { type: "DEBT_CONS", label: "Hutang Konsumtif (15%)", percentage: 15, amount: beResult.allocation.debtConsumptive, description: "Cicilan HP, Paylater." },
+          { type: "INSURANCE", label: "Proteksi (10%)", percentage: 10, amount: beResult.allocation.insurance, description: "Premi asuransi keluarga." },
+          { type: "SAVING", label: "Tabungan (10%)", percentage: 10, amount: beResult.allocation.saving, description: "Investasi rutin & Dana darurat." },
+        ]
+      };
+
+      setResult(mappedResult);
+      setRecommendation(beResult.analysis.variableIncomeRecommendation);
+
+      // --- STEP B: HANDLE PDF BLOB (UNTUK DOWNLOAD NANTI) ---
       const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
       const pdfUrl = window.URL.createObjectURL(pdfBlob);
+      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Klien';
 
-      // Trigger Auto-Download PDF
-      const pdfLink = document.createElement('a');
-      pdfLink.href = pdfUrl;
-      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_');
-      pdfLink.setAttribute('download', `Simulasi_Budget_${cleanName}.pdf`);
-      document.body.appendChild(pdfLink);
-      pdfLink.click();
-      pdfLink.remove();
+      // Simpan URL dan Token ke State (Pending Download)
+      setGeneratedFiles({
+        pdfUrl,
+        mgcToken: token,
+        filenameMgc: `Backup_Budget_${cleanName}.mgc`,
+        filenamePdf: `Budget_Plan_${cleanName}.pdf`
+      });
 
-      setLastGeneratedPdfUrl(pdfUrl); // Simpan referensi untuk re-download
-
-      // --- STEP B: HANDLE TOKEN (HEADER) ---
-      const token = response.headers['x-mgc-token'];
-
-      if (token) {
-        setLastMgcToken(token);
-
-        // 1. Auto-Download File .mgc (Backup)
-        const mgcBlob = new Blob([token], { type: 'text/plain' });
-        const mgcUrl = window.URL.createObjectURL(mgcBlob);
-        const mgcLink = document.createElement('a');
-        mgcLink.href = mgcUrl;
-        mgcLink.setAttribute('download', `Backup_Data_${cleanName}.mgc`);
-        document.body.appendChild(mgcLink);
-        mgcLink.click();
-        mgcLink.remove();
-        window.URL.revokeObjectURL(mgcUrl);
-
-        // 2. Client-Side Decoding untuk Update UI
-        // Format Token: payloadBase64.signature
-        try {
-          const payloadBase64 = token.split('.')[0];
-          const jsonString = atob(payloadBase64); // Decode Base64
-          const decodedData = JSON.parse(jsonString);
-
-          // Struktur data dari backend: { meta, client, financial, result: { allocation, analysis, meta } }
-          const beResult = decodedData.result;
-
-          // Map Result ke UI Component
-          const mappedResult: BudgetResult = {
-            safeToSpend: beResult.allocation.livingCost,
-            totalFixedAllocated:
-              beResult.allocation.debtConsumptive +
-              beResult.allocation.debtProductive +
-              beResult.allocation.insurance +
-              beResult.allocation.saving,
-            surplus: beResult.meta.variableIncome, // Variable income = Surplus/Tabungan Tambahan
-            allocations: [
-              { type: "NEEDS", label: "Biaya Hidup (45%)", percentage: 45, amount: beResult.allocation.livingCost, description: "Kebutuhan harian, makan, transport." },
-              { type: "DEBT_PROD", label: "Hutang Produktif (20%)", percentage: 20, amount: beResult.allocation.debtProductive, description: "Cicilan KPR, Modal kerja." },
-              { type: "DEBT_CONS", label: "Hutang Konsumtif (15%)", percentage: 15, amount: beResult.allocation.debtConsumptive, description: "Cicilan HP, Paylater." },
-              { type: "INSURANCE", label: "Proteksi (10%)", percentage: 10, amount: beResult.allocation.insurance, description: "Premi asuransi keluarga." },
-              { type: "SAVING", label: "Tabungan (10%)", percentage: 10, amount: beResult.allocation.saving, description: "Investasi rutin & Dana darurat." },
-            ]
-          };
-
-          setResult(mappedResult);
-          setRecommendation(beResult.analysis.variableIncomeRecommendation);
-
-          toast.success("Dokumen Siap", { description: "PDF Laporan dan File Backup berhasil diunduh." });
-
-        } catch (decodeErr) {
-          console.error("Gagal decode token UI:", decodeErr);
-          toast.warning("Download Parsial", { description: "PDF berhasil, namun gagal menampilkan preview grafik." });
-        }
-      } else {
-        toast.error("Warning", { description: "PDF diterima, tetapi Token Data tidak ditemukan pada header." });
-      }
+      toast.success("Analisa Selesai", {
+        description: "Hasil simulasi anggaran telah diperbarui. Silakan cek panel kanan."
+      });
 
     } catch (error) {
       console.error(error);
       toast.error("Gagal Simulasi", { description: "Terjadi kesalahan sistem saat memproses data." });
     } finally {
       setIsLoading(false);
+      setShowPdfModal(false);
     }
   };
 
-  // --- CORE LOGIC 2: IMPORT .MGC ---
+  // ===========================================================================
+  // 2. CORE LOGIC: DOWNLOAD MANUAL (DARI MEMORY)
+  // ===========================================================================
+  const handleDownloadFile = (type: 'PDF' | 'MGC') => {
+    if (!generatedFiles) {
+      toast.error("Belum Ada Data", { description: "Silakan lakukan simulasi terlebih dahulu." });
+      return;
+    }
+
+    if (type === 'PDF' && generatedFiles.pdfUrl) {
+      const link = document.createElement('a');
+      link.href = generatedFiles.pdfUrl;
+      link.setAttribute('download', generatedFiles.filenamePdf || "Budget_Plan.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Download PDF", { description: "Laporan resmi berhasil diunduh." });
+    }
+    else if (type === 'MGC' && generatedFiles.mgcToken) {
+      const blob = new Blob([generatedFiles.mgcToken], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = generatedFiles.filenameMgc || "Backup.mgc";
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.info("Download Backup", { description: "File data (.mgc) berhasil disimpan." });
+    }
+  };
+
+  // --- CORE LOGIC 3: IMPORT .MGC ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -213,8 +240,12 @@ export default function AgentBudgetPage() {
     reader.onload = async (event) => {
       try {
         const tokenContent = event.target?.result as string;
-        // Panggil Service Decode (Validasi ke Server)
         const response = await financialService.decodeSimulationToken(tokenContent);
+
+        // Safety check module type (jika ada meta)
+        if (response.data.meta?.module && response.data.meta.module !== 'BUDGETING' && response.data.meta.module !== undefined) {
+          // Opsional: Validasi strict module type jika backend mendukung
+        }
 
         const { client, financial } = response.data;
 
@@ -228,7 +259,6 @@ export default function AgentBudgetPage() {
         });
 
         // Restore Angka (Input Form = Tahunan)
-        // Data dari backend = Bulanan (div 12). Kita kali 12 lagi.
         const fixedAnnual = (financial.fixedIncome || 0) * 12;
         const variableAnnual = (financial.variableIncome || 0) * 12;
 
@@ -237,43 +267,19 @@ export default function AgentBudgetPage() {
 
         toast.success("Import Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
 
-        // Reset Result agar user klik "Hitung" lagi untuk re-validasi & generate PDF baru
+        // Reset Result agar user klik "Hitung" lagi (memastikan data sinkron)
         setResult(null);
-        setLastGeneratedPdfUrl(null);
-        setLastMgcToken(null);
+        setGeneratedFiles(null);
 
       } catch (error) {
-        toast.error("File Corrupt", { description: "File .mgc tidak valid atau telah dimodifikasi." });
+        toast.error("File Corrupt", { description: "File .mgc tidak valid atau rusak." });
       } finally {
         setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
 
     reader.readAsText(file);
-  };
-
-  // --- HELPER: MANUAL RE-DOWNLOAD ---
-  const triggerManualDownload = (type: 'PDF' | 'MGC') => {
-    if (type === 'PDF' && lastGeneratedPdfUrl) {
-      const link = document.createElement('a');
-      link.href = lastGeneratedPdfUrl;
-      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Simulasi';
-      link.setAttribute('download', `Simulasi_Budget_${cleanName}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
-    else if (type === 'MGC' && lastMgcToken) {
-      const blob = new Blob([lastMgcToken], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Backup';
-      a.download = `Backup_Data_${cleanName}.mgc`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    }
   };
 
   const resetForm = () => {
@@ -282,8 +288,7 @@ export default function AgentBudgetPage() {
       setFixedIncome("");
       setVariableIncome("");
       setResult(null);
-      setLastGeneratedPdfUrl(null);
-      setLastMgcToken(null);
+      setGeneratedFiles(null);
     }
   };
 
@@ -298,6 +303,9 @@ export default function AgentBudgetPage() {
 
   return (
     <div className="min-h-full w-full pb-24 md:pb-12 bg-slate-50/50">
+
+      {/* Loading Modal Overlay */}
+      <PdfLoadingModal isOpen={showPdfModal} />
 
       {/* Helper Modal */}
       <MonthlyHelperModal
@@ -323,15 +331,15 @@ export default function AgentBudgetPage() {
         {/* Header Content */}
         <div className="relative z-20 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-center md:text-left">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
               <Calculator className="w-4 h-4 text-cyan-300" />
-              <span className="text-[10px] font-bold text-cyan-100 uppercase">Agent Tools</span>
+              <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-widest">Agent Tools</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-white mb-2">Budget Simulator</h1>
-            <p className="text-brand-100 text-sm max-w-lg">Alat bantu agen untuk merancang anggaran ideal bagi klien.</p>
+            <h1 className="text-3xl md:text-4xl font-black text-white mb-2 drop-shadow-md">Budget Simulator</h1>
+            <p className="text-brand-100 text-sm max-w-lg opacity-90">Alat bantu agen untuk merancang alokasi anggaran ideal bagi klien.</p>
           </div>
 
-          {/* IMPORT ZONE */}
+          {/* IMPORT BUTTON */}
           <Card className="bg-white/10 backdrop-blur-md border-white/20 p-4 rounded-xl flex items-center gap-4 max-w-sm w-full hover:bg-white/15 transition-colors cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -415,7 +423,7 @@ export default function AgentBudgetPage() {
                   </div>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded">Rp</div>
-                    <Input className="pl-12 font-bold text-lg h-12" placeholder="0" value={fixedIncome} onChange={(e) => handleMoneyInput(e.target.value, setFixedIncome)} />
+                    <Input className="pl-12 font-bold text-lg h-12 border-slate-200 focus:border-brand-500 focus:ring-brand-500/10" placeholder="0" value={fixedIncome} onChange={(e) => handleMoneyInput(e.target.value, setFixedIncome)} />
                   </div>
                 </div>
 
@@ -429,22 +437,22 @@ export default function AgentBudgetPage() {
                   </div>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">Rp</div>
-                    <Input className="pl-12 font-bold h-11" placeholder="0" value={variableIncome} onChange={(e) => handleMoneyInput(e.target.value, setVariableIncome)} />
+                    <Input className="pl-12 font-bold h-11 border-slate-200" placeholder="0" value={variableIncome} onChange={(e) => handleMoneyInput(e.target.value, setVariableIncome)} />
                   </div>
                 </div>
 
                 {/* ACTIONS */}
                 <div className="grid grid-cols-4 gap-2 pt-2">
-                  <Button variant="outline" onClick={resetForm} className="col-span-1 rounded-xl h-12 border-slate-300">
+                  <Button variant="outline" onClick={resetForm} className="col-span-1 rounded-xl h-12 border-slate-300 hover:bg-slate-50">
                     <RefreshCcw className="w-4 h-4" />
                   </Button>
                   <Button
-                    onClick={handleSimulate}
+                    onClick={handleCalculateOnly}
                     disabled={isLoading}
-                    className="col-span-3 rounded-xl h-12 bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 font-bold"
+                    className="col-span-3 rounded-xl h-12 bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 font-bold transition-all"
                   >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    Simulasi & Download
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                    Lihat Analisa
                   </Button>
                 </div>
               </div>
@@ -459,36 +467,39 @@ export default function AgentBudgetPage() {
                   <BadgePercent className="w-8 h-8 text-slate-400" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-700">Area Hasil Simulasi</h3>
-                <p className="text-slate-500 text-sm mt-1 max-w-xs">Isi data klien dan keuangan di sebelah kiri, lalu klik "Simulasi" untuk mengunduh laporan PDF dan melihat rekomendasi.</p>
+                <p className="text-slate-500 text-sm mt-1 max-w-xs">Isi data klien dan keuangan di sebelah kiri, lalu klik <strong>"Lihat Analisa"</strong> untuk melihat rekomendasi.</p>
               </div>
             ) : (
               <div className="animate-in slide-in-from-bottom-8 duration-700 space-y-6">
 
-                {/* 1. DOWNLOAD CENTER (Muncul setelah sukses) */}
-                <Card className="bg-green-50 border-green-200 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                      <FileJson className="w-5 h-5" />
+                {/* 1. DOWNLOAD CENTER (Only show if calculated) */}
+                {generatedFiles && (
+                  <Card className="bg-emerald-50 border-emerald-200 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shrink-0">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div className="grow">
+                        <h4 className="font-bold text-emerald-800 text-sm">Analisa Selesai</h4>
+                        <p className="text-xs text-emerald-600">Dokumen siap diunduh.</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-green-800 text-sm">Dokumen Tersimpan</h4>
-                      <p className="text-xs text-green-600">File telah diunduh ke perangkat Anda.</p>
+
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <Button size="sm" onClick={() => handleDownloadFile('PDF')} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-10 rounded-lg">
+                        <Download className="w-4 h-4 mr-2" /> Download Laporan PDF
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleDownloadFile('MGC')} className="w-12 h-10 border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-100 rounded-lg" title="Simpan Backup Data (.mgc)">
+                        <FileJson className="w-4 h-4" />
+                      </Button>
                     </div>
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <Button size="sm" variant="outline" onClick={() => triggerManualDownload('MGC')} className="flex-1 border-green-300 text-green-700 bg-white hover:bg-green-100">
-                      <Download className="w-3 h-3 mr-2" /> .mgc
-                    </Button>
-                    <Button size="sm" onClick={() => triggerManualDownload('PDF')} className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-sm">
-                      <Download className="w-3 h-3 mr-2" /> PDF
-                    </Button>
-                  </div>
-                </Card>
+                  </Card>
+                )}
 
                 {/* 2. VIEW TOGGLE & HEADER */}
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-black text-slate-800">Preview Analisa</h2>
-                  <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
+                  <div className="bg-white p-1 rounded-lg border border-slate-200 flex shadow-sm">
                     <button onClick={() => setViewMode("MONTHLY")} className={cn("px-3 py-1.5 rounded-md text-xs font-bold transition-all", viewMode === "MONTHLY" ? "bg-brand-600 text-white shadow" : "text-slate-500 hover:bg-slate-50")}>Bulanan</button>
                     <button onClick={() => setViewMode("ANNUAL")} className={cn("px-3 py-1.5 rounded-md text-xs font-bold transition-all", viewMode === "ANNUAL" ? "bg-cyan-600 text-white shadow" : "text-slate-500 hover:bg-slate-50")}>Tahunan</button>
                   </div>
@@ -522,7 +533,7 @@ export default function AgentBudgetPage() {
                     const style = getAllocationStyle(item.type);
                     const Icon = style.icon;
                     return (
-                      <div key={idx} className={cn("p-5 rounded-2xl border flex flex-col justify-between h-full transition-all hover:scale-[1.02]", style.bg, style.border)}>
+                      <div key={idx} className={cn("p-5 rounded-2xl border flex flex-col justify-between h-full transition-all hover:scale-[1.02] hover:shadow-md", style.bg, style.border)}>
                         <div className="flex justify-between items-start mb-3">
                           <div className={cn("p-2 rounded-xl bg-white shadow-sm", style.iconColor)}><Icon className="w-5 h-5" /></div>
                           <span className={cn("text-xs font-black px-2 py-1 rounded-lg bg-white/50 border border-black/5", style.text)}>{item.percentage}%</span>
@@ -543,7 +554,7 @@ export default function AgentBudgetPage() {
                     <div className="p-1 bg-blue-100 rounded-full text-blue-600 mt-0.5"><ShieldCheck className="w-4 h-4" /></div>
                     <div>
                       <h4 className="text-xs font-bold text-blue-800 uppercase mb-1">Catatan Analis</h4>
-                      <p className="text-sm text-blue-700 leading-relaxed">{recommendation}</p>
+                      <p className="text-sm text-blue-700 leading-relaxed font-medium">{recommendation}</p>
                     </div>
                   </div>
                 )}
