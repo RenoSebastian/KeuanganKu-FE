@@ -1,4 +1,5 @@
 import api from "@/lib/axios";
+import { AxiosResponse } from "axios";
 import {
   FinancialRecord,
   HealthAnalysisResult,
@@ -10,7 +11,20 @@ import {
   GoalSimulationInput,
   GoalSimulationResult,
   CreateBudgetSimulationDto,
-  SimulationResponse,
+  // SimulationResponse, // Tidak lagi digunakan karena response kini berupa Blob
+  CreateBudgetDto,
+  FinancialCheckupData,
+  FinancialRecordHistory,
+  BudgetPlanHistory,
+  CreatePensionDto,
+  PensionPlanData,
+  CreateInsuranceDto,
+  InsurancePlanData,
+  CreateGoalDto,
+  SimulateGoalDto,
+  GoalPlanData,
+  CreateEducationPlanDto,
+  EducationPlanData
 } from "@/lib/types";
 
 export const financialService = {
@@ -27,14 +41,13 @@ export const financialService = {
   getLatestCheckup: async () => {
     // [UPDATED] Menggunakan Intersection Type untuk return value
     // Backend mengembalikan object gabungan: Data Mentah (FinancialRecord) + Hasil Analisa (HealthAnalysisResult)
-    // Data ini krusial untuk fitur "Persistence/Hydration" agar form bisa terisi otomatis.
     const response = await api.get<FinancialRecord & HealthAnalysisResult>("/financial/checkup/latest");
     return response.data;
   },
 
   getCheckupHistory: async () => {
     // Mengambil history lengkap (List Only)
-    const response = await api.get("/financial/checkup/history");
+    const response = await api.get<FinancialRecordHistory[]>("/financial/checkup/history");
     return response.data;
   },
 
@@ -46,7 +59,6 @@ export const financialService = {
 
   downloadCheckupPdf: async (checkupId: string) => {
     // Request dengan responseType 'blob' sangat PENTING untuk file binary
-    // Timeout diperpanjang ke 60s karena Puppeteer BE butuh waktu render
     const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -66,19 +78,18 @@ export const financialService = {
   // 2. BUDGETING
   // ===========================================================================
 
-  createBudget: async (data: any) => {
+  createBudget: async (data: CreateBudgetDto) => {
     const response = await api.post("/financial/budget", data);
     return response.data;
   },
 
   getBudgets: async () => {
-    const response = await api.get("/financial/budget/history");
+    const response = await api.get<BudgetPlanHistory[]>("/financial/budget/history");
     return response.data;
   },
 
   // [NEW] Download Budget PDF
   downloadBudgetPdf: async (budgetId: string) => {
-    // Gunakan timeout panjang (60s) karena Puppeteer rendering itu berat
     const response = await api.get(`/financial/budget/pdf/${budgetId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -88,7 +99,6 @@ export const financialService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    // Format nama file: Budget-Report-YYYY-MM-DD.pdf
     link.setAttribute('download', `Budget-Report-${new Date().toISOString().split('T')[0]}.pdf`);
     document.body.appendChild(link);
     link.click();
@@ -100,8 +110,8 @@ export const financialService = {
   // ===========================================================================
 
   // A. Pensiun
-  savePensionPlan: async (data: PensionPayload) => {
-    const response = await api.post("/financial/calculator/pension", data);
+  calculatePension: async (data: CreatePensionDto) => {
+    const response = await api.post<{ plan: PensionPlanData, calculation: any }>("/financial/calculator/pension", data);
     return response.data;
   },
 
@@ -122,20 +132,17 @@ export const financialService = {
   },
 
   // B. Asuransi
-  // B. Asuransi
-  saveInsurancePlan: async (data: InsurancePayload) => {
-    const response = await api.post("/financial/calculator/insurance", data);
+  calculateInsurance: async (data: CreateInsuranceDto) => {
+    const response = await api.post<{ plan: InsurancePlanData, calculation: any }>("/financial/calculator/insurance", data);
 
     // [LOGICAL FIX] Data Transformation Layer
-    // Backend mengembalikan objek { plan, calculation }. 
-    // Kita pastikan hasil kalkulasi dikonversi ke Number untuk keamanan di UI.
     const raw = response.data;
     if (raw.calculation) {
       raw.calculation = {
         ...raw.calculation,
         incomeReplacementValue: Number(raw.calculation.incomeReplacementValue || 0),
         debtClearanceValue: Number(raw.calculation.debtClearanceValue || 0),
-        otherNeeds: Number(raw.calculation.otherNeeds || 0), // [NEW] Biaya Pemakaman
+        otherNeeds: Number(raw.calculation.otherNeeds || 0),
         totalNeeded: Number(raw.calculation.totalNeeded || 0),
         coverageGap: Number(raw.calculation.coverageGap || 0),
       };
@@ -148,7 +155,7 @@ export const financialService = {
   downloadInsurancePdf: async (planId: string) => {
     const response = await api.get(`/financial/insurance/pdf/${planId}`, {
       responseType: 'blob',
-      timeout: 60000, // Tunggu Puppeteer render
+      timeout: 60000,
     });
 
     const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -161,14 +168,13 @@ export const financialService = {
   },
 
   // C. Goals (Tujuan Keuangan)
-  saveGoalPlan: async (data: GoalPayload) => {
-    const response = await api.post("/financial/calculator/goals", data);
+  calculateGoal: async (data: CreateGoalDto) => {
+    const response = await api.post<{ plan: GoalPlanData, calculation: any }>("/financial/calculator/goals", data);
     return response.data;
   },
 
   // [FIXED] SIMULATOR GOAL
-  // Backend returns: { status: 'success', data: { futureValue, monthlySaving } }
-  simulateGoal: async (data: GoalSimulationInput) => {
+  simulateGoal: async (data: SimulateGoalDto) => {
     // Kita definisikan tipe return axios sebagai Wrapper Object
     const response = await api.post<{ status: string, data: GoalSimulationResult }>("/financial/goals/simulate", data);
     // Kita unwrap data disini agar UI langsung terima result bersih
@@ -192,31 +198,27 @@ export const financialService = {
 
   // D. Pendidikan Anak (LENGKAP: CRUD & FIX DATA TYPE)
 
-  saveEducationPlan: async (data: EducationPayload) => {
-    const response = await api.post<EducationPlanResponse>("/financial/calculator/education", data);
+  calculateEducation: async (data: CreateEducationPlanDto) => {
+    const response = await api.post<{ plan: EducationPlanData, calculation: any }>("/financial/calculator/education", data);
     return response.data;
   },
 
   // --- [FIXED] DATA TRANSFORMATION LAYER ---
   // Menangani data string dari BE dan mengubahnya menjadi number agar UI tidak error.
   getEducationPlans: async () => {
-    const response = await api.get("/financial/calculator/education");
+    const response = await api.get<any[]>("/financial/calculator/education");
 
     const cleanData = response.data.map((plan: any) => ({
       ...plan,
       plan: {
         ...plan.plan,
-        // Paksa ubah string ke number
         inflationRate: Number(plan.plan.inflationRate || 0),
         returnRate: Number(plan.plan.returnRate || 0),
       },
       calculation: {
         ...plan.calculation,
-        // Paksa ubah string ke number
         totalFutureCost: Number(plan.calculation.totalFutureCost || 0),
         monthlySaving: Number(plan.calculation.monthlySaving || 0),
-
-        // Mapping array breakdown secara mendalam
         stagesBreakdown: plan.calculation.stagesBreakdown.map((stage: any) => ({
           ...stage,
           currentCost: Number(stage.currentCost || 0),
@@ -227,7 +229,7 @@ export const financialService = {
       }
     }));
 
-    return cleanData as EducationPlanResponse[];
+    return cleanData;
   },
 
   deleteEducationPlan: async (id: string) => {
@@ -236,7 +238,6 @@ export const financialService = {
   },
 
   downloadEducationPdf: async () => {
-    // Endpoint ini tidak butuh ID karena mengambil ALL plans
     const response = await api.get(`/financial/education/pdf`, {
       responseType: 'blob',
       timeout: 60000,
@@ -254,10 +255,6 @@ export const financialService = {
   // 4. MARKET DATA (INTEGRASI HARGA EMAS BE)
   // ===========================================================================
 
-  /**
-   * Mengambil harga emas terbaru per gram (IDR) dari Backend
-   * Digunakan sebagai referensi di Financial Checkup (Aset Logam Mulia)
-   */
   getLatestGoldPrice: async () => {
     const response = await api.get<{
       success: boolean;
@@ -271,7 +268,6 @@ export const financialService = {
     return response.data;
   },
 
-  //history
   // [NEW] Download History PDF
   downloadHistoryPdf: async (historyId: string) => {
     const response = await api.get(`/financial/checkup/history/pdf/${historyId}`, {
@@ -287,15 +283,25 @@ export const financialService = {
     link.remove();
   },
 
-  // 1. POST Simulasi & Generate File
-  async simulateAgentBudget(data: CreateBudgetSimulationDto) {
-    const response = await api.post('/financial/simulation/budget', data);
-    return response.data; // Return { preview, download, recommendation }
+  // ===========================================================================
+  // 8. AGENT SIMULATION (STATELESS / OFFLINE-FIRST)
+  // ===========================================================================
+
+  /**
+   * simulateAgentBudget
+   * Melakukan request simulasi dengan respons tipe BLOB (File PDF).
+   * Mengembalikan FULL RESPONSE object agar Header 'x-mgc-token' bisa diakses.
+   */
+  simulateAgentBudget: async (data: CreateBudgetSimulationDto): Promise<AxiosResponse<Blob>> => {
+    // [CRITICAL] responseType: 'blob' wajib ada agar axios tidak parsing binary sebagai string JSON rusak
+    return await api.post("/financial/simulation/budget", data, {
+      responseType: 'blob'
+    });
   },
 
   // 2. POST Import File .mgc
-  async decodeSimulationToken(token: string) {
-    const response = await api.post('/financial/simulation/decode', { simulationToken: token });
+  decodeSimulationToken: async (token: string) => {
+    const response = await api.post("/financial/simulation/decode", { simulationToken: token });
     return response.data; // Return data asli untuk autofill form
   }
 };
