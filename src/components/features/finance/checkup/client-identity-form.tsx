@@ -28,34 +28,27 @@ import { SimulationClientProfile } from "@/lib/types";
 
 // --- VALIDATION SCHEMA ---
 const identitySchema = z.object({
-    // Data Klien
     name: z.string().min(2, "Nama wajib diisi"),
-    dob: z.string().min(1, "Tanggal lahir wajib diisi"), // YYYY-MM-DD
+    dob: z.string().min(1, "Tanggal lahir wajib diisi"),
     gender: z.enum(["L", "P"]),
     city: z.string().min(2, "Kota wajib diisi"),
     address: z.string().min(5, "Alamat lengkap wajib diisi"),
     phone: z.string().min(10, "Nomor HP minimal 10 digit"),
-
-    // Fix Email: Menggunakan union literal "" atau valid email agar opsional tapi valid jika diisi
     email: z.union([z.literal(""), z.string().email("Email tidak valid")]),
-
     occupation: z.string().min(2, "Pekerjaan wajib diisi"),
     religion: z.string().optional(),
-
-    // Keluarga
     maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED"]),
 
-    // --- FIX UTAMA DISINI ---
-    // Hapus .default(0). Biarkan coerce menangani konversi tipe, dan useForm menangani default value.
-    // Ini menghilangkan error "unknown is not assignable to number".
-    childrenCount: z.coerce.number().min(0),
-    dependentParents: z.coerce.number().min(0),
+    // PERBAIKAN DISINI: Hapus objek { invalid_type_error }
+    // Gunakan z.number() murni untuk sinkronisasi tipe strict number
+    childrenCount: z.number().min(0),
+    dependentParents: z.number().min(0),
 
-    // Pasangan
     spouseName: z.string().optional(),
     spouseDob: z.string().optional(),
     spouseOccupation: z.string().optional(),
 });
+
 
 // Infer Type dari Schema
 type IdentityFormValues = z.infer<typeof identitySchema>;
@@ -80,7 +73,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
             occupation: initialData?.occupation || "",
             religion: initialData?.religion || "Islam",
             maritalStatus: initialData?.maritalStatus || "MARRIED",
-            // Default value di-handle di sini secara eksplisit
+            // Default value number (bukan string)
             childrenCount: initialData?.childrenCount ?? 0,
             dependentParents: initialData?.dependentParents ?? 0,
             // Spouse mapping with safe fallbacks
@@ -93,7 +86,6 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
     const maritalStatus = form.watch("maritalStatus");
 
     const onSubmit = (values: IdentityFormValues) => {
-        // Transform flat form values back to structured DTO
         const structuredData = {
             client: {
                 name: values.name,
@@ -106,7 +98,6 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                 occupation: values.occupation,
                 religion: values.religion,
                 maritalStatus: values.maritalStatus,
-                // Nilai sudah pasti number karena z.coerce.number()
                 childrenCount: values.childrenCount,
                 dependentParents: values.dependentParents,
             },
@@ -344,6 +335,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     )}
                                 />
 
+                                {/* FIX: KONVERSI MANUAL ONCHANGE AGAR TIPE STATE SELALU NUMBER */}
                                 <FormField
                                     control={form.control}
                                     name="childrenCount"
@@ -351,13 +343,23 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                         <FormItem>
                                             <FormLabel>Jumlah Anak</FormLabel>
                                             <FormControl>
-                                                <Input type="number" min={0} {...field} />
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    {...field}
+                                                    onChange={(e) => {
+                                                        const val = e.target.valueAsNumber;
+                                                        // Jika kosong/NaN, set 0. Jika ada nilai, set number.
+                                                        field.onChange(isNaN(val) ? 0 : val);
+                                                    }}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
 
+                                {/* FIX: KONVERSI MANUAL ONCHANGE */}
                                 <FormField
                                     control={form.control}
                                     name="dependentParents"
@@ -365,7 +367,15 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                         <FormItem>
                                             <FormLabel>Tanggungan Orang Tua</FormLabel>
                                             <FormControl>
-                                                <Input type="number" min={0} {...field} />
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    {...field}
+                                                    onChange={(e) => {
+                                                        const val = e.target.valueAsNumber;
+                                                        field.onChange(isNaN(val) ? 0 : val);
+                                                    }}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
