@@ -35,17 +35,23 @@ const identitySchema = z.object({
     city: z.string().min(2, "Kota wajib diisi"),
     address: z.string().min(5, "Alamat lengkap wajib diisi"),
     phone: z.string().min(10, "Nomor HP minimal 10 digit"),
-    email: z.string().email("Email tidak valid").optional().or(z.literal("")),
+
+    // Fix Email: Menggunakan union literal "" atau valid email agar opsional tapi valid jika diisi
+    email: z.union([z.literal(""), z.string().email("Email tidak valid")]),
+
     occupation: z.string().min(2, "Pekerjaan wajib diisi"),
     religion: z.string().optional(),
 
     // Keluarga
     maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED"]),
-    // Gunakan coerce.number() untuk handle input type="number" yang return string
-    childrenCount: z.coerce.number().min(0).default(0),
-    dependentParents: z.coerce.number().min(0).default(0),
 
-    // Pasangan (Conditional via Logic nanti, tapi di schema kita buat optional)
+    // --- FIX UTAMA DISINI ---
+    // Hapus .default(0). Biarkan coerce menangani konversi tipe, dan useForm menangani default value.
+    // Ini menghilangkan error "unknown is not assignable to number".
+    childrenCount: z.coerce.number().min(0),
+    dependentParents: z.coerce.number().min(0),
+
+    // Pasangan
     spouseName: z.string().optional(),
     spouseDob: z.string().optional(),
     spouseOccupation: z.string().optional(),
@@ -74,6 +80,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
             occupation: initialData?.occupation || "",
             religion: initialData?.religion || "Islam",
             maritalStatus: initialData?.maritalStatus || "MARRIED",
+            // Default value di-handle di sini secara eksplisit
             childrenCount: initialData?.childrenCount ?? 0,
             dependentParents: initialData?.dependentParents ?? 0,
             // Spouse mapping with safe fallbacks
@@ -95,12 +102,13 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                 city: values.city,
                 address: values.address,
                 phone: values.phone,
-                email: values.email,
+                email: values.email || undefined,
                 occupation: values.occupation,
                 religion: values.religion,
                 maritalStatus: values.maritalStatus,
-                childrenCount: Number(values.childrenCount),
-                dependentParents: Number(values.dependentParents),
+                // Nilai sudah pasti number karena z.coerce.number()
+                childrenCount: values.childrenCount,
+                dependentParents: values.dependentParents,
             },
             spouse: values.maritalStatus === "MARRIED" ? {
                 name: values.spouseName || "Pasangan",
@@ -265,6 +273,20 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                                 <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                                 <Input className="pl-9" type="tel" placeholder="0812..." {...field} />
                                             </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="email"
+                                render={({ field }) => (
+                                    <FormItem className="md:col-span-2">
+                                        <FormLabel>Email (Opsional)</FormLabel>
+                                        <FormControl>
+                                            <Input type="email" placeholder="email@contoh.com" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

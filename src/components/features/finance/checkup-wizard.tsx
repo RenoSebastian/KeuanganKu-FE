@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, SetStateAction, Activity } from "react";
+import { useState, useEffect, SetStateAction } from "react";
 import {
     ArrowLeft, ArrowRight, CheckCircle2,
     Wallet, Banknote, Calculator,
     CreditCard, User, Briefcase, Users,
     ShoppingBag, Car, Gem, Phone, Umbrella, PiggyBank, ShieldCheck,
     Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle,
-    Loader2, RefreshCcw, FileText
+    Loader2, RefreshCcw, FileText, Activity // [FIX] Activity dipindah ke sini
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -389,7 +389,10 @@ export function CheckupWizard({ initialData, onComplete, onBack, isLoading }: Ch
                     {step === 1 && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <div className="bg-brand-50 border border-brand-100 p-4 rounded-xl flex gap-3 text-brand-800 text-sm mb-4">
-                                <Activity className="w-5 h-5 shrink-0" />
+                                {/* [FIX] Wrap Icon in Div to avoid className props issue */}
+                                <div className="shrink-0">
+                                    <Activity className="w-5 h-5" />
+                                </div>
                                 <div>
                                     <p className="font-bold">MODE INPUT: TAHUNAN</p>
                                     <p>Masukkan total pendapatan & pengeluaran Anda dalam <strong>1 TAHUN</strong>. Gunakan tombol kalkulator untuk bantuan hitung dari bulanan.</p>
