@@ -1,156 +1,85 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
     CheckCircle2, AlertTriangle, XCircle,
-    Save, RefreshCcw, FileText, ChevronDown, ChevronUp,
+    RefreshCcw, FileText, ChevronDown, ChevronUp,
     TrendingUp, Activity, Download, CalendarDays, Banknote,
     LayoutDashboard, Lock
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FinancialRecord, HealthAnalysisResult } from "@/lib/types";
+import { FinancialRecord, HealthAnalysisResult, CheckupSimulationResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
 import { PdfLoadingModal } from "./pdf-loading-modal";
 
-type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW";
+type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW" | "AGENT_SIMULATION";
 
 interface CheckupResultProps {
-    data: HealthAnalysisResult;
-    rawData: FinancialRecord;
-    onReset?: () => void;
-    mode?: ViewMode;
-}
+    // Support both Legacy (Database) and New (Simulation) data structures
+    data: HealthAnalysisResult | CheckupSimulationResult;
+    rawData?: FinancialRecord; // Optional for Agent Mode
 
-const FLOW_FIELDS: (keyof FinancialRecord)[] = [
-    'incomeFixed', 'incomeVariable',
-    'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
-    'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
-    'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
-    'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
-];
+    onReset?: () => void;
+    onDownloadPdf?: () => void; // Custom handler for Agent Mode
+
+    mode?: ViewMode;
+    isDownloading?: boolean; // External loading state
+}
 
 export function CheckupResult({
     data,
     rawData,
     onReset,
-    mode = "USER_VIEW"
+    onDownloadPdf,
+    mode = "USER_VIEW",
+    isDownloading = false
 }: CheckupResultProps) {
 
-    // [BEST PRACTICE] Inisialisasi ID dari props jika ada
-    const [recordId, setRecordId] = useState<string | null>(
-        (data as any)?.id || (rawData as any)?.id || null
-    );
-
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
+    // --- STATE ---
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("ANNUAL");
-    const [showPdfModal, setShowPdfModal] = useState(false);
+    const [localPdfLoading, setLocalPdfLoading] = useState(false);
 
     const isReadOnly = mode === "DIRECTOR_VIEW";
+    const isAgentMode = mode === "AGENT_SIMULATION";
 
-    // Sync state jika props data berubah (misal navigasi history)
-    useEffect(() => {
-        const existingId = (data as any)?.id || (rawData as any)?.id;
-        if (existingId) {
-            setRecordId(existingId);
-            setSaved(true);
-        }
-    }, [data, rawData]);
-
-    // [CRITICAL FIX] Validasi ratios agar selalu Array
-    // Mencegah error "ratios.filter is not a function" jika backend mengirim Object/JSON
-    const rawRatios = data.ratios || (data as any).ratiosDetails;
+    // --- DATA NORMALIZATION ---
+    // Pastikan ratios selalu array, handle perbedaan struktur BE lama vs baru
+    const rawRatios = (data as any).ratios || (data as any).ratiosDetails || [];
     const ratios = Array.isArray(rawRatios) ? rawRatios : [];
 
-    const score = data.score ?? (data as any).healthScore ?? 0;
-    const netWorth = data.netWorth ?? (data as any).totalNetWorth ?? 0;
-    const monthlySurplus = data.surplusDeficit ?? 0;
+    const score = (data as any).score ?? (data as any).healthScore ?? 0;
+    const netWorth = (data as any).netWorth ?? (data as any).totalNetWorth ?? 0;
+    const monthlySurplus = (data as any).surplusDeficit ?? 0;
 
     const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
     const periodLabel = viewMode === "ANNUAL" ? "(Per Tahun)" : "(Per Bulan)";
 
-    const getNormalizedPayload = () => {
-        const payload: any = { ...rawData };
-        if (payload.userProfile?.maritalStatus !== "MARRIED") {
-            delete payload.spouseProfile;
+    // --- HANDLERS ---
+
+    // Handler Download PDF (Legacy User Mode)
+    const handleLegacyDownload = async () => {
+        if (localPdfLoading) return;
+
+        // Cek ID dari data legacy
+        const recordId = (data as any).id || (rawData as any)?.id;
+
+        if (!recordId) {
+            alert("ID Laporan tidak ditemukan. Mohon simpan data terlebih dahulu.");
+            return;
         }
-        FLOW_FIELDS.forEach(field => {
-            if (typeof payload[field] === 'number') {
-                payload[field] = Math.round(payload[field] / 12);
-            }
-        });
-        return payload;
-    };
-
-    const handleSave = async () => {
-        if (isReadOnly) return;
-
-        setSaving(true);
-        try {
-            const payload = getNormalizedPayload();
-            const response = await financialService.createCheckup(payload);
-
-            if (response && (response as any).id) {
-                setRecordId((response as any).id);
-            }
-
-            setSaved(true);
-        } catch (error: any) {
-            console.error("Gagal menyimpan:", error);
-            alert("Gagal menyimpan data.");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleDownloadPDF = async () => {
-        if (showPdfModal) return;
 
         try {
-            let idToDownload = recordId || (data as any).id || (rawData as any).id;
-
-            // Logic Auto-Save jika belum ada ID
-            if (!isReadOnly && !idToDownload) {
-                setSaving(true);
-                try {
-                    const payload = getNormalizedPayload();
-                    const savedRecord = await financialService.createCheckup(payload);
-
-                    setSaved(true);
-
-                    if (savedRecord && (savedRecord as any).id) {
-                        idToDownload = (savedRecord as any).id;
-                        setRecordId(idToDownload);
-                    }
-                } catch (e) {
-                    console.error("Auto-save failed", e);
-                    alert("Gagal menyimpan data otomatis sebelum download.");
-                    return;
-                } finally {
-                    setSaving(false);
-                }
-            }
-
-            if (!idToDownload) {
-                alert("Gagal menemukan ID Laporan. Mohon simpan data terlebih dahulu.");
-                return;
-            }
-
-            setShowPdfModal(true);
-            await financialService.downloadCheckupPdf(idToDownload);
-
-            setTimeout(() => {
-                setShowPdfModal(false);
-            }, 500);
-
+            setLocalPdfLoading(true);
+            await financialService.downloadCheckupPdf(recordId);
         } catch (error) {
-            setShowPdfModal(false);
             console.error("PDF Download Error:", error);
-            alert("Gagal mengunduh PDF. Server mungkin sedang sibuk atau koneksi terputus.");
+            alert("Gagal mengunduh PDF. Silakan coba lagi.");
+        } finally {
+            setLocalPdfLoading(false);
         }
     };
 
@@ -198,7 +127,6 @@ export function CheckupResult({
     }
 
     // Hitung jumlah status untuk summary text
-    // Gunakan array 'ratios' yang sudah divalidasi
     const healthyCount = ratios.filter((r: any) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length;
     const warningCount = ratios.filter((r: any) => r.statusColor === "YELLOW").length;
     const dangerCount = ratios.filter((r: any) => r.statusColor === "RED").length;
@@ -207,7 +135,7 @@ export function CheckupResult({
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-24 md:pb-0">
 
-            <PdfLoadingModal isOpen={showPdfModal} />
+            <PdfLoadingModal isOpen={localPdfLoading || isDownloading} />
 
             {/* --- HEADER --- */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
@@ -219,7 +147,7 @@ export function CheckupResult({
                     <p className="text-slate-500 text-sm">
                         {isReadOnly
                             ? "Laporan ini bersifat rahasia dan hanya untuk keperluan audit internal."
-                            : "Berikut adalah analisa kesehatan keuangan Anda."}
+                            : "Berikut adalah analisa kesehatan keuangan berdasarkan data input."}
                     </p>
                 </div>
 
@@ -351,7 +279,7 @@ export function CheckupResult({
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                         <div className="w-1.5 h-6 bg-slate-800 rounded-full" />
-                       Indikator 8 Rasio Keuangan
+                        Indikator 8 Rasio Keuangan
                     </h3>
                     <span className="text-xs text-slate-500 hidden md:inline-block">*Klik kartu untuk melihat detail</span>
                 </div>
@@ -414,45 +342,41 @@ export function CheckupResult({
                 )}
             </div>
 
-            {/* --- ACTION BAR --- */}
+            {/* --- ACTION BAR (FLOATING OR STATIC) --- */}
             {!isReadOnly && (
                 <Card className="p-4 bg-white border-t border-slate-200 fixed bottom-0 left-0 w-full z-50 md:static md:border md:rounded-2xl md:shadow-sm md:z-0">
                     <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-3 justify-between">
                         <div className="hidden md:block text-sm text-slate-500">
-                            <span className="font-bold text-slate-700">Tips:</span> Simpan hasil diagnosa ini untuk memantau history.
+                            <span className="font-bold text-slate-700">Tips:</span>
+                            {isAgentMode
+                                ? "Diskusikan hasil ini dengan klien sebelum mencetak laporan."
+                                : "Simpan hasil diagnosa ini untuk memantau history."}
                         </div>
 
                         <div className="flex gap-3 w-full md:w-auto">
+                            {/* BUTTON: HITUNG ULANG */}
                             <Button
                                 variant="outline"
                                 onClick={onReset}
-                                disabled={showPdfModal || saving}
+                                disabled={isDownloading}
                                 className="flex-1 md:flex-none border-slate-300 text-slate-600 hover:bg-slate-50"
                             >
                                 <RefreshCcw className="w-4 h-4 mr-2" /> Hitung Ulang
                             </Button>
 
+                            {/* BUTTON: DOWNLOAD PDF */}
                             <Button
-                                variant="ghost"
-                                onClick={handleDownloadPDF}
-                                disabled={showPdfModal || saving}
-                                className="flex-1 md:flex-none text-slate-500 hover:text-brand-600 hidden md:flex"
-                            >
-                                <Download className="w-4 h-4 mr-2" /> PDF
-                            </Button>
-
-                            <Button
-                                onClick={handleSave}
-                                disabled={saving || saved || showPdfModal}
+                                onClick={isAgentMode ? onDownloadPdf : handleLegacyDownload}
+                                disabled={isDownloading || localPdfLoading}
                                 className={cn(
                                     "flex-2 md:flex-none min-w-45 font-bold shadow-lg transition-all text-white",
-                                    saved ? "bg-emerald-600 hover:bg-emerald-700" : "bg-brand-600 hover:bg-brand-700"
+                                    isAgentMode ? "bg-brand-600 hover:bg-brand-700" : "bg-emerald-600 hover:bg-emerald-700"
                                 )}
                             >
-                                {saving ? " Menyimpan..." : saved ? (
-                                    <><CheckCircle2 className="w-4 h-4 mr-2" /> Tersimpan</>
+                                {isDownloading || localPdfLoading ? (
+                                    <span className="flex items-center"><RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> Memproses...</span>
                                 ) : (
-                                    <><Save className="w-4 h-4 mr-2" /> Simpan Hasil</>
+                                    <span className="flex items-center"><Download className="w-4 h-4 mr-2" /> {isAgentMode ? "Cetak Laporan PDF" : "Simpan PDF"}</span>
                                 )}
                             </Button>
                         </div>

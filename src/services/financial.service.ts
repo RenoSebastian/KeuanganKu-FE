@@ -28,12 +28,13 @@ import {
   // [NEW] DTO Simulasi
   CreateInsuranceSimulationDto,
   CreatePensionSimulationDto,
-  CreateGoalSimulationDto
+  CreateGoalSimulationDto,
+  CreateCheckupSimulationDto
 } from "@/lib/types";
 
 export const financialService = {
   // ===========================================================================
-  // 1. FINANCIAL CHECKUP
+  // 1. FINANCIAL CHECKUP (EXISTING / PERSONAL)
   // ===========================================================================
 
   createCheckup: async (data: FinancialRecord) => {
@@ -336,7 +337,19 @@ export const financialService = {
     });
   },
 
-  // 2. POST Import File .mgc
+  /**
+   * simulateAgentCheckup
+   * [NEW] Simulasi Financial Checkup Stateless
+   * Mengembalikan PDF Blob + Header Token .mgc
+   * Digunakan untuk fitur Agen.
+   */
+  simulateAgentCheckup: async (data: CreateCheckupSimulationDto): Promise<AxiosResponse<Blob>> => {
+    return await api.post("/financial/simulation/checkup", data, {
+      responseType: 'blob'
+    });
+  },
+
+  // 2. POST Import File .mgc (Universal Decode)
   decodeSimulationToken: async (token: string) => {
     const response = await api.post("/financial/simulation/decode", { simulationToken: token });
     return response.data; // Return data asli untuk autofill form

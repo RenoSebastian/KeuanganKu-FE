@@ -836,3 +836,102 @@ export interface GoalSimulationResult {
   netTarget: number;            // Kekurangan (Gap)
   monthlySaving: number;        // PMT (Solusi)
 }
+
+// ============================================================================
+// 12. FINANCIAL CHECKUP SIMULATION (AGENT MODE)
+// ============================================================================
+
+export interface SimulationSpouseProfile {
+  name: string;
+  dob?: string;
+  occupation?: string;
+}
+
+export interface SimulationClientProfile {
+  name: string;
+  nik?: string;
+  dob: string;
+  gender: "L" | "P";
+  city: string;
+  address: string;
+  phone: string;
+  email?: string;
+  occupation: string;
+  maritalStatus: "SINGLE" | "MARRIED" | "DIVORCED";
+  religion?: string;
+  childrenCount?: number;
+  dependentParents?: number;
+}
+
+// DTO Payload untuk dikirim ke Backend
+export interface CreateCheckupSimulationDto {
+  // Section 1: Identitas
+  client: SimulationClientProfile;
+  spouse?: SimulationSpouseProfile;
+
+  // Section 2: Financial Data (Flat keys matching BE DTO)
+  assetCash: number;
+  assetHome: number;
+  assetVehicle: number;
+  assetJewelry: number;
+  assetAntique: number;
+  assetPersonalOther: number;
+
+  assetInvHome: number;
+  assetInvVehicle: number;
+  assetGold: number;
+  assetInvAntique: number;
+  assetStocks: number;
+  assetMutualFund: number;
+  assetBonds: number;
+  assetDeposit: number;
+  assetInvOther: number;
+
+  debtKPR: number;
+  debtKPM: number;
+  debtCC: number;
+  debtCoop: number;
+  debtConsumptiveOther: number;
+  debtBusiness: number;
+
+  incomeFixed: number;
+  incomeVariable: number;
+
+  installmentKPR: number;
+  installmentKPM: number;
+  installmentCC: number;
+  installmentCoop: number;
+  installmentConsumptiveOther: number;
+  installmentBusiness: number;
+
+  insuranceLife: number;
+  insuranceHealth: number;
+  insuranceHome: number;
+  insuranceVehicle: number;
+  insuranceBPJS: number;
+  insuranceOther: number;
+
+  savingEducation: number;
+  savingRetirement: number;
+  savingPilgrimage: number;
+  savingHoliday: number;
+  savingEmergency: number;
+  savingOther: number;
+
+  expenseFood: number;
+  expenseSchool: number;
+  expenseTransport: number;
+  expenseCommunication: number;
+  expenseHelpers: number;
+  expenseTax: number;
+  expenseLifestyle: number;
+}
+
+// Result structure decoded from Token or used in UI Components
+export interface CheckupSimulationResult {
+  score: number;
+  globalStatus: string; // SEHAT, WASPADA, BAHAYA
+  netWorth: number;
+  surplusDeficit: number;
+  ratios: RatioDetail[];
+}

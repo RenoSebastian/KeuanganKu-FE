@@ -1,38 +1,36 @@
 "use client";
 
-import { useState, useEffect, SetStateAction } from "react";
+import { useState, useEffect, SetStateAction, Activity } from "react";
 import {
     ArrowLeft, ArrowRight, CheckCircle2,
     Wallet, Banknote, Calculator,
-    CreditCard, User, Heart, MapPin, Briefcase, Users,
+    CreditCard, User, Briefcase, Users,
     ShoppingBag, Car, Gem, Phone, Umbrella, PiggyBank, ShieldCheck,
     Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle,
-    Loader2, CalendarDays, Activity, RefreshCcw, FileText
+    Loader2, RefreshCcw, FileText
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { FinancialRecord, HealthAnalysisResult, PersonalInfo, HelpContent } from "@/lib/types";
+import { FinancialRecord, HelpContent } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { cn } from "@/lib/utils";
-import { CheckupResult } from "./checkup-result";
 import { formatRupiah } from "@/lib/financial-math";
 import { InfoPopover } from "@/components/ui/info-popover";
 import { FINANCIAL_HELP_DATA } from "@/lib/financial-dictionary";
 import { MonthlyHelperModal } from "./monthly-helper-modal";
 
-// --- INITIAL STATE ---
-const EMPTY_PROFILE: PersonalInfo = {
-    name: "", dob: "", gender: "L", ethnicity: "", religion: "ISLAM",
-    maritalStatus: "SINGLE", childrenCount: 0, dependentParents: 0,
-    occupation: "", city: ""
-};
+// --- PROPS INTERFACE ---
+interface CheckupWizardProps {
+    initialData?: Partial<FinancialRecord>;
+    onComplete: (data: any) => void;
+    onBack: () => void;
+    isLoading?: boolean;
+}
 
-const INITIAL_DATA: FinancialRecord = {
-    // 1. Metadata
-    userProfile: { ...EMPTY_PROFILE },
-    spouseProfile: { ...EMPTY_PROFILE },
-
+// --- INITIAL STATE (ONLY FINANCIALS) ---
+// Profile data is handled by parent component now
+const INITIAL_DATA_FINANCIAL: Partial<FinancialRecord> = {
     // 2. Aset (Neraca - STOCK)
     assetCash: 0,
     assetHome: 0, assetVehicle: 0, assetJewelry: 0, assetAntique: 0, assetPersonalOther: 0,
@@ -64,15 +62,10 @@ const FLOW_FIELDS: (keyof FinancialRecord)[] = [
     'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
 ];
 
-export function CheckupWizard() {
+export function CheckupWizard({ initialData, onComplete, onBack, isLoading }: CheckupWizardProps) {
     const [step, setStep] = useState(0);
-    const [formData, setFormData] = useState<FinancialRecord>(INITIAL_DATA);
-    const [result, setResult] = useState<HealthAnalysisResult | null>(null);
+    const [formData, setFormData] = useState<Partial<FinancialRecord>>({ ...INITIAL_DATA_FINANCIAL, ...initialData });
     const [isClient, setIsClient] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-
-    // --- PERSISTENCE STATE ---
-    const [isFetchingData, setIsFetchingData] = useState(true);
 
     // --- STATE MODAL HELPER (Monthly to Annual) ---
     const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<keyof FinancialRecord | null>(null);
@@ -90,103 +83,19 @@ export function CheckupWizard() {
     const [currentGoldPrice, setCurrentGoldPrice] = useState<number>(0);
     const [goldWeight, setGoldWeight] = useState("");
 
-    // --- STATE MODAL RESET ---
-    const [showResetModal, setShowResetModal] = useState(false);
-
     useEffect(() => setIsClient(true), []);
 
-    // --- LOGIC 0: PERSISTENCE CHECK (AUTO-JUMP TO RESULT) ---
+    // Update form data if initialData changes (e.g. from Import)
     useEffect(() => {
-        const checkPersistence = async () => {
-            try {
-                const latestData = await financialService.getLatestCheckup();
-
-                if (latestData) {
-                    // A. Hydrate Form (Isi form dengan data lama, jaga-jaga user mau edit)
-                    hydrateForm(latestData);
-
-                    // B. Construct Result Object
-                    // NOTE: Menggunakan 'as any' untuk mengakses properti raw dari DB (healthScore, status, dll)
-                    // yang tidak ada di interface standar FinancialRecord tapi dikembalikan oleh API.
-                    const raw = latestData as any;
-
-                    const resultData: HealthAnalysisResult = {
-                        score: raw.healthScore ?? raw.score ?? 0,
-                        globalStatus: raw.status ?? raw.globalStatus ?? "BAHAYA",
-                        ratios: raw.ratios || raw.ratiosDetails || [],
-                        netWorth: Number(raw.totalNetWorth ?? 0),
-                        surplusDeficit: Number(raw.surplusDeficit ?? 0),
-                        generatedAt: (raw.checkDate as string) || new Date().toISOString()
-                    };
-
-                    // C. Set Result State -> Ini akan memicu render halaman Result langsung
-                    setResult(resultData);
-                }
-            } catch (error) {
-                console.error("No previous data found or error:", error);
-            } finally {
-                setIsFetchingData(false);
-            }
-        };
-
-        if (isClient) {
-            checkPersistence();
+        if (initialData) {
+            setFormData(prev => ({ ...prev, ...initialData }));
         }
-    }, [isClient]);
-
-    // --- HYDRATION LOGIC (Helper) ---
-    const hydrateForm = (sourceData: any) => {
-        const newData = { ...INITIAL_DATA };
-
-        // 1. Profile (Mapping langsung)
-        if (sourceData.userProfile) newData.userProfile = { ...sourceData.userProfile } as PersonalInfo;
-        if (sourceData.spouseProfile) newData.spouseProfile = { ...sourceData.spouseProfile } as PersonalInfo;
-
-        // 2. Aset & Utang (Snapshot/Stock) - Nilai Tetap
-        (Object.keys(INITIAL_DATA) as (keyof FinancialRecord)[]).forEach(key => {
-            if (key !== 'userProfile' && key !== 'spouseProfile' && !FLOW_FIELDS.includes(key)) {
-                // [FIXED] Gunakan casting (newData as any) untuk menghindari error assignment 'number' ke 'PersonalInfo'
-                (newData as any)[key] = Number(sourceData[key]) || 0;
-            }
-        });
-
-        // 3. Arus Kas (Flow) - KONVERSI BULANAN KE TAHUNAN
-        // Karena di DB disimpan Bulanan, tapi UI Wizard inputnya Tahunan
-        FLOW_FIELDS.forEach(key => {
-            (newData as any)[key] = (Number(sourceData[key]) || 0) * 12;
-        });
-
-        setFormData(newData);
-    };
-
-    // --- RESET HANDLER (Dipanggil dari tombol "Hitung Ulang" di Result) ---
-    const handleResetTrigger = () => {
-        setShowResetModal(true);
-    };
-
-    const onConfirmReset = () => {
-        setFormData(INITIAL_DATA);
-        setStep(0);
-        setResult(null);
-        setShowResetModal(false);
-    };
-
-    const onConfirmEdit = () => {
-        setStep(0);
-        setResult(null);
-        setShowResetModal(false);
-    };
+    }, [initialData]);
 
     // --- LOGIC 1: HANDLE INPUT CHANGE ---
     const handleFinancialChange = (field: keyof FinancialRecord, value: string) => {
         const numericValue = parseFloat(value.replace(/[^0-9]/g, "")) || 0;
         setFormData((prev) => ({ ...prev, [field]: numericValue }));
-    };
-
-    const handleProfileChange = (type: "userProfile" | "spouseProfile", field: keyof PersonalInfo, value: any) => {
-        setFormData((prev) => ({
-            ...prev, [type]: { ...prev[type]!, [field]: value }
-        }));
     };
 
     // --- LOGIC 2: APPLY MONTHLY HELPER ---
@@ -215,43 +124,23 @@ export function CheckupWizard() {
         if (isClient) fetchMarketData();
     }, [isClient]);
 
-    // --- LOGIC 3: SUBMIT DATA (WITH NORMALIZATION) ---
-    const handleCalculate = async () => {
-        setIsLoading(true);
-        try {
-            const payload: any = { ...formData };
+    // --- LOGIC 3: SUBMIT DATA ---
+    const handleSubmit = () => {
+        const payload: any = { ...formData };
 
-            // Sanitasi Data Pasangan
-            if (payload.userProfile.maritalStatus !== "MARRIED") {
-                delete payload.spouseProfile;
+        // NORMALISASI TAHUNAN KE BULANAN (Agar Backend Konsisten)
+        FLOW_FIELDS.forEach(field => {
+            if (typeof payload[field] === 'number') {
+                payload[field] = Math.round(payload[field] / 12);
             }
+        });
 
-            // CRITICAL: NORMALISASI TAHUNAN KE BULANAN (Agar Backend Konsisten)
-            FLOW_FIELDS.forEach(field => {
-                if (typeof payload[field] === 'number') {
-                    payload[field] = Math.round(payload[field] / 12);
-                }
-            });
-
-            const analysis = await financialService.createCheckup(payload);
-            setResult(analysis);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-        } catch (error: any) {
-            console.error("Gagal melakukan analisa:", error);
-            const errorMsg = error.response?.data?.message
-                ? Array.isArray(error.response.data.message)
-                    ? error.response.data.message.join(", ")
-                    : error.response.data.message
-                : "Terjadi kesalahan saat memproses data.";
-            alert(`Gagal: ${errorMsg}`);
-        } finally {
-            setIsLoading(false);
-        }
+        onComplete(payload);
     };
 
     const nextStep = () => {
         window.scrollTo({ top: 0, behavior: "smooth" });
-        setStep(prev => Math.min(prev + 1, 3));
+        setStep(prev => Math.min(prev + 1, 2));
     };
 
     const prevStep = () => {
@@ -259,115 +148,33 @@ export function CheckupWizard() {
         setStep(prev => Math.max(prev - 1, 0));
     };
 
-    // --- HITUNG TOTAL UNTUK REVIEW PAGE (Step 4) ---
+    // --- HITUNG TOTAL UNTUK REVIEW PAGE (Step 2) ---
+    const num = (n: any) => Number(n) || 0;
+
     const totalAssets =
-        formData.assetCash + formData.assetHome + formData.assetVehicle + formData.assetJewelry + formData.assetAntique + formData.assetPersonalOther +
-        formData.assetInvHome + formData.assetInvVehicle + formData.assetGold + formData.assetInvAntique + formData.assetStocks + formData.assetMutualFund + formData.assetBonds + formData.assetDeposit + formData.assetInvOther;
+        num(formData.assetCash) + num(formData.assetHome) + num(formData.assetVehicle) + num(formData.assetJewelry) + num(formData.assetAntique) + num(formData.assetPersonalOther) +
+        num(formData.assetInvHome) + num(formData.assetInvVehicle) + num(formData.assetGold) + num(formData.assetInvAntique) + num(formData.assetStocks) + num(formData.assetMutualFund) + num(formData.assetBonds) + num(formData.assetDeposit) + num(formData.assetInvOther);
 
     const totalDebt =
-        formData.debtKPR + formData.debtKPM + formData.debtCC + formData.debtCoop + formData.debtConsumptiveOther + formData.debtBusiness;
+        num(formData.debtKPR) + num(formData.debtKPM) + num(formData.debtCC) + num(formData.debtCoop) + num(formData.debtConsumptiveOther) + num(formData.debtBusiness);
 
     const netWorth = totalAssets - totalDebt;
 
-    const totalIncomeAnnual = formData.incomeFixed + formData.incomeVariable;
+    const totalIncomeAnnual = num(formData.incomeFixed) + num(formData.incomeVariable);
 
-    const totalInstallmentsAnnual = formData.installmentKPR + formData.installmentKPM + formData.installmentCC + formData.installmentCoop + formData.installmentConsumptiveOther + formData.installmentBusiness;
-    const totalInsuranceAnnual = formData.insuranceLife + formData.insuranceHealth + formData.insuranceHome + formData.insuranceVehicle + formData.insuranceBPJS + formData.insuranceOther;
-    const totalSavingsAnnual = formData.savingEducation + formData.savingRetirement + formData.savingPilgrimage + formData.savingHoliday + formData.savingEmergency + formData.savingOther;
-    const totalLivingExpenseAnnual = formData.expenseFood + formData.expenseSchool + formData.expenseTransport + formData.expenseCommunication + formData.expenseHelpers + formData.expenseLifestyle + formData.expenseTax;
+    const totalInstallmentsAnnual = num(formData.installmentKPR) + num(formData.installmentKPM) + num(formData.installmentCC) + num(formData.installmentCoop) + num(formData.installmentConsumptiveOther) + num(formData.installmentBusiness);
+    const totalInsuranceAnnual = num(formData.insuranceLife) + num(formData.insuranceHealth) + num(formData.insuranceHome) + num(formData.insuranceVehicle) + num(formData.insuranceBPJS) + num(formData.insuranceOther);
+    const totalSavingsAnnual = num(formData.savingEducation) + num(formData.savingRetirement) + num(formData.savingPilgrimage) + num(formData.savingHoliday) + num(formData.savingEmergency) + num(formData.savingOther);
+    const totalLivingExpenseAnnual = num(formData.expenseFood) + num(formData.expenseSchool) + num(formData.expenseTransport) + num(formData.expenseCommunication) + num(formData.expenseHelpers) + num(formData.expenseLifestyle) + num(formData.expenseTax);
 
     const totalExpenseAnnual = totalInstallmentsAnnual + totalInsuranceAnnual + totalSavingsAnnual + totalLivingExpenseAnnual;
     const surplusDeficitAnnual = totalIncomeAnnual - totalExpenseAnnual;
 
-    // --- DEFINISI MODAL KONFIRMASI (Disimpan di variabel) ---
-    const ResetConfirmationModal = showResetModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            {/* Klik luar untuk tutup */}
-            <div className="absolute inset-0" onClick={() => setShowResetModal(false)} />
-
-            <div className="relative bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100 z-10">
-                {/* Header */}
-                <div className="text-center mb-6">
-                    <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-amber-100">
-                        <AlertCircle className="w-7 h-7 text-amber-500" />
-                    </div>
-                    <h3 className="text-xl font-black text-slate-800">Konfirmasi Hitung Ulang</h3>
-                    <p className="text-sm text-slate-500 mt-2 leading-relaxed px-4">
-                        Bagaimana Anda ingin memperbaiki data financial checkup ini?
-                    </p>
-                </div>
-
-                {/* Actions */}
-                <div className="space-y-3">
-                    <button
-                        onClick={onConfirmEdit}
-                        className="w-full flex items-center justify-center gap-3 p-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-all font-bold shadow-lg shadow-brand-500/20 group"
-                    >
-                        <div className="p-1 bg-white/20 rounded-lg group-hover:scale-110 transition-transform">
-                            <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="text-left">
-                            <span className="block text-xs font-normal opacity-90">Data masih relevan?</span>
-                            <span>Perbaiki / Edit Data Lama</span>
-                        </div>
-                    </button>
-
-                    <button
-                        onClick={onConfirmReset}
-                        className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl transition-all font-bold group"
-                    >
-                        <div className="p-1 bg-slate-100 group-hover:bg-rose-100 rounded-lg transition-colors">
-                            <RefreshCcw className="w-4 h-4" />
-                        </div>
-                        <div className="text-left">
-                            <span className="block text-xs font-normal opacity-70">Data sudah usang?</span>
-                            <span>Reset / Mulai Dari Nol</span>
-                        </div>
-                    </button>
-                </div>
-
-                {/* Close Button */}
-                <div className="mt-6 pt-4 border-t border-slate-100 text-center">
-                    <button
-                        onClick={() => setShowResetModal(false)}
-                        className="text-sm font-bold text-slate-400 hover:text-slate-600 px-6 py-2 rounded-full hover:bg-slate-50 transition-colors"
-                    >
-                        Batal / Tutup
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
-    // --- RENDER LOGIC ---
-
-    if (result) {
-        return (
-            <>
-                <CheckupResult
-                    data={result}
-                    rawData={formData}
-                    onReset={handleResetTrigger}
-                />
-                {ResetConfirmationModal}
-            </>
-        );
-    }
 
     if (!isClient) return null;
 
-    // --- RENDER LOADING STATE ---
-    if (isFetchingData) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-                <Loader2 className="w-10 h-10 text-brand-600 animate-spin" />
-                <p className="text-slate-500 font-medium animate-pulse">Memuat data terakhir Anda...</p>
-            </div>
-        );
-    }
-
+    // STEP DISEDERHANAKAN: 0 (Neraca), 1 (Arus Kas), 2 (Review)
     const steps = [
-        { label: "Data Diri", icon: User },
         { label: "Neraca", icon: Wallet },
         { label: "Arus Kas", icon: Banknote },
         { label: "Review", icon: Calculator },
@@ -407,7 +214,7 @@ export function CheckupWizard() {
                 <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2 rounded-full z-0" />
                 <div
                     className="absolute top-1/2 left-0 h-0.5 bg-linear-to-r from-brand-700 to-cyan-500 -translate-y-1/2 rounded-full z-0 transition-all duration-500 ease-out"
-                    style={{ width: `${(step / 4) * 100}%` }}
+                    style={{ width: `${(step / 2) * 100}%` }}
                 />
                 <div className="flex justify-between relative z-10">
                     {steps.map((s, idx) => {
@@ -447,23 +254,20 @@ export function CheckupWizard() {
                             "p-3.5 rounded-2xl shadow-sm transition-all duration-500 ring-1 ring-inset ring-white/50",
                             "bg-brand-50 text-brand-600"
                         )}>
-                            {step === 0 && <User className="w-8 h-8" />}
-                            {step === 1 && <Wallet className="w-8 h-8" />}
-                            {step === 2 && <Banknote className="w-8 h-8" />}
-                            {step === 3 && <Calculator className="w-8 h-8" />}
+                            {step === 0 && <Wallet className="w-8 h-8" />}
+                            {step === 1 && <Banknote className="w-8 h-8" />}
+                            {step === 2 && <Calculator className="w-8 h-8" />}
                         </div>
                         <div>
                             <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-                                {step === 0 && "Identitas & Profil"}
-                                {step === 1 && "Neraca (Aset & Utang)"}
-                                {step === 2 && "Arus Kas (Tahunan)"}
-                                {step === 3 && "Review & Validasi"}
+                                {step === 0 && "Neraca (Aset & Utang)"}
+                                {step === 1 && "Arus Kas (Tahunan)"}
+                                {step === 2 && "Review & Validasi"}
                             </h2>
                             <p className="text-slate-500 text-sm mt-1 font-medium">
-                                {step === 0 && "Lengkapi data diri User dan Pasangan (jika ada)."}
-                                {step === 1 && "Nilai aset & sisa pokok utang saat ini (Snapshot)."}
-                                {step === 2 && "Masukkan total pendapatan & pengeluaran DALAM SETAHUN."}
-                                {step === 3 && "Cek ringkasan sebelum diagnosa dijalankan."}
+                                {step === 0 && "Nilai aset & sisa pokok utang saat ini (Snapshot)."}
+                                {step === 1 && "Masukkan total pendapatan & pengeluaran DALAM SETAHUN."}
+                                {step === 2 && "Cek ringkasan sebelum diagnosa dijalankan."}
                             </p>
                         </div>
                     </div>
@@ -472,74 +276,8 @@ export function CheckupWizard() {
                 {/* CONTENT */}
                 <div className="p-6 md:p-8 space-y-8 min-h-100 relative">
 
-                    {/* STEP 0: DATA DIRI */}
+                    {/* STEP 0: LAPORAN NERACA (ASSETS & LIABILITIES) */}
                     {step === 0 && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                            <div>
-                                <SectionHeader title="Data Pribadi" desc="Informasi utama pengguna" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <TextInput label="Nama Lengkap" icon={<User className="w-4 h-4" />} value={formData.userProfile.name} onChange={(v) => handleProfileChange("userProfile", "name", v)} />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <DateInput label="Tgl Lahir" value={formData.userProfile.dob} onChange={(v) => handleProfileChange("userProfile", "dob", v)} />
-                                        <SelectInput label="Jenis kelamin" value={formData.userProfile.gender} onChange={(v) => handleProfileChange("userProfile", "gender", v)} options={[{ value: "L", label: "Laki-laki" }, { value: "P", label: "Perempuan" }]} />
-                                    </div>
-                                    <TextInput label="Suku Bangsa" icon={<Users className="w-4 h-4" />} value={formData.userProfile.ethnicity} onChange={(v) => handleProfileChange("userProfile", "ethnicity", v)} />
-                                    <SelectInput label="Agama" value={formData.userProfile.religion} onChange={(v) => handleProfileChange("userProfile", "religion", v)} options={[{ value: "ISLAM", label: "Islam" }, { value: "KRISTEN", label: "Kristen" }, { value: "KATOLIK", label: "Katolik" }, { value: "HINDU", label: "Hindu" }, { value: "BUDDHA", label: "Buddha" }, { value: "LAINNYA", label: "Lainnya" }]} />
-                                    <SelectInput label="Status Perkawinan" value={formData.userProfile.maritalStatus} onChange={(v) => handleProfileChange("userProfile", "maritalStatus", v)} options={[{ value: "SINGLE", label: "Belum Menikah" }, { value: "MARRIED", label: "Menikah" }, { value: "DIVORCED", label: "Pernah Menikah" }]} />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Input
-                                            label="Jumlah Anak"
-                                            type="number"
-                                            min={0}
-                                            clampNumber
-                                            icon={<User className="w-4 h-4" />}
-                                            value={formData.userProfile.childrenCount}
-                                            onChange={(e) =>
-                                                handleProfileChange(
-                                                    "userProfile",
-                                                    "childrenCount",
-                                                    Number(e.target.value)
-                                                )
-                                            }
-                                        />
-
-                                        <Input
-                                            label="Tanggungan Ortu"
-                                            type="number"
-                                            min={0}
-                                            clampNumber
-                                            icon={<User className="w-4 h-4" />}
-                                            value={formData.userProfile.dependentParents}
-                                            onChange={(e) =>
-                                                handleProfileChange(
-                                                    "userProfile",
-                                                    "dependentParents",
-                                                    Number(e.target.value)
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    <TextInput label="Pekerjaan" icon={<Briefcase className="w-4 h-4" />} value={formData.userProfile.occupation} onChange={(v) => handleProfileChange("userProfile", "occupation", v)} />
-                                    <TextInput label="Kota Domisili" icon={<MapPin className="w-4 h-4" />} value={formData.userProfile.city} onChange={(v) => handleProfileChange("userProfile", "city", v)} />
-                                </div>
-                            </div>
-                            {formData.userProfile.maritalStatus === "MARRIED" && (
-                                <div className="bg-brand-50/50 p-6 rounded-2xl border border-brand-100/50">
-                                    <SectionHeader title="Data Pasangan" desc="Informasi suami/istri" />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <TextInput label="Nama Pasangan" icon={<Heart className="w-4 h-4" />} value={formData.spouseProfile?.name} onChange={(v) => handleProfileChange("spouseProfile", "name", v)} />
-                                        <DateInput label="Tgl Lahir Pasangan" value={formData.spouseProfile?.dob} onChange={(v) => handleProfileChange("spouseProfile", "dob", v)} />
-                                        <TextInput label="Suku Bangsa" icon={<Users className="w-4 h-4" />} value={formData.spouseProfile?.ethnicity} onChange={(v) => handleProfileChange("spouseProfile", "ethnicity", v)} />
-                                        <SelectInput label="Agama" value={formData.spouseProfile?.religion} onChange={(v) => handleProfileChange("spouseProfile", "religion", v)} options={[{ value: "ISLAM", label: "Islam" }, { value: "KRISTEN", label: "Kristen" }, { value: "KATOLIK", label: "Katolik" }, { value: "HINDU", label: "Hindu" }, { value: "BUDDHA", label: "Buddha" }]} />
-                                        <TextInput label="Pekerjaan Pasangan" icon={<Briefcase className="w-4 h-4" />} value={formData.spouseProfile?.occupation} onChange={(v) => handleProfileChange("spouseProfile", "occupation", v)} />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* STEP 1: LAPORAN NERACA (ASSETS & LIABILITIES) */}
-                    {step === 1 && (
                         <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-10">
                             {/* --- SEKSI A: DAFTAR ASET (HARTA) --- */}
                             <div className="space-y-8">
@@ -550,26 +288,26 @@ export function CheckupWizard() {
 
                                 <SectionHeader title="Aset Likuid" desc="Kas dan setara kas (Saldo Saat Ini)" />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <InputGroup label="Kas / Tabungan / Deposito Cair" value={formData.assetCash} onChange={(v) => handleFinancialChange("assetCash", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetCash} />
+                                    <InputGroup label="Kas / Tabungan / Deposito Cair" value={num(formData.assetCash)} onChange={(v) => handleFinancialChange("assetCash", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetCash} />
                                 </div>
 
                                 <div className="border-t border-dashed border-slate-200" />
 
                                 <SectionHeader title="Aset Personal" desc="Aset guna pakai (tidak menghasilkan income)" />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <InputGroup label="Rumah / Tanah (Ditempati)" value={formData.assetHome} onChange={(v) => handleFinancialChange("assetHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetHome} />
-                                    <InputGroup label="Kendaraan Pribadi" value={formData.assetVehicle} onChange={(v) => handleFinancialChange("assetVehicle", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetVehicle} />
-                                    <InputGroup label="Emas Perhiasan" value={formData.assetJewelry} onChange={(v) => handleFinancialChange("assetJewelry", v)} icon={<Gem className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetJewelry} />
-                                    <InputGroup label="Barang Antik / Koleksi" value={formData.assetAntique} onChange={(v) => handleFinancialChange("assetAntique", v)} icon={<Coins className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetAntique} />
-                                    <InputGroup label="Aset Personal Lain" value={formData.assetPersonalOther} onChange={(v) => handleFinancialChange("assetPersonalOther", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetPersonalOther} />
+                                    <InputGroup label="Rumah / Tanah (Ditempati)" value={num(formData.assetHome)} onChange={(v) => handleFinancialChange("assetHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetHome} />
+                                    <InputGroup label="Kendaraan Pribadi" value={num(formData.assetVehicle)} onChange={(v) => handleFinancialChange("assetVehicle", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetVehicle} />
+                                    <InputGroup label="Emas Perhiasan" value={num(formData.assetJewelry)} onChange={(v) => handleFinancialChange("assetJewelry", v)} icon={<Gem className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetJewelry} />
+                                    <InputGroup label="Barang Antik / Koleksi" value={num(formData.assetAntique)} onChange={(v) => handleFinancialChange("assetAntique", v)} icon={<Coins className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetAntique} />
+                                    <InputGroup label="Aset Personal Lain" value={num(formData.assetPersonalOther)} onChange={(v) => handleFinancialChange("assetPersonalOther", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetPersonalOther} />
                                 </div>
 
                                 <div className="border-t border-dashed border-slate-200" />
 
                                 <SectionHeader title="Aset Investasi" desc="Aset yang diharapkan tumbuh nilainya" />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <InputGroup label="Rumah / Tanah" value={formData.assetInvHome} onChange={(v) => handleFinancialChange("assetInvHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvHome} />
-                                    <InputGroup label="Kendaraan " value={formData.assetInvVehicle} onChange={(v) => handleFinancialChange("assetInvVehicle", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvVehicle} />
+                                    <InputGroup label="Rumah / Tanah" value={num(formData.assetInvHome)} onChange={(v) => handleFinancialChange("assetInvHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvHome} />
+                                    <InputGroup label="Kendaraan " value={num(formData.assetInvVehicle)} onChange={(v) => handleFinancialChange("assetInvVehicle", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvVehicle} />
 
                                     {/* LOGAM MULIA DENGAN MODAL HELPER */}
                                     <div className="space-y-2">
@@ -582,18 +320,18 @@ export function CheckupWizard() {
                                                 <Calculator className="w-3 h-3" /> Bantu Hitung (Gram)
                                             </button>
                                         </div>
-                                        <InputGroupNoLabel value={formData.assetGold} onChange={(v) => handleFinancialChange("assetGold", v)} icon={<Coins className="w-4 h-4" />} />
+                                        <InputGroupNoLabel value={num(formData.assetGold)} onChange={(v) => handleFinancialChange("assetGold", v)} icon={<Coins className="w-4 h-4" />} />
                                         {currentGoldPrice > 0 && (
                                             <p className="text-[9px] text-slate-400 italic ml-1">*Harga referensi: {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(currentGoldPrice)}/gr</p>
                                         )}
                                     </div>
 
-                                    <InputGroup label="Barang Antik " value={formData.assetInvAntique} onChange={(v) => handleFinancialChange("assetInvAntique", v)} icon={<Coins className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvAntique} />
-                                    <InputGroup label="Saham" value={formData.assetStocks} onChange={(v) => handleFinancialChange("assetStocks", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetStocks} />
-                                    <InputGroup label="Reksadana" value={formData.assetMutualFund} onChange={(v) => handleFinancialChange("assetMutualFund", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetMutualFund} />
-                                    <InputGroup label="Obligasi" value={formData.assetBonds} onChange={(v) => handleFinancialChange("assetBonds", v)} icon={<Landmark className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetBonds} />
-                                    <InputGroup label="Deposito Jangka Panjang" value={formData.assetDeposit} onChange={(v) => handleFinancialChange("assetDeposit", v)} icon={<Landmark className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetDeposit} />
-                                    <InputGroup label="Aset Investasi Lain" value={formData.assetInvOther} onChange={(v) => handleFinancialChange("assetInvOther", v)} icon={<Briefcase className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvOther} />
+                                    <InputGroup label="Barang Antik " value={num(formData.assetInvAntique)} onChange={(v) => handleFinancialChange("assetInvAntique", v)} icon={<Coins className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvAntique} />
+                                    <InputGroup label="Saham" value={num(formData.assetStocks)} onChange={(v) => handleFinancialChange("assetStocks", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetStocks} />
+                                    <InputGroup label="Reksadana" value={num(formData.assetMutualFund)} onChange={(v) => handleFinancialChange("assetMutualFund", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetMutualFund} />
+                                    <InputGroup label="Obligasi" value={num(formData.assetBonds)} onChange={(v) => handleFinancialChange("assetBonds", v)} icon={<Landmark className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetBonds} />
+                                    <InputGroup label="Deposito Jangka Panjang" value={num(formData.assetDeposit)} onChange={(v) => handleFinancialChange("assetDeposit", v)} icon={<Landmark className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetDeposit} />
+                                    <InputGroup label="Aset Investasi Lain" value={num(formData.assetInvOther)} onChange={(v) => handleFinancialChange("assetInvOther", v)} icon={<Briefcase className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvOther} />
                                 </div>
                             </div>
 
@@ -617,7 +355,7 @@ export function CheckupWizard() {
                                                 <Calculator className="w-3 h-3" /> Bantu Hitung Sisa
                                             </button>
                                         </div>
-                                        <InputGroupNoLabel value={formData.debtKPR} onChange={(v) => handleFinancialChange("debtKPR", v)} icon={<Home className="w-4 h-4" />} />
+                                        <InputGroupNoLabel value={num(formData.debtKPR)} onChange={(v) => handleFinancialChange("debtKPR", v)} icon={<Home className="w-4 h-4" />} />
                                     </div>
 
                                     {/* KPM DENGAN MODAL HELPER */}
@@ -631,87 +369,24 @@ export function CheckupWizard() {
                                                 <Calculator className="w-3 h-3" /> Bantu Hitung Sisa
                                             </button>
                                         </div>
-                                        <InputGroupNoLabel value={formData.debtKPM} onChange={(v) => handleFinancialChange("debtKPM", v)} icon={<Car className="w-4 h-4" />} />
+                                        <InputGroupNoLabel value={num(formData.debtKPM)} onChange={(v) => handleFinancialChange("debtKPM", v)} icon={<Car className="w-4 h-4" />} />
                                     </div>
 
-                                    <InputGroup label="Kartu Kredit" value={formData.debtCC} onChange={(v) => handleFinancialChange("debtCC", v)} icon={<CreditCard className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtCC} />
-                                    <InputGroup label="Koperasi" value={formData.debtCoop} onChange={(v) => handleFinancialChange("debtCoop", v)} icon={<Users className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtCoop} />
-                                    <InputGroup label="Utang Lainnya" value={formData.debtConsumptiveOther} onChange={(v) => handleFinancialChange("debtConsumptiveOther", v)} icon={<User className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtConsumptiveOther} />
+                                    <InputGroup label="Kartu Kredit" value={num(formData.debtCC)} onChange={(v) => handleFinancialChange("debtCC", v)} icon={<CreditCard className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtCC} />
+                                    <InputGroup label="Koperasi" value={num(formData.debtCoop)} onChange={(v) => handleFinancialChange("debtCoop", v)} icon={<Users className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtCoop} />
+                                    <InputGroup label="Utang Lainnya" value={num(formData.debtConsumptiveOther)} onChange={(v) => handleFinancialChange("debtConsumptiveOther", v)} icon={<User className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtConsumptiveOther} />
                                 </div>
 
                                 <SectionHeader title="Utang Usaha" desc="Utang Produktif / Bisnis" />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <InputGroup label="Utang Usaha / UMKM" value={formData.debtBusiness} onChange={(v) => handleFinancialChange("debtBusiness", v)} icon={<Briefcase className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtBusiness} />
-                                </div>
-                            </div>
-
-                            {/* --- LIVE NETWORTH COUNTER (Vertical Layout Optimized) --- */}
-                            <div className="mt-12 bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl ring-4 ring-brand-500/20">
-
-                                {/* Background Effects (Tetap dipertahankan untuk estetika) */}
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none"></div>
-                                <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[60px] -ml-20 -mb-20 pointer-events-none"></div>
-
-                                {/* Content Wrapper - Diubah menjadi Flex Column Tunggal */}
-                                <div className="relative z-10 flex flex-col gap-6 sm:gap-8">
-
-                                    {/* SECTION 1: BREAKDOWN (Aset & Utang) */}
-                                    {/* Menggunakan Grid untuk pembagian presisi 50% - 50% */}
-                                    <div className="grid grid-cols-2 gap-4 w-full">
-
-                                        {/* Card Aset */}
-                                        <div className="px-4 py-4 sm:px-6 sm:py-5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center flex flex-col justify-center items-center">
-                                            <p className="text-[10px] sm:text-xs text-emerald-300/80 font-bold uppercase mb-1 tracking-wider">
-                                                Total Aset
-                                            </p>
-                                            <p className="text-base sm:text-lg md:text-xl font-bold text-white break-all">
-                                                {formatRupiah(totalAssets)}
-                                            </p>
-                                        </div>
-
-                                        {/* Card Utang */}
-                                        <div className="px-4 py-4 sm:px-6 sm:py-5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md text-center flex flex-col justify-center items-center">
-                                            <p className="text-[10px] sm:text-xs text-rose-300/80 font-bold uppercase mb-1 tracking-wider">
-                                                Total Utang
-                                            </p>
-                                            <p className="text-base sm:text-lg md:text-xl font-bold text-rose-100 break-all">
-                                                {formatRupiah(totalDebt)}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* VISUAL DIVIDER */}
-                                    {/* Garis pemisah estetik pengganti '=====' agar terlihat lebih modern */}
-                                    <div className="w-full h-px bg-linear-to-r from-transparent via-white/20 to-transparent"></div>
-
-                                    {/* SECTION 2: MAIN NET WORTH */}
-                                    {/* Diberikan full width agar angka panjang aman */}
-                                    <div className="text-center w-full">
-                                        <p className="text-brand-300 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mb-3">
-                                            Kekayaan Bersih Saat Ini (Net Worth)
-                                        </p>
-
-                                        {/* Logic: break-words dan leading-tight mencegah overflow vertikal berlebihan */}
-                                        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white wrap-break-word leading-none">
-                                            {new Intl.NumberFormat("id-ID", {
-                                                style: "currency",
-                                                currency: "IDR",
-                                                maximumFractionDigits: 0
-                                            }).format(totalAssets - totalDebt)}
-                                        </h2>
-
-                                        <p className="text-slate-400 text-xs mt-3 italic font-medium">
-                                            Net Worth = Total Aset - Total Utang
-                                        </p>
-                                    </div>
-
+                                    <InputGroup label="Utang Usaha / UMKM" value={num(formData.debtBusiness)} onChange={(v) => handleFinancialChange("debtBusiness", v)} icon={<Briefcase className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.debtBusiness} />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* STEP 3: ARUS KAS (FLOW) - TAHUNAN ONLY */}
-                    {step === 2 && (
+                    {/* STEP 1: ARUS KAS (FLOW) - TAHUNAN ONLY */}
+                    {step === 1 && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <div className="bg-brand-50 border border-brand-100 p-4 rounded-xl flex gap-3 text-brand-800 text-sm mb-4">
                                 <Activity className="w-5 h-5 shrink-0" />
@@ -726,7 +401,7 @@ export function CheckupWizard() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <InputGroup
                                     label="1. Pendapatan Tetap"
-                                    value={formData.incomeFixed}
+                                    value={num(formData.incomeFixed)}
                                     onChange={(v) => handleFinancialChange("incomeFixed", v)}
                                     icon={<DollarSign className="w-4 h-4" />}
                                     helpContent={FINANCIAL_HELP_DATA.incomeFixed}
@@ -735,7 +410,7 @@ export function CheckupWizard() {
                                 />
                                 <InputGroup
                                     label="2. Pendapatan Tidak Tetap"
-                                    value={formData.incomeVariable}
+                                    value={num(formData.incomeVariable)}
                                     onChange={(v) => handleFinancialChange("incomeVariable", v)}
                                     icon={<TrendingUp className="w-4 h-4" />}
                                     helpContent={FINANCIAL_HELP_DATA.incomeVariable}
@@ -760,7 +435,7 @@ export function CheckupWizard() {
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        value={num(formData[item.k as keyof FinancialRecord])}
                                         onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
                                         icon={item.i}
                                         helpContent={FINANCIAL_HELP_DATA[item.k]}
@@ -786,7 +461,7 @@ export function CheckupWizard() {
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        value={num(formData[item.k as keyof FinancialRecord])}
                                         onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
                                         icon={item.i}
                                         helpContent={FINANCIAL_HELP_DATA[item.k]}
@@ -812,7 +487,7 @@ export function CheckupWizard() {
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        value={num(formData[item.k as keyof FinancialRecord])}
                                         onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
                                         icon={item.i}
                                         helpContent={FINANCIAL_HELP_DATA[item.k]}
@@ -839,7 +514,7 @@ export function CheckupWizard() {
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={formData[item.k as keyof FinancialRecord] as number}
+                                        value={num(formData[item.k as keyof FinancialRecord])}
                                         onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
                                         icon={item.i}
                                         helpContent={FINANCIAL_HELP_DATA[item.k]}
@@ -851,8 +526,8 @@ export function CheckupWizard() {
                         </div>
                     )}
 
-                    {/* STEP 4: REVIEW (LAYOUT BARU - NERACA & ARUS KAS TERPISAH) */}
-                    {step === 3 && (
+                    {/* STEP 2: REVIEW (LAYOUT BARU - NERACA & ARUS KAS TERPISAH) */}
+                    {step === 2 && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
 
                             {/* --- KARTU 1: NERACA (BALANCE SHEET) --- */}
@@ -875,13 +550,13 @@ export function CheckupWizard() {
                                         </h4>
                                         <div className="space-y-3 flex-1">
                                             {/* Grouping Aset agar rapi */}
-                                            <ReviewRow label="Aset Likuid (Cash)" value={formData.assetCash} />
+                                            <ReviewRow label="Aset Likuid (Cash)" value={num(formData.assetCash)} />
                                             <ReviewRow label="Aset Personal (Rumah/Kendaraan)" value={
-                                                formData.assetHome + formData.assetVehicle + formData.assetJewelry + formData.assetAntique + formData.assetPersonalOther
+                                                num(formData.assetHome) + num(formData.assetVehicle) + num(formData.assetJewelry) + num(formData.assetAntique) + num(formData.assetPersonalOther)
                                             } />
                                             <ReviewRow label="Aset Investasi" value={
-                                                formData.assetInvHome + formData.assetInvVehicle + formData.assetGold + formData.assetInvAntique +
-                                                formData.assetStocks + formData.assetMutualFund + formData.assetBonds + formData.assetDeposit + formData.assetInvOther
+                                                num(formData.assetInvHome) + num(formData.assetInvVehicle) + num(formData.assetGold) + num(formData.assetInvAntique) +
+                                                num(formData.assetStocks) + num(formData.assetMutualFund) + num(formData.assetBonds) + num(formData.assetDeposit) + num(formData.assetInvOther)
                                             } />
                                         </div>
                                         {/* Total Aset */}
@@ -896,10 +571,10 @@ export function CheckupWizard() {
                                             <span className="w-2 h-2 rounded-full bg-rose-500"></span> Utang (Kewajiban)
                                         </h4>
                                         <div className="space-y-3 flex-1">
-                                            <ReviewRow label="Sisa KPR (Rumah)" value={formData.debtKPR} />
-                                            <ReviewRow label="Sisa KPM (Kendaraan)" value={formData.debtKPM} />
-                                            <ReviewRow label="Utang Konsumtif Lain" value={formData.debtCC + formData.debtCoop + formData.debtConsumptiveOther} />
-                                            <ReviewRow label="Utang Produktif/Bisnis" value={formData.debtBusiness} />
+                                            <ReviewRow label="Sisa KPR (Rumah)" value={num(formData.debtKPR)} />
+                                            <ReviewRow label="Sisa KPM (Kendaraan)" value={num(formData.debtKPM)} />
+                                            <ReviewRow label="Utang Konsumtif Lain" value={num(formData.debtCC) + num(formData.debtCoop) + num(formData.debtConsumptiveOther)} />
+                                            <ReviewRow label="Utang Produktif/Bisnis" value={num(formData.debtBusiness)} />
                                         </div>
                                         {/* Total Utang */}
                                         <div className="mt-6 pt-4 border-t border-slate-100">
@@ -940,9 +615,8 @@ export function CheckupWizard() {
                                             <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Pemasukan
                                         </h4>
                                         <div className="space-y-3 flex-1">
-                                            <ReviewRow label="Pemasukan Tetap" value={totalIncomeAnnual - formData.incomeVariable} />
-                                            <ReviewRow label="Pemasukan Tidak Tetap" value={formData.incomeVariable} />
-                                            {/* Spacer untuk menyeimbangkan tinggi jika item sedikit */}
+                                            <ReviewRow label="Pemasukan Tetap" value={totalIncomeAnnual - num(formData.incomeVariable)} />
+                                            <ReviewRow label="Pemasukan Tidak Tetap" value={num(formData.incomeVariable)} />
                                             <div className="hidden md:block h-6"></div>
                                         </div>
                                         {/* Total Pemasukan */}
@@ -988,16 +662,16 @@ export function CheckupWizard() {
 
                 {/* FOOTER ACTIONS */}
                 <div className="bg-white p-6 md:p-8 border-t border-slate-100 flex justify-between items-center rounded-b-2xl">
-                    <Button variant="ghost" onClick={prevStep} disabled={step === 0 || isLoading} className="text-slate-500 hover:text-brand-600">
-                        <ArrowLeft className="w-4 h-4 mr-2" /> Sebelumnya
+                    <Button variant="ghost" onClick={step === 0 ? onBack : prevStep} disabled={isLoading} className="text-slate-500 hover:text-brand-600">
+                        <ArrowLeft className="w-4 h-4 mr-2" /> {step === 0 ? "Kembali ke Profil" : "Sebelumnya"}
                     </Button>
 
-                    {step < 3 ?
+                    {step < 2 ?
                         <Button onClick={nextStep} className="bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-600/20 px-8 h-12 rounded-xl font-bold transition-all hover:translate-x-1">
                             Selanjutnya <ArrowRight className="w-4 h-4 ml-2" />
                         </Button> :
                         <Button
-                            onClick={handleCalculate}
+                            onClick={handleSubmit}
                             disabled={isLoading}
                             className={cn(
                                 "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 px-8 h-12 rounded-xl font-bold transition-all hover:scale-[1.02]",
@@ -1095,66 +769,6 @@ export function CheckupWizard() {
                     </div>
                 </div>
             )}
-
-            {/* --- MODAL KONFIRMASI RESET (UI BARU) --- */}
-            {showResetModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    {/* Klik luar untuk tutup */}
-                    <div className="absolute inset-0" onClick={() => setShowResetModal(false)} />
-
-                    <div className="relative bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
-                        {/* Header */}
-                        <div className="text-center mb-6">
-                            <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-amber-100">
-                                <AlertCircle className="w-7 h-7 text-amber-500" />
-                            </div>
-                            <h3 className="text-xl font-black text-slate-800">Konfirmasi Hitung Ulang</h3>
-                            <p className="text-sm text-slate-500 mt-2 leading-relaxed px-4">
-                                Bagaimana Anda ingin memperbaiki data financial checkup ini?
-                            </p>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="space-y-3">
-                            <button
-                                onClick={onConfirmEdit}
-                                className="w-full flex items-center justify-center gap-3 p-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-all font-bold shadow-lg shadow-brand-500/20 group"
-                            >
-                                <div className="p-1 bg-white/20 rounded-lg group-hover:scale-110 transition-transform">
-                                    <FileText className="w-4 h-4" />
-                                </div>
-                                <div className="text-left">
-                                    <span className="block text-xs font-normal opacity-90">Data masih relevan?</span>
-                                    <span>Perbaiki / Edit Data Lama</span>
-                                </div>
-                            </button>
-
-                            <button
-                                onClick={onConfirmReset}
-                                className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-100 hover:border-rose-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl transition-all font-bold group"
-                            >
-                                <div className="p-1 bg-slate-100 group-hover:bg-rose-100 rounded-lg transition-colors">
-                                    <RefreshCcw className="w-4 h-4" />
-                                </div>
-                                <div className="text-left">
-                                    <span className="block text-xs font-normal opacity-70">Data sudah usang?</span>
-                                    <span>Reset / Mulai Dari Nol</span>
-                                </div>
-                            </button>
-                        </div>
-
-                        {/* Close Button */}
-                        <div className="mt-6 pt-4 border-t border-slate-100 text-center">
-                            <button
-                                onClick={() => setShowResetModal(false)}
-                                className="text-sm font-bold text-slate-400 hover:text-slate-600 px-6 py-2 rounded-full hover:bg-slate-50 transition-colors"
-                            >
-                                Batal / Tutup
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
@@ -1170,45 +784,6 @@ function SectionHeader({ title, desc }: { title: string, desc: string }) {
     );
 }
 
-interface TextInputProps { label: string; icon?: React.ReactNode; value: string | number | undefined; onChange: (val: string) => void; type?: string; helpContent?: HelpContent; }
-function TextInput({ label, icon, value, onChange, type = "text", helpContent }: TextInputProps) {
-    return (
-        <div className="group space-y-2">
-            <div className="flex items-center">
-                <Label className="font-bold text-slate-600 group-focus-within:text-brand-600 transition-colors text-xs uppercase tracking-wide">{label}</Label>
-                <InfoPopover content={helpContent} />
-            </div>
-            <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-500 transition-colors">{icon}</div>
-                <Input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl transition-all font-medium text-slate-800" />
-            </div>
-        </div>
-    )
-}
-
-interface DateInputProps { label: string; value: string | undefined; onChange: (val: string) => void; }
-function DateInput({ label, value, onChange }: DateInputProps) {
-    return (
-        <div className="group space-y-2">
-            <Label className="font-bold text-slate-600 text-xs uppercase tracking-wide">{label}</Label>
-            <Input type="date" value={value || ""} onChange={(e) => onChange(e.target.value)} className="h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 rounded-xl font-medium text-slate-800" />
-        </div>
-    )
-}
-
-interface SelectInputProps { label: string; value: string | undefined; onChange: (val: string) => void; options: { value: string; label: string }[]; }
-function SelectInput({ label, value, onChange, options }: SelectInputProps) {
-    return (
-        <div className="group space-y-2">
-            <Label className="font-bold text-slate-600 text-xs uppercase tracking-wide">{label}</Label>
-            <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 text-sm font-medium text-slate-800 transition-all">
-                {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-        </div>
-    )
-}
-
-// UPDATE: InputGroup now accepts onMonthlyClick and showCalculator
 interface InputGroupProps {
     icon: React.ReactNode;
     label: string;
