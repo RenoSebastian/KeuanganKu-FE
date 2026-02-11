@@ -7,7 +7,7 @@ import {
     CreditCard, User, Briefcase, Users,
     ShoppingBag, Car, Gem, Phone, Umbrella, PiggyBank, ShieldCheck,
     Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle,
-    Loader2, RefreshCcw, FileText, Activity // [FIX] Activity dipindah ke sini
+    Loader2, RefreshCcw, FileText, Activity
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ interface CheckupWizardProps {
 }
 
 // --- INITIAL STATE (ONLY FINANCIALS) ---
-// Profile data is handled by parent component now
 const INITIAL_DATA_FINANCIAL: Partial<FinancialRecord> = {
     // 2. Aset (Neraca - STOCK)
     assetCash: 0,
@@ -85,7 +84,7 @@ export function CheckupWizard({ initialData, onComplete, onBack, isLoading }: Ch
 
     useEffect(() => setIsClient(true), []);
 
-    // Update form data if initialData changes (e.g. from Import)
+    // Hydrate form data when initialData changes (e.g. Back from Result or Restore Draft)
     useEffect(() => {
         if (initialData) {
             setFormData(prev => ({ ...prev, ...initialData }));
@@ -95,7 +94,12 @@ export function CheckupWizard({ initialData, onComplete, onBack, isLoading }: Ch
     // --- LOGIC 1: HANDLE INPUT CHANGE ---
     const handleFinancialChange = (field: keyof FinancialRecord, value: string) => {
         const numericValue = parseFloat(value.replace(/[^0-9]/g, "")) || 0;
-        setFormData((prev) => ({ ...prev, [field]: numericValue }));
+
+        // Update local state
+        setFormData((prev) => {
+            const newState = { ...prev, [field]: numericValue };
+            return newState;
+        });
     };
 
     // --- LOGIC 2: APPLY MONTHLY HELPER ---
