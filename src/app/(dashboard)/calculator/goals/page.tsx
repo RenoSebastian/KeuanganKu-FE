@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
     Target, Plane, Heart, Star,
     RefreshCcw, Download, CalendarDays, Coins,
-    TrendingUp, Wallet, ArrowRight, Loader2, Sparkles, Upload, FileJson, CheckCircle2,
-    User
+    TrendingUp, Wallet, ArrowRight, Loader2, Sparkles, Upload, FileJson, CheckCircle2, User, Briefcase
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
@@ -67,7 +66,7 @@ export default function GoalsPage() {
     // --- STATE 1: IDENTITY ---
     const [clientData, setClientData] = useState({
         clientName: "",
-        clientDob: "",
+        clientDob: "", // [FIXED] Wajib diisi via UI
         clientCity: "",
         clientJob: "",
         clientPhone: ""
@@ -137,8 +136,8 @@ export default function GoalsPage() {
     // --- CORE LOGIC 1: SIMULATE (PREVIEW FIRST) ---
     const handleSimulate = async () => {
         // 1. Validasi
-        if (!clientData.clientName || !clientData.clientCity || !targetAmount || !targetDate) {
-            toast.error("Data Belum Lengkap", { description: "Lengkapi data identitas dan target tujuan." });
+        if (!clientData.clientName || !clientData.clientDob || !clientData.clientCity || !targetAmount || !targetDate) {
+            toast.error("Data Belum Lengkap", { description: "Nama, Tanggal Lahir, Kota, dan Target wajib diisi." });
             return;
         }
 
@@ -249,7 +248,7 @@ export default function GoalsPage() {
                 // Populate Form
                 setClientData({
                     clientName: client.name,
-                    clientDob: client.dob,
+                    clientDob: client.dob, // Restore DOB
                     clientCity: client.city,
                     clientJob: client.job || "",
                     clientPhone: client.phone || ""
@@ -365,10 +364,27 @@ export default function GoalsPage() {
                                     <Label className="text-xs font-semibold text-slate-500">Nama Lengkap</Label>
                                     <Input name="clientName" placeholder="Contoh: Budi Santoso" value={clientData.clientName} onChange={handleClientChange} className="mt-1" />
                                 </div>
+                                {/* [FIXED] Menambahkan Input Tanggal Lahir yang sebelumnya hilang */}
                                 <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label className="text-xs font-semibold text-slate-500">Tanggal Lahir</Label>
+                                        <div className="relative mt-1">
+                                            <CalendarDays className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                            <Input type="date" name="clientDob" value={clientData.clientDob} onChange={handleClientChange} className="pl-9" />
+                                        </div>
+                                    </div>
                                     <div>
                                         <Label className="text-xs font-semibold text-slate-500">Kota Domisili</Label>
                                         <Input name="clientCity" placeholder="Jakarta" value={clientData.clientCity} onChange={handleClientChange} className="mt-1" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label className="text-xs font-semibold text-slate-500">Pekerjaan</Label>
+                                        <div className="relative mt-1">
+                                            <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                            <Input name="clientJob" placeholder="Swasta" value={clientData.clientJob} onChange={handleClientChange} className="pl-9" />
+                                        </div>
                                     </div>
                                     <div>
                                         <Label className="text-xs font-semibold text-slate-500">No. HP (Opsional)</Label>
