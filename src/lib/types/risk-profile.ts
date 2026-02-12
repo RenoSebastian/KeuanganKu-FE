@@ -8,16 +8,16 @@
  */
 export interface RiskProfileAnswerItem {
     questionId: string;
-    value: number; // PENTING: Ini adalah bobot nilai (skor), bukan urutan A/B/C
+    value: number; // Bobot nilai (skor), bukan urutan A/B/C
 }
 
 /**
  * DTO Utama yang dikirim ke endpoint /financial/simulation/risk-profile-pdf
- * Harus match dengan CreateRiskProfileSimulationDto di Backend.
+ * Harus sesuai dengan CreateRiskProfileSimulationDto di Backend.
  */
 export interface RiskProfilePayload {
     clientName: string;
-    clientDob: string; // Format: YYYY-MM-DD (ISO 8601)
+    clientDob: string; // Format: YYYY-MM-DD
     clientPhone?: string;
     clientJob?: string;
     clientCity?: string;
@@ -34,10 +34,16 @@ export enum RiskProfileCategory {
     AGRESIF = 'Agresif',
 }
 
+/**
+ * Struktur Alokasi Aset.
+ * [REVISI]: Nama properti disesuaikan dengan DTO Backend agar Pie Chart tampil.
+ * Sebelumnya: low, medium, high (menyebabkan undefined di chart)
+ * Sekarang: lowRisk, mediumRisk, highRisk (sesuai backend)
+ */
 export interface RiskAllocation {
-    low: number;    // Pasar Uang / Deposito
-    medium: number; // Obligasi / Pendapatan Tetap
-    high: number;   // Saham / Ekuitas
+    lowRisk: number;    // Pasar Uang / Deposito
+    mediumRisk: number; // Obligasi / Pendapatan Tetap
+    highRisk: number;   // Saham / Ekuitas
 }
 
 /**
@@ -52,7 +58,7 @@ export interface RiskAnalysisResult {
 
 /**
  * Struktur lengkap data yang ada di dalam Token .mgc
- * Digunakan untuk restore state atau menampilkan chart setelah simulasi.
+ * Digunakan untuk restore state atau menampilkan chart setelah simulasi/import.
  */
 export interface RiskProfileSimulationResult {
     meta: {
@@ -75,13 +81,12 @@ export interface RiskProfileSimulationResult {
 }
 
 /**
- * Return Value dari Service Frontend ke UI Component
- * Menggabungkan URL PDF dan Data JSON.
+ * Return Value dari Service Frontend ke UI Component.
  */
 export interface RiskProfileServiceResponse {
-    pdfUrl: string;       // Blob URL untuk preview/download PDF
-    token: string;        // Raw Token String (.mgc)
-    data: RiskProfileSimulationResult; // Data hasil decode untuk UI Chart
+    pdfUrl: string;                     // Blob URL untuk preview/download PDF
+    token: string;                      // Raw Token String (.mgc)
+    data: RiskProfileSimulationResult;  // Data hasil decode untuk UI Chart
 }
 
 // ============================================================================
@@ -89,7 +94,7 @@ export interface RiskProfileServiceResponse {
 // ============================================================================
 
 /**
- * Struktur Data Pertanyaan untuk QuizSection Component
+ * Struktur Data Pertanyaan untuk QuizSection Component.
  */
 export interface RiskQuestionUI {
     id: string;

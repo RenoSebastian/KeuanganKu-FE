@@ -83,8 +83,30 @@ export function AnalysisResult({
     const [showPdfModal, setShowPdfModal] = useState(false);
 
     // Destructure data dari Token Result
-    // Struktur: data -> result -> { profile, allocation, ... }
     const { result, meta } = data;
+
+    // [SAFETY CHECK] Guard Clause untuk mencegah crash jika result null/undefined
+    // Ini menangani kasus data korup dari backend atau file import usang
+    if (!result) {
+        return (
+            <div className="w-full py-12 flex flex-col items-center justify-center p-8 text-center space-y-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl animate-in fade-in zoom-in-95 duration-500">
+                <div className="bg-red-50 p-6 rounded-3xl">
+                    <AlertCircle className="w-10 h-10 text-red-500" />
+                </div>
+                <div className="space-y-2">
+                    <h3 className="text-xl font-black text-slate-900">Data Analisis Tidak Ditemukan</h3>
+                    <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+                        Terjadi kesalahan saat membaca hasil simulasi. Format data mungkin tidak valid atau rusak.
+                    </p>
+                </div>
+                <Button onClick={onReset} variant="outline" className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-12 px-6">
+                    <RotateCcw className="w-4 h-4 mr-2" /> Mulai Sesi Baru
+                </Button>
+            </div>
+        );
+    }
+
+    // Jika result aman, baru kita destructure
     const { allocation, profile, description, totalScore } = result;
 
     const onPieEnter = useCallback((_: any, index: number) => {
@@ -102,11 +124,11 @@ export function AnalysisResult({
         }
     };
 
-    // Data untuk Recharts
+    // [FIXED] Mapping data chart menggunakan properti yang benar dari Backend (lowRisk, dst)
     const chartData = [
-        { name: "Cash Fund (Pasar Uang)", value: allocation.low, color: "#10b981" }, // Emerald-500
-        { name: "Fix Income (Obligasi)", value: allocation.medium, color: "#facc15" }, // Yellow-400
-        { name: "Equity Fund (Saham)", value: allocation.high, color: "#ef4444" }, // Red-500
+        { name: "Cash Fund (Pasar Uang)", value: allocation.lowRisk, color: "#10b981" }, // Emerald-500
+        { name: "Fix Income (Obligasi)", value: allocation.mediumRisk, color: "#facc15" }, // Yellow-400
+        { name: "Equity Fund (Saham)", value: allocation.highRisk, color: "#ef4444" }, // Red-500
     ].filter(item => item.value > 0);
 
     // Logic Warna Tema berdasarkan Profil
@@ -185,7 +207,6 @@ export function AnalysisResult({
                             <ResponsiveContainer width="100%" height="100%" className="overflow-visible">
                                 <PieChart style={{ overflow: "visible" }}>
                                     <Pie
-                                        // [FIX] Menggunakan spread + cast 'as any' untuk melewati validasi strict TypeScript pada prop activeIndex
                                         {...{
                                             activeIndex: activeIndex,
                                             activeShape: renderActiveShape,
