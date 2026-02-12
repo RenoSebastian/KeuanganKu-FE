@@ -1,22 +1,25 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Download, RefreshCw, AlertCircle, ShieldCheck, Presentation } from "lucide-react";
+import { Download, RefreshCw, AlertCircle, ShieldCheck, Presentation, RotateCcw } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector, Legend } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RiskProfileResponse } from "@/lib/types/risk-profile";
-// IMPORT MODAL LOADING PDF
+import { RiskProfileSimulationResult, RiskProfileCategory } from "@/lib/types/risk-profile";
+// Pastikan path import ini sesuai dengan struktur folder project Anda
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 
 interface AnalysisResultProps {
-    data: RiskProfileResponse;
-    onDownloadPdf: () => Promise<void>;
-    onRetake: () => void;
+    // Data hasil decode token dari Wizard
+    data: RiskProfileSimulationResult;
+    onDownloadPdf: () => Promise<void> | void;
+    onRetake: () => void; // Kembali ke Quiz (Edit jawaban)
+    onReset: () => void;  // Hapus data (Mulai baru)
     isDownloading?: boolean;
 }
 
+// --- RECHARTS CUSTOM SHAPE ---
 const renderActiveShape = (props: any) => {
     const RADIAN = Math.PI / 180;
     const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent } = props;
@@ -73,39 +76,52 @@ export function AnalysisResult({
     data,
     onDownloadPdf,
     onRetake,
+    onReset,
     isDownloading = false
 }: AnalysisResultProps) {
     const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
-    // STATE UNTUK LOADING MODAL
     const [showPdfModal, setShowPdfModal] = useState(false);
+
+    // Destructure data dari Token Result
+    // Struktur: data -> result -> { profile, allocation, ... }
+    const { result, meta } = data;
+    const { allocation, profile, description, totalScore } = result;
 
     const onPieEnter = useCallback((_: any, index: number) => {
         setActiveIndex(index);
     }, []);
 
-    // WRAPPER UNTUK DOWNLOAD PDF
+    // Wrapper untuk handle download dengan modal
     const handleDownloadClick = async () => {
-        setShowPdfModal(true); // Buka modal loading
+        setShowPdfModal(true);
         try {
-            await onDownloadPdf(); // Jalankan fungsi asli
+            await onDownloadPdf();
         } finally {
-            setShowPdfModal(false); // Tutup modal setelah selesai (sukses/gagal)
+            // Beri sedikit delay agar transisi modal mulus
+            setTimeout(() => setShowPdfModal(false), 500);
         }
     };
 
+    // Data untuk Recharts
     const chartData = [
-        { name: "Cash Fund", value: data.allocation.lowRisk, color: "#10b981" },
-        { name: "Fix Income Fund", value: data.allocation.mediumRisk, color: "#facc15" },
-        { name: "Equity Fund", value: data.allocation.highRisk, color: "#ef4444" },
+        { name: "Cash Fund (Pasar Uang)", value: allocation.low, color: "#10b981" }, // Emerald-500
+        { name: "Fix Income (Obligasi)", value: allocation.medium, color: "#facc15" }, // Yellow-400
+        { name: "Equity Fund (Saham)", value: allocation.high, color: "#ef4444" }, // Red-500
     ].filter(item => item.value > 0);
 
-    const getThemeColor = (profile: string) => {
-        if (profile === 'Cash Fund') return "bg-emerald-50 text-emerald-700 border-emerald-200";
-        if (profile === 'Equity Fund') return "bg-red-50 text-red-700 border-red-200";
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
+    // Logic Warna Tema berdasarkan Profil
+    const getThemeColor = (profileType: RiskProfileCategory) => {
+        switch (profileType) {
+            case RiskProfileCategory.KONSERVATIF:
+                return "bg-emerald-50 text-emerald-700 border-emerald-200";
+            case RiskProfileCategory.AGRESIF:
+                return "bg-red-50 text-red-700 border-red-200";
+            default: // MODERAT
+                return "bg-yellow-50 text-yellow-700 border-yellow-200";
+        }
     };
 
-    const themeClass = getThemeColor(data.riskProfile);
+    const themeClass = getThemeColor(profile);
 
     return (
         <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -113,25 +129,28 @@ export function AnalysisResult({
             {/* COMPONENT LOADING MODAL */}
             <PdfLoadingModal isOpen={showPdfModal || isDownloading} />
 
-            {/* Header Result */}
+            {/* Header Section */}
             <div className="text-center space-y-3">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100">
                     <Presentation className="w-3 h-3" /> Professional Result
                 </div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Kesimpulan Profil Risiko Klien</h2>
                 <p className="text-slate-500 text-sm italic">
-                    Diproses secara logis berdasarkan data kuesioner pada {new Date(data.calculatedAt).toLocaleDateString("id-ID")}
+                    Diproses secara logis berdasarkan data kuesioner pada {new Date(meta.generatedAt).toLocaleDateString("id-ID", {
+                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                    })}
                 </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-8 relative z-0 items-stretch">
+
                 {/* Kolom Kiri: Profil & Strategi */}
                 <Card className="border-0 shadow-2xl rounded-[2rem] overflow-hidden order-2 md:order-1 relative z-0 flex flex-col bg-white">
                     <div className={`p-10 text-center border-b ${themeClass}`}>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-70">Rekomendasi Strategi</p>
-                        <h1 className="text-5xl font-black mb-4 tracking-tighter">{data.riskProfile}</h1>
-                        <div className="inline-flex items-center px-4 py-1.5 bg-white/80 rounded-xl text-sm font-bold backdrop-blur-sm shadow-sm border border-white">
-                            Skor Agresivitas: {data.totalScore} / 30
+                        <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tighter">{profile}</h1>
+                        <div className="inline-flex items-center px-4 py-1.5 bg-white/80 rounded-xl text-sm font-bold backdrop-blur-sm shadow-sm border border-white/50">
+                            Skor Agresivitas: {totalScore}
                         </div>
                     </div>
                     <CardContent className="p-8 flex-1 flex flex-col">
@@ -140,13 +159,13 @@ export function AnalysisResult({
                             Karakteristik & Profil Risiko
                         </h3>
                         <p className="text-slate-600 text-sm leading-relaxed text-justify mb-8">
-                            {data.riskDescription}
+                            {description}
                         </p>
 
                         <div className="mt-auto p-5 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                             <p className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Agent Advisory Point:</p>
                             <p className="text-xs text-slate-500 italic leading-relaxed font-medium">
-                                "Tingkat risiko <strong>{data.riskProfile}</strong> ini menunjukkan bahwa klien memerlukan bauran aset yang seimbang untuk menjaga daya beli masa depan tanpa mengabaikan faktor keamanan."
+                                "Tingkat risiko <strong>{profile}</strong> ini menunjukkan bahwa klien memerlukan bauran aset yang seimbang untuk menjaga daya beli masa depan tanpa mengabaikan faktor keamanan."
                             </p>
                         </div>
                     </CardContent>
@@ -166,21 +185,21 @@ export function AnalysisResult({
                             <ResponsiveContainer width="100%" height="100%" className="overflow-visible">
                                 <PieChart style={{ overflow: "visible" }}>
                                     <Pie
-                                        // Menggunakan type casting 'as any' untuk melewati pengecekan strict prop activeIndex & activeShape
-                                        {...({
+                                        // [FIX] Menggunakan spread + cast 'as any' untuk melewati validasi strict TypeScript pada prop activeIndex
+                                        {...{
                                             activeIndex: activeIndex,
                                             activeShape: renderActiveShape,
-                                            onMouseEnter: onPieEnter,
                                             data: chartData,
                                             cx: "50%",
                                             cy: "50%",
-                                            innerRadius: "0%",
-                                            outerRadius: "55%",
+                                            innerRadius: "60%", // Donut Style
+                                            outerRadius: "80%",
                                             dataKey: "value",
                                             stroke: "#ffffff",
                                             strokeWidth: 4,
                                             paddingAngle: 4,
-                                        } as any)}
+                                            onMouseEnter: onPieEnter
+                                        } as any}
                                     >
                                         {chartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
@@ -190,10 +209,11 @@ export function AnalysisResult({
                                         verticalAlign="bottom"
                                         iconType="circle"
                                         wrapperStyle={{
-                                            paddingTop: '20px',
-                                            fontSize: '10px',
+                                            paddingTop: '24px',
+                                            fontSize: '11px',
                                             fontWeight: '600',
-                                            textTransform: 'uppercase'
+                                            textTransform: 'uppercase',
+                                            fontFamily: 'inherit'
                                         }}
                                     />
                                 </PieChart>
@@ -205,8 +225,8 @@ export function AnalysisResult({
 
             {/* Action Bar */}
             <Card className="bg-slate-900 border-none rounded-[2rem] relative z-0 overflow-hidden text-white shadow-2xl">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/20 rounded-full blur-[80px]" />
-                <CardContent className="p-8 flex flex-col md:flex-row gap-6 items-center justify-between">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full blur-[100px] pointer-events-none" />
+                <CardContent className="p-8 flex flex-col md:flex-row gap-6 items-center justify-between relative z-10">
                     <div className="flex items-start gap-4">
                         <div className="bg-blue-600/20 p-3 rounded-2xl">
                             <AlertCircle className="w-6 h-6 text-blue-400 shrink-0" />
@@ -219,22 +239,37 @@ export function AnalysisResult({
                         </div>
                     </div>
 
-                    <div className="flex gap-4 w-full md:w-auto">
+                    <div className="flex flex-wrap gap-3 w-full md:w-auto justify-end">
                         <Button
                             variant="ghost"
-                            onClick={onRetake}
-                            className="flex-1 md:flex-none text-slate-400 hover:text-white hover:bg-white/10 font-bold px-6 h-12 rounded-xl"
+                            onClick={onReset}
+                            className="text-slate-400 hover:text-white hover:bg-white/10 font-bold h-12 rounded-xl"
                         >
-                            <RefreshCw className="w-4 h-4 mr-2" /> Kalibrasi Ulang
+                            <RotateCcw className="w-4 h-4 mr-2" /> Mulai Baru
                         </Button>
 
                         <Button
-                            // PAKAI HANDLER BARU
+                            variant="secondary"
+                            onClick={onRetake}
+                            className="bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 font-bold h-12 rounded-xl"
+                        >
+                            <RefreshCw className="w-4 h-4 mr-2" /> Edit Jawaban
+                        </Button>
+
+                        <Button
                             onClick={handleDownloadClick}
                             disabled={showPdfModal || isDownloading}
-                            className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-black shadow-lg shadow-blue-900/40 px-10 h-12 rounded-xl"
+                            className="bg-blue-600 hover:bg-blue-500 text-white font-black shadow-lg shadow-blue-900/50 px-8 h-12 rounded-xl transition-all active:scale-95"
                         >
-                            {(showPdfModal || isDownloading) ? "Mencetak..." : "Download Laporan"}
+                            {(showPdfModal || isDownloading) ? (
+                                <span className="flex items-center gap-2">
+                                    <RefreshCw className="w-4 h-4 animate-spin" /> Memproses...
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-2">
+                                    <Download className="w-4 h-4" /> Download PDF
+                                </span>
+                            )}
                         </Button>
                     </div>
                 </CardContent>

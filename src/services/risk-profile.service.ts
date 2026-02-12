@@ -1,82 +1,119 @@
-import api from "@/lib/axios"; // Menggunakan instance axios yang sudah ada di project
-import { RiskProfilePayload, RiskProfileResponse } from "@/lib/types/risk-profile";
+import api from "@/lib/axios";
+import {
+    RiskProfilePayload,
+    RiskProfileServiceResponse,
+    RiskProfileSimulationResult
+} from "@/lib/types/risk-profile";
 
 export const riskProfileService = {
     /**
-     * Mengirim jawaban kuesioner ke Backend untuk dihitung.
-     * Endpoint ini Stateless (tidak menyimpan data ke DB).
+     * [CORE] Agent Simulation Flow
+     * Mengirim data kuesioner, menerima PDF Stream untuk download, 
+     * dan membaca Header Token untuk visualisasi data di UI.
+     * * Endpoint: POST /financial/simulation/risk-profile-pdf
      */
-    calculateProfile: async (payload: RiskProfilePayload): Promise<RiskProfileResponse> => {
-        try {
-            const response = await api.post<RiskProfileResponse>(
-                "/financial/simulation/risk-profile",
-                payload
-            );
-            return response.data;
-        } catch (error: any) {
-            console.error("Risk Profile Calculation Error:", error);
-            throw new Error(error.response?.data?.message || "Gagal menghitung profil risiko.");
-        }
-    },
-
-    /**
-     * Mengirim hasil kalkulasi (JSON) kembali ke Backend untuk digenerate menjadi PDF.
-     * Backend akan mengembalikan Binary Stream (Blob).
-     */
-    downloadPdf: async (resultData: RiskProfileResponse): Promise<void> => {
+    simulateRiskProfile: async (payload: RiskProfilePayload): Promise<RiskProfileServiceResponse> => {
         try {
             const response = await api.post(
-                "/financial/export/risk-profile-pdf",
-                resultData, // Kirim balik full JSON result
+                "/financial/simulation/risk-profile-pdf",
+                payload,
                 {
-                    responseType: "blob", // PENTING: Agar axios membaca response sebagai file, bukan text/json
+                    responseType: "blob", // [CRITICAL] Wajib blob agar PDF tidak corrupt
                     headers: {
                         "Accept": "application/pdf",
                     },
                 }
             );
 
-            // --- LOGIC DOWNLOAD BROWSER ---
-            // 1. Buat URL objek dari Blob
-            const blob = new Blob([response.data], { type: "application/pdf" });
-            const url = window.URL.createObjectURL(blob);
+            // 1. Ambil Token dari Header (Berisi data hasil kalkulasi JSON)
+            // Axios secara otomatis mengubah nama header menjadi lowercase
+            const mgcToken = response.headers['x-mgc-token'];
 
-            // 2. Buat elemen <a> fiktif untuk men-trigger download
-            const link = document.createElement("a");
-            link.href = url;
-
-            // 3. Ambil nama file dari Header (jika ada) atau generate sendiri
-            const contentDisposition = response.headers["content-disposition"];
-            let filename = `Risk_Profile_Report_${new Date().getTime()}.pdf`;
-
-            if (contentDisposition) {
-                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-                if (filenameMatch && filenameMatch.length === 2) {
-                    filename = filenameMatch[1];
-                }
+            if (!mgcToken) {
+                throw new Error("Security Token (.mgc) tidak ditemukan dalam response server.");
             }
 
-            link.setAttribute("download", filename);
-            document.body.appendChild(link);
+            // 2. Decode Token di Client-Side (Stateless Decoding)
+            // Format Token Backend: PayloadBase64.Signature
+            const [payloadBase64] = mgcToken.split('.');
 
-            // 4. Klik & Bersihkan
-            link.click();
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(url);
+            if (!payloadBase64) {
+                throw new Error("Format token simulasi tidak valid.");
+            }
+
+            let decodedData: RiskProfileSimulationResult;
+            try {
+                // Decode Base64 ke JSON String -> Parse ke Object
+                const jsonString = atob(payloadBase64);
+                decodedData = JSON.parse(jsonString);
+            } catch (e) {
+                console.error("Token Decode Error:", e);
+                throw new Error("Gagal membaca data hasil simulasi dari token.");
+            }
+
+            // 3. Buat URL Blob untuk PDF agar bisa didownload/preview
+            const blob = new Blob([response.data], { type: "application/pdf" });
+            const pdfUrl = window.URL.createObjectURL(blob);
+
+            // 4. Return Paket Lengkap ke Component
+            return {
+                pdfUrl,
+                token: mgcToken,
+                data: decodedData
+            };
 
         } catch (error: any) {
-            console.error("PDF Generation Error:", error);
-            // Handle jika response error tapi dalam bentuk Blob (misal 400/500)
+            console.error("Risk Profile Simulation Error:", error);
+
+            // [EDGE CASE HANDLER]
+            // Jika response error (misal 400 Bad Request), axios tetap mengembalikannya sebagai Blob karena 'responseType: blob'.
+            // Kita perlu konversi Blob error kembali ke JSON text untuk membaca pesan error asli dari Backend.
             if (error.response?.data instanceof Blob) {
-                const text = await error.response.data.text();
+                const errorBlob = error.response.data;
+                const errorText = await errorBlob.text();
                 try {
-                    const json = JSON.parse(text);
-                    throw new Error(json.message || "Gagal mengunduh PDF.");
-                } catch {
-                    throw new Error("Terjadi kesalahan saat mengunduh PDF.");
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(errorJson.message || "Gagal memproses simulasi.");
+                } catch (jsonError) {
+                    // Jika gagal parse JSON, berarti error raw/network
+                    throw new Error("Terjadi kesalahan sistem saat memproses PDF.");
                 }
             }
-            throw new Error("Gagal mengunduh PDF.");
+
+            throw new Error(error.response?.data?.message || error.message || "Gagal menghubungi server.");
         }
     },
+
+    /**
+     * [UTILITY] Decode Token Manual via Backend (Optional)
+     * Digunakan jika kita ingin memvalidasi signature token saat fitur 'Load Data / Upload .mgc'
+     */
+    decodeSimulationToken: async (tokenString: string): Promise<RiskProfileSimulationResult> => {
+        try {
+            const response = await api.post("/financial/simulation/decode", {
+                simulationToken: tokenString
+            });
+
+            // Backend mengembalikan struktur: { message: "...", data: { client, financial, result, ... } }
+            // Kita mapping agar sesuai interface RiskProfileSimulationResult di FE
+            const raw = response.data.data;
+
+            // Mapping respon backend ke struktur frontend jika ada perbedaan
+            return {
+                meta: {
+                    version: "1.0",
+                    generatedAt: raw.last_simulation_date || new Date().toISOString(),
+                    agentId: "unknown",
+                    module: "RISK_PROFILE"
+                },
+                client: raw.client,
+                financial: raw.financial,
+                result: raw.result || raw.financialRatios // Fallback property name
+            } as RiskProfileSimulationResult;
+
+        } catch (error: any) {
+            console.error("Token Validate Error:", error);
+            throw new Error(error.response?.data?.message || "File simulasi rusak atau tidak valid.");
+        }
+    }
 };

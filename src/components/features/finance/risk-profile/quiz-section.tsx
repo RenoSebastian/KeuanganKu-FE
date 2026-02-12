@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, Info, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,119 +8,143 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { RiskAnswerValue, RiskQuestion } from "@/lib/types/risk-profile";
+import { RiskProfileAnswerItem, RiskQuestionUI } from "@/lib/types/risk-profile";
 
 // --- DATA PERTANYAAN (STATIS SESUAI BRD) ---
-const QUESTIONS: RiskQuestion[] = [
+// Value di sini adalah SKOR yang akan dijumlahkan oleh Backend
+const QUESTIONS: RiskQuestionUI[] = [
     {
-        id: 1,
+        id: "q1",
         text: "Tujuan utama Anda berinvestasi adalah:",
         options: [
-            { value: RiskAnswerValue.A, label: "Menjaga nilai uang agar tidak berkurang" },
-            { value: RiskAnswerValue.B, label: "Menjaga nilai + sedikit pertumbuhan" },
-            { value: RiskAnswerValue.C, label: "Mengembangkan aset secara maksimal" },
+            { label: "Menjaga nilai uang agar tidak berkurang", value: 1 },
+            { label: "Menjaga nilai + sedikit pertumbuhan", value: 2 },
+            { label: "Mengembangkan aset secara maksimal", value: 3 },
         ],
     },
     {
-        id: 2,
+        id: "q2",
         text: "Jangka waktu investasi utama Anda:",
         options: [
-            { value: RiskAnswerValue.A, label: "< 3 tahun" },
-            { value: RiskAnswerValue.B, label: "3 – 7 tahun" },
-            { value: RiskAnswerValue.C, label: "> 7 tahun" },
+            { label: "< 3 tahun", value: 1 },
+            { label: "3 – 7 tahun", value: 2 },
+            { label: "> 7 tahun", value: 3 },
         ],
     },
     {
-        id: 3,
+        id: "q3",
         text: "Jika nilai investasi Anda turun 10–15% dalam 6 bulan, Anda akan:",
         options: [
-            { value: RiskAnswerValue.A, label: "Menarik dana agar tidak rugi lebih besar" },
-            { value: RiskAnswerValue.B, label: "Menunggu dan mengevaluasi ulang" },
-            { value: RiskAnswerValue.C, label: "Menambah investasi karena harga lebih murah" },
+            { label: "Menarik dana agar tidak rugi lebih besar", value: 1 },
+            { label: "Menunggu dan mengevaluasi ulang", value: 2 },
+            { label: "Menambah investasi karena harga lebih murah", value: 3 },
         ],
     },
     {
-        id: 4,
+        id: "q4",
         text: "Dana darurat Anda saat ini:",
         options: [
-            { value: RiskAnswerValue.A, label: "Belum ada / < 3 bulan pengeluaran" },
-            { value: RiskAnswerValue.B, label: "3 – 6 bulan pengeluaran" },
-            { value: RiskAnswerValue.C, label: "> 6 bulan pengeluaran" },
+            { label: "Belum ada / < 3 bulan pengeluaran", value: 1 },
+            { label: "3 – 6 bulan pengeluaran", value: 2 },
+            { label: "> 6 bulan pengeluaran", value: 3 },
         ],
     },
     {
-        id: 5,
+        id: "q5",
         text: "Fluktuasi nilai investasi membuat saya:",
         options: [
-            { value: RiskAnswerValue.A, label: "Sangat tidak nyaman dan stres" },
-            { value: RiskAnswerValue.B, label: "Cukup khawatir tapi masih bisa menerima" },
-            { value: RiskAnswerValue.C, label: "Tenang dan menganggapnya hal wajar" },
+            { label: "Sangat tidak nyaman dan stres", value: 1 },
+            { label: "Cukup khawatir tapi masih bisa menerima", value: 2 },
+            { label: "Tenang dan menganggapnya hal wajar", value: 3 },
         ],
     },
     {
-        id: 6,
+        id: "q6",
         text: "Pernyataan yang paling sesuai dengan Anda:",
         options: [
-            { value: RiskAnswerValue.A, label: "Saya lebih takut rugi daripada ingin untung" },
-            { value: RiskAnswerValue.B, label: "Takut rugi dan ingin untung itu seimbang" },
-            { value: RiskAnswerValue.C, label: "Saya siap rugi jangka pendek demi hasil besar" },
+            { label: "Saya lebih takut rugi daripada ingin untung", value: 1 },
+            { label: "Takut rugi dan ingin untung itu seimbang", value: 2 },
+            { label: "Saya siap rugi jangka pendek demi hasil besar", value: 3 },
         ],
     },
     {
-        id: 7,
+        id: "q7",
         text: "Pengalaman investasi Anda:",
         options: [
-            { value: RiskAnswerValue.A, label: "Belum pernah / sangat terbatas" },
-            { value: RiskAnswerValue.B, label: "Sudah pernah dan cukup memahami" },
-            { value: RiskAnswerValue.C, label: "Aktif dan memahami risiko investasi" },
+            { label: "Belum pernah / sangat terbatas", value: 1 },
+            { label: "Sudah pernah dan cukup memahami", value: 2 },
+            { label: "Aktif dan memahami risiko investasi", value: 3 },
         ],
     },
     {
-        id: 8,
+        id: "q8",
         text: "Jenis investasi yang paling nyaman untuk Anda:",
         options: [
-            { value: RiskAnswerValue.A, label: "Deposito / pasar uang" },
-            { value: RiskAnswerValue.B, label: "Obligasi / campuran" },
-            { value: RiskAnswerValue.C, label: "Saham / reksa dana saham" },
+            { label: "Deposito / pasar uang", value: 1 },
+            { label: "Obligasi / campuran", value: 2 },
+            { label: "Saham / reksa dana saham", value: 3 },
         ],
     },
     {
-        id: 9,
+        id: "q9",
         text: "Sumber penghasilan Anda:",
         options: [
-            { value: RiskAnswerValue.A, label: "Tidak tetap / sangat fluktuatif" },
-            { value: RiskAnswerValue.B, label: "Cukup stabil" },
-            { value: RiskAnswerValue.C, label: "Sangat stabil & beragam" },
+            { label: "Tidak tetap / sangat fluktuatif", value: 1 },
+            { label: "Cukup stabil", value: 2 },
+            { label: "Sangat stabil & beragam", value: 3 },
         ],
     },
     {
-        id: 10,
+        id: "q10",
         text: "Persentase dana yang akan diinvestasikan dari total aset:",
         options: [
-            { value: RiskAnswerValue.A, label: "< 20%" },
-            { value: RiskAnswerValue.B, label: "20% – 50%" },
-            { value: RiskAnswerValue.C, label: "> 50%" },
+            { label: "< 20%", value: 1 },
+            { label: "20% – 50%", value: 2 },
+            { label: "> 50%", value: 3 },
         ],
     },
 ];
 
 interface QuizSectionProps {
-    onFinish: (answers: string[]) => void;
+    initialAnswers?: RiskProfileAnswerItem[]; // Untuk fitur Restore/Edit
+    onFinish: (answers: RiskProfileAnswerItem[]) => void;
     isLoading?: boolean;
 }
 
-export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
+export function QuizSection({ initialAnswers, onFinish, isLoading = false }: QuizSectionProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [answersMap, setAnswersMap] = useState<Record<number, string>>({});
+
+    // State penyimpanan jawaban lokal: { [questionIndex]: value }
+    const [answersMap, setAnswersMap] = useState<Record<number, number>>({});
+
+    // Effect untuk me-load jawaban lama (Restore Session)
+    useEffect(() => {
+        if (initialAnswers && initialAnswers.length > 0) {
+            const map: Record<number, number> = {};
+            initialAnswers.forEach((ans, idx) => {
+                // Asumsi urutan pertanyaan sama (QUESTIONS array statis)
+                // Jika id dinamis, logic ini perlu penyesuaian (find index by id)
+                const qIndex = QUESTIONS.findIndex(q => q.id === ans.questionId);
+                if (qIndex !== -1) {
+                    map[qIndex] = ans.value;
+                }
+            });
+            setAnswersMap(map);
+
+            // Opsional: Langsung lompat ke pertanyaan terakhir yang dijawab?
+            // setCurrentIndex(initialAnswers.length < QUESTIONS.length ? initialAnswers.length : 0);
+        }
+    }, [initialAnswers]);
 
     const currentQuestion = QUESTIONS[currentIndex];
     const totalQuestions = QUESTIONS.length;
     const progress = ((currentIndex + 1) / totalQuestions) * 100;
 
-    const handleSelectOption = (value: string) => {
+    const handleSelectOption = (valString: string) => {
+        const val = parseInt(valString);
         setAnswersMap((prev) => ({
             ...prev,
-            [currentIndex]: value,
+            [currentIndex]: val,
         }));
     };
 
@@ -139,17 +163,20 @@ export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
     };
 
     const handleFinish = () => {
-        const sortedAnswers: string[] = [];
-        for (let i = 0; i < totalQuestions; i++) {
-            sortedAnswers.push(answersMap[i]);
-        }
-        onFinish(sortedAnswers);
+        // Transformasi map ke array format DTO
+        const finalAnswers: RiskProfileAnswerItem[] = QUESTIONS.map((q, index) => ({
+            questionId: q.id,
+            value: answersMap[index] || 0 // Default 0 jika terlewat (seharusnya tidak mungkin karena tombol disable)
+        }));
+
+        onFinish(finalAnswers);
     };
 
-    const isCurrentAnswered = !!answersMap[currentIndex];
+    const isCurrentAnswered = answersMap[currentIndex] !== undefined;
 
     return (
         <div className="w-full max-w-3xl mx-auto space-y-8 animate-in fade-in duration-700">
+
             {/* Header: Pro-Agent Context in Blue */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div className="space-y-1">
@@ -189,37 +216,39 @@ export function QuizSection({ onFinish, isLoading = false }: QuizSectionProps) {
                     </div>
 
                     <RadioGroup
-                        value={answersMap[currentIndex] || ""}
+                        value={answersMap[currentIndex]?.toString() || ""}
                         onValueChange={handleSelectOption}
                         className="grid grid-cols-1 gap-4"
                     >
-                        {currentQuestion.options.map((option) => {
+                        {currentQuestion.options.map((option, idx) => {
                             const isSelected = answersMap[currentIndex] === option.value;
+                            // Huruf urut A, B, C...
+                            const letter = String.fromCharCode(65 + idx);
 
                             return (
                                 <div key={option.value} className="relative">
                                     <RadioGroupItem
-                                        value={option.value}
-                                        id={`opt-${option.value}`}
+                                        value={option.value.toString()}
+                                        id={`opt-${currentIndex}-${option.value}`}
                                         className="peer sr-only"
                                     />
                                     <Label
-                                        htmlFor={`opt-${option.value}`}
+                                        htmlFor={`opt-${currentIndex}-${option.value}`}
                                         className={`flex items-center p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 group
-                                            ${isSelected
+                      ${isSelected
                                                 ? "border-blue-600 bg-blue-50/50 shadow-[0_10px_20px_rgba(37,99,235,0.1)]"
                                                 : "border-slate-50 hover:border-blue-200 hover:bg-slate-50"
                                             }
-                                        `}
+                    `}
                                     >
                                         <div className={`
-                                            w-8 h-8 rounded-lg border-2 flex items-center justify-center mr-5 shrink-0 transition-all duration-300
-                                            ${isSelected
+                      w-8 h-8 rounded-lg border-2 flex items-center justify-center mr-5 shrink-0 transition-all duration-300
+                      ${isSelected
                                                 ? "bg-blue-600 border-blue-600 text-white rotate-360"
                                                 : "bg-white border-slate-200 text-slate-400 group-hover:border-blue-400"
                                             }
-                                        `}>
-                                            <span className="text-xs font-black">{option.value}</span>
+                    `}>
+                                            <span className="text-xs font-black">{letter}</span>
                                         </div>
                                         <span className={`text-sm md:text-lg transition-colors ${isSelected ? "font-bold text-blue-900" : "font-medium text-slate-600"}`}>
                                             {option.label}
