@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react"; // [NEW] Import useEffect
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -49,11 +50,11 @@ const identitySchema = z.object({
     spouseOccupation: z.string().optional(),
 });
 
-
 // Infer Type dari Schema
 type IdentityFormValues = z.infer<typeof identitySchema>;
 
 interface ClientIdentityFormProps {
+    // Structure match with Backend DTO response
     initialData?: SimulationClientProfile & { spouse?: { name: string; dob?: string; occupation?: string } };
     onComplete: (data: any) => void;
 }
@@ -63,25 +64,51 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
     const form = useForm<IdentityFormValues>({
         resolver: zodResolver(identitySchema),
         defaultValues: {
-            name: initialData?.name || "",
-            dob: initialData?.dob || "",
-            gender: initialData?.gender || "L",
-            city: initialData?.city || "",
-            address: initialData?.address || "",
-            phone: initialData?.phone || "",
-            email: initialData?.email || "",
-            occupation: initialData?.occupation || "",
-            religion: initialData?.religion || "Islam",
-            maritalStatus: initialData?.maritalStatus || "MARRIED",
-            // Default value number (bukan string)
-            childrenCount: initialData?.childrenCount ?? 0,
-            dependentParents: initialData?.dependentParents ?? 0,
-            // Spouse mapping with safe fallbacks
-            spouseName: initialData?.spouse?.name || "",
-            spouseDob: initialData?.spouse?.dob || "",
-            spouseOccupation: initialData?.spouse?.occupation || "",
+            name: "",
+            dob: "",
+            gender: "L",
+            city: "",
+            address: "",
+            phone: "",
+            email: "",
+            occupation: "",
+            religion: "Islam",
+            maritalStatus: "MARRIED",
+            childrenCount: 0,
+            dependentParents: 0,
+            spouseName: "",
+            spouseDob: "",
+            spouseOccupation: "",
         },
     });
+
+    // [PHASE 3.1] AUTO-FILL LOGIC (REACTIVITY)
+    // Memantau perubahan initialData (saat Import file terjadi)
+    useEffect(() => {
+        if (initialData) {
+            // Kita harus mapping manual karena struktur initialData (Nested)
+            // berbeda dengan struktur form (Flat untuk spouse)
+            form.reset({
+                name: initialData.name || "",
+                dob: initialData.dob || "",
+                gender: initialData.gender || "L",
+                city: initialData.city || "",
+                address: initialData.address || "",
+                phone: initialData.phone || "",
+                email: initialData.email || "",
+                occupation: initialData.occupation || "",
+                religion: initialData.religion || "Islam",
+                maritalStatus: initialData.maritalStatus || "SINGLE",
+                childrenCount: initialData.childrenCount ?? 0,
+                dependentParents: initialData.dependentParents ?? 0,
+
+                // Mapping Spouse Data (Flattening)
+                spouseName: initialData.spouse?.name || "",
+                spouseDob: initialData.spouse?.dob || "",
+                spouseOccupation: initialData.spouse?.occupation || "",
+            });
+        }
+    }, [initialData, form]);
 
     const maritalStatus = form.watch("maritalStatus");
 
@@ -112,7 +139,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto space-y-6">
+        <div className="w-full max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
             <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-slate-800">Profil Klien</h2>
                 <p className="text-slate-500 text-sm">Lengkapi data diri nasabah untuk keperluan laporan analisa.</p>
@@ -165,7 +192,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Jenis Kelamin</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Pilih" />
@@ -205,7 +232,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Agama</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Pilih Agama" />
@@ -318,7 +345,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Status Pernikahan</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Pilih Status" />
@@ -335,7 +362,6 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     )}
                                 />
 
-                                {/* FIX: KONVERSI MANUAL ONCHANGE AGAR TIPE STATE SELALU NUMBER */}
                                 <FormField
                                     control={form.control}
                                     name="childrenCount"
@@ -349,7 +375,6 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                                     {...field}
                                                     onChange={(e) => {
                                                         const val = e.target.valueAsNumber;
-                                                        // Jika kosong/NaN, set 0. Jika ada nilai, set number.
                                                         field.onChange(isNaN(val) ? 0 : val);
                                                     }}
                                                 />
@@ -359,7 +384,6 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     )}
                                 />
 
-                                {/* FIX: KONVERSI MANUAL ONCHANGE */}
                                 <FormField
                                     control={form.control}
                                     name="dependentParents"

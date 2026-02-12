@@ -5,11 +5,12 @@ import {
     CheckCircle2, AlertTriangle, XCircle,
     RefreshCcw, FileText, ChevronDown, ChevronUp,
     TrendingUp, Activity, Download, CalendarDays, Banknote,
-    LayoutDashboard, Lock
+    LayoutDashboard, Lock, HelpCircle
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FinancialRecord, HealthAnalysisResult, CheckupSimulationResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
@@ -19,7 +20,7 @@ type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW" | "AGENT_SIMULATION";
 
 interface CheckupResultProps {
     // Support both Legacy (Database) and New (Simulation) data structures
-    data: HealthAnalysisResult | CheckupSimulationResult;
+    data: HealthAnalysisResult | CheckupSimulationResult | { result: CheckupSimulationResult, client: any, financial: any };
     rawData?: FinancialRecord; // Optional for Agent Mode
 
     onReset?: () => void;
@@ -46,14 +47,28 @@ export function CheckupResult({
     const isReadOnly = mode === "DIRECTOR_VIEW";
     const isAgentMode = mode === "AGENT_SIMULATION";
 
-    // --- DATA NORMALIZATION ---
-    // Pastikan ratios selalu array, handle perbedaan struktur BE lama vs baru
-    const rawRatios = (data as any).ratios || (data as any).ratiosDetails || [];
+    // --- DATA NORMALIZATION (SMART EXTRACTION) ---
+    // Logic ini menangani perbedaan struktur antara data History (Flat) dan data Simulasi/Wizard (Nested in .result)
+    const payload: any = (data as any).result ? (data as any).result : data;
+
+    // Safety check untuk memastikan payload ada isinya
+    if (!payload) {
+        return (
+            <div className="p-8 text-center space-y-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+                <Activity className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="text-slate-500 font-medium">Menunggu hasil analisis...</p>
+                <Skeleton className="h-4 w-1/2 mx-auto" />
+            </div>
+        );
+    }
+
+    // Extract properties safely
+    const rawRatios = payload.ratios || payload.ratiosDetails || [];
     const ratios = Array.isArray(rawRatios) ? rawRatios : [];
 
-    const score = (data as any).score ?? (data as any).healthScore ?? 0;
-    const netWorth = (data as any).netWorth ?? (data as any).totalNetWorth ?? 0;
-    const monthlySurplus = (data as any).surplusDeficit ?? 0;
+    const score = payload.score ?? payload.healthScore ?? 0;
+    const netWorth = payload.netWorth ?? payload.totalNetWorth ?? 0;
+    const monthlySurplus = payload.surplusDeficit ?? 0;
 
     const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
     const periodLabel = viewMode === "ANNUAL" ? "(Per Tahun)" : "(Per Bulan)";
@@ -65,7 +80,7 @@ export function CheckupResult({
         if (localPdfLoading) return;
 
         // Cek ID dari data legacy
-        const recordId = (data as any).id || (rawData as any)?.id;
+        const recordId = (payload as any).id || (rawData as any)?.id;
 
         if (!recordId) {
             alert("ID Laporan tidak ditemukan. Mohon simpan data terlebih dahulu.");
@@ -110,7 +125,7 @@ export function CheckupResult({
             case "GREEN_LIGHT": return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200">Sehat</Badge>;
             case "YELLOW": return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200">Waspada</Badge>;
             case "RED": return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200">Bahaya</Badge>;
-            default: return null;
+            default: return <Badge variant="outline">Unknown</Badge>;
         }
     };
 
@@ -274,7 +289,7 @@ export function CheckupResult({
                 </div>
             </div>
 
-            {/* --- DETAIL GRID --- */}
+            {/* --- DETAIL GRID (8 RATIOS) --- */}
             <div>
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -285,8 +300,10 @@ export function CheckupResult({
                 </div>
 
                 {ratios.length === 0 ? (
-                    <div className="text-center p-8 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                        <p className="text-slate-500">Tidak ada data indikator yang tersedia.</p>
+                    <div className="text-center p-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                        <HelpCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <p className="text-slate-500 font-medium">Data indikator tidak tersedia.</p>
+                        <p className="text-xs text-slate-400 mt-1">Kemungkinan terjadi kesalahan saat memproses data simulasi.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">

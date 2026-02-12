@@ -359,26 +359,36 @@ export interface PersonalInfo {
   occupation: string;
   city: string;
   phone?: string; // Added phone
+  address?: string; // Added address matching Backend
+  nik?: string; // Added NIK
+  email?: string;
 }
 
-// [VERIFIED] Struktur ini sinkron 100% dengan field di Backend Prisma Schema
+/**
+ * [FINANCIAL RECORD]
+ * Kontrak Data Utama untuk Form Input dan State Aplikasi.
+ * Wajib sinkron dengan DTO Backend 'CreateCheckupSimulationDto'.
+ * Jika ada field baru di Backend, tambahkan di sini agar tidak hilang saat mapping.
+ */
 export interface FinancialRecord {
   id?: string;
   checkDate?: string;
+
+  // Profile (Nested untuk State FE)
   userProfile: PersonalInfo;
   spouseProfile?: PersonalInfo;
 
-  // A. Aset Likuid
+  // --- A. Aset Likuid ---
   assetCash: number;
 
-  // B. Aset Personal
+  // --- B. Aset Personal ---
   assetHome: number;
   assetVehicle: number;
   assetJewelry: number;
   assetAntique: number;
   assetPersonalOther: number;
 
-  // C. Aset Investasi
+  // --- C. Aset Investasi ---
   assetInvHome: number;
   assetInvVehicle: number;
   assetGold: number;
@@ -389,21 +399,21 @@ export interface FinancialRecord {
   assetDeposit: number;
   assetInvOther: number;
 
-  // E. Utang Konsumtif
+  // --- E. Utang Konsumtif ---
   debtKPR: number;
   debtKPM: number;
   debtCC: number;
   debtCoop: number;
   debtConsumptiveOther: number;
 
-  // F. Utang Usaha
+  // --- F. Utang Usaha ---
   debtBusiness: number;
 
-  // I. Penghasilan
+  // --- I. Penghasilan ---
   incomeFixed: number;
   incomeVariable: number;
 
-  // K. Cicilan Utang
+  // --- K. Cicilan Utang ---
   installmentKPR: number;
   installmentKPM: number;
   installmentCC: number;
@@ -411,7 +421,7 @@ export interface FinancialRecord {
   installmentConsumptiveOther: number;
   installmentBusiness: number;
 
-  // L. Premi Asuransi
+  // --- L. Premi Asuransi ---
   insuranceLife: number;
   insuranceHealth: number;
   insuranceHome: number;
@@ -419,7 +429,7 @@ export interface FinancialRecord {
   insuranceBPJS: number;
   insuranceOther: number;
 
-  // M. Tabungan/Investasi
+  // --- M. Tabungan/Investasi ---
   savingEducation: number;
   savingRetirement: number;
   savingPilgrimage: number;
@@ -427,7 +437,7 @@ export interface FinancialRecord {
   savingEmergency: number;
   savingOther: number;
 
-  // N. Belanja Keluarga
+  // --- N. Belanja Keluarga ---
   expenseFood: number;
   expenseSchool: number;
   expenseTransport: number;
@@ -437,7 +447,7 @@ export interface FinancialRecord {
   expenseLifestyle: number;
 }
 
-// [FIX] Alias DTO
+// [FIX] Alias DTO untuk Save ke DB (Personal Mode)
 export interface CreateFinancialRecordDto extends FinancialRecord { }
 
 export type HealthStatus = "SEHAT" | "WASPADA" | "BAHAYA" | "AMAN" | "HATI-HATI" | "KURANG" | "IDEAL" | "SANGAT SEHAT";
@@ -476,7 +486,7 @@ export interface FinancialRecordHistory {
   totalNetWorth: number;
 }
 
-// [NEW] Interface Khusus untuk Response "Lihat Detail" (Modal Pop-up)
+// [NEW] Interface Khusus untuk Response "Lihat Detail" (Modal Pop-up History)
 export interface CheckupDetailResponse {
   score: number;
   globalStatus: string;
@@ -863,20 +873,27 @@ export interface SimulationClientProfile {
   dependentParents?: number;
 }
 
-// DTO Payload untuk dikirim ke Backend
+/**
+ * [DTO] Payload untuk dikirim ke Backend (/simulation/checkup).
+ * Struktur flat untuk properti finansial agar sesuai dengan DTO Backend.
+ */
 export interface CreateCheckupSimulationDto {
-  // Section 1: Identitas
+  // Section 1: Identitas (Nested)
   client: SimulationClientProfile;
   spouse?: SimulationSpouseProfile;
 
   // Section 2: Financial Data (Flat keys matching BE DTO)
+  // --- A. Aset Likuid ---
   assetCash: number;
+
+  // --- B. Aset Personal ---
   assetHome: number;
   assetVehicle: number;
   assetJewelry: number;
   assetAntique: number;
   assetPersonalOther: number;
 
+  // --- C. Aset Investasi ---
   assetInvHome: number;
   assetInvVehicle: number;
   assetGold: number;
@@ -887,16 +904,21 @@ export interface CreateCheckupSimulationDto {
   assetDeposit: number;
   assetInvOther: number;
 
+  // --- E. Utang Konsumtif ---
   debtKPR: number;
   debtKPM: number;
   debtCC: number;
   debtCoop: number;
   debtConsumptiveOther: number;
+
+  // --- F. Utang Usaha ---
   debtBusiness: number;
 
+  // --- I. Penghasilan ---
   incomeFixed: number;
   incomeVariable: number;
 
+  // --- K. Cicilan Utang ---
   installmentKPR: number;
   installmentKPM: number;
   installmentCC: number;
@@ -904,6 +926,7 @@ export interface CreateCheckupSimulationDto {
   installmentConsumptiveOther: number;
   installmentBusiness: number;
 
+  // --- L. Premi Asuransi ---
   insuranceLife: number;
   insuranceHealth: number;
   insuranceHome: number;
@@ -911,6 +934,7 @@ export interface CreateCheckupSimulationDto {
   insuranceBPJS: number;
   insuranceOther: number;
 
+  // --- M. Tabungan/Investasi ---
   savingEducation: number;
   savingRetirement: number;
   savingPilgrimage: number;
@@ -918,6 +942,7 @@ export interface CreateCheckupSimulationDto {
   savingEmergency: number;
   savingOther: number;
 
+  // --- N. Belanja Keluarga ---
   expenseFood: number;
   expenseSchool: number;
   expenseTransport: number;
@@ -927,11 +952,30 @@ export interface CreateCheckupSimulationDto {
   expenseLifestyle: number;
 }
 
-// Result structure decoded from Token or used in UI Components
+/**
+ * [NEW] Struktur "Fat Payload" yang diterima dari Import (.mgc) atau Response API.
+ * Berisi semua data agar Frontend bisa melakukan 'Deep Hydration' tanpa hitung ulang.
+ */
+export interface CheckupSimulationResponse {
+  client: SimulationClientProfile;
+  spouse?: SimulationSpouseProfile;
+
+  // Data Finansial (Sama dengan CreateCheckupSimulationDto tapi tanpa client/spouse)
+  financial: Omit<CreateCheckupSimulationDto, 'client' | 'spouse'>;
+
+  // Hasil Analisa (Agar grafik langsung muncul)
+  result: CheckupSimulationResult;
+
+  // Metadata tambahan
+  last_simulation_date?: string;
+}
+
+// Result structure used in UI Components
 export interface CheckupSimulationResult {
   score: number;
   globalStatus: string; // SEHAT, WASPADA, BAHAYA
   netWorth: number;
   surplusDeficit: number;
   ratios: RatioDetail[];
+  generatedAt?: string;
 }
