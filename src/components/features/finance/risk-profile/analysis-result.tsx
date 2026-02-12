@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Download, RefreshCw, AlertCircle, ShieldCheck, Presentation, RotateCcw } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { Download, RefreshCw, AlertCircle, ShieldCheck, Presentation, RotateCcw, FileText, CheckCircle2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector, Legend } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RiskProfileSimulationResult, RiskProfileCategory } from "@/lib/types/risk-profile";
-// Pastikan path import ini sesuai dengan struktur folder project Anda
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { RiskProfileSimulationResult, RiskProfileCategory, RiskProfileAnswerItem } from "@/lib/types/risk-profile";
+import { RISK_PROFILE_QUESTIONS } from "@/lib/data/risk-profile-questions";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 
 interface AnalysisResultProps {
     // Data hasil decode token dari Wizard
     data: RiskProfileSimulationResult;
+    // [NEW] Prop untuk menerima jawaban mentah user (untuk display review)
+    userAnswers?: RiskProfileAnswerItem[];
     onDownloadPdf: () => Promise<void> | void;
     onRetake: () => void; // Kembali ke Quiz (Edit jawaban)
     onReset: () => void;  // Hapus data (Mulai baru)
@@ -74,6 +78,7 @@ const renderActiveShape = (props: any) => {
 
 export function AnalysisResult({
     data,
+    userAnswers,
     onDownloadPdf,
     onRetake,
     onReset,
@@ -83,10 +88,9 @@ export function AnalysisResult({
     const [showPdfModal, setShowPdfModal] = useState(false);
 
     // Destructure data dari Token Result
-    const { result, meta } = data;
+    const { result, meta, financial } = data;
 
     // [SAFETY CHECK] Guard Clause untuk mencegah crash jika result null/undefined
-    // Ini menangani kasus data korup dari backend atau file import usang
     if (!result) {
         return (
             <div className="w-full py-12 flex flex-col items-center justify-center p-8 text-center space-y-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl animate-in fade-in zoom-in-95 duration-500">
@@ -106,39 +110,53 @@ export function AnalysisResult({
         );
     }
 
-    // Jika result aman, baru kita destructure
     const { allocation, profile, description, totalScore } = result;
+
+    // [LOGIC MAPPING JAWABAN]
+    // Menggabungkan ID jawaban dengan teks pertanyaan asli dari source code
+    const reviewData = useMemo(() => {
+        // Prioritaskan prop 'userAnswers' (Live State), fallback ke 'data.financial.answers' (Saved Token)
+        const answersSource = userAnswers || financial?.answers || [];
+
+        return answersSource.map((ans) => {
+            const questionRef = RISK_PROFILE_QUESTIONS.find((q) => q.id === ans.questionId);
+            const optionRef = questionRef?.options.find((opt) => opt.value === ans.value);
+
+            return {
+                id: ans.questionId,
+                question: questionRef?.text || "Pertanyaan tidak ditemukan dalam database.",
+                answer: optionRef?.label || "Jawaban tidak valid.",
+                score: ans.value
+            };
+        });
+    }, [userAnswers, financial]);
 
     const onPieEnter = useCallback((_: any, index: number) => {
         setActiveIndex(index);
     }, []);
 
-    // Wrapper untuk handle download dengan modal
     const handleDownloadClick = async () => {
         setShowPdfModal(true);
         try {
             await onDownloadPdf();
         } finally {
-            // Beri sedikit delay agar transisi modal mulus
             setTimeout(() => setShowPdfModal(false), 500);
         }
     };
 
-    // [FIXED] Mapping data chart menggunakan properti yang benar dari Backend (lowRisk, dst)
     const chartData = [
-        { name: "Cash Fund (Pasar Uang)", value: allocation.lowRisk, color: "#10b981" }, // Emerald-500
-        { name: "Fix Income (Obligasi)", value: allocation.mediumRisk, color: "#facc15" }, // Yellow-400
-        { name: "Equity Fund (Saham)", value: allocation.highRisk, color: "#ef4444" }, // Red-500
+        { name: "Cash Fund (Pasar Uang)", value: allocation.lowRisk, color: "#10b981" },
+        { name: "Fix Income (Obligasi)", value: allocation.mediumRisk, color: "#facc15" },
+        { name: "Equity Fund (Saham)", value: allocation.highRisk, color: "#ef4444" },
     ].filter(item => item.value > 0);
 
-    // Logic Warna Tema berdasarkan Profil
     const getThemeColor = (profileType: RiskProfileCategory) => {
         switch (profileType) {
             case RiskProfileCategory.KONSERVATIF:
                 return "bg-emerald-50 text-emerald-700 border-emerald-200";
             case RiskProfileCategory.AGRESIF:
                 return "bg-red-50 text-red-700 border-red-200";
-            default: // MODERAT
+            default:
                 return "bg-yellow-50 text-yellow-700 border-yellow-200";
         }
     };
@@ -148,7 +166,6 @@ export function AnalysisResult({
     return (
         <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            {/* COMPONENT LOADING MODAL */}
             <PdfLoadingModal isOpen={showPdfModal || isDownloading} />
 
             {/* Header Section */}
@@ -213,7 +230,7 @@ export function AnalysisResult({
                                             data: chartData,
                                             cx: "50%",
                                             cy: "50%",
-                                            innerRadius: "60%", // Donut Style
+                                            innerRadius: "60%",
                                             outerRadius: "80%",
                                             dataKey: "value",
                                             stroke: "#ffffff",
@@ -242,6 +259,55 @@ export function AnalysisResult({
                         </div>
                     </CardContent>
                 </Card>
+            </div>
+
+            {/* [NEW SECTION] Review Jawaban Kuesioner (Accordion) */}
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+                <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="review-answers" className="border-none">
+                        <AccordionTrigger className="px-8 py-6 hover:no-underline hover:bg-slate-50 transition-colors group">
+                            <div className="flex items-center gap-4 text-left w-full">
+                                <div className="bg-blue-50 p-2.5 rounded-xl text-blue-600 group-hover:bg-blue-100 transition-colors">
+                                    <FileText className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h4 className="text-slate-900 font-bold text-lg">Review Jawaban Kuesioner</h4>
+                                    <p className="text-slate-500 text-xs font-medium">Lihat detail respon klien terhadap 10 pertanyaan risiko.</p>
+                                </div>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-0 pb-0">
+                            <div className="border-t border-slate-100 divide-y divide-slate-100">
+                                {reviewData.map((item, index) => (
+                                    <div key={item.id} className="p-6 md:px-8 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row gap-4 md:items-start">
+                                        <div className="flex-1 space-y-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                    Soal {index + 1}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-medium text-slate-900 leading-relaxed">
+                                                {item.question}
+                                            </p>
+                                        </div>
+                                        <div className="flex-1 md:max-w-md bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex items-start gap-3">
+                                            <CheckCircle2 className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-800">{item.answer}</p>
+                                                <div className="flex items-center gap-1 mt-1">
+                                                    <span className="text-[10px] text-slate-400 font-medium">Bobot Nilai:</span>
+                                                    <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-black bg-white border-slate-200 text-slate-600">
+                                                        {item.score} Poin
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </div>
 
             {/* Action Bar */}

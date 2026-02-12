@@ -55,7 +55,7 @@ export function RiskProfileWizard() {
     const [clientData, setClientData] = useState<ClientIdentity | null>(null);
     const [answers, setAnswers] = useState<RiskProfileAnswerItem[]>([]);
 
-    // Hasil Simulasi (Transient - tidak perlu dipersist karena bisa dihitung ulang)
+    // Hasil Simulasi
     const [simulationResult, setSimulationResult] = useState<RiskProfileSimulationResult | null>(null);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
@@ -101,16 +101,17 @@ export function RiskProfileWizard() {
                 const tokenString = event.target?.result as string;
 
                 try {
-                    // 1. Decode token via service (Backend Decode)
+                    // 1. Decode token via service
                     const decoded = await riskProfileService.decodeSimulationToken(tokenString);
 
-                    // 2. Hydrate State (Mengisi ulang data dari file)
+                    // 2. Hydrate State
                     setClientData(decoded.client);
                     setAnswers(decoded.financial.answers);
                     setSimulationResult(decoded);
                     setMgcToken(tokenString);
+                    setPdfUrl(null); // Reset PDF URL karena hasil import belum punya blob PDF
 
-                    // 3. Langsung ke step RESULT (karena .mgc sudah punya hasil)
+                    // 3. Langsung ke step RESULT
                     setCurrentStep("RESULT");
                     toast.success("Data simulasi berhasil di-import.", { id: toastId });
                 } catch (err: any) {
@@ -187,32 +188,74 @@ export function RiskProfileWizard() {
         }
     };
 
-    const handleDownloadAction = () => {
-        if (pdfUrl && clientData) {
-            const link = document.createElement('a');
-            link.href = pdfUrl;
-            const cleanName = clientData.name.replace(/[^a-zA-Z0-9]/g, '_');
-            const filename = `RiskProfile_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+    // [SMART LOGIC] Handle Download Action (Lazy Generation)
+    const handleDownloadAction = async () => {
+        if (!clientData || answers.length === 0) {
+            toast.error("Data simulasi tidak lengkap.");
+            return;
+        }
 
-            if (mgcToken) {
-                const blobMgc = new Blob([mgcToken], { type: 'text/plain' });
-                const urlMgc = window.URL.createObjectURL(blobMgc);
-                const linkMgc = document.createElement('a');
-                linkMgc.href = urlMgc;
-                linkMgc.setAttribute('download', filename.replace('.pdf', '.mgc'));
-                document.body.appendChild(linkMgc);
-                linkMgc.click();
-                linkMgc.remove();
-                toast.info("File backup (.mgc) juga diunduh.");
+        setIsDownloading(true);
+
+        try {
+            let targetPdfUrl = pdfUrl;
+            let targetToken = mgcToken;
+
+            // KONDISI IMPORT: Jika PDF belum ada di memori, generate ulang sekarang
+            if (!targetPdfUrl) {
+                // toast.info("Menyiapkan dokumen PDF..."); // Opsional: Beri feedback user
+
+                const payload: RiskProfilePayload = {
+                    clientName: clientData.name,
+                    clientDob: clientData.dob,
+                    clientPhone: clientData.phone,
+                    clientJob: clientData.job,
+                    clientCity: clientData.city,
+                    answers: answers,
+                };
+
+                // Re-call endpoint simulasi untuk dapat PDF Stream
+                const response = await riskProfileService.simulateRiskProfile(payload);
+                targetPdfUrl = response.pdfUrl;
+                targetToken = response.token; // Update token juga untuk memastikan sinkron
+
+                // Simpan ke state agar klik berikutnya instan
+                setPdfUrl(targetPdfUrl);
+                setMgcToken(targetToken);
             }
 
-            clearDraft();
-        } else {
-            toast.error("Dokumen belum siap.");
+            // Proses Download Aktual
+            if (targetPdfUrl) {
+                const link = document.createElement('a');
+                link.href = targetPdfUrl;
+                const cleanName = clientData.name.replace(/[^a-zA-Z0-9]/g, '_');
+                const filename = `RiskProfile_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
+                link.setAttribute('download', filename);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                if (targetToken) {
+                    const blobMgc = new Blob([targetToken], { type: 'text/plain' });
+                    const urlMgc = window.URL.createObjectURL(blobMgc);
+                    const linkMgc = document.createElement('a');
+                    linkMgc.href = urlMgc;
+                    linkMgc.setAttribute('download', filename.replace('.pdf', '.mgc'));
+                    document.body.appendChild(linkMgc);
+                    linkMgc.click();
+                    linkMgc.remove();
+                    toast.success("Dokumen dan backup berhasil diunduh.");
+                }
+
+                clearDraft();
+            } else {
+                toast.error("Gagal membuat dokumen PDF.");
+            }
+        } catch (error: any) {
+            toast.error("Terjadi kesalahan saat memproses dokumen.");
+            console.error(error);
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -236,7 +279,7 @@ export function RiskProfileWizard() {
 
     return (
         <div className="w-full py-4">
-            {/* Hidden File Input untuk Trigger Import */}
+            {/* Hidden File Input */}
             <input
                 type="file"
                 ref={fileInputRef}
@@ -293,7 +336,6 @@ export function RiskProfileWizard() {
                                         <p className="text-[10px] text-slate-400 uppercase font-black">Import file .mgc untuk memuat data</p>
                                     </div>
                                 </div>
-                                {/* Tombol yang mentrigger input file tersembunyi */}
                                 <Button variant="outline" size="sm" onClick={handleImportClick} className="h-9 px-4 rounded-xl border-blue-100 text-blue-600 hover:bg-blue-50 font-bold text-xs transition-all">
                                     <Upload className="w-3.5 h-3.5 mr-2" /> Import .MGC
                                 </Button>
@@ -320,7 +362,14 @@ export function RiskProfileWizard() {
 
                     {currentStep === "RESULT" && simulationResult && (
                         <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}>
-                            <AnalysisResult data={simulationResult} onDownloadPdf={handleDownloadAction} onRetake={handleRetake} onReset={handleResetFull} isDownloading={isDownloading} />
+                            <AnalysisResult
+                                data={simulationResult}
+                                userAnswers={answers} // [NEW] Passing props jawaban untuk review UI
+                                onDownloadPdf={handleDownloadAction}
+                                onRetake={handleRetake}
+                                onReset={handleResetFull}
+                                isDownloading={isDownloading}
+                            />
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -347,7 +396,6 @@ export function RiskProfileWizard() {
     );
 }
 
-// Sub-component untuk visualisasi langkah (Steppers)
 function StepItem({ active, done, icon, label }: { active: boolean; done: boolean; icon: any; label: string }) {
     return (
         <div className="flex flex-col items-center gap-3 relative z-10">

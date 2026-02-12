@@ -8,102 +8,10 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { RiskProfileAnswerItem, RiskQuestionUI } from "@/lib/types/risk-profile";
+import { RiskProfileAnswerItem } from "@/lib/types/risk-profile";
 
-// --- DATA PERTANYAAN (STATIS SESUAI BRD) ---
-// Value di sini adalah SKOR yang akan dijumlahkan oleh Backend
-const QUESTIONS: RiskQuestionUI[] = [
-    {
-        id: "q1",
-        text: "Tujuan utama Anda berinvestasi adalah:",
-        options: [
-            { label: "Menjaga nilai uang agar tidak berkurang", value: 1 },
-            { label: "Menjaga nilai + sedikit pertumbuhan", value: 2 },
-            { label: "Mengembangkan aset secara maksimal", value: 3 },
-        ],
-    },
-    {
-        id: "q2",
-        text: "Jangka waktu investasi utama Anda:",
-        options: [
-            { label: "< 3 tahun", value: 1 },
-            { label: "3 – 7 tahun", value: 2 },
-            { label: "> 7 tahun", value: 3 },
-        ],
-    },
-    {
-        id: "q3",
-        text: "Jika nilai investasi Anda turun 10–15% dalam 6 bulan, Anda akan:",
-        options: [
-            { label: "Menarik dana agar tidak rugi lebih besar", value: 1 },
-            { label: "Menunggu dan mengevaluasi ulang", value: 2 },
-            { label: "Menambah investasi karena harga lebih murah", value: 3 },
-        ],
-    },
-    {
-        id: "q4",
-        text: "Dana darurat Anda saat ini:",
-        options: [
-            { label: "Belum ada / < 3 bulan pengeluaran", value: 1 },
-            { label: "3 – 6 bulan pengeluaran", value: 2 },
-            { label: "> 6 bulan pengeluaran", value: 3 },
-        ],
-    },
-    {
-        id: "q5",
-        text: "Fluktuasi nilai investasi membuat saya:",
-        options: [
-            { label: "Sangat tidak nyaman dan stres", value: 1 },
-            { label: "Cukup khawatir tapi masih bisa menerima", value: 2 },
-            { label: "Tenang dan menganggapnya hal wajar", value: 3 },
-        ],
-    },
-    {
-        id: "q6",
-        text: "Pernyataan yang paling sesuai dengan Anda:",
-        options: [
-            { label: "Saya lebih takut rugi daripada ingin untung", value: 1 },
-            { label: "Takut rugi dan ingin untung itu seimbang", value: 2 },
-            { label: "Saya siap rugi jangka pendek demi hasil besar", value: 3 },
-        ],
-    },
-    {
-        id: "q7",
-        text: "Pengalaman investasi Anda:",
-        options: [
-            { label: "Belum pernah / sangat terbatas", value: 1 },
-            { label: "Sudah pernah dan cukup memahami", value: 2 },
-            { label: "Aktif dan memahami risiko investasi", value: 3 },
-        ],
-    },
-    {
-        id: "q8",
-        text: "Jenis investasi yang paling nyaman untuk Anda:",
-        options: [
-            { label: "Deposito / pasar uang", value: 1 },
-            { label: "Obligasi / campuran", value: 2 },
-            { label: "Saham / reksa dana saham", value: 3 },
-        ],
-    },
-    {
-        id: "q9",
-        text: "Sumber penghasilan Anda:",
-        options: [
-            { label: "Tidak tetap / sangat fluktuatif", value: 1 },
-            { label: "Cukup stabil", value: 2 },
-            { label: "Sangat stabil & beragam", value: 3 },
-        ],
-    },
-    {
-        id: "q10",
-        text: "Persentase dana yang akan diinvestasikan dari total aset:",
-        options: [
-            { label: "< 20%", value: 1 },
-            { label: "20% – 50%", value: 2 },
-            { label: "> 50%", value: 3 },
-        ],
-    },
-];
+// [REFACTOR] Import data pertanyaan dari Centralized Data Source
+import { RISK_PROFILE_QUESTIONS } from "@/lib/data/risk-profile-questions";
 
 interface QuizSectionProps {
     initialAnswers?: RiskProfileAnswerItem[]; // Untuk fitur Restore/Edit
@@ -122,22 +30,18 @@ export function QuizSection({ initialAnswers, onFinish, isLoading = false }: Qui
         if (initialAnswers && initialAnswers.length > 0) {
             const map: Record<number, number> = {};
             initialAnswers.forEach((ans, idx) => {
-                // Asumsi urutan pertanyaan sama (QUESTIONS array statis)
-                // Jika id dinamis, logic ini perlu penyesuaian (find index by id)
-                const qIndex = QUESTIONS.findIndex(q => q.id === ans.questionId);
+                // Mapping jawaban berdasarkan ID pertanyaan dari data pusat
+                const qIndex = RISK_PROFILE_QUESTIONS.findIndex(q => q.id === ans.questionId);
                 if (qIndex !== -1) {
                     map[qIndex] = ans.value;
                 }
             });
             setAnswersMap(map);
-
-            // Opsional: Langsung lompat ke pertanyaan terakhir yang dijawab?
-            // setCurrentIndex(initialAnswers.length < QUESTIONS.length ? initialAnswers.length : 0);
         }
     }, [initialAnswers]);
 
-    const currentQuestion = QUESTIONS[currentIndex];
-    const totalQuestions = QUESTIONS.length;
+    const currentQuestion = RISK_PROFILE_QUESTIONS[currentIndex];
+    const totalQuestions = RISK_PROFILE_QUESTIONS.length;
     const progress = ((currentIndex + 1) / totalQuestions) * 100;
 
     const handleSelectOption = (valString: string) => {
@@ -163,10 +67,10 @@ export function QuizSection({ initialAnswers, onFinish, isLoading = false }: Qui
     };
 
     const handleFinish = () => {
-        // Transformasi map ke array format DTO
-        const finalAnswers: RiskProfileAnswerItem[] = QUESTIONS.map((q, index) => ({
+        // Transformasi map ke array format DTO menggunakan data pusat sebagai referensi urutan
+        const finalAnswers: RiskProfileAnswerItem[] = RISK_PROFILE_QUESTIONS.map((q, index) => ({
             questionId: q.id,
-            value: answersMap[index] || 0 // Default 0 jika terlewat (seharusnya tidak mungkin karena tombol disable)
+            value: answersMap[index] || 0 // Default 0 (Safety check, meski UI mencegah ini)
         }));
 
         onFinish(finalAnswers);
