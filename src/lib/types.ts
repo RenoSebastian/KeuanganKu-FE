@@ -979,3 +979,14 @@ export interface CheckupSimulationResult {
   ratios: RatioDetail[];
   generatedAt?: string;
 }
+
+/**
+ * [NEW] Interface untuk Response API Simulasi (Backend Phase 2)
+ * Menggantikan return type Blob lama.
+ */
+export interface SimulationApiResponse {
+  pdfBuffer: { type: "Buffer"; data: number[] }; // Raw Buffer from Node
+  mgcToken: string;
+  filename: string;
+  data: CheckupSimulationResponse;
+}

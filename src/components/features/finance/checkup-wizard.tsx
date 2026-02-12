@@ -8,8 +8,7 @@ import {
     Wallet, Banknote, Calculator,
     CreditCard, User, Briefcase, Users,
     ShoppingBag, Car, Gem, Phone, Umbrella, PiggyBank, ShieldCheck,
-    Landmark, DollarSign, TrendingUp, Home, Coins, Plane, AlertCircle,
-    Loader2, RefreshCcw, FileText, Activity, History, FileSearch, Upload
+    Landmark, DollarSign, TrendingUp, Home, Coins, Plane, Activity, History, FileSearch, Upload, Loader2
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -40,7 +39,7 @@ import { InfoPopover } from "@/components/ui/info-popover";
 import { useSimulationPersistence, SIMULATION_STORAGE_KEYS } from "@/hooks/use-simulation-persistence";
 
 // ============================================================================
-// HELPER COMPONENTS (DEFINED FIRST TO AVOID SCOPE ISSUES)
+// HELPER COMPONENTS (MOVED TO TOP TO FIX VISIBILITY ISSUES)
 // ============================================================================
 
 function SectionHeader({ title, desc }: { title: string, desc: string }) {
@@ -164,7 +163,7 @@ export function CheckupWizard() {
         ignoreDraft,
         draftData
     } = useSimulationPersistence<SimulationClientProfile, Partial<FinancialRecord>>(
-        SIMULATION_STORAGE_KEYS.CHECKUP, // [FIX] Ganti FINANCIAL_CHECKUP jadi CHECKUP
+        SIMULATION_STORAGE_KEYS.CHECKUP, // [FIX] Updated key
         clientData,
         financialRecord || {},
         currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2
@@ -263,19 +262,22 @@ export function CheckupWizard() {
                 ...record
             };
 
-            // Call Backend [FIX] Gunakan simulateAgentCheckup
+            // Call Backend [FIXED]
             const response = await financialService.simulateAgentCheckup(payload);
 
-            // Backend now returns result object directly in `data`
+            // Backend now returns result object directly in `response` (SimulationApiResponse)
             setSimulationResult(response.data.result);
 
-            // Handle PDF Blob or URL
-            const blobUrl = response.pdfBuffer
-                ? URL.createObjectURL(new Blob([response.pdfBuffer], { type: 'application/pdf' }))
-                : response.download?.pdf_url;
+            // Handle PDF: Convert Buffer to Blob
+            let blobUrl = null;
+            if (response.pdfBuffer && response.pdfBuffer.data) {
+                const bufferData = new Uint8Array(response.pdfBuffer.data);
+                const blob = new Blob([bufferData], { type: 'application/pdf' });
+                blobUrl = URL.createObjectURL(blob);
+            }
 
             setPdfUrl(blobUrl);
-            setMgcToken(response.download?.mgc_token || response.mgcToken);
+            setMgcToken(response.mgcToken);
 
             setCurrentStep("RESULT");
             toast.success("Analisis selesai!", { id: toastId });
@@ -305,11 +307,18 @@ export function CheckupWizard() {
                     client: clientData,
                     ...financialRecord as FinancialRecord
                 };
-                // [FIX] Gunakan simulateAgentCheckup
+
+                // [FIXED] Call Backend
                 const response = await financialService.simulateAgentCheckup(payload);
 
-                targetPdfUrl = response.download?.pdf_url || (response.pdfBuffer ? URL.createObjectURL(new Blob([response.pdfBuffer], { type: 'application/pdf' })) : null);
-                targetToken = response.download?.mgc_token || response.mgcToken;
+                // Convert Buffer to Blob
+                if (response.pdfBuffer && response.pdfBuffer.data) {
+                    const bufferData = new Uint8Array(response.pdfBuffer.data);
+                    const blob = new Blob([bufferData], { type: 'application/pdf' });
+                    targetPdfUrl = URL.createObjectURL(blob);
+                }
+
+                targetToken = response.mgcToken;
 
                 setPdfUrl(targetPdfUrl);
                 setMgcToken(targetToken);
@@ -353,7 +362,6 @@ export function CheckupWizard() {
         }
     };
 
-    // [FIX] Hapus handleRetake karena onRetake tidak ada di CheckupResult
     const handleRetake = () => {
         setCurrentStep("FINANCIAL");
         window.scrollTo({ top: 0, behavior: "smooth" });

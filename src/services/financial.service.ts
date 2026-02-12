@@ -3,19 +3,7 @@ import { AxiosResponse } from "axios";
 import {
   FinancialRecord,
   HealthAnalysisResult,
-  PensionPayload,
-  InsurancePayload,
-  GoalPayload,
-  EducationPayload,
-  EducationPlanResponse,
-  GoalSimulationInput,
-  GoalSimulationResult,
-  CreateBudgetSimulationDto,
-  // SimulationResponse, // Tidak lagi digunakan karena response kini berupa Blob
   CreateBudgetDto,
-  FinancialCheckupData,
-  FinancialRecordHistory,
-  BudgetPlanHistory,
   CreatePensionDto,
   PensionPlanData,
   CreateInsuranceDto,
@@ -25,11 +13,16 @@ import {
   GoalPlanData,
   CreateEducationPlanDto,
   EducationPlanData,
-  // [NEW] DTO Simulasi
+  GoalSimulationResult,
+  CreateBudgetSimulationDto,
   CreateInsuranceSimulationDto,
   CreatePensionSimulationDto,
   CreateGoalSimulationDto,
-  CreateCheckupSimulationDto
+  CreateCheckupSimulationDto,
+  FinancialRecordHistory,
+  BudgetPlanHistory,
+  // [NEW] Import Interface Response Baru
+  SimulationApiResponse
 } from "@/lib/types";
 
 export const financialService = {
@@ -72,8 +65,9 @@ export const financialService = {
     // Helper untuk trigger download di browser
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
+    const filename = `Financial-Report-${new Date().toISOString().split('T')[0]}.pdf`;
     link.href = url;
-    link.setAttribute('download', `Financial-Report-${new Date().toISOString().split('T')[0]}.pdf`);
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -340,13 +334,13 @@ export const financialService = {
   /**
    * simulateAgentCheckup
    * [NEW] Simulasi Financial Checkup Stateless
-   * Mengembalikan PDF Blob + Header Token .mgc
-   * Digunakan untuk fitur Agen.
+   * [FIXED] Mengembalikan JSON object (SimulationApiResponse)
+   * Berisi: { pdfBuffer, mgcToken, filename, data: { result, client, financial } }
    */
-  simulateAgentCheckup: async (data: CreateCheckupSimulationDto): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/checkup", data, {
-      responseType: 'blob'
-    });
+  simulateAgentCheckup: async (data: CreateCheckupSimulationDto): Promise<SimulationApiResponse> => {
+    // Hapus responseType: 'blob' karena kita sekarang mengharapkan JSON
+    const response = await api.post<SimulationApiResponse>("/financial/simulation/checkup", data);
+    return response.data;
   },
 
   // 2. POST Import File .mgc (Universal Decode)
