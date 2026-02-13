@@ -24,13 +24,53 @@ import {
 
 // [NEW] Import Adapter Types & Logic
 import {
-  FinancialFormState,
+  FinancialFormState, // Alias untuk FinancialAnnualState
+  FinancialAnnualState,
+  FinancialMonthlyPayload,
   CheckupSimulationResponse
 } from "@/lib/types/financial-checkup";
+
 import {
   convertRecordToMonthly,
   convertRecordToAnnual
 } from "@/lib/financial-math";
+
+// ============================================================================
+// PRIVATE ADAPTER HELPERS (Internal Service Logic)
+// ============================================================================
+
+/**
+ * Mengonversi Annual State (UI) -> Monthly Payload (API)
+ * Memisahkan data finansial dari data klien, mengonversi angka, lalu menggabungkan kembali.
+ */
+function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: any }): any {
+  // 1. Konversi Angka Finansial (Annual -> Monthly)
+  const monthlyFinancial = convertRecordToMonthly(data);
+
+  // 2. Pertahankan Data Non-Finansial (Client, Spouse, dll)
+  // Kita ambil properti lain yang mungkin ada di object data
+  const { client, spouse, ...rest } = data as any;
+
+  // 3. Gabungkan kembali (Flat Object untuk dikirim ke Backend)
+  // Backend menerima object flat yang berisi field finansial + field client
+  return {
+    ...monthlyFinancial,
+    client,
+    spouse
+  };
+}
+
+/**
+ * Mengonversi Monthly Payload (API) -> Annual State (UI)
+ * Memastikan semua flow (pemasukan/pengeluaran) dikali 12.
+ */
+function toAnnualState(record: FinancialMonthlyPayload): FinancialAnnualState {
+  return convertRecordToAnnual(record);
+}
+
+// ============================================================================
+// SERVICE IMPLEMENTATION
+// ============================================================================
 
 export const financialService = {
   // ===========================================================================
@@ -38,38 +78,31 @@ export const financialService = {
   // ===========================================================================
 
   createCheckup: async (data: FinancialRecord) => {
-    // Explicit return type <HealthAnalysisResult> agar dikenali UI
     const response = await api.post<HealthAnalysisResult>("/financial/checkup", data);
     return response.data;
   },
 
   getLatestCheckup: async () => {
-    // [UPDATED] Menggunakan Intersection Type untuk return value
-    // Backend mengembalikan object gabungan: Data Mentah (FinancialRecord) + Hasil Analisa (HealthAnalysisResult)
     const response = await api.get<FinancialRecord & HealthAnalysisResult>("/financial/checkup/latest");
     return response.data;
   },
 
   getCheckupHistory: async () => {
-    // Mengambil history lengkap (List Only)
     const response = await api.get<FinancialRecordHistory[]>("/financial/checkup/history");
     return response.data;
   },
 
-  // Method untuk mengambil Detail Analisa per Item History
   getCheckupDetail: async (id: string) => {
     const response = await api.get(`/financial/checkup/detail/${id}`);
     return response.data;
   },
 
   downloadCheckupPdf: async (checkupId: string) => {
-    // Request dengan responseType 'blob' sangat PENTING untuk file binary
     const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
 
-    // Helper untuk trigger download di browser
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     const filename = `Financial-Report-${new Date().toISOString().split('T')[0]}.pdf`;
@@ -94,14 +127,12 @@ export const financialService = {
     return response.data;
   },
 
-  // [NEW] Download Budget PDF
   downloadBudgetPdf: async (budgetId: string) => {
     const response = await api.get(`/financial/budget/pdf/${budgetId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
 
-    // Logic download file di browser
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -112,7 +143,7 @@ export const financialService = {
   },
 
   // ===========================================================================
-  // 3. NEW CALCULATORS (INTEGRASI BARU)
+  // 3. NEW CALCULATORS
   // ===========================================================================
 
   // A. Pensiun
@@ -121,13 +152,11 @@ export const financialService = {
     return response.data;
   },
 
-  // [NEW] Download Pension PDF
   downloadPensionPdf: async (planId: string) => {
     const response = await api.get(`/financial/pension/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -140,8 +169,6 @@ export const financialService = {
   // B. Asuransi
   calculateInsurance: async (data: CreateInsuranceDto) => {
     const response = await api.post<{ plan: InsurancePlanData, calculation: any }>("/financial/calculator/insurance", data);
-
-    // [LOGICAL FIX] Data Transformation Layer
     const raw = response.data;
     if (raw.calculation) {
       raw.calculation = {
@@ -153,17 +180,14 @@ export const financialService = {
         coverageGap: Number(raw.calculation.coverageGap || 0),
       };
     }
-
     return raw;
   },
 
-  // [NEW] Download Insurance PDF
   downloadInsurancePdf: async (planId: string) => {
     const response = await api.get(`/financial/insurance/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -173,21 +197,17 @@ export const financialService = {
     link.remove();
   },
 
-  // C. Goals (Tujuan Keuangan)
+  // C. Goals
   calculateGoal: async (data: CreateGoalDto) => {
     const response = await api.post<{ plan: GoalPlanData, calculation: any }>("/financial/calculator/goals", data);
     return response.data;
   },
 
-  // [FIXED] SIMULATOR GOAL
   simulateGoal: async (data: SimulateGoalDto) => {
-    // Kita definisikan tipe return axios sebagai Wrapper Object
     const response = await api.post<{ status: string, data: GoalSimulationResult }>("/financial/goals/simulate", data);
-    // Kita unwrap data disini agar UI langsung terima result bersih
     return response.data.data;
   },
 
-  // [NEW] Download Goal PDF
   downloadGoalPdf: async (planId: string) => {
     const response = await api.get(`/financial/goals/pdf/${planId}`, {
       responseType: 'blob',
@@ -202,18 +222,14 @@ export const financialService = {
     link.remove();
   },
 
-  // D. Pendidikan Anak (LENGKAP: CRUD & FIX DATA TYPE)
-
+  // D. Pendidikan Anak
   calculateEducation: async (data: CreateEducationPlanDto) => {
     const response = await api.post<{ plan: EducationPlanData, calculation: any }>("/financial/calculator/education", data);
     return response.data;
   },
 
-  // --- [FIXED] DATA TRANSFORMATION LAYER ---
-  // Menangani data string dari BE dan mengubahnya menjadi number agar UI tidak error.
   getEducationPlans: async () => {
     const response = await api.get<any[]>("/financial/calculator/education");
-
     const cleanData = response.data.map((plan: any) => ({
       ...plan,
       plan: {
@@ -234,7 +250,6 @@ export const financialService = {
         }))
       }
     }));
-
     return cleanData;
   },
 
@@ -258,7 +273,7 @@ export const financialService = {
   },
 
   // ===========================================================================
-  // 4. MARKET DATA (INTEGRASI HARGA EMAS BE)
+  // 4. MARKET DATA
   // ===========================================================================
 
   getLatestGoldPrice: async () => {
@@ -274,7 +289,6 @@ export const financialService = {
     return response.data;
   },
 
-  // [NEW] Download History PDF
   downloadHistoryPdf: async (historyId: string) => {
     const response = await api.get(`/financial/checkup/history/pdf/${historyId}`, {
       responseType: 'blob',
@@ -293,40 +307,24 @@ export const financialService = {
   // 8. AGENT SIMULATION (STATELESS / OFFLINE-FIRST)
   // ===========================================================================
 
-  /**
-   * simulateAgentBudget
-   * Melakukan request simulasi dengan respons tipe BLOB (File PDF).
-   */
   simulateAgentBudget: async (data: CreateBudgetSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/budget", data, {
       responseType: 'blob'
     });
   },
 
-  /**
-   * simulateAgentInsurance
-   * [NEW] Simulasi Asuransi Stateless
-   */
   simulateAgentInsurance: async (data: CreateInsuranceSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/insurance", data, {
       responseType: 'blob'
     });
   },
 
-  /**
-   * simulateAgentPension
-   * [NEW] Simulasi Dana Pensiun Stateless
-   */
   simulateAgentPension: async (data: CreatePensionSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/pension", data, {
       responseType: 'blob'
     });
   },
 
-  /**
-   * simulateAgentGoal
-   * [NEW] Simulasi Tujuan Keuangan Stateless
-   */
   simulateAgentGoal: async (data: CreateGoalSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/goals", data, {
       responseType: 'blob'
@@ -336,46 +334,46 @@ export const financialService = {
   /**
    * simulateAgentCheckup (ADAPTER PATTERN IMPLEMENTATION)
    * -----------------------------------------------------
-   * Fungsi ini bertindak sebagai ADAPTER yang mengubah data "Tahunan" (UI)
-   * menjadi data "Bulanan" (API) sebelum dikirim.
-   *
-   * @param data FinancialFormState (Annual Values from Form)
-   * @returns CheckupSimulationResponse (Data Result + PDF Buffer)
+   * Menerima Data TAHUNAN dari UI, mengonversi ke BULANAN untuk API.
+   * Mencegah 'Double Division' bug.
    */
   simulateAgentCheckup: async (data: FinancialFormState): Promise<CheckupSimulationResponse> => {
     // 1. TRANSFORMER: Convert Annual State -> Monthly API Payload
-    // Kita spread `...data` untuk mempertahankan field non-financial (seperti client info)
-    // dan menimpa field financial dengan nilai bulanan.
-    const apiPayload = convertRecordToMonthly(data);
+    // Gunakan helper private yang sudah aman
+    const apiPayload = toMonthlyPayload(data);
 
-    // 2. REQUEST: Kirim data yang sudah dinormalisasi ke Backend
-    // Backend akan memproses angka bulanan ini untuk skor & rasio.
+    // 2. REQUEST: Kirim data BULANAN ke Backend
     const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup", apiPayload);
 
     return response.data;
   },
 
   /**
-   * decodeSimulationToken (RE-HYDRATION STRATEGY)
-   * ---------------------------------------------
-   * Fungsi ini memecahkan token import dan melakukan RE-HYDRATION
-   * data agar kembali menjadi format Tahunan untuk ditampilkan di UI.
-   *
-   * @param token Encrypted string from .mgc file
-   * @returns Transformed Object (Annual Values)
+   * decodeSimulationToken (AGGRESSIVE UNWRAPPING STRATEGY)
+   * ------------------------------------------------------
+   * Membuka paksa nesting data dan mengonversi BULANAN -> TAHUNAN.
+   * Mencegah 'Shrinking Number' bug saat import.
    */
   decodeSimulationToken: async (token: string) => {
     const response = await api.post("/financial/simulation/decode", { simulationToken: token });
-    const rawData = response.data;
 
-    // CHECK: Apakah data yang di-import adalah Financial Checkup?
-    // Struktur Checkup biasanya memiliki properti 'financial' yang berisi record angka.
-    if (rawData && rawData.financial) {
-      // TRANSFORMER: Convert Monthly API Data -> Annual UI State
-      // Ini mencegah user melihat angka yang "mengecil" (dibagi 12) saat import ulang.
-      rawData.financial = convertRecordToAnnual(rawData.financial);
+    // 1. AGGRESSIVE UNWRAPPING (Mencari payload asli)
+    // Kadang response.data masih membungkus 'data' lagi (e.g., { status: 'ok', data: { ... } })
+    // Kita cari root object yang memiliki properti 'financial'
+    let rawData = response.data;
+
+    if (rawData && rawData.data && !rawData.financial) {
+      // Jika 'financial' tidak ada di root, tapi ada di dalam 'data', kita masuk ke dalam.
+      rawData = rawData.data;
     }
 
+    // 2. ADAPTER: Convert Monthly API Data -> Annual UI State
+    // Jika ditemukan data finansial, PAKSA konversi ke Annual (x12)
+    if (rawData && rawData.financial) {
+      rawData.financial = toAnnualState(rawData.financial);
+    }
+
+    // Hasilnya adalah object { client, financial (Annual), result } yang aman untuk UI
     return rawData;
   }
 };
