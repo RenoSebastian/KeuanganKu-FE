@@ -67,7 +67,6 @@ export function CheckupWizard() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Data State (Single Source of Truth)
-    // NOTE: clientData ini strukturnya { client: {...}, spouse: {...} } hasil dari form
     const [clientData, setClientData] = useState<any | null>(null);
     const [financialRecord, setFinancialRecord] = useState<FinancialFormState>(INITIAL_FINANCIAL_STATE);
     const [simulationResult, setSimulationResult] = useState<CheckupSimulationResult | null>(null);
@@ -76,7 +75,7 @@ export function CheckupWizard() {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
-    // --- FULL PERSISTENCE INTEGRATION (Result & Token Saved) ---
+    // --- FULL PERSISTENCE INTEGRATION ---
     const { isHydrated, clearStorage } = useSimulationPersistence<
         any,
         FinancialFormState,
@@ -86,21 +85,26 @@ export function CheckupWizard() {
         clientData,
         financialRecord,
         currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2,
-        // Passing Result & PDF Data to Storage Hook
         simulationResult,
         pdfUrl,
         mgcToken,
-        // Callback: Restore data from storage (termasuk Result)
+        // Callback: Restore data from storage
         (restoredClient, restoredInput, restoredStep, restoredResult, restoredPdf, restoredToken) => {
             if (restoredClient) setClientData(restoredClient);
             if (restoredInput) setFinancialRecord(restoredInput);
 
-            // Restore Hasil Simulasi & Token jika ada
             if (restoredResult) setSimulationResult(restoredResult);
-            if (restoredPdf) setPdfUrl(restoredPdf);
+
+            // [FIX DEAD BLOB] Jika URL adalah Blob (bukan https), buang karena pasti sudah expired setelah refresh
+            if (restoredPdf && restoredPdf.startsWith('blob:')) {
+                setPdfUrl(null);
+            } else {
+                setPdfUrl(restoredPdf);
+            }
+
             if (restoredToken) setMgcToken(restoredToken);
 
-            // Auto-Navigate Logic (Lebih pintar menangani refresh di step Result)
+            // Auto-Navigate Logic
             if (restoredStep === 2 && restoredResult) {
                 setCurrentStep("RESULT");
             } else if (restoredStep === 1 && restoredClient) {
@@ -111,15 +115,33 @@ export function CheckupWizard() {
         }
     );
 
-    // --- ACTION: HANDLE INPUT CHANGE (DARI CHILD) ---
-    const handleFinancialUpdate = (field: keyof FinancialFormState, value: number) => {
-        setFinancialRecord(prev => ({
-            ...prev,
-            [field]: value
-        }));
+    // --- HELPER: CLEAN PAYLOAD (FIX ID TIDAK DITEMUKAN) ---
+    // Fungsi ini membuang 'id', 'createdAt', dll agar Backend tidak bingung mencari record lama
+    const createCleanPayload = () => {
+        // 1. Ratakan struktur client (menghindari double nesting)
+        // 2. Hapus properti 'id' agar dianggap CREATE baru
+        const cleanClient = { ...clientData };
+        if (cleanClient.id) delete cleanClient.id;
+
+        // Hapus id di level nested jika ada
+        if (cleanClient.client && cleanClient.client.id) delete cleanClient.client.id;
+        if (cleanClient.spouse && cleanClient.spouse.id) delete cleanClient.spouse.id;
+
+        const cleanFinancial = { ...financialRecord };
+        // @ts-ignore
+        if (cleanFinancial.id) delete cleanFinancial.id;
+
+        return {
+            ...cleanFinancial,
+            ...cleanClient, // Spread agar flat
+        };
     };
 
-    // --- HANDLER: IMPORT FILE (.MGC) ---
+    // --- ACTION HANDLERS ---
+    const handleFinancialUpdate = (field: keyof FinancialFormState, value: number) => {
+        setFinancialRecord(prev => ({ ...prev, [field]: value }));
+    };
+
     const handleImportClick = () => fileInputRef.current?.click();
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,11 +153,11 @@ export function CheckupWizard() {
             return;
         }
 
-        // [DESTRUCTIVE RESET] Hapus storage lama SEBELUM proses apapun dimulai
+        // Destructive Reset
         clearStorage();
         setClientData(null);
         setFinancialRecord(INITIAL_FINANCIAL_STATE);
-        setSimulationResult(null); // Reset result juga
+        setSimulationResult(null);
 
         setIsLoading(true);
         const toastId = toast.loading("Membaca file simulasi...");
@@ -147,13 +169,12 @@ export function CheckupWizard() {
                 try {
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
-                    // Set State Baru
                     if (decoded.client) setClientData(decoded.client);
                     if (decoded.financial) setFinancialRecord(decoded.financial);
                     if (decoded.result) setSimulationResult(decoded.result);
 
                     setMgcToken(tokenString);
-                    setPdfUrl(null); // Reset PDF url karena token baru di-load
+                    setPdfUrl(null); // Reset PDF url saat import baru
 
                     setCurrentStep("RESULT");
                     toast.success("Data simulasi berhasil di-import.", { id: toastId });
@@ -172,7 +193,6 @@ export function CheckupWizard() {
         if (e.target) e.target.value = "";
     };
 
-    // --- HANDLER: RESET FORM ---
     const handleReset = () => {
         if (confirm("Mulai sesi baru? Data saat ini akan dihapus permanen.")) {
             clearStorage();
@@ -187,7 +207,6 @@ export function CheckupWizard() {
         }
     };
 
-    // --- STEP HANDLERS ---
     const onIdentitySubmit = (data: any) => {
         setClientData(data);
         setCurrentStep("FINANCIAL");
@@ -205,19 +224,16 @@ export function CheckupWizard() {
         const toastId = toast.loading("Menganalisis kesehatan keuangan...");
 
         try {
-            // [FIX CRITICAL] Payload Construction - Spread Operator
-            const payload = {
-                ...financialRecord,
-                ...clientData,
-            } as any;
+            // [FIX] Gunakan payload bersih tanpa ID
+            const payload = createCleanPayload();
 
             const response = await financialService.simulateAgentCheckup(payload);
 
             setSimulationResult(response.data.result);
 
+            // Generate PDF Blob URL
             let blobUrl = null;
             const pdfBuffer = response.pdfBuffer;
-
             if (pdfBuffer && pdfBuffer.data) {
                 const bufferData = new Uint8Array(pdfBuffer.data);
                 const blob = new Blob([bufferData], { type: 'application/pdf' });
@@ -239,6 +255,9 @@ export function CheckupWizard() {
         }
     };
 
+    // ... kode lainnya ...
+
+    // GANTI FUNCTION handleDownloadPdf DENGAN INI:
     const handleDownloadPdf = async () => {
         if (!clientData || !financialRecord) {
             toast.error("Data tidak lengkap.");
@@ -250,13 +269,30 @@ export function CheckupWizard() {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
-            // Jika URL PDF belum ada (misal setelah refresh), regenerate
-            if (!targetPdfUrl) {
-                // [FIX CRITICAL] Payload Construction untuk Download
-                // Pastikan menggunakan spread operator (...) agar tidak double nesting
-                const payload = { ...financialRecord, ...clientData } as any;
+            // --- [CRITICAL FIX: SANITASI PAYLOAD] ---
+            // Kita buat payload bersih KHUSUS untuk download.
+            // Kita buang semua ID agar Backend menganggap ini data BARU (CREATE), bukan UPDATE.
+            const cleanPayload = {
+                ...financialRecord,
+                ...clientData, // Spread agar flat
+            } as any;
 
-                const response = await financialService.simulateAgentCheckup(payload);
+            // Hapus properti yang bisa bikin Backend bingung (Error: ID not found)
+            delete cleanPayload.id;
+            delete cleanPayload.simulationId;
+            delete cleanPayload.createdAt;
+            delete cleanPayload.updatedAt;
+
+            // Bersihkan nested ID di object client (jika ada)
+            if (cleanPayload.client && cleanPayload.client.id) delete cleanPayload.client.id;
+            if (cleanPayload.spouse && cleanPayload.spouse.id) delete cleanPayload.spouse.id;
+            // ----------------------------------------
+
+            // Jika PDF URL belum ada atau invalid (blob), generate ulang pakai data bersih
+            if (!targetPdfUrl || (targetPdfUrl && targetPdfUrl.startsWith('blob:'))) {
+
+                // Panggil Service dengan PAYLOAD BERSIH
+                const response = await financialService.simulateAgentCheckup(cleanPayload);
 
                 const pdfBuffer = response.pdfBuffer;
                 if (pdfBuffer && pdfBuffer.data) {
@@ -266,15 +302,18 @@ export function CheckupWizard() {
                 }
                 targetToken = response.mgcToken;
 
+                // Update state biar sinkron
                 setPdfUrl(targetPdfUrl);
                 setMgcToken(targetToken);
             }
 
             if (targetPdfUrl) {
-                const clientName = clientData.client?.name || "Client";
+                // Ambil nama client dengan aman
+                const clientName = clientData.client?.name || clientData.name || "Client";
                 const cleanName = clientName.replace(/[^a-zA-Z0-9]/g, '_');
                 const filename = `Financial_Checkup_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
 
+                // Proses Download PDF
                 const link = document.createElement('a');
                 link.href = targetPdfUrl;
                 link.setAttribute('download', filename);
@@ -282,6 +321,7 @@ export function CheckupWizard() {
                 link.click();
                 link.remove();
 
+                // Proses Download MGC (Backup Data)
                 if (targetToken) {
                     const blobMgc = new Blob([targetToken], { type: 'text/plain' });
                     const urlMgc = window.URL.createObjectURL(blobMgc);
@@ -291,6 +331,7 @@ export function CheckupWizard() {
                     document.body.appendChild(linkMgc);
                     linkMgc.click();
                     linkMgc.remove();
+
                     toast.success("Laporan PDF & Backup Data berhasil diunduh.");
                 } else {
                     toast.success("Laporan PDF berhasil diunduh.");
@@ -300,22 +341,18 @@ export function CheckupWizard() {
             }
 
         } catch (error: any) {
-            toast.error("Gagal mengunduh dokumen. Silakan coba lagi.");
-            console.error(error);
+            console.error("Download Error:", error);
+            const message = error.response?.data?.message;
+            // Tampilkan pesan error yang lebih manusiawi
+            if (message) {
+                toast.error(Array.isArray(message) ? message[0] : message);
+            } else {
+                toast.error("Gagal generate dokumen. Data simulasi mungkin kadaluarsa, coba hitung ulang.");
+            }
         } finally {
             setIsDownloading(false);
         }
     };
-
-    // [LOADING GATE]
-    if (!isHydrated) {
-        return (
-            <div className="w-full min-h-[60vh] flex flex-col items-center justify-center text-slate-400 gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-                <span className="text-sm font-medium animate-pulse">Memulihkan sesi anda...</span>
-            </div>
-        );
-    }
 
     // Helper untuk menyiapkan data ke form agar saat BACK tidak kosong
     const getInitialIdentityData = () => {
@@ -390,7 +427,7 @@ export function CheckupWizard() {
                                 data={{
                                     result: simulationResult as any,
                                     financial: financialRecord as any,
-                                    client: clientData ? clientData.client : {},
+                                    client: clientData ? (clientData.client || clientData) : {}, // Fallback yang lebih aman
                                 }}
                                 onDownloadPdf={handleDownloadPdf}
                                 onReset={handleReset}
