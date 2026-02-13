@@ -22,7 +22,7 @@ import {
     SimulationClientProfile
 } from "@/lib/types";
 
-// [FIX] Menggunakan Type Local yang sudah diperbaiki (ada globalStatus)
+// Import Type Local
 import {
     FinancialFormState,
     CheckupSimulationResult
@@ -150,7 +150,7 @@ export function CheckupWizard() {
     const [isDownloading, setIsDownloading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Data State (Lifted Up) - USING ADAPTER TYPES
+    // Data State
     const [clientData, setClientData] = useState<SimulationClientProfile | null>(null);
     const [financialRecord, setFinancialRecord] = useState<Partial<FinancialFormState> | null>(null);
     const [simulationResult, setSimulationResult] = useState<CheckupSimulationResult | null>(null);
@@ -159,7 +159,7 @@ export function CheckupWizard() {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
-    // --- PERSISTENCE HOOK (Safety Net) ---
+    // --- PERSISTENCE HOOK ---
     const {
         draftAvailable,
         restoreDraft,
@@ -193,25 +193,19 @@ export function CheckupWizard() {
             reader.onload = async (event) => {
                 const tokenString = event.target?.result as string;
                 try {
-                    // 1. Decode token via Service (ADAPTER IN ACTION)
-                    // Service sudah otomatis convert data Monthly -> Annual
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
-                    // 2. Hydrate State (Deep Hydration)
-                    setClientData(decoded.client);
+                    // [FIX] Robust Structure Check for Import
+                    // Kadang response bisa flat, kadang nested di 'data'
+                    const actualData = decoded.data || decoded;
 
-                    // DIRECT ASSIGNMENT: Tidak perlu kali 12 lagi karena service sudah melakukannya
-                    setFinancialRecord(decoded.financial as FinancialFormState);
-
-                    // 3. Set Result
-                    if (decoded.result) {
-                        setSimulationResult(decoded.result);
-                    }
+                    if (actualData.client) setClientData(actualData.client);
+                    if (actualData.financial) setFinancialRecord(actualData.financial as FinancialFormState);
+                    if (actualData.result) setSimulationResult(actualData.result);
 
                     setMgcToken(tokenString);
                     setPdfUrl(null);
 
-                    // 4. Jump to Result
                     setCurrentStep("RESULT");
                     toast.success("Data simulasi berhasil di-import.", { id: toastId });
                 } catch (err: any) {
@@ -250,6 +244,7 @@ export function CheckupWizard() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
+    // --- SUBMIT FINANCIAL DATA ---
     const onFinancialSubmit = async (record: FinancialFormState) => {
         if (!clientData) {
             toast.error("Data identitas hilang. Mohon kembali ke langkah awal.");
@@ -262,31 +257,54 @@ export function CheckupWizard() {
         const toastId = toast.loading("Menganalisis kesehatan keuangan...");
 
         try {
-            // Call Backend via ADAPTER Service
-            // Service akan otomatis convert Annual -> Monthly sebelum kirim API
-            const response = await financialService.simulateAgentCheckup({
+            // 1. Unwrapping Client Data (Fix Double Nesting)
+            const rawClient = clientData as any;
+            const payloadClient = rawClient.client ? rawClient.client : rawClient;
+            const payloadSpouse = rawClient.spouse ? rawClient.spouse : undefined;
+
+            const finalPayload = {
                 ...record,
-                client: clientData
-            } as any);
+                client: payloadClient,
+                spouse: payloadSpouse
+            };
 
-            // Backend returns result object directly
-            setSimulationResult(response.data.result);
+            // 2. Call Service
+            const response = await financialService.simulateAgentCheckup(finalPayload as any);
 
-            // Handle PDF Blob
+            // 3. [FIX] Safe Result Access (Handle Nested vs Flat)
+            // CheckupSimulationResponse di interface punya 'data', tapi runtime backend mungkin mengirim flat object.
+            // Kita gunakan Optional Chaining dan Fallback untuk keamanan.
+            const resultData = response.data?.result || (response as any).result;
+
+            if (!resultData) {
+                console.error("Backend Response Structure:", response);
+                throw new Error("Format respons backend tidak valid: 'result' tidak ditemukan.");
+            }
+
+            setSimulationResult(resultData);
+
+            // 4. Handle PDF Blob
             let blobUrl = null;
-            if (response.pdfBuffer && response.pdfBuffer.data) {
-                const bufferData = new Uint8Array(response.pdfBuffer.data);
+            // Cek buffer di lokasi yang mungkin berbeda
+            const pdfBuffer = response.pdfBuffer || (response as any).data?.pdfBuffer;
+
+            if (pdfBuffer && pdfBuffer.data) {
+                const bufferData = new Uint8Array(pdfBuffer.data);
                 const blob = new Blob([bufferData], { type: 'application/pdf' });
                 blobUrl = URL.createObjectURL(blob);
             }
 
             setPdfUrl(blobUrl);
-            setMgcToken(response.mgcToken);
+            setMgcToken(response.mgcToken || (response as any).data?.mgcToken);
 
             setCurrentStep("RESULT");
             toast.success("Analisis selesai!", { id: toastId });
         } catch (error: any) {
-            toast.error(error.message || "Gagal memproses simulasi.", { id: toastId });
+            console.error("Simulation Error:", error);
+            const message = Array.isArray(error.response?.data?.message)
+                ? error.response.data.message[0]
+                : error.message || "Gagal memproses simulasi.";
+            toast.error(message, { id: toastId });
         } finally {
             setIsLoading(false);
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -307,17 +325,24 @@ export function CheckupWizard() {
 
             // Regenerate if missing
             if (!targetPdfUrl) {
+                const rawClient = clientData as any;
+                const payloadClient = rawClient.client ? rawClient.client : rawClient;
+                const payloadSpouse = rawClient.spouse ? rawClient.spouse : undefined;
+
                 const response = await financialService.simulateAgentCheckup({
                     ...financialRecord,
-                    client: clientData
+                    client: payloadClient,
+                    spouse: payloadSpouse
                 } as any);
 
-                if (response.pdfBuffer && response.pdfBuffer.data) {
-                    const bufferData = new Uint8Array(response.pdfBuffer.data);
+                const pdfBuffer = response.pdfBuffer || (response as any).data?.pdfBuffer;
+
+                if (pdfBuffer && pdfBuffer.data) {
+                    const bufferData = new Uint8Array(pdfBuffer.data);
                     const blob = new Blob([bufferData], { type: 'application/pdf' });
                     targetPdfUrl = URL.createObjectURL(blob);
                 }
-                targetToken = response.mgcToken;
+                targetToken = response.mgcToken || (response as any).data?.mgcToken;
 
                 setPdfUrl(targetPdfUrl);
                 setMgcToken(targetToken);
@@ -325,10 +350,12 @@ export function CheckupWizard() {
 
             // Execute Download
             if (targetPdfUrl) {
+                const rawClient = clientData as any;
+                const cleanName = (rawClient.client?.name || rawClient.name || "Client").replace(/[^a-zA-Z0-9]/g, '_');
+                const filename = `Financial_Checkup_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
+
                 const link = document.createElement('a');
                 link.href = targetPdfUrl;
-                const cleanName = clientData.name.replace(/[^a-zA-Z0-9]/g, '_');
-                const filename = `Financial_Checkup_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
                 link.setAttribute('download', filename);
                 document.body.appendChild(link);
                 link.click();
@@ -383,7 +410,7 @@ export function CheckupWizard() {
                     <AlertTitle className="font-bold text-blue-700">Sesi Belum Selesai Ditemukan</AlertTitle>
                     <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
                         <div className="text-xs">
-                            Ditemukan data klien <strong>{draftData?.clientData?.name}</strong>.
+                            Ditemukan data klien <strong>{(draftData?.clientData as any)?.client?.name || (draftData?.clientData as any)?.name || "Sebelumnya"}</strong>.
                         </div>
                         <div className="flex gap-2">
                             <Button size="sm" variant="ghost" className="h-8 text-xs hover:bg-blue-100" onClick={ignoreDraft}>Abaikan</Button>
@@ -447,7 +474,7 @@ export function CheckupWizard() {
                         <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
                             <CheckupResult
                                 data={{
-                                    result: simulationResult as any, // Type casting untuk mengatasi minor mismatch jika ada
+                                    result: simulationResult as any,
                                     financial: financialRecord as any,
                                     client: clientData as any
                                 }}
@@ -478,7 +505,7 @@ function StepItem({ active, done, icon, label }: { active: boolean; done: boolea
 
 
 // ============================================================================
-// PART 2: FINANCIAL INPUT SECTION (FIXED: NO SIDE EFFECTS)
+// PART 2: FINANCIAL INPUT SECTION
 // ============================================================================
 
 interface FinancialInputProps {
@@ -509,7 +536,6 @@ const INITIAL_DATA_FINANCIAL: Partial<FinancialFormState> = {
 function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: FinancialInputProps) {
     const [step, setStep] = useState(0); // 0: Neraca, 1: Arus Kas, 2: Review
 
-    // State is now strictly Annual. No division happened during init.
     const [formData, setFormData] = useState<Partial<FinancialFormState>>({ ...INITIAL_DATA_FINANCIAL, ...initialData });
 
     // States untuk Modal Helper
@@ -522,7 +548,6 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
     const [currentGoldPrice, setCurrentGoldPrice] = useState<number>(0);
     const [goldWeight, setGoldWeight] = useState("");
 
-    // FIX: Just accept props as Source of Truth. No complex logic.
     useEffect(() => {
         if (initialData && Object.keys(initialData).length > 0) {
             setFormData(prev => ({ ...prev, ...initialData }));
@@ -577,16 +602,13 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
         }
     };
 
-    // CRITICAL FIX: LOGIC LEAK PLUGGED
-    // Tidak ada loop pembagian 12 di sini. Data dikirim "apa adanya" (Annual).
     const handleSubmit = () => {
-        // Kirim data Tahunan ke Parent. Parent akan kirim ke Service. Service akan convert ke Monthly.
         onComplete(formData as FinancialFormState);
     };
 
     const num = (n: any) => Number(n) || 0;
 
-    // Helper functions for Review Step (Reviewing ANNUAL data)
+    // Helper functions for Review Step
     const totalAssets = num(formData.assetCash) + num(formData.assetHome) + num(formData.assetVehicle) + num(formData.assetJewelry) + num(formData.assetAntique) + num(formData.assetPersonalOther) + num(formData.assetInvHome) + num(formData.assetInvVehicle) + num(formData.assetGold) + num(formData.assetInvAntique) + num(formData.assetStocks) + num(formData.assetMutualFund) + num(formData.assetBonds) + num(formData.assetDeposit) + num(formData.assetInvOther);
     const totalDebt = num(formData.debtKPR) + num(formData.debtKPM) + num(formData.debtCC) + num(formData.debtCoop) + num(formData.debtConsumptiveOther) + num(formData.debtBusiness);
     const netWorth = totalAssets - totalDebt;
