@@ -63,7 +63,7 @@ const FINANCE_MENUS = [
       {
         label: "Financial Checkup",
         emoji: "📝",
-        href: "/finance/checkup",
+        href: "/calculator/checkup",
         desc: "Diagnosa kesehatan dompet",
         color: "cyan",
         gradient: "from-cyan-500/20 to-cyan-600/5",

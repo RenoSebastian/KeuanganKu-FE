@@ -20,7 +20,7 @@ type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW" | "AGENT_SIMULATION";
 
 interface CheckupResultProps {
     // Support both Legacy (Database) and New (Simulation) data structures
-    data: HealthAnalysisResult | CheckupSimulationResult | { result: CheckupSimulationResult, client: any, financial: any };
+    data: any;
     rawData?: FinancialRecord; // Optional for Agent Mode
 
     onReset?: () => void;
@@ -48,26 +48,42 @@ export function CheckupResult({
     const isAgentMode = mode === "AGENT_SIMULATION";
 
     // --- DATA NORMALIZATION (SMART EXTRACTION) ---
-    // Logic ini menangani perbedaan struktur antara data History (Flat) dan data Simulasi/Wizard (Nested in .result)
-    const payload: any = (data as any).result ? (data as any).result : data;
+    let payload: CheckupSimulationResult | HealthAnalysisResult | null = null;
 
-    // Safety check untuk memastikan payload ada isinya
-    if (!payload) {
+    if (data?.data?.result) {
+        // Case: Wrapper Simulasi Lengkap { mgcToken, data: { result: ... } }
+        payload = data.data.result;
+    } else if (data?.result) {
+        // Case: Wrapper Sederhana atau hasil decode partial
+        payload = data.result;
+    } else {
+        // Case: Flat Object dari Database (User Mode)
+        payload = data;
+    }
+
+    // Safety check final
+    if (!payload || (!payload.ratios && !(payload as any).ratiosDetails)) {
+        // Benar-benar kosong/loading
         return (
             <div className="p-8 text-center space-y-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                <Activity className="w-10 h-10 text-slate-300 mx-auto" />
-                <p className="text-slate-500 font-medium">Menunggu hasil analisis...</p>
+                <Activity className="w-10 h-10 text-slate-300 mx-auto animate-pulse" />
+                <p className="text-slate-500 font-medium">Menyiapkan hasil analisis...</p>
                 <Skeleton className="h-4 w-1/2 mx-auto" />
             </div>
         );
     }
 
-    // Extract properties safely
-    const rawRatios = payload.ratios || payload.ratiosDetails || [];
-    const ratios = Array.isArray(rawRatios) ? rawRatios : [];
+    // Extract properties safely from the unwrapped payload
+    // Fallback: jika payload.ratios undefined, gunakan empty object agar Object.values tidak error
+    const rawRatios = payload.ratios || (payload as any).ratiosDetails || {};
 
-    const score = payload.score ?? payload.healthScore ?? 0;
-    const netWorth = payload.netWorth ?? payload.totalNetWorth ?? 0;
+    // Pastikan ratios adalah array. 
+    const ratios = Array.isArray(rawRatios)
+        ? rawRatios
+        : Object.values(rawRatios);
+
+    const score = payload.score ?? (payload as any).healthScore ?? 0;
+    const netWorth = payload.netWorth ?? (payload as any).totalNetWorth ?? 0;
     const monthlySurplus = payload.surplusDeficit ?? 0;
 
     const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
@@ -75,41 +91,28 @@ export function CheckupResult({
 
     // --- HANDLERS ---
 
-    // [UPDATED] Handler Download untuk Mode Simulasi Agen (Client-Side Rehydration)
     const handleAgentDownload = async () => {
         if (localPdfLoading) return;
 
-        // Validasi: Pastikan data raw simulasi tersedia (berisi buffer PDF)
-        if (!data) {
-            alert("Data simulasi tidak valid atau kosong.");
+        if (!data || (!data.mgcToken && !data.pdfBuffer)) {
+            alert("Data simulasi tidak valid atau token hilang.");
             return;
         }
 
         try {
             setLocalPdfLoading(true);
-
-            // Panggil helper baru di service untuk konversi Buffer -> File
-            // Kita pass 'data' utuh karena di dalamnya terdapat 'pdfBuffer' dan 'mgcToken'
             financialService.downloadSimulationFiles(data);
-
-            // Jika parent component mengirimkan callback tambahan (opsional)
-            if (onDownloadPdf) {
-                onDownloadPdf();
-            }
-
+            if (onDownloadPdf) onDownloadPdf();
         } catch (error) {
             console.error("Simulation Download Error:", error);
-            alert("Gagal memproses file simulasi. Silakan coba hitung ulang.");
+            alert("Gagal memproses file simulasi.");
         } finally {
             setLocalPdfLoading(false);
         }
     };
 
-    // Handler Download PDF (Legacy User Mode / Database Record)
     const handleLegacyDownload = async () => {
         if (localPdfLoading) return;
-
-        // Cek ID dari data legacy
         const recordId = (payload as any).id || (rawData as any)?.id;
 
         if (!recordId) {
@@ -122,7 +125,7 @@ export function CheckupResult({
             await financialService.downloadCheckupPdf(recordId);
         } catch (error) {
             console.error("PDF Download Error:", error);
-            alert("Gagal mengunduh PDF. Silakan coba lagi.");
+            alert("Gagal mengunduh PDF.");
         } finally {
             setLocalPdfLoading(false);
         }
@@ -171,11 +174,15 @@ export function CheckupResult({
         return "TIDAK SEHAT";
     }
 
-    // Hitung jumlah status untuk summary text
-    const healthyCount = ratios.filter((r: any) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length;
-    const warningCount = ratios.filter((r: any) => r.statusColor === "YELLOW").length;
-    const dangerCount = ratios.filter((r: any) => r.statusColor === "RED").length;
-    const priorityFix = ratios.find((r: any) => r.statusColor === "RED" || r.statusColor === "YELLOW")?.label || "Pertumbuhan Aset";
+    // [FIXED] Cast ratios ke any[] untuk menghindari error TypeScript: "Property 'label' does not exist on type '{}'"
+    const safeRatios = ratios as any[];
+
+    const healthyCount = safeRatios.filter((r) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length;
+    const warningCount = safeRatios.filter((r) => r.statusColor === "YELLOW").length;
+    const dangerCount = safeRatios.filter((r) => r.statusColor === "RED").length;
+
+    // Perbaikan spesifik pada baris ini (find)
+    const priorityFix = safeRatios.find((r) => r.statusColor === "RED" || r.statusColor === "YELLOW")?.label || "Pertumbuhan Aset";
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-24 md:pb-0">

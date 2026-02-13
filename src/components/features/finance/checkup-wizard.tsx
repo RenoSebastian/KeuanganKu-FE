@@ -12,12 +12,8 @@ import { Button } from "@/components/ui/button";
 
 // Imports from Lib/Services
 import {
-    CheckupSimulationResult
-} from "@/lib/types";
-
-// Import Type Local
-import {
-    FinancialFormState,
+    CheckupSimulationResponse, // Menggunakan tipe yang sudah distandarisasi
+    FinancialFormState
 } from "@/lib/types/financial-checkup";
 
 import { financialService } from "@/services/financial.service";
@@ -68,23 +64,22 @@ export function CheckupWizard() {
     const [clientData, setClientData] = useState<any | null>(null);
     const [financialRecord, setFinancialRecord] = useState<FinancialFormState>(INITIAL_FINANCIAL_STATE);
 
-    // simulationData menyimpan Full Response (data hasil + pdfBuffer + mgcToken)
-    const [simulationData, setSimulationData] = useState<any | null>(null);
+    // [FIX] Menggunakan tipe data eksplisit untuk mencegah struktur objek yang salah
+    const [simulationData, setSimulationData] = useState<CheckupSimulationResponse | null>(null);
 
     // --- FULL PERSISTENCE INTEGRATION ---
     const { isHydrated, clearStorage } = useSimulationPersistence<
         any,
         FinancialFormState,
-        any
+        CheckupSimulationResponse // Update Generic Type
     >(
         SIMULATION_STORAGE_KEYS.CHECKUP,
         clientData,
         financialRecord,
         currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2,
         simulationData,
-        null, // pdfUrl tidak lagi di-store sebagai string blob expired
-        null, // mgcToken sudah include di dalam simulationData
-        // Callback: Restore data from storage
+        null,
+        null,
         (restoredClient, restoredInput, restoredStep, restoredResult) => {
             if (restoredClient) setClientData(restoredClient);
             if (restoredInput) setFinancialRecord(restoredInput);
@@ -131,12 +126,16 @@ export function CheckupWizard() {
                     if (decoded.client) setClientData(decoded.client);
                     if (decoded.financial) setFinancialRecord(decoded.financial);
 
-                    // Rekonstruksi object agar sesuai format CheckupResult
-                    setSimulationData({
-                        data: { result: decoded.result },
+                    // [FIX Phase 2] Rekonstruksi struktur data agar KONSISTEN dengan API Response
+                    // Kita membungkus 'decoded' (isi: client, financial, result) ke dalam properti 'data'
+                    const standardizedData: CheckupSimulationResponse = {
+                        data: decoded, // decoded berisi { client, financial, result }
                         mgcToken: tokenString,
-                        // pdfBuffer kosong saat import manual via token saja
-                    });
+                        filename: file.name,
+                        pdfBuffer: undefined // File import tidak membawa buffer PDF (harus generate ulang jika perlu)
+                    };
+
+                    setSimulationData(standardizedData);
 
                     setCurrentStep("RESULT");
                     toast.success("Data simulasi berhasil di-import.", { id: toastId });
@@ -188,7 +187,8 @@ export function CheckupWizard() {
                 ...clientData,
             };
 
-            // Request ke Backend (Return JSON Hybrid: Data + Buffer + Token)
+            // Request ke Backend 
+            // Return JSON Hybrid: { pdfBuffer, mgcToken, data: { result: ... } }
             const response = await financialService.simulateAgentCheckup(payload);
 
             // Simpan seluruh response (penting untuk download nanti)
@@ -265,7 +265,8 @@ export function CheckupWizard() {
                     {currentStep === "RESULT" && simulationData && (
                         <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
                             <CheckupResult
-                                // simulationData berisi { data: { result: ... }, pdfBuffer: ..., mgcToken: ... }
+                                // Kita mengirimkan FULL WRAPPER 'simulationData' agar fitur Download PDF berfungsi
+                                // Komponen CheckupResult telah diperbarui untuk mengekstrak 'ratios' dari dalamnya.
                                 data={simulationData}
                                 mode="AGENT_SIMULATION"
                                 onReset={handleReset}

@@ -29,7 +29,7 @@ export const NAVIGATION_CONFIG = {
     // Diletakkan disini sebagai langkah awal sebelum perencanaan keuangan mendalam
     { label: "Profil Risiko", icon: Activity, href: "/risk-profile" },
 
-    { label: "Financial Checkup", icon: Calculator, href: "/finance/checkup" },
+    { label: "Financial Checkup", icon: Calculator, href: "/calculator/checkup" },
     { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
     { label: "Riwayat", icon: History, href: "/history" },
     { label: "Profil", icon: User, href: "/profile" },
