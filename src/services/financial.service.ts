@@ -18,16 +18,23 @@ import {
   CreateInsuranceSimulationDto,
   CreatePensionSimulationDto,
   CreateGoalSimulationDto,
-  CreateCheckupSimulationDto,
   FinancialRecordHistory,
   BudgetPlanHistory,
-  // [NEW] Import Interface Response Baru
-  SimulationApiResponse
 } from "@/lib/types";
+
+// [NEW] Import Adapter Types & Logic
+import {
+  FinancialFormState,
+  CheckupSimulationResponse
+} from "@/lib/types/financial-checkup";
+import {
+  convertRecordToMonthly,
+  convertRecordToAnnual
+} from "@/lib/financial-math";
 
 export const financialService = {
   // ===========================================================================
-  // 1. FINANCIAL CHECKUP (EXISTING / PERSONAL)
+  // 1. FINANCIAL CHECKUP (EXISTING / PERSONAL - DB SAVED)
   // ===========================================================================
 
   createCheckup: async (data: FinancialRecord) => {
@@ -289,10 +296,8 @@ export const financialService = {
   /**
    * simulateAgentBudget
    * Melakukan request simulasi dengan respons tipe BLOB (File PDF).
-   * Mengembalikan FULL RESPONSE object agar Header 'x-mgc-token' bisa diakses.
    */
   simulateAgentBudget: async (data: CreateBudgetSimulationDto): Promise<AxiosResponse<Blob>> => {
-    // [CRITICAL] responseType: 'blob' wajib ada agar axios tidak parsing binary sebagai string JSON rusak
     return await api.post("/financial/simulation/budget", data, {
       responseType: 'blob'
     });
@@ -301,7 +306,6 @@ export const financialService = {
   /**
    * simulateAgentInsurance
    * [NEW] Simulasi Asuransi Stateless
-   * Mengembalikan PDF Blob + Header Token .mgc
    */
   simulateAgentInsurance: async (data: CreateInsuranceSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/insurance", data, {
@@ -312,7 +316,6 @@ export const financialService = {
   /**
    * simulateAgentPension
    * [NEW] Simulasi Dana Pensiun Stateless
-   * Mengembalikan PDF Blob + Header Token .mgc
    */
   simulateAgentPension: async (data: CreatePensionSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/pension", data, {
@@ -323,7 +326,6 @@ export const financialService = {
   /**
    * simulateAgentGoal
    * [NEW] Simulasi Tujuan Keuangan Stateless
-   * Mengembalikan PDF Blob + Header Token .mgc
    */
   simulateAgentGoal: async (data: CreateGoalSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/goals", data, {
@@ -332,20 +334,48 @@ export const financialService = {
   },
 
   /**
-   * simulateAgentCheckup
-   * [NEW] Simulasi Financial Checkup Stateless
-   * [FIXED] Mengembalikan JSON object (SimulationApiResponse)
-   * Berisi: { pdfBuffer, mgcToken, filename, data: { result, client, financial } }
+   * simulateAgentCheckup (ADAPTER PATTERN IMPLEMENTATION)
+   * -----------------------------------------------------
+   * Fungsi ini bertindak sebagai ADAPTER yang mengubah data "Tahunan" (UI)
+   * menjadi data "Bulanan" (API) sebelum dikirim.
+   *
+   * @param data FinancialFormState (Annual Values from Form)
+   * @returns CheckupSimulationResponse (Data Result + PDF Buffer)
    */
-  simulateAgentCheckup: async (data: CreateCheckupSimulationDto): Promise<SimulationApiResponse> => {
-    // Hapus responseType: 'blob' karena kita sekarang mengharapkan JSON
-    const response = await api.post<SimulationApiResponse>("/financial/simulation/checkup", data);
+  simulateAgentCheckup: async (data: FinancialFormState): Promise<CheckupSimulationResponse> => {
+    // 1. TRANSFORMER: Convert Annual State -> Monthly API Payload
+    // Kita spread `...data` untuk mempertahankan field non-financial (seperti client info)
+    // dan menimpa field financial dengan nilai bulanan.
+    const apiPayload = convertRecordToMonthly(data);
+
+    // 2. REQUEST: Kirim data yang sudah dinormalisasi ke Backend
+    // Backend akan memproses angka bulanan ini untuk skor & rasio.
+    const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup", apiPayload);
+
     return response.data;
   },
 
-  // 2. POST Import File .mgc (Universal Decode)
+  /**
+   * decodeSimulationToken (RE-HYDRATION STRATEGY)
+   * ---------------------------------------------
+   * Fungsi ini memecahkan token import dan melakukan RE-HYDRATION
+   * data agar kembali menjadi format Tahunan untuk ditampilkan di UI.
+   *
+   * @param token Encrypted string from .mgc file
+   * @returns Transformed Object (Annual Values)
+   */
   decodeSimulationToken: async (token: string) => {
     const response = await api.post("/financial/simulation/decode", { simulationToken: token });
-    return response.data; // Return data asli untuk autofill form
+    const rawData = response.data;
+
+    // CHECK: Apakah data yang di-import adalah Financial Checkup?
+    // Struktur Checkup biasanya memiliki properti 'financial' yang berisi record angka.
+    if (rawData && rawData.financial) {
+      // TRANSFORMER: Convert Monthly API Data -> Annual UI State
+      // Ini mencegah user melihat angka yang "mengecil" (dibagi 12) saat import ulang.
+      rawData.financial = convertRecordToAnnual(rawData.financial);
+    }
+
+    return rawData;
   }
 };

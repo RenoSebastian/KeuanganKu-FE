@@ -18,12 +18,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Imports from Lib/Services
 import {
-    FinancialRecord,
     HelpContent,
-    CreateCheckupSimulationDto,
-    SimulationClientProfile,
-    CheckupSimulationResult
+    SimulationClientProfile
 } from "@/lib/types";
+
+// [FIX] Menggunakan Type Local yang sudah diperbaiki (ada globalStatus)
+import {
+    FinancialFormState,
+    CheckupSimulationResult
+} from "@/lib/types/financial-checkup";
+
 import { financialService } from "@/services/financial.service";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
@@ -39,7 +43,7 @@ import { InfoPopover } from "@/components/ui/info-popover";
 import { useSimulationPersistence, SIMULATION_STORAGE_KEYS } from "@/hooks/use-simulation-persistence";
 
 // ============================================================================
-// HELPER COMPONENTS (MOVED TO TOP TO FIX VISIBILITY ISSUES)
+// HELPER COMPONENTS
 // ============================================================================
 
 function SectionHeader({ title, desc }: { title: string, desc: string }) {
@@ -146,9 +150,9 @@ export function CheckupWizard() {
     const [isDownloading, setIsDownloading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Data State (Lifted Up)
+    // Data State (Lifted Up) - USING ADAPTER TYPES
     const [clientData, setClientData] = useState<SimulationClientProfile | null>(null);
-    const [financialRecord, setFinancialRecord] = useState<Partial<FinancialRecord> | null>(null);
+    const [financialRecord, setFinancialRecord] = useState<Partial<FinancialFormState> | null>(null);
     const [simulationResult, setSimulationResult] = useState<CheckupSimulationResult | null>(null);
 
     // PDF & Token State
@@ -162,8 +166,8 @@ export function CheckupWizard() {
         clearDraft,
         ignoreDraft,
         draftData
-    } = useSimulationPersistence<SimulationClientProfile, Partial<FinancialRecord>>(
-        SIMULATION_STORAGE_KEYS.CHECKUP, // [FIX] Updated key
+    } = useSimulationPersistence<SimulationClientProfile, Partial<FinancialFormState>>(
+        SIMULATION_STORAGE_KEYS.CHECKUP,
         clientData,
         financialRecord || {},
         currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2
@@ -189,21 +193,23 @@ export function CheckupWizard() {
             reader.onload = async (event) => {
                 const tokenString = event.target?.result as string;
                 try {
-                    // 1. Decode token via Service
-                    const response = await financialService.decodeSimulationToken(tokenString);
-                    const decoded = response.data; // Structure: { client, financial, result }
+                    // 1. Decode token via Service (ADAPTER IN ACTION)
+                    // Service sudah otomatis convert data Monthly -> Annual
+                    const decoded = await financialService.decodeSimulationToken(tokenString);
 
                     // 2. Hydrate State (Deep Hydration)
                     setClientData(decoded.client);
-                    setFinancialRecord(decoded.financial);
 
-                    // 3. Set Result (Bypass Calculation if exist)
+                    // DIRECT ASSIGNMENT: Tidak perlu kali 12 lagi karena service sudah melakukannya
+                    setFinancialRecord(decoded.financial as FinancialFormState);
+
+                    // 3. Set Result
                     if (decoded.result) {
                         setSimulationResult(decoded.result);
                     }
 
                     setMgcToken(tokenString);
-                    setPdfUrl(null); // Reset PDF karena import tidak membawa blob PDF
+                    setPdfUrl(null);
 
                     // 4. Jump to Result
                     setCurrentStep("RESULT");
@@ -244,7 +250,7 @@ export function CheckupWizard() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const onFinancialSubmit = async (record: FinancialRecord) => {
+    const onFinancialSubmit = async (record: FinancialFormState) => {
         if (!clientData) {
             toast.error("Data identitas hilang. Mohon kembali ke langkah awal.");
             setCurrentStep("IDENTITY");
@@ -256,19 +262,17 @@ export function CheckupWizard() {
         const toastId = toast.loading("Menganalisis kesehatan keuangan...");
 
         try {
-            // Prepare Payload (Flattened Structure for Backend DTO)
-            const payload: CreateCheckupSimulationDto = {
-                client: clientData,
-                ...record
-            };
+            // Call Backend via ADAPTER Service
+            // Service akan otomatis convert Annual -> Monthly sebelum kirim API
+            const response = await financialService.simulateAgentCheckup({
+                ...record,
+                client: clientData
+            } as any);
 
-            // Call Backend [FIXED]
-            const response = await financialService.simulateAgentCheckup(payload);
-
-            // Backend now returns result object directly in `response` (SimulationApiResponse)
+            // Backend returns result object directly
             setSimulationResult(response.data.result);
 
-            // Handle PDF: Convert Buffer to Blob
+            // Handle PDF Blob
             let blobUrl = null;
             if (response.pdfBuffer && response.pdfBuffer.data) {
                 const bufferData = new Uint8Array(response.pdfBuffer.data);
@@ -289,7 +293,7 @@ export function CheckupWizard() {
         }
     };
 
-    // --- HANDLER: LAZY PDF DOWNLOAD (Smart Logic) ---
+    // --- HANDLER: PDF DOWNLOAD ---
     const handleDownloadPdf = async () => {
         if (!clientData || !financialRecord) {
             toast.error("Data tidak lengkap untuk generate PDF.");
@@ -301,23 +305,18 @@ export function CheckupWizard() {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
-            // KONDISI IMPORT: Jika PDF belum ada di memori, generate ulang
+            // Regenerate if missing
             if (!targetPdfUrl) {
-                const payload: CreateCheckupSimulationDto = {
-                    client: clientData,
-                    ...financialRecord as FinancialRecord
-                };
+                const response = await financialService.simulateAgentCheckup({
+                    ...financialRecord,
+                    client: clientData
+                } as any);
 
-                // [FIXED] Call Backend
-                const response = await financialService.simulateAgentCheckup(payload);
-
-                // Convert Buffer to Blob
                 if (response.pdfBuffer && response.pdfBuffer.data) {
                     const bufferData = new Uint8Array(response.pdfBuffer.data);
                     const blob = new Blob([bufferData], { type: 'application/pdf' });
                     targetPdfUrl = URL.createObjectURL(blob);
                 }
-
                 targetToken = response.mgcToken;
 
                 setPdfUrl(targetPdfUrl);
@@ -360,11 +359,6 @@ export function CheckupWizard() {
         } finally {
             setIsDownloading(false);
         }
-    };
-
-    const handleRetake = () => {
-        setCurrentStep("FINANCIAL");
-        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     const handleReset = () => {
@@ -429,7 +423,6 @@ export function CheckupWizard() {
                                 </Button>
                             </div>
 
-                            {/* [FIX] Prop onSubmit diganti onComplete */}
                             <ClientIdentityForm
                                 initialData={clientData || undefined}
                                 onComplete={onIdentitySubmit}
@@ -452,10 +445,9 @@ export function CheckupWizard() {
                     {/* STEP 3: RESULT */}
                     {currentStep === "RESULT" && simulationResult && (
                         <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
-                            {/* [FIX] Hapus onRetake karena tidak ada di interface CheckupResultProps */}
                             <CheckupResult
                                 data={{
-                                    result: simulationResult,
+                                    result: simulationResult as any, // Type casting untuk mengatasi minor mismatch jika ada
                                     financial: financialRecord as any,
                                     client: clientData as any
                                 }}
@@ -486,17 +478,17 @@ function StepItem({ active, done, icon, label }: { active: boolean; done: boolea
 
 
 // ============================================================================
-// PART 2: FINANCIAL INPUT SECTION (FULL IMPLEMENTATION)
+// PART 2: FINANCIAL INPUT SECTION (FIXED: NO SIDE EFFECTS)
 // ============================================================================
 
 interface FinancialInputProps {
-    initialData?: Partial<FinancialRecord>;
-    onComplete: (data: FinancialRecord) => void;
+    initialData?: Partial<FinancialFormState>;
+    onComplete: (data: FinancialFormState) => void;
     onBack: () => void;
     isLoading?: boolean;
 }
 
-const INITIAL_DATA_FINANCIAL: Partial<FinancialRecord> = {
+const INITIAL_DATA_FINANCIAL: Partial<FinancialFormState> = {
     // Aset
     assetCash: 0,
     assetHome: 0, assetVehicle: 0, assetJewelry: 0, assetAntique: 0, assetPersonalOther: 0,
@@ -506,7 +498,7 @@ const INITIAL_DATA_FINANCIAL: Partial<FinancialRecord> = {
     // Utang
     debtKPR: 0, debtKPM: 0, debtCC: 0, debtCoop: 0, debtConsumptiveOther: 0, debtBusiness: 0,
 
-    // Arus Kas
+    // Arus Kas (TAHUNAN)
     incomeFixed: 0, incomeVariable: 0,
     installmentKPR: 0, installmentKPM: 0, installmentCC: 0, installmentCoop: 0, installmentConsumptiveOther: 0, installmentBusiness: 0,
     insuranceLife: 0, insuranceHealth: 0, insuranceHome: 0, insuranceVehicle: 0, insuranceBPJS: 0, insuranceOther: 0,
@@ -514,21 +506,15 @@ const INITIAL_DATA_FINANCIAL: Partial<FinancialRecord> = {
     expenseFood: 0, expenseSchool: 0, expenseTransport: 0, expenseCommunication: 0, expenseHelpers: 0, expenseTax: 0, expenseLifestyle: 0,
 };
 
-const FLOW_FIELDS: (keyof FinancialRecord)[] = [
-    'incomeFixed', 'incomeVariable',
-    'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
-    'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
-    'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
-    'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle'
-];
-
 function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: FinancialInputProps) {
     const [step, setStep] = useState(0); // 0: Neraca, 1: Arus Kas, 2: Review
-    const [formData, setFormData] = useState<Partial<FinancialRecord>>({ ...INITIAL_DATA_FINANCIAL, ...initialData });
+
+    // State is now strictly Annual. No division happened during init.
+    const [formData, setFormData] = useState<Partial<FinancialFormState>>({ ...INITIAL_DATA_FINANCIAL, ...initialData });
 
     // States untuk Modal Helper
-    const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<keyof FinancialRecord | null>(null);
-    const [showDebtModal, setShowDebtModal] = useState<{ show: boolean, target: keyof FinancialRecord | null }>({ show: false, target: null });
+    const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<keyof FinancialFormState | null>(null);
+    const [showDebtModal, setShowDebtModal] = useState<{ show: boolean, target: keyof FinancialFormState | null }>({ show: false, target: null });
     const [tempMonthly, setTempMonthly] = useState("");
     const [tempTenor, setTempTenor] = useState("");
 
@@ -536,6 +522,7 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
     const [currentGoldPrice, setCurrentGoldPrice] = useState<number>(0);
     const [goldWeight, setGoldWeight] = useState("");
 
+    // FIX: Just accept props as Source of Truth. No complex logic.
     useEffect(() => {
         if (initialData && Object.keys(initialData).length > 0) {
             setFormData(prev => ({ ...prev, ...initialData }));
@@ -552,7 +539,7 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
         fetchGold();
     }, []);
 
-    const handleFinancialChange = (field: keyof FinancialRecord, value: string) => {
+    const handleFinancialChange = (field: keyof FinancialFormState, value: string) => {
         const numericValue = parseFloat(value.replace(/[^0-9]/g, "")) || 0;
         setFormData(prev => ({ ...prev, [field]: numericValue }));
     };
@@ -590,19 +577,16 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
         }
     };
 
+    // CRITICAL FIX: LOGIC LEAK PLUGGED
+    // Tidak ada loop pembagian 12 di sini. Data dikirim "apa adanya" (Annual).
     const handleSubmit = () => {
-        const payload: any = { ...formData };
-        FLOW_FIELDS.forEach(field => {
-            if (typeof payload[field] === 'number') {
-                payload[field] = Math.round(payload[field] / 12);
-            }
-        });
-        onComplete(payload);
+        // Kirim data Tahunan ke Parent. Parent akan kirim ke Service. Service akan convert ke Monthly.
+        onComplete(formData as FinancialFormState);
     };
 
     const num = (n: any) => Number(n) || 0;
 
-    // Helper functions for Review Step
+    // Helper functions for Review Step (Reviewing ANNUAL data)
     const totalAssets = num(formData.assetCash) + num(formData.assetHome) + num(formData.assetVehicle) + num(formData.assetJewelry) + num(formData.assetAntique) + num(formData.assetPersonalOther) + num(formData.assetInvHome) + num(formData.assetInvVehicle) + num(formData.assetGold) + num(formData.assetInvAntique) + num(formData.assetStocks) + num(formData.assetMutualFund) + num(formData.assetBonds) + num(formData.assetDeposit) + num(formData.assetInvOther);
     const totalDebt = num(formData.debtKPR) + num(formData.debtKPM) + num(formData.debtCC) + num(formData.debtCoop) + num(formData.debtConsumptiveOther) + num(formData.debtBusiness);
     const netWorth = totalAssets - totalDebt;
@@ -779,11 +763,12 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={num(formData[item.k as keyof FinancialRecord])}
-                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        value={num(formData[item.k as keyof FinancialFormState])}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialFormState, v)}
                                         icon={item.i}
-                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof FinancialRecord]}
-                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        // [FIX] Casting type untuk mengatasi error "Type 'symbol' cannot be used as an index type"
+                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof typeof FINANCIAL_HELP_DATA]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialFormState)}
                                         showCalculator
                                     />
                                 ))}
@@ -805,11 +790,11 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={num(formData[item.k as keyof FinancialRecord])}
-                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        value={num(formData[item.k as keyof FinancialFormState])}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialFormState, v)}
                                         icon={item.i}
-                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof FinancialRecord]}
-                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof typeof FINANCIAL_HELP_DATA]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialFormState)}
                                         showCalculator
                                     />
                                 ))}
@@ -831,11 +816,11 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={num(formData[item.k as keyof FinancialRecord])}
-                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        value={num(formData[item.k as keyof FinancialFormState])}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialFormState, v)}
                                         icon={item.i}
-                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof FinancialRecord]}
-                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof typeof FINANCIAL_HELP_DATA]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialFormState)}
                                         showCalculator
                                     />
                                 ))}
@@ -858,11 +843,11 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
                                     <InputGroup
                                         key={item.k}
                                         label={item.l}
-                                        value={num(formData[item.k as keyof FinancialRecord])}
-                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialRecord, v)}
+                                        value={num(formData[item.k as keyof FinancialFormState])}
+                                        onChange={(v) => handleFinancialChange(item.k as keyof FinancialFormState, v)}
                                         icon={item.i}
-                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof FinancialRecord]}
-                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialRecord)}
+                                        helpContent={FINANCIAL_HELP_DATA[item.k as keyof typeof FINANCIAL_HELP_DATA]}
+                                        onMonthlyClick={() => setMonthlyHelperTarget(item.k as keyof FinancialFormState)}
                                         showCalculator
                                     />
                                 ))}
@@ -930,7 +915,7 @@ function FinancialInputSection({ initialData, onComplete, onBack, isLoading }: F
             <MonthlyHelperModal
                 isOpen={!!monthlyHelperTarget}
                 onClose={() => setMonthlyHelperTarget(null)}
-                onApply={(val) => { if (monthlyHelperTarget) setFormData(prev => ({ ...prev, [monthlyHelperTarget]: val })); setMonthlyHelperTarget(null); }}
+                onApply={(val) => applyMonthlyToAnnual(val)}
                 title="Asisten Hitung Tahunan"
             />
 

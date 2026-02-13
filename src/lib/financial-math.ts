@@ -15,29 +15,41 @@ import {
   SpecialGoalResult,
 } from "./types";
 
+// Import Type Baru untuk Financial Checkup Adapter
+import { FinancialFormState, FinancialApiPayload } from "@/lib/types/financial-checkup";
+
+// ============================================================================
+// 1. EXISTING LOGIC (EDUCATION, PENSION, ETC)
+// ============================================================================
+
 export interface EducationStage {
-  id: EducationLevel; // Menggunakan type baru dari types.ts
+  id: EducationLevel;
   label: string;
   entryAge: number;
-  duration: number; // Durasi umum dalam tahun
+  duration: number;
   paymentFrequency: "MONTHLY" | "SEMESTER";
 }
 
-// --- DATABASE JENJANG (UPDATED S1 & S2) ---
 export const STAGES_DB: EducationStage[] = [
   { id: "TK", label: "TK / PAUD", entryAge: 5, duration: 2, paymentFrequency: "MONTHLY" },
   { id: "SD", label: "Sekolah Dasar", entryAge: 7, duration: 6, paymentFrequency: "MONTHLY" },
   { id: "SMP", label: "SMP", entryAge: 13, duration: 3, paymentFrequency: "MONTHLY" },
   { id: "SMA", label: "SMA", entryAge: 16, duration: 3, paymentFrequency: "MONTHLY" },
-  // [UPDATED] Menggunakan ID S1 & S2 agar sinkron dengan Backend (Prisma Enum)
   { id: "S1", label: "Sarjana (S1)", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
   { id: "S2", label: "Magister (S2)", entryAge: 23, duration: 2, paymentFrequency: "SEMESTER" },
 ];
 
 // --- BASIC HELPERS ---
 
-export const formatRupiah = (val: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
+export const formatRupiah = (val: number | undefined | null) => {
+  if (val === undefined || val === null) return "Rp 0";
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
+};
+
+export function parseRupiah(value: string): number {
+  if (!value) return 0;
+  return parseFloat(value.replace(/[^0-9,-]+/g, "").replace(",", ".")) || 0;
+}
 
 export const calculateAge = (dob: string): number => {
   if (!dob) return 0;
@@ -45,12 +57,10 @@ export const calculateAge = (dob: string): number => {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 };
 
-// 1. Rumus FV (Future Value)
 export const calculateFV = (pv: number, inflationRate: number, years: number): number => {
   return pv * Math.pow(1 + inflationRate / 100, years);
 };
 
-// 2. Rumus PMT (Payment / Tabungan Rutin)
 export const calculatePMT = (
   fv: number,
   investmentRate: number,
@@ -59,15 +69,13 @@ export const calculatePMT = (
   if (years <= 0) return fv;
 
   const rate = investmentRate / 100;
-  // Jika rate 0, pembagian biasa
   if (rate === 0) return fv / years / 12;
 
   const annualPMT = (fv * rate) / (Math.pow(1 + rate, years) - 1);
   return annualPMT / 12;
 };
 
-// --- ADVANCED CALCULATION ENGINE (EDUCATION - CLIENT SIDE) ---
-// Note: Masih dipakai di UI Wizard Pendidikan untuk preview cepat sebelum save ke DB
+// --- ADVANCED CALCULATION ENGINE (EDUCATION) ---
 
 const calculateStageGranular = (
   input: PlanInput,
@@ -94,7 +102,6 @@ const calculateStageGranular = (
   let totalMonthlySaving = 0;
   const breakdownDetails: any[] = [];
 
-  // 1. Uang Pangkal (Entry Fee)
   if (input.startGrade === 1 && input.costNow.entryFee > 0) {
     const timeDistance = yearsUntilEntry;
     const fvEntry = calculateFV(input.costNow.entryFee, inflation, timeDistance);
@@ -111,7 +118,6 @@ const calculateStageGranular = (
     });
   }
 
-  // 2. Biaya Periodik (SPP/UKT - Granular Calculation Loop)
   const remainingDuration = refStage.duration - gradeOffset;
 
   for (let i = 0; i < remainingDuration; i++) {
@@ -119,7 +125,6 @@ const calculateStageGranular = (
     let yearlyBaseCost = 0;
     let labelItem = "";
 
-    // Kalkulasi Biaya Tahunan berdasarkan Frequency Input
     if (refStage.paymentFrequency === "MONTHLY") {
       yearlyBaseCost = input.costNow.monthlyFee * 12;
       if (refStage.id === "TK") {
@@ -129,8 +134,7 @@ const calculateStageGranular = (
         labelItem = `SPP Tahun ke-${i + 1}`;
       }
     } else {
-      // Semester (S1/S2)
-      yearlyBaseCost = input.costNow.monthlyFee * 2; // Input UI diasumsikan per Semester untuk S1/S2
+      yearlyBaseCost = input.costNow.monthlyFee * 2;
       labelItem = `Biaya Kuliah Tahun ke-${i + 1}`;
     }
 
@@ -184,7 +188,6 @@ export const calculatePortfolio = (
       }
     });
 
-    // Use 'any' to bypass strict type check for legacy UI component support
     details.push({
       childId: child.id,
       childName: child.name,
@@ -197,8 +200,7 @@ export const calculatePortfolio = (
   return { grandTotalMonthlySaving: grandTotalSaving, totalFutureCost: totalPortfolioCost, details };
 };
 
-// --- BUDGET ENGINE (REFACTORED: NO COLOR CLASS) ---
-// Note: Input diharapkan BULANAN. Jika user input tahunan, UI harus membagi 12 dulu.
+// --- BUDGET ENGINE ---
 
 export const calculateSmartBudget = (fixedIncome: number, variableIncome: number): BudgetResult => {
   const prodDebt = fixedIncome * 0.20;
@@ -218,14 +220,12 @@ export const calculateSmartBudget = (fixedIncome: number, variableIncome: number
   return { safeToSpend, allocations, totalFixedAllocated: totalAllocated, surplus: variableIncome };
 };
 
-// --- PENSION ENGINE (MATCHING EXCEL LOGIC) ---
-// Note: Input 'currentExpense' diharapkan BULANAN (agar konsisten dengan * 12 di bawah).
+// --- PENSION ENGINE ---
 
 export const calculatePension = (input: PensionInput): PensionResult => {
   const workingYears = input.retirementAge - input.currentAge;
   const retirementYears = input.retirementDuration;
 
-  // Safety Check
   if (workingYears <= 0) {
     return {
       workingYears: 0,
@@ -238,20 +238,14 @@ export const calculatePension = (input: PensionInput): PensionResult => {
     };
   }
 
-  // --- 1. PREPARE RATES ---
   const annualInflRate = input.inflationRate / 100;
   const annualInvestRate = input.investmentRate / 100;
-
-  // Real Rate (Excel Logic: Invest - Inflasi)
   const realRate = annualInvestRate - annualInflRate;
 
-  // --- 2. FUTURE VALUE OF EXPENSE (LIFESTYLE) ---
   const currentAnnualExpense = input.currentExpense * 12;
   const futureAnnualExpense = currentAnnualExpense * Math.pow(1 + annualInflRate, workingYears);
-
   const fvMonthlyExpense = futureAnnualExpense / 12;
 
-  // --- 3. CORPUS NEEDED (TOTAL DANA DIBUTUHKAN) ---
   let totalFundNeeded = 0;
 
   if (retirementYears === 1) {
@@ -266,14 +260,11 @@ export const calculatePension = (input: PensionInput): PensionResult => {
     }
   }
 
-  // --- 4. FUTURE VALUE OF EXISTING ASSET ---
   const fvExistingFund = input.currentFund * Math.pow(1 + annualInvestRate, workingYears);
 
-  // --- 5. GAP ANALYSIS ---
   let shortfall = totalFundNeeded - fvExistingFund;
   if (shortfall < 0) shortfall = 0;
 
-  // --- 6. MONTHLY SAVING CALCULATION ---
   let annualSaving = 0;
   if (shortfall > 0) {
     if (annualInvestRate === 0) {
@@ -338,7 +329,7 @@ export const calculateInsurance = (input: InsuranceInput): InsuranceResult => {
   };
 };
 
-// --- SPECIAL GOAL ENGINE (MENU 6) ---
+// --- SPECIAL GOAL ENGINE ---
 
 export const calculateSpecialGoal = (input: SpecialGoalInput): SpecialGoalResult => {
   const { currentCost, inflationRate, investmentRate, duration } = input;
@@ -351,3 +342,104 @@ export const calculateSpecialGoal = (input: SpecialGoalInput): SpecialGoalResult
     monthlySaving
   };
 };
+
+// ============================================================================
+// 2. FINANCIAL CHECKUP TRANSFORMER (ADAPTER LOGIC)
+// ============================================================================
+
+/**
+ * Daftar field yang termasuk kategori "Arus Kas" (Flow).
+ * Field-field ini WAJIB dikonversi (Kali 12 atau Bagi 12) saat transformasi.
+ * * NOTE: Field "Neraca" (Asset & Debt Outstanding) TIDAK masuk sini karena nilainya tetap.
+ */
+const FLOW_FIELDS: (keyof FinancialFormState)[] = [
+  // Income
+  'incomeFixed', 'incomeVariable',
+  // Installments (Cicilan Bulanan)
+  'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
+  // Insurance (Premi Bulanan)
+  'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
+  // Savings (Tabungan Rutin Bulanan)
+  'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
+  // Living Expenses (Biaya Hidup Bulanan)
+  'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle', 'expenseOther'
+];
+
+/**
+ * ADAPTER: Annual -> Monthly
+ * Mengubah data UI (Tahunan) menjadi data API (Bulanan).
+ * Digunakan sebelum mengirim data ke Backend.
+ * @param annualData Data dari Form (Annual)
+ */
+export function convertRecordToMonthly(annualData: FinancialFormState): FinancialApiPayload {
+  // 1. Shallow Copy untuk menghindari mutasi object asli
+  const monthlyData: any = { ...annualData };
+
+  // 2. Iterasi field Flow untuk konversi (Bagi 12)
+  FLOW_FIELDS.forEach((field) => {
+    const value = annualData[field];
+    if (typeof value === 'number' && value > 0) {
+      // Pembulatan ke integer terdekat untuk menghindari desimal aneh di API (misal 3333.33)
+      monthlyData[field] = Math.round(value / 12);
+    } else {
+      monthlyData[field] = 0;
+    }
+  });
+
+  return monthlyData as FinancialApiPayload;
+}
+
+/**
+ * ADAPTER: Monthly -> Annual
+ * Mengubah data API/Import (Bulanan) menjadi data UI (Tahunan).
+ * Digunakan saat Import file .mgc (Re-hydration) agar UI menampilkan angka Tahunan yang benar.
+ * @param monthlyData Data dari API/File (Monthly)
+ */
+export function convertRecordToAnnual(monthlyData: FinancialApiPayload): FinancialFormState {
+  // 1. Shallow Copy
+  const annualData: any = { ...monthlyData };
+
+  // 2. Iterasi field Flow untuk konversi (Kali 12)
+  FLOW_FIELDS.forEach((field) => {
+    const value = monthlyData[field];
+    if (typeof value === 'number' && value > 0) {
+      annualData[field] = Math.round(value * 12);
+    } else {
+      annualData[field] = 0;
+    }
+  });
+
+  return annualData as FinancialFormState;
+}
+
+/**
+ * Helper untuk menghitung Total Aset (Neraca)
+ * Menjumlahkan semua field kategori Asset
+ */
+export function calculateTotalAssets(data: Partial<FinancialFormState>): number {
+  const assetFields: (keyof FinancialFormState)[] = [
+    'assetCash', 'assetHome', 'assetVehicle', 'assetJewelry', 'assetAntique', 'assetPersonalOther',
+    'assetInvHome', 'assetInvVehicle', 'assetGold', 'assetInvAntique',
+    'assetStocks', 'assetMutualFund', 'assetBonds', 'assetDeposit', 'assetInvOther'
+  ];
+
+  return assetFields.reduce((total, key) => {
+    const val = data[key];
+    return total + (typeof val === 'number' ? val : 0);
+  }, 0);
+}
+
+/**
+ * Helper untuk menghitung Total Utang (Neraca)
+ * Menjumlahkan semua field kategori Debt Outstanding
+ */
+export function calculateTotalDebt(data: Partial<FinancialFormState>): number {
+  const debtFields: (keyof FinancialFormState)[] = [
+    'debtKPR', 'debtKPM', 'debtCC', 'debtCoop', 'debtConsumptiveOther', 'debtBusiness'
+  ];
+
+  return debtFields.reduce((total, key) => {
+    const val = data[key];
+    return total + (typeof val === 'number' ? val : 0);
+  }, 0);
+}
