@@ -24,7 +24,7 @@ interface CheckupResultProps {
     rawData?: FinancialRecord; // Optional for Agent Mode
 
     onReset?: () => void;
-    onDownloadPdf?: () => void; // Custom handler for Agent Mode
+    onDownloadPdf?: () => void; // Custom handler for Agent Mode (Optional Callback)
 
     mode?: ViewMode;
     isDownloading?: boolean; // External loading state
@@ -75,7 +75,37 @@ export function CheckupResult({
 
     // --- HANDLERS ---
 
-    // Handler Download PDF (Legacy User Mode)
+    // [UPDATED] Handler Download untuk Mode Simulasi Agen (Client-Side Rehydration)
+    const handleAgentDownload = async () => {
+        if (localPdfLoading) return;
+
+        // Validasi: Pastikan data raw simulasi tersedia (berisi buffer PDF)
+        if (!data) {
+            alert("Data simulasi tidak valid atau kosong.");
+            return;
+        }
+
+        try {
+            setLocalPdfLoading(true);
+
+            // Panggil helper baru di service untuk konversi Buffer -> File
+            // Kita pass 'data' utuh karena di dalamnya terdapat 'pdfBuffer' dan 'mgcToken'
+            financialService.downloadSimulationFiles(data);
+
+            // Jika parent component mengirimkan callback tambahan (opsional)
+            if (onDownloadPdf) {
+                onDownloadPdf();
+            }
+
+        } catch (error) {
+            console.error("Simulation Download Error:", error);
+            alert("Gagal memproses file simulasi. Silakan coba hitung ulang.");
+        } finally {
+            setLocalPdfLoading(false);
+        }
+    };
+
+    // Handler Download PDF (Legacy User Mode / Database Record)
     const handleLegacyDownload = async () => {
         if (localPdfLoading) return;
 
@@ -383,7 +413,7 @@ export function CheckupResult({
 
                             {/* BUTTON: DOWNLOAD PDF */}
                             <Button
-                                onClick={isAgentMode ? onDownloadPdf : handleLegacyDownload}
+                                onClick={isAgentMode ? handleAgentDownload : handleLegacyDownload}
                                 disabled={isDownloading || localPdfLoading}
                                 className={cn(
                                     "flex-2 md:flex-none min-w-45 font-bold shadow-lg transition-all text-white",

@@ -375,5 +375,70 @@ export const financialService = {
 
     // Hasilnya adalah object { client, financial (Annual), result } yang aman untuk UI
     return rawData;
+  },
+
+  /**
+   * [NEW FIX] Helper untuk download hasil simulasi dari JSON Response.
+   * Digunakan di Component Result untuk menangani 'Hybrid JSON Response' dari Backend.
+   */
+  downloadSimulationFiles: (simulationResult: any) => {
+    // 1. Validasi Data
+    if (!simulationResult) {
+      console.warn("Data simulasi kosong, download dibatalkan.");
+      return;
+    }
+
+    const { pdfBuffer, mgcToken, filename } = simulationResult;
+    const baseFilename = filename || `Financial_Checkup_${new Date().toISOString().split('T')[0]}`;
+
+    // 2. PROSES DOWNLOAD PDF (Re-hydrating Buffer -> Blob)
+    if (pdfBuffer && pdfBuffer.data) {
+      try {
+        // Konversi Array Angka (dari JSON) menjadi Uint8Array (Binary)
+        const byteArray = new Uint8Array(pdfBuffer.data);
+        const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
+
+        // Buat Object URL
+        const pdfUrl = window.URL.createObjectURL(pdfBlob);
+
+        // Trigger Download
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = baseFilename.endsWith('.pdf') ? baseFilename : `${baseFilename}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(pdfUrl);
+      } catch (e) {
+        console.error("Gagal memproses file PDF dari simulasi:", e);
+      }
+    }
+
+    // 3. PROSES DOWNLOAD TOKEN (.mgc)
+    if (mgcToken) {
+      try {
+        const tokenBlob = new Blob([mgcToken], { type: 'text/plain' });
+        const tokenUrl = window.URL.createObjectURL(tokenBlob);
+
+        const link = document.createElement('a');
+        link.href = tokenUrl;
+
+        // Gunakan nama file yang sama tapi ekstensi .mgc
+        // Regex: hapus .pdf di akhir string (case insensitive) jika ada
+        const tokenName = baseFilename.replace(/\.pdf$/i, '') + '.mgc';
+        link.download = tokenName;
+
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(tokenUrl);
+      } catch (e) {
+        console.error("Gagal memproses token simulasi (.mgc):", e);
+      }
+    }
   }
 };
