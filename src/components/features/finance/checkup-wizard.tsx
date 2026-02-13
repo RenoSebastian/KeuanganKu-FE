@@ -67,7 +67,8 @@ export function CheckupWizard() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Data State (Single Source of Truth)
-    const [clientData, setClientData] = useState<SimulationClientProfile | null>(null);
+    // NOTE: clientData ini strukturnya { client: {...}, spouse: {...} } hasil dari form
+    const [clientData, setClientData] = useState<any | null>(null);
     const [financialRecord, setFinancialRecord] = useState<FinancialFormState>(INITIAL_FINANCIAL_STATE);
     const [simulationResult, setSimulationResult] = useState<CheckupSimulationResult | null>(null);
 
@@ -76,7 +77,7 @@ export function CheckupWizard() {
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
     // --- SILENT PERSISTENCE (Auto-Hydrate Only) ---
-    const { isHydrated, clearStorage } = useSimulationPersistence<SimulationClientProfile, FinancialFormState>(
+    const { isHydrated, clearStorage } = useSimulationPersistence<any, FinancialFormState>(
         SIMULATION_STORAGE_KEYS.CHECKUP,
         clientData,
         financialRecord,
@@ -114,7 +115,6 @@ export function CheckupWizard() {
         }
 
         // [DESTRUCTIVE RESET] Hapus storage lama SEBELUM proses apapun dimulai
-        // Ini memastikan tidak ada "hantu" data lama yang menimpa hasil import
         clearStorage();
         setClientData(null);
         setFinancialRecord(INITIAL_FINANCIAL_STATE);
@@ -130,6 +130,8 @@ export function CheckupWizard() {
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
                     // Set State Baru
+                    // Logic Import: backend mengembalikan object flat {client, spouse} di dalam decoded.client biasanya
+                    // Kita pastikan strukturnya konsisten
                     if (decoded.client) setClientData(decoded.client);
                     if (decoded.financial) setFinancialRecord(decoded.financial);
                     if (decoded.result) setSimulationResult(decoded.result);
@@ -157,9 +159,7 @@ export function CheckupWizard() {
     // --- HANDLER: RESET FORM ---
     const handleReset = () => {
         if (confirm("Mulai sesi baru? Data saat ini akan dihapus permanen.")) {
-            // [DESTRUCTIVE RESET] Hapus total dari storage
             clearStorage();
-
             setClientData(null);
             setFinancialRecord(INITIAL_FINANCIAL_STATE);
             setSimulationResult(null);
@@ -169,7 +169,8 @@ export function CheckupWizard() {
     };
 
     // --- STEP HANDLERS ---
-    const onIdentitySubmit = (data: SimulationClientProfile) => {
+    const onIdentitySubmit = (data: any) => {
+        // Data yang diterima disini strukturnya sudah { client: {...}, spouse: {...} }
         setClientData(data);
         setCurrentStep("FINANCIAL");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -186,10 +187,12 @@ export function CheckupWizard() {
         const toastId = toast.loading("Menganalisis kesehatan keuangan...");
 
         try {
-            // Payload murni dari State (yang sudah dijaga agar tetap Tahunan/Valid)
+            // [FIX CRITICAL] Payload Construction
+            // Sebelumnya: client: clientData -> menghasilkan nesting { client: { client: ... } }
+            // Sekarang: ...clientData -> menyebarkan properti { client: ..., spouse: ... } ke root payload
             const payload = {
                 ...financialRecord,
-                client: clientData,
+                ...clientData, // Spread operator untuk menghindari double nesting
             } as any;
 
             const response = await financialService.simulateAgentCheckup(payload);
@@ -220,7 +223,6 @@ export function CheckupWizard() {
         }
     };
 
-    // --- HANDLER: PDF DOWNLOAD ---
     const handleDownloadPdf = async () => {
         if (!clientData || !financialRecord) {
             toast.error("Data tidak lengkap.");
@@ -232,9 +234,8 @@ export function CheckupWizard() {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
-            // Jika PDF belum ada di state (misal hasil re-hydrate), generate ulang
             if (!targetPdfUrl) {
-                const payload = { ...financialRecord, client: clientData } as any;
+                const payload = { ...financialRecord, ...clientData } as any; // FIX disini juga
                 const response = await financialService.simulateAgentCheckup(payload);
 
                 const pdfBuffer = response.pdfBuffer;
@@ -250,7 +251,8 @@ export function CheckupWizard() {
             }
 
             if (targetPdfUrl) {
-                const cleanName = (clientData.name || "Client").replace(/[^a-zA-Z0-9]/g, '_');
+                const clientName = clientData.client?.name || "Client"; // Akses aman ke nama
+                const cleanName = clientName.replace(/[^a-zA-Z0-9]/g, '_');
                 const filename = `Financial_Checkup_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
 
                 const link = document.createElement('a');
@@ -286,8 +288,6 @@ export function CheckupWizard() {
     };
 
     // [LOADING GATE]
-    // Mencegah render Form sebelum Storage Check selesai.
-    // Krusial agar form kosong tidak menimpa storage via useEffect hook.
     if (!isHydrated) {
         return (
             <div className="w-full min-h-[60vh] flex flex-col items-center justify-center text-slate-400 gap-3">
@@ -296,6 +296,20 @@ export function CheckupWizard() {
             </div>
         );
     }
+
+    // Helper untuk menyiapkan data ke form agar saat BACK tidak kosong
+    // Kita harus "Membongkar" nesting agar form menerima format yang benar
+    const getInitialIdentityData = () => {
+        if (!clientData) return undefined;
+        // Jika clientData memiliki key 'client' (nested structure), kita ambil dalamnya
+        if ('client' in clientData) {
+            return {
+                ...clientData.client,
+                spouse: clientData.spouse
+            };
+        }
+        return clientData;
+    };
 
     return (
         <div className="w-full py-4">
@@ -332,7 +346,7 @@ export function CheckupWizard() {
                             </div>
 
                             <ClientIdentityForm
-                                initialData={clientData || undefined}
+                                initialData={getInitialIdentityData()} // [FIX] Gunakan helper unwrap
                                 onComplete={onIdentitySubmit}
                             />
                         </motion.div>
@@ -358,7 +372,7 @@ export function CheckupWizard() {
                                 data={{
                                     result: simulationResult as any,
                                     financial: financialRecord as any,
-                                    client: clientData as any
+                                    client: clientData ? clientData.client : {}, // [FIX] Akses ke client property
                                 }}
                                 onDownloadPdf={handleDownloadPdf}
                                 onReset={handleReset}
