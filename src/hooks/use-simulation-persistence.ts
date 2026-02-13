@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
 
 // --- CONSTANTS ---
 export const SIMULATION_STORAGE_KEYS = {
@@ -11,132 +13,135 @@ export const SIMULATION_STORAGE_KEYS = {
     PENSION: "AGENT_SIM_PENSION_DRAFT_V1",
 };
 
-// Interface Generic
-interface SimulationDraft<TClient, TData> {
-    clientData: TClient | null;
-    inputData: TData;
-    step: number;
-    lastModified: number;
-}
-
 /**
- * useSimulationPersistence (SMART SAVER EDITION)
- * ----------------------------------------------
- * Hook ini sekarang memiliki "Defensive Saving Mechanism" untuk mencegah
- * overwrite data storage dengan state kosong saat terjadi race condition atau unmounting.
+ * useSimulationPersistence (HYBRID EDITION)
+ * -----------------------------------------
+ * Hook ini mendukung dua mode operasi untuk menjaga kompatibilitas:
+ * * 1. SILENT MODE (New Architecture):
+ * - Dipicu jika parameter 'onHydrate' disediakan.
+ * - Otomatis mengisi data saat mount (Auto-Hydrate).
+ * - Mencegah overwrite data sampai loading selesai.
+ * * 2. LEGACY MODE (Old Architecture):
+ * - Dipicu jika 'onHydrate' kosong/undefined.
+ * - Menggunakan mekanisme 'draftAvailable' dan manual restore.
+ * - Mencegah fitur lain (Budget, Risk Profile) crash saat refactoring Checkup.
  */
 export function useSimulationPersistence<TClient, TData>(
-    storageKey: string,
+    key: string,
     currentClientData: TClient | null,
-    currentInputData: TData,
-    currentStep: number
+    currentInputData: TData | null,
+    currentStep: number,
+    // Optional: Hanya diisi oleh komponen yang sudah direfactor (CheckupWizard)
+    onHydrate?: (client: TClient | null, input: TData | null, step: number) => void
 ) {
+    // State untuk New Arch
+    const [isHydrated, setIsHydrated] = useState(false);
+
+    // State untuk Legacy Arch (Backward Compatibility)
     const [draftAvailable, setDraftAvailable] = useState(false);
-    const [draftData, setDraftData] = useState<SimulationDraft<TClient, TData> | null>(null);
+    const [draftData, setDraftData] = useState<any>(null);
 
-    // [FIX 1] Mounting Ref untuk mencegah save saat inisialisasi pertama
-    const isMounted = useRef(false);
-
-    // --- 1. INITIAL CHECK (LOAD ONLY ONCE) ---
+    // 1. MOUNT LOGIC (HYBRID)
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            try {
-                const savedRaw = localStorage.getItem(storageKey);
-                if (savedRaw) {
-                    const parsed: SimulationDraft<TClient, TData> = JSON.parse(savedRaw);
+        if (typeof window === "undefined") return;
 
-                    // Validasi: Draft valid jika ada Client Data ATAU Input Data
-                    const hasClient = !!parsed.clientData;
+        try {
+            const stored = localStorage.getItem(key);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed) {
+                    // MODE 1: SILENT / AUTO (Untuk CheckupWizard)
+                    if (onHydrate && typeof onHydrate === 'function') {
+                        console.log(`[Persistence] Auto-hydrating ${key}...`);
+                        onHydrate(
+                            parsed.clientData || null,
+                            parsed.inputData || null,
+                            typeof parsed.step === 'number' ? parsed.step : 0
+                        );
+                    }
+                    // MODE 2: LEGACY (Untuk Budget, RiskProfile, dll)
+                    else {
+                        // Cek validitas data minimal untuk legacy
+                        const hasClient = !!parsed.clientData;
+                        const hasInput = parsed.inputData && Object.keys(parsed.inputData).length > 0;
 
-                    // Helper check untuk object atau array
-                    const hasInput = Array.isArray(parsed.inputData)
-                        ? parsed.inputData.length > 0
-                        : parsed.inputData && Object.keys(parsed.inputData).length > 0;
-
-                    if (hasClient || hasInput) {
-                        setDraftData(parsed);
-                        setDraftAvailable(true);
+                        if (hasClient || hasInput) {
+                            setDraftData(parsed);
+                            setDraftAvailable(true);
+                        }
                     }
                 }
-            } catch (error) {
-                console.error(`[Persistence] Corrupt data for key: ${storageKey}`, error);
-                // Jangan hapus otomatis dulu, biarkan user memutuskan via "Reset" nanti
             }
+        } catch (e) {
+            console.error(`[Persistence] Failed to hydrate ${key}:`, e);
+            // Jangan hapus otomatis di legacy mode agar user punya kesempatan backup manual jika perlu
+            if (onHydrate) localStorage.removeItem(key);
+        } finally {
+            setIsHydrated(true); // Izinkan saving dimulai
         }
-        // Set mounted true setelah check awal selesai
-        isMounted.current = true;
-    }, [storageKey]);
+    }, []); // Run once on mount
 
-    // --- 2. SMART AUTO-SAVE LOGIC ---
+    // 2. AUTO-SAVE (GUARDED)
     useEffect(() => {
-        // [FIX 2] Jangan jalankan efek jika komponen belum mounted sempurna
-        if (!isMounted.current) return;
+        // [GUARD] Write-Protection
+        // Jangan save jika belum hydration selesai.
+        // Jika Legacy Mode: Jangan save jika ada draft lama yang belum di-restore/ignore oleh user.
+        if (!isHydrated) return;
+        if (!onHydrate && draftAvailable) return;
 
-        // Cek kekosongan data
-        const isClientEmpty = !currentClientData;
-        const isInputEmpty = Array.isArray(currentInputData)
-            ? currentInputData.length === 0
-            : !currentInputData || Object.keys(currentInputData).length === 0;
-
-        // [FIX 3] GLOBAL SAFETY GUARD
-        // Jika semua data kosong, jangan pernah save (kecuali eksplisit clear).
-        // Ini mencegah overwrite draft yang sudah ada dengan state initial component.
-        if (isClientEmpty && isInputEmpty) {
-            return;
-        }
-
-        // [FIX 4] CONTEXT AWARENESS GUARD (THE CRITICAL FIX)
-        // Jika user berada di Step > 0 (Financial/Result), TAPI clientData tiba-tiba hilang (null),
-        // ini adalah indikasi "State Loss" atau "Unmount Bug" di Parent Component.
-        // DILARANG SAVE ke Storage dalam kondisi ini agar Draft tidak rusak.
-        if (currentStep > 0 && isClientEmpty) {
-            console.warn("[Persistence] Prevented corrupted save: Step > 0 but Client Data is missing.");
-            return;
-        }
-
-        // Debounce timer
         const timer = setTimeout(() => {
-            const payload: SimulationDraft<TClient, TData> = {
+            // Safety check untuk data kosong
+            const isClientEmpty = !currentClientData;
+            const isInputEmpty = !currentInputData || (Object.keys(currentInputData as object).length === 0);
+
+            if (isClientEmpty && isInputEmpty) return;
+
+            const payload = {
                 clientData: currentClientData,
                 inputData: currentInputData,
                 step: currentStep,
-                lastModified: Date.now(),
+                lastModified: Date.now()
             };
 
             try {
-                localStorage.setItem(storageKey, JSON.stringify(payload));
-                // Update local status agar UI tahu ada draft baru
-                setDraftAvailable(true);
-                setDraftData(payload);
+                localStorage.setItem(key, JSON.stringify(payload));
             } catch (e) {
-                console.warn("[Persistence] Storage quota exceeded.", e);
+                console.warn("[Persistence] Storage write failed:", e);
             }
-        }, 800); // 800ms delay
+        }, 500);
 
         return () => clearTimeout(timer);
-    }, [currentClientData, currentInputData, currentStep, storageKey]);
+    }, [currentClientData, currentInputData, currentStep, isHydrated, key, draftAvailable, onHydrate]);
 
-    // --- 3. ACTIONS ---
+    // 3. ACTIONS
 
+    const clearStorage = useCallback(() => {
+        localStorage.removeItem(key);
+        setDraftAvailable(false);
+        setDraftData(null);
+    }, [key]);
+
+    // Legacy Action: Restore Manual
     const restoreDraft = useCallback(() => {
+        setDraftAvailable(false);
         return draftData;
     }, [draftData]);
 
-    const clearDraft = useCallback(() => {
-        localStorage.removeItem(storageKey);
-        setDraftAvailable(false);
-        setDraftData(null);
-    }, [storageKey]);
-
+    // Legacy Action: Ignore Draft
     const ignoreDraft = useCallback(() => {
         setDraftAvailable(false);
+        // Kita anggap sudah hydrated/ready untuk overwrite baru
     }, []);
 
     return {
+        // New Props
+        isHydrated,
+        clearStorage,
+
+        // Legacy Props (Required for compatibility with other modules)
         draftAvailable,
         draftData,
         restoreDraft,
-        clearDraft,
         ignoreDraft
     };
 }

@@ -5,18 +5,17 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     CheckCircle2,
-    User, Wallet, Activity, History, FileSearch, Upload
+    User, Wallet, Activity, FileSearch, Upload, Loader2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Imports from Lib/Services
 import {
     SimulationClientProfile
 } from "@/lib/types";
 
-// Import Type Local (Updated Types)
+// Import Type Local
 import {
     FinancialFormState,
     CheckupSimulationResult
@@ -27,7 +26,6 @@ import { financialService } from "@/services/financial.service";
 // Imports Sub-Components
 import { ClientIdentityForm } from "./checkup/client-identity-form";
 import { CheckupResult } from "./checkup-result";
-// Import Component Child yang baru dipisahkan
 import { FinancialInputSection } from "./financial-input-section";
 
 // Hooks
@@ -70,7 +68,6 @@ export function CheckupWizard() {
 
     // Data State (Single Source of Truth)
     const [clientData, setClientData] = useState<SimulationClientProfile | null>(null);
-    // [SSOT] Ini adalah satu-satunya state untuk data keuangan. Child hanya render props.
     const [financialRecord, setFinancialRecord] = useState<FinancialFormState>(INITIAL_FINANCIAL_STATE);
     const [simulationResult, setSimulationResult] = useState<CheckupSimulationResult | null>(null);
 
@@ -78,22 +75,26 @@ export function CheckupWizard() {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
-    // --- PERSISTENCE HOOK ---
-    const {
-        draftAvailable,
-        restoreDraft,
-        clearDraft,
-        ignoreDraft,
-        draftData
-    } = useSimulationPersistence<SimulationClientProfile, FinancialFormState>(
+    // --- NEW: SILENT PERSISTENCE (Auto-Hydrate) ---
+    // Hook ini akan otomatis mengisi state saat mount, dan mencegah save sampai selesai loading.
+    const { isHydrated, clearStorage } = useSimulationPersistence<SimulationClientProfile, FinancialFormState>(
         SIMULATION_STORAGE_KEYS.CHECKUP,
         clientData,
         financialRecord,
-        currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2
+        currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2,
+        // Callback: Apa yang dilakukan saat data ditemukan di storage?
+        (restoredClient, restoredInput, restoredStep) => {
+            if (restoredClient) setClientData(restoredClient);
+            if (restoredInput) setFinancialRecord(restoredInput);
+
+            // Auto-Navigate Logic
+            if (restoredStep === 2) setCurrentStep("RESULT");
+            else if (restoredStep === 1 && restoredClient) setCurrentStep("FINANCIAL");
+            else setCurrentStep("IDENTITY");
+        }
     );
 
     // --- ACTION: HANDLE INPUT CHANGE (DARI CHILD) ---
-    // Fungsi ini dilempar ke Child Component untuk update state di Parent
     const handleFinancialUpdate = (field: keyof FinancialFormState, value: number) => {
         setFinancialRecord(prev => ({
             ...prev,
@@ -113,7 +114,11 @@ export function CheckupWizard() {
             return;
         }
 
-        setIsLoading(true); // [LOADING GATE START]
+        // [CRITICAL] Hancurkan data lama di storage sebelum load data baru
+        // Ini mencegah data lama menimpa data import saat render cycle berikutnya
+        clearStorage();
+
+        setIsLoading(true);
         const toastId = toast.loading("Membaca file simulasi...");
 
         try {
@@ -121,14 +126,10 @@ export function CheckupWizard() {
             reader.onload = async (event) => {
                 const tokenString = event.target?.result as string;
                 try {
-                    // [STEP 2 INTEGRATION] Service sekarang sudah return ANNUAL data yang bersih
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
                     if (decoded.client) setClientData(decoded.client);
-
-                    // [SSOT UPDATE] Langsung set state dengan data tahunan dari service
                     if (decoded.financial) setFinancialRecord(decoded.financial);
-
                     if (decoded.result) setSimulationResult(decoded.result);
 
                     setMgcToken(tokenString);
@@ -139,7 +140,7 @@ export function CheckupWizard() {
                 } catch (err: any) {
                     toast.error(err.message || "Gagal men-decode file.", { id: toastId });
                 } finally {
-                    setIsLoading(false); // [LOADING GATE END]
+                    setIsLoading(false);
                 }
             };
             reader.readAsText(file);
@@ -150,18 +151,17 @@ export function CheckupWizard() {
         if (e.target) e.target.value = "";
     };
 
-    // --- HANDLER: RESTORE SESSION ---
-    const handleRestoreSession = () => {
-        const draft = restoreDraft();
-        if (draft) {
-            if (draft.clientData) setClientData(draft.clientData);
-            if (draft.inputData) setFinancialRecord(draft.inputData);
+    // --- HANDLER: RESET FORM ---
+    const handleReset = () => {
+        if (confirm("Mulai sesi baru? Data saat ini akan dihapus permanen.")) {
+            // [CRITICAL] Explicit Destroy
+            clearStorage();
 
-            if (draft.step === 2) setCurrentStep("RESULT");
-            else if (draft.clientData && !draft.inputData) setCurrentStep("FINANCIAL");
-            else setCurrentStep("IDENTITY");
-
-            toast.success("Sesi sebelumnya berhasil dipulihkan.");
+            setClientData(null);
+            setFinancialRecord(INITIAL_FINANCIAL_STATE);
+            setSimulationResult(null);
+            setCurrentStep("IDENTITY");
+            window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
 
@@ -172,7 +172,6 @@ export function CheckupWizard() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // --- SUBMIT FINANCIAL DATA ---
     const onFinancialSubmit = async () => {
         if (!clientData) {
             toast.error("Data identitas hilang. Mohon kembali ke langkah awal.");
@@ -184,20 +183,15 @@ export function CheckupWizard() {
         const toastId = toast.loading("Menganalisis kesehatan keuangan...");
 
         try {
-            // [FIX ERROR 1] Type 'client' does not exist in type 'FinancialFormState'.
-            // Solusi: Kita cast ke 'any' agar Service bisa menerima object gabungan.
             const payload = {
                 ...financialRecord,
                 client: clientData,
-                // spouse: ... (jika ada)
             } as any;
 
-            // [STEP 2 INTEGRATION] Service akan convert Annual -> Monthly
             const response = await financialService.simulateAgentCheckup(payload);
 
             setSimulationResult(response.data.result);
 
-            // Handle PDF Blob
             let blobUrl = null;
             const pdfBuffer = response.pdfBuffer;
 
@@ -225,7 +219,7 @@ export function CheckupWizard() {
     // --- HANDLER: PDF DOWNLOAD ---
     const handleDownloadPdf = async () => {
         if (!clientData || !financialRecord) {
-            toast.error("Data tidak lengkap untuk generate PDF.");
+            toast.error("Data tidak lengkap.");
             return;
         }
 
@@ -234,13 +228,8 @@ export function CheckupWizard() {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
-            // Regenerate if missing
             if (!targetPdfUrl) {
-                const payload = {
-                    ...financialRecord,
-                    client: clientData,
-                } as any;
-
+                const payload = { ...financialRecord, client: clientData } as any;
                 const response = await financialService.simulateAgentCheckup(payload);
 
                 const pdfBuffer = response.pdfBuffer;
@@ -255,7 +244,6 @@ export function CheckupWizard() {
                 setMgcToken(targetToken);
             }
 
-            // Execute Download
             if (targetPdfUrl) {
                 const cleanName = (clientData.name || "Client").replace(/[^a-zA-Z0-9]/g, '_');
                 const filename = `Financial_Checkup_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -281,7 +269,8 @@ export function CheckupWizard() {
                     toast.success("Laporan PDF berhasil diunduh.");
                 }
 
-                clearDraft();
+                // Opsional: Clear storage setelah sukses download file final?
+                // clearStorage(); 
             } else {
                 throw new Error("Gagal mendapatkan link download PDF.");
             }
@@ -294,37 +283,21 @@ export function CheckupWizard() {
         }
     };
 
-    const handleReset = () => {
-        if (confirm("Mulai sesi baru? Data saat ini akan dihapus.")) {
-            clearDraft();
-            setClientData(null);
-            setFinancialRecord(INITIAL_FINANCIAL_STATE);
-            setSimulationResult(null);
-            setCurrentStep("IDENTITY");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-    };
+    // [LOADING GATE]
+    // Mencegah render Form sebelum Storage Check selesai.
+    // Ini krusial agar form kosong tidak menimpa storage via useEffect hook.
+    if (!isHydrated) {
+        return (
+            <div className="w-full min-h-100 flex flex-col items-center justify-center text-slate-400 gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+                <span className="text-sm font-medium animate-pulse">Memulihkan sesi anda...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full py-4">
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".mgc" className="hidden" />
-
-            {/* Safety Alert */}
-            {draftAvailable && currentStep === "IDENTITY" && (
-                <Alert className="mb-8 bg-blue-50 border-blue-200 text-blue-800 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-                    <History className="h-4 w-4 text-blue-600" />
-                    <AlertTitle className="font-bold text-blue-700">Sesi Belum Selesai Ditemukan</AlertTitle>
-                    <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
-                        <div className="text-xs">
-                            Ditemukan data klien <strong>{(draftData?.clientData as any)?.client?.name || (draftData?.clientData as any)?.name || "Sebelumnya"}</strong>.
-                        </div>
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" className="h-8 text-xs hover:bg-blue-100" onClick={ignoreDraft}>Abaikan</Button>
-                            <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleRestoreSession}>Lanjutkan Sesi</Button>
-                        </div>
-                    </AlertDescription>
-                </Alert>
-            )}
 
             {/* Stepper Header */}
             <div className="max-w-md mx-auto mb-12">
@@ -363,14 +336,9 @@ export function CheckupWizard() {
                         </motion.div>
                     )}
 
-                    {/* STEP 2: FINANCIAL DATA INPUT (CONTROLLED COMPONENT) */}
+                    {/* STEP 2: FINANCIAL DATA INPUT */}
                     {currentStep === "FINANCIAL" && (
                         <motion.div key="financial" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                            {/* [SSOT ARCHITECTURE]
-                                - data: Mengambil langsung dari state Parent
-                                - onUpdate: Fungsi update milik Parent
-                                - Tidak ada useEffect internal yang aneh-aneh
-                            */}
                             <FinancialInputSection
                                 data={financialRecord}
                                 onUpdate={handleFinancialUpdate}
@@ -384,11 +352,6 @@ export function CheckupWizard() {
                     {/* STEP 3: RESULT */}
                     {currentStep === "RESULT" && simulationResult && (
                         <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
-                            {/* [FIX ERROR 2] Type 'CheckupSimulationResult' is not assignable to...
-                                'CheckupResult' component (Legacy) mengharapkan format data lama (Array),
-                                sedangkan 'simulationResult' (New Service) adalah Object.
-                                Kita cast ke 'any' untuk bypassing TS check sementara agar UI tetap render.
-                            */}
                             <CheckupResult
                                 data={{
                                     result: simulationResult as any,
