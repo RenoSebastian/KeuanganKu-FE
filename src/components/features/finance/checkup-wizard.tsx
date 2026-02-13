@@ -75,14 +75,13 @@ export function CheckupWizard() {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
-    // --- NEW: SILENT PERSISTENCE (Auto-Hydrate) ---
-    // Hook ini akan otomatis mengisi state saat mount, dan mencegah save sampai selesai loading.
+    // --- SILENT PERSISTENCE (Auto-Hydrate Only) ---
     const { isHydrated, clearStorage } = useSimulationPersistence<SimulationClientProfile, FinancialFormState>(
         SIMULATION_STORAGE_KEYS.CHECKUP,
         clientData,
         financialRecord,
         currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2,
-        // Callback: Apa yang dilakukan saat data ditemukan di storage?
+        // Callback: Langsung isi state saat data ditemukan di storage
         (restoredClient, restoredInput, restoredStep) => {
             if (restoredClient) setClientData(restoredClient);
             if (restoredInput) setFinancialRecord(restoredInput);
@@ -114,9 +113,11 @@ export function CheckupWizard() {
             return;
         }
 
-        // [CRITICAL] Hancurkan data lama di storage sebelum load data baru
-        // Ini mencegah data lama menimpa data import saat render cycle berikutnya
+        // [DESTRUCTIVE RESET] Hapus storage lama SEBELUM proses apapun dimulai
+        // Ini memastikan tidak ada "hantu" data lama yang menimpa hasil import
         clearStorage();
+        setClientData(null);
+        setFinancialRecord(INITIAL_FINANCIAL_STATE);
 
         setIsLoading(true);
         const toastId = toast.loading("Membaca file simulasi...");
@@ -128,6 +129,7 @@ export function CheckupWizard() {
                 try {
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
+                    // Set State Baru
                     if (decoded.client) setClientData(decoded.client);
                     if (decoded.financial) setFinancialRecord(decoded.financial);
                     if (decoded.result) setSimulationResult(decoded.result);
@@ -138,6 +140,7 @@ export function CheckupWizard() {
                     setCurrentStep("RESULT");
                     toast.success("Data simulasi berhasil di-import.", { id: toastId });
                 } catch (err: any) {
+                    console.error(err);
                     toast.error(err.message || "Gagal men-decode file.", { id: toastId });
                 } finally {
                     setIsLoading(false);
@@ -154,7 +157,7 @@ export function CheckupWizard() {
     // --- HANDLER: RESET FORM ---
     const handleReset = () => {
         if (confirm("Mulai sesi baru? Data saat ini akan dihapus permanen.")) {
-            // [CRITICAL] Explicit Destroy
+            // [DESTRUCTIVE RESET] Hapus total dari storage
             clearStorage();
 
             setClientData(null);
@@ -183,6 +186,7 @@ export function CheckupWizard() {
         const toastId = toast.loading("Menganalisis kesehatan keuangan...");
 
         try {
+            // Payload murni dari State (yang sudah dijaga agar tetap Tahunan/Valid)
             const payload = {
                 ...financialRecord,
                 client: clientData,
@@ -228,6 +232,7 @@ export function CheckupWizard() {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
+            // Jika PDF belum ada di state (misal hasil re-hydrate), generate ulang
             if (!targetPdfUrl) {
                 const payload = { ...financialRecord, client: clientData } as any;
                 const response = await financialService.simulateAgentCheckup(payload);
@@ -268,9 +273,6 @@ export function CheckupWizard() {
                 } else {
                     toast.success("Laporan PDF berhasil diunduh.");
                 }
-
-                // Opsional: Clear storage setelah sukses download file final?
-                // clearStorage(); 
             } else {
                 throw new Error("Gagal mendapatkan link download PDF.");
             }
@@ -285,10 +287,10 @@ export function CheckupWizard() {
 
     // [LOADING GATE]
     // Mencegah render Form sebelum Storage Check selesai.
-    // Ini krusial agar form kosong tidak menimpa storage via useEffect hook.
+    // Krusial agar form kosong tidak menimpa storage via useEffect hook.
     if (!isHydrated) {
         return (
-            <div className="w-full min-h-100 flex flex-col items-center justify-center text-slate-400 gap-3">
+            <div className="w-full min-h-[60vh] flex flex-col items-center justify-center text-slate-400 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
                 <span className="text-sm font-medium animate-pulse">Memulihkan sesi anda...</span>
             </div>
