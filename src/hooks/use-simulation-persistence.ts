@@ -14,20 +14,31 @@ export const SIMULATION_STORAGE_KEYS = {
 };
 
 /**
- * useSimulationPersistence (PURE SILENT EDITION)
- * ----------------------------------------------
- * Hook ini sekarang berjalan 100% otomatis (Silent).
- * - Tidak ada lagi "Draft Available".
- * - Tidak ada lagi "Restore Manual".
- * - Semua handled by Auto-Hydrate & Safety Guard.
+ * useSimulationPersistence (FULL PERSISTENCE EDITION)
+ * ---------------------------------------------------
+ * Hook ini sekarang mencakup penyimpanan Hasil Simulasi (Result).
+ * - Menangani penyimpanan state: Client, Input, Result, PDF, Token.
+ * - Memastikan data survive saat Refresh di halaman Result.
+ * - Tetap memiliki Safety Guard untuk mencegah overwrite data kosong.
  */
-export function useSimulationPersistence<TClient, TData>(
+export function useSimulationPersistence<TClient, TData, TResult = any>(
     key: string,
     currentClientData: TClient | null,
     currentInputData: TData | null,
     currentStep: number,
-    // Callback onHydrate WAJIB ada agar auto-load berfungsi
-    onHydrate?: (client: TClient | null, input: TData | null, step: number) => void
+    // Parameter Baru (Optional agar tidak merusak modul lain/Legacy)
+    currentResult: TResult | null = null,
+    currentPdfUrl: string | null = null,
+    currentMgcToken: string | null = null,
+    // Callback Hydration diperluas
+    onHydrate?: (
+        client: TClient | null,
+        input: TData | null,
+        step: number,
+        result: TResult | null,
+        pdfUrl: string | null,
+        token: string | null
+    ) => void
 ) {
     // State: Penanda apakah data sudah selesai dimuat dari storage
     const [isHydrated, setIsHydrated] = useState(false);
@@ -40,18 +51,22 @@ export function useSimulationPersistence<TClient, TData>(
             const stored = localStorage.getItem(key);
             if (stored) {
                 const parsed = JSON.parse(stored);
+                // Jika parent menyediakan callback onHydrate, kita inject semua data
                 if (parsed && onHydrate && typeof onHydrate === 'function') {
-                    console.log(`[Persistence] Auto-hydrating ${key}...`);
+                    console.log(`[Persistence] Auto-hydrating ${key} with Result...`);
                     onHydrate(
                         parsed.clientData || null,
                         parsed.inputData || null,
-                        typeof parsed.step === 'number' ? parsed.step : 0
+                        typeof parsed.step === 'number' ? parsed.step : 0,
+                        parsed.result || null,      // Restore Result
+                        parsed.pdfUrl || null,      // Restore PDF
+                        parsed.mgcToken || null     // Restore Token
                     );
                 }
             }
         } catch (e) {
             console.error(`[Persistence] Failed to hydrate ${key}:`, e);
-            // Jika korup, hapus storage agar tidak error selamanya
+            // Jika data korup, hapus storage agar tidak error selamanya
             localStorage.removeItem(key);
         } finally {
             // [CRITICAL] Buka gerbang save setelah loading selesai
@@ -84,6 +99,10 @@ export function useSimulationPersistence<TClient, TData>(
                 clientData: currentClientData,
                 inputData: currentInputData,
                 step: currentStep,
+                // Simpan State Hasil juga
+                result: currentResult,
+                pdfUrl: currentPdfUrl,
+                mgcToken: currentMgcToken,
                 lastModified: Date.now()
             };
 
@@ -95,7 +114,16 @@ export function useSimulationPersistence<TClient, TData>(
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [currentClientData, currentInputData, currentStep, isHydrated, key]);
+    }, [
+        currentClientData,
+        currentInputData,
+        currentStep,
+        currentResult,    // Dependency baru
+        currentPdfUrl,    // Dependency baru
+        currentMgcToken,  // Dependency baru
+        isHydrated,
+        key
+    ]);
 
     // 3. ACTIONS
     const clearStorage = useCallback(() => {
@@ -108,7 +136,6 @@ export function useSimulationPersistence<TClient, TData>(
 
         // --- COMPATIBILITY LAYER ---
         // (Properti dummy agar file lain seperti Budget/RiskProfile tidak error build)
-        // (Tapi logic-nya sudah dimatikan total)
         draftAvailable: false,
         restoreDraft: () => null,
         ignoreDraft: () => { },

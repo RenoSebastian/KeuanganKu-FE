@@ -76,21 +76,38 @@ export function CheckupWizard() {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
-    // --- SILENT PERSISTENCE (Auto-Hydrate Only) ---
-    const { isHydrated, clearStorage } = useSimulationPersistence<any, FinancialFormState>(
+    // --- FULL PERSISTENCE INTEGRATION (Result & Token Saved) ---
+    const { isHydrated, clearStorage } = useSimulationPersistence<
+        any,
+        FinancialFormState,
+        CheckupSimulationResult
+    >(
         SIMULATION_STORAGE_KEYS.CHECKUP,
         clientData,
         financialRecord,
         currentStep === "IDENTITY" ? 0 : currentStep === "FINANCIAL" ? 1 : 2,
-        // Callback: Langsung isi state saat data ditemukan di storage
-        (restoredClient, restoredInput, restoredStep) => {
+        // Passing Result & PDF Data to Storage Hook
+        simulationResult,
+        pdfUrl,
+        mgcToken,
+        // Callback: Restore data from storage (termasuk Result)
+        (restoredClient, restoredInput, restoredStep, restoredResult, restoredPdf, restoredToken) => {
             if (restoredClient) setClientData(restoredClient);
             if (restoredInput) setFinancialRecord(restoredInput);
 
-            // Auto-Navigate Logic
-            if (restoredStep === 2) setCurrentStep("RESULT");
-            else if (restoredStep === 1 && restoredClient) setCurrentStep("FINANCIAL");
-            else setCurrentStep("IDENTITY");
+            // Restore Hasil Simulasi & Token jika ada
+            if (restoredResult) setSimulationResult(restoredResult);
+            if (restoredPdf) setPdfUrl(restoredPdf);
+            if (restoredToken) setMgcToken(restoredToken);
+
+            // Auto-Navigate Logic (Lebih pintar menangani refresh di step Result)
+            if (restoredStep === 2 && restoredResult) {
+                setCurrentStep("RESULT");
+            } else if (restoredStep === 1 && restoredClient) {
+                setCurrentStep("FINANCIAL");
+            } else {
+                setCurrentStep("IDENTITY");
+            }
         }
     );
 
@@ -118,6 +135,7 @@ export function CheckupWizard() {
         clearStorage();
         setClientData(null);
         setFinancialRecord(INITIAL_FINANCIAL_STATE);
+        setSimulationResult(null); // Reset result juga
 
         setIsLoading(true);
         const toastId = toast.loading("Membaca file simulasi...");
@@ -130,14 +148,12 @@ export function CheckupWizard() {
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
                     // Set State Baru
-                    // Logic Import: backend mengembalikan object flat {client, spouse} di dalam decoded.client biasanya
-                    // Kita pastikan strukturnya konsisten
                     if (decoded.client) setClientData(decoded.client);
                     if (decoded.financial) setFinancialRecord(decoded.financial);
                     if (decoded.result) setSimulationResult(decoded.result);
 
                     setMgcToken(tokenString);
-                    setPdfUrl(null);
+                    setPdfUrl(null); // Reset PDF url karena token baru di-load
 
                     setCurrentStep("RESULT");
                     toast.success("Data simulasi berhasil di-import.", { id: toastId });
@@ -163,6 +179,9 @@ export function CheckupWizard() {
             setClientData(null);
             setFinancialRecord(INITIAL_FINANCIAL_STATE);
             setSimulationResult(null);
+            setPdfUrl(null);
+            setMgcToken(null);
+
             setCurrentStep("IDENTITY");
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -170,7 +189,6 @@ export function CheckupWizard() {
 
     // --- STEP HANDLERS ---
     const onIdentitySubmit = (data: any) => {
-        // Data yang diterima disini strukturnya sudah { client: {...}, spouse: {...} }
         setClientData(data);
         setCurrentStep("FINANCIAL");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -187,12 +205,10 @@ export function CheckupWizard() {
         const toastId = toast.loading("Menganalisis kesehatan keuangan...");
 
         try {
-            // [FIX CRITICAL] Payload Construction
-            // Sebelumnya: client: clientData -> menghasilkan nesting { client: { client: ... } }
-            // Sekarang: ...clientData -> menyebarkan properti { client: ..., spouse: ... } ke root payload
+            // [FIX CRITICAL] Payload Construction - Spread Operator
             const payload = {
                 ...financialRecord,
-                ...clientData, // Spread operator untuk menghindari double nesting
+                ...clientData,
             } as any;
 
             const response = await financialService.simulateAgentCheckup(payload);
@@ -234,8 +250,12 @@ export function CheckupWizard() {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
+            // Jika URL PDF belum ada (misal setelah refresh), regenerate
             if (!targetPdfUrl) {
-                const payload = { ...financialRecord, ...clientData } as any; // FIX disini juga
+                // [FIX CRITICAL] Payload Construction untuk Download
+                // Pastikan menggunakan spread operator (...) agar tidak double nesting
+                const payload = { ...financialRecord, ...clientData } as any;
+
                 const response = await financialService.simulateAgentCheckup(payload);
 
                 const pdfBuffer = response.pdfBuffer;
@@ -251,7 +271,7 @@ export function CheckupWizard() {
             }
 
             if (targetPdfUrl) {
-                const clientName = clientData.client?.name || "Client"; // Akses aman ke nama
+                const clientName = clientData.client?.name || "Client";
                 const cleanName = clientName.replace(/[^a-zA-Z0-9]/g, '_');
                 const filename = `Financial_Checkup_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
 
@@ -298,10 +318,8 @@ export function CheckupWizard() {
     }
 
     // Helper untuk menyiapkan data ke form agar saat BACK tidak kosong
-    // Kita harus "Membongkar" nesting agar form menerima format yang benar
     const getInitialIdentityData = () => {
         if (!clientData) return undefined;
-        // Jika clientData memiliki key 'client' (nested structure), kita ambil dalamnya
         if ('client' in clientData) {
             return {
                 ...clientData.client,
@@ -346,7 +364,7 @@ export function CheckupWizard() {
                             </div>
 
                             <ClientIdentityForm
-                                initialData={getInitialIdentityData()} // [FIX] Gunakan helper unwrap
+                                initialData={getInitialIdentityData()}
                                 onComplete={onIdentitySubmit}
                             />
                         </motion.div>
@@ -372,7 +390,7 @@ export function CheckupWizard() {
                                 data={{
                                     result: simulationResult as any,
                                     financial: financialRecord as any,
-                                    client: clientData ? clientData.client : {}, // [FIX] Akses ke client property
+                                    client: clientData ? clientData.client : {},
                                 }}
                                 onDownloadPdf={handleDownloadPdf}
                                 onReset={handleReset}
