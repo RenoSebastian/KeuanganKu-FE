@@ -4,24 +4,24 @@
 
 /**
  * Representasi satu jawaban kuesioner.
- * Backend menjumlahkan 'value' untuk menentukan skor total.
  */
 export interface RiskProfileAnswerItem {
     questionId: string;
-    value: number; // Bobot nilai (skor), bukan urutan A/B/C
+    value: number; // Bobot nilai (skor)
 }
 
 /**
- * DTO Utama yang dikirim ke endpoint /financial/simulation/risk-profile-pdf
- * Harus sesuai dengan CreateRiskProfileSimulationDto di Backend.
+ * [FIX]: Nama disesuaikan menjadi CreateRiskProfileSimulationDto 
+ * agar sesuai dengan import di financial.service.ts
  */
-export interface RiskProfilePayload {
+export interface CreateRiskProfileSimulationDto {
     clientName: string;
     clientDob: string; // Format: YYYY-MM-DD
     clientPhone?: string;
     clientJob?: string;
     clientCity?: string;
-    answers: RiskProfileAnswerItem[];
+    answers: Record<string, string> | RiskProfileAnswerItem[];
+    // Menggunakan Record<string, string> jika input dari UI berupa map { q1: "5" }
 }
 
 // ============================================================================
@@ -36,9 +36,6 @@ export enum RiskProfileCategory {
 
 /**
  * Struktur Alokasi Aset.
- * [REVISI]: Nama properti disesuaikan dengan DTO Backend agar Pie Chart tampil.
- * Sebelumnya: low, medium, high (menyebabkan undefined di chart)
- * Sekarang: lowRisk, mediumRisk, highRisk (sesuai backend)
  */
 export interface RiskAllocation {
     lowRisk: number;    // Pasar Uang / Deposito
@@ -58,7 +55,6 @@ export interface RiskAnalysisResult {
 
 /**
  * Struktur lengkap data yang ada di dalam Token .mgc
- * Digunakan untuk restore state atau menampilkan chart setelah simulasi/import.
  */
 export interface RiskProfileSimulationResult {
     meta: {
@@ -75,7 +71,7 @@ export interface RiskProfileSimulationResult {
         phone?: string;
     };
     financial: {
-        answers: RiskProfileAnswerItem[];
+        answers: Record<string, string> | RiskProfileAnswerItem[];
     };
     result: RiskAnalysisResult;
 }
@@ -84,18 +80,15 @@ export interface RiskProfileSimulationResult {
  * Return Value dari Service Frontend ke UI Component.
  */
 export interface RiskProfileServiceResponse {
-    pdfUrl: string;                     // Blob URL untuk preview/download PDF
-    token: string;                      // Raw Token String (.mgc)
-    data: RiskProfileSimulationResult;  // Data hasil decode untuk UI Chart
+    pdfUrl: string;
+    token: string;
+    data: RiskProfileSimulationResult;
 }
 
 // ============================================================================
 // 3. UI HELPER TYPES (FRONTEND ONLY)
 // ============================================================================
 
-/**
- * Struktur Data Pertanyaan untuk QuizSection Component.
- */
 export interface RiskQuestionUI {
     id: string;
     text: string;

@@ -21,6 +21,7 @@ import {
   FinancialRecordHistory,
   BudgetPlanHistory,
 } from "@/lib/types";
+import { CreateRiskProfileSimulationDto } from "@/lib/types/risk-profile";
 
 // [NEW] Import Adapter Types & Logic
 import {
@@ -328,6 +329,15 @@ export const financialService = {
   simulateAgentGoal: async (data: CreateGoalSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/goals", data, {
       responseType: 'blob'
+    });
+  },
+
+  // [NEW] Risk Profile Simulation (Fix PDF Download)
+  simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto): Promise<AxiosResponse<Blob>> => {
+    return await api.post("/financial/risk-profile/simulation", data, {
+      // PENTING: responseType 'arraybuffer' atau 'blob' agar Axios tidak menganggap ini teks/JSON
+      // dan merusak binary data PDF.
+      responseType: 'arraybuffer'
     });
   },
 
