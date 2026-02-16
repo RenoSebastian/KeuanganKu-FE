@@ -1,413 +1,263 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import {
-  Plus, Users, Settings2,
-  Download, Info, Loader2, AlertCircle, TrendingUp,
-  Droplets, GraduationCap
+  ShieldCheck,
+  Lock,
+  User,
+  Loader2,
+  Mail,
+  BarChart3,
+  CheckCircle2
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { authService } from "@/services/auth.service";
 
-// Import Komponen & Logic
-import { ChildWizard } from "@/components/features/education/child-wizard";
-import { ChildCard } from "@/components/features/education/child-card";
-import { SummaryBoard } from "@/components/features/education/summary-board";
-import { calculatePortfolio } from "@/lib/financial-math";
-import { ChildProfile, PortfolioSummary, PlanInput } from "@/lib/types";
-import { financialService } from "@/services/financial.service";
-import { EducationGuide } from "@/components/features/calculator/education-guide";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW] Import Modal
-
-export default function EducationPage() {
-  const [view, setView] = useState<"DASHBOARD" | "WIZARD">("DASHBOARD");
-
-  // Data Utama
-  const [children, setChildren] = useState<ChildProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Asumsi Ekonomi (Default Value)
-  const [assumptions, setAssumptions] = useState({
-    inflation: 10,
-    returnRate: 12
+export default function RegisterPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
   });
 
-  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  // State PDF Modal
-  const [showPdfModal, setShowPdfModal] = useState(false);
-
-  // --- STATE BACKGROUND SLIDESHOW (HEADER) ---
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const backgroundImages = [
-    '/images/pendidikan/rancangdanapendidikan1.webp',
-    '/images/pendidikan/rancangdanapendidikan2.webp'
-  ];
-
-  // --- EFFECT: BACKGROUND ROTATION ---
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
-      );
-    }, 5000); // Ganti gambar setiap 5 detik
-
-    return () => clearInterval(interval);
-  }, [backgroundImages.length]);
-
-  // --- 1. FETCH DATA & PREPARE ---
-  const fetchData = async () => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Konfirmasi password tidak cocok!");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // ✅ DATA SOURCE: Mengambil data bersih dari Service
-      const data = await financialService.getEducationPlans();
-
-      // A. Construct Child Profiles (Untuk kebutuhan Edit/Wizard)
-      const mappedChildren: ChildProfile[] = data.map((plan) => {
-        const breakdown = plan.calculation.stagesBreakdown;
-        const uniqueLevels = Array.from(new Set(breakdown.map((b: { level: any; }) => b.level)));
-
-        const reconstructedPlans: PlanInput[] = uniqueLevels.map((level) => {
-          const levelStr = level as string;
-          const entryItem = breakdown.find((b: { level: unknown; costType: string; }) => b.level === levelStr && b.costType === "ENTRY");
-          const annualItem = breakdown.find((b: { level: unknown; costType: string; }) => b.level === levelStr && b.costType === "ANNUAL");
-
-          // [FIX] Handle jika Annual Item tidak ada (Kasus S2/Lumpsum)
-          let monthlyFee = 0;
-          if (annualItem) {
-            const annualCost = annualItem.currentCost || 0;
-            monthlyFee = (levelStr === "S2")
-              ? annualCost / 2
-              : annualCost / 12;
-          }
-
-          return {
-            stageId: levelStr,
-            startGrade: 1,
-            costNow: {
-              entryFee: entryItem ? (entryItem.currentCost || 0) : 0,
-              monthlyFee: monthlyFee
-            }
-          };
-        });
-
-        return {
-          id: plan.plan.id,
-          name: plan.plan.childName,
-          dob: plan.plan.childDob,
-          gender: "L",
-          avatarColor: "bg-cyan-100 text-cyan-700",
-          plans: reconstructedPlans
-        };
+      await authService.register({
+        fullName: formData.fullName,
+        email: formData.email,
+        password: formData.password
       });
 
-      // B. Construct Initial Portfolio (Langsung dari BE)
-      const initialDetails = data.map((plan) => ({
-        childId: plan.plan.id,
-        childName: plan.plan.childName,
-        totalMonthlySaving: plan.calculation.monthlySaving,
-        stagesBreakdown: plan.calculation.stagesBreakdown
-      }));
-
-      const initialPortfolio: PortfolioSummary = {
-        grandTotalMonthlySaving: initialDetails.reduce((acc, curr) => acc + curr.totalMonthlySaving, 0),
-        totalFutureCost: data.reduce((acc, curr) => acc + curr.calculation.totalFutureCost, 0),
-        details: initialDetails
-      };
-
-      setChildren(mappedChildren);
-      setPortfolio(initialPortfolio);
-
-    } catch (error) {
-      console.error("Failed to fetch education plans:", error);
+      toast.success("Akun agen berhasil dibuat! Silakan login.");
+      router.push("/login");
+    } catch (error: any) {
+      console.error("Register Error:", error);
+      toast.error(error.message || "Gagal melakukan registrasi.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // --- 2. CLIENT-SIDE RE-CALCULATION ---
-  useEffect(() => {
-    if (children.length > 0) {
-      const result = calculatePortfolio(children, assumptions.inflation, assumptions.returnRate);
-      setPortfolio(result);
-    }
-  }, [children, assumptions]);
-
-  // --- HANDLERS ---
-  const handleWizardSuccess = () => {
-    fetchData();
-    setView("DASHBOARD");
-  };
-
-  const handleDeleteChild = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus rencana ini? Data tidak dapat dikembalikan.")) {
-      try {
-        await financialService.deleteEducationPlan(id);
-        fetchData();
-      } catch (error) {
-        alert("Gagal menghapus data.");
-      }
-    }
-  };
-
-  // [NEW] PDF Download Handler
-  const handleDownloadPDF = async () => {
-    if (showPdfModal) return;
-
-    if (children.length === 0) {
-      alert("Belum ada rencana pendidikan yang dibuat.");
-      return;
-    }
-
-    try {
-      setShowPdfModal(true);
-      // Panggil endpoint download PDF untuk SEMUA anak (Family Report)
-      await financialService.downloadEducationPdf();
-
-      setTimeout(() => setShowPdfModal(false), 500);
-    } catch (error) {
-      console.error("PDF Error:", error);
-      setShowPdfModal(false);
-      alert("Gagal mengunduh PDF. Silakan coba lagi.");
-    }
-  };
-
   return (
-    <div className="min-h-screen w-full bg-slate-50/50 pb-24 md:pb-12 overflow-x-hidden selection:bg-cyan-100 selection:text-cyan-900">
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 font-sans selection:bg-blue-100 selection:text-blue-900">
 
-      {/* 1. MOUNT MODAL LOADING */}
-      <PdfLoadingModal isOpen={showPdfModal} />
+      {/* === LEFT SIDE - BRAND NARRATIVE === */}
+      {/* Background: Dark Blue Slate untuk kesan korporat yang dalam */}
+      <div className="hidden md:flex flex-col bg-slate-900 text-white p-12 justify-between relative overflow-hidden">
 
-      {/* --- HEADER (DYNAMIC BACKGROUND SLIDESHOW) --- */}
-      <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-cyan-900">
+        {/* Background Gradients (Blue & Cyan) */}
+        <div className="absolute top-0 right-0 w-125 h-125 bg-blue-600/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-125 h-125 bg-cyan-600/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
 
-        {/* 1. LAYER GAMBAR (ABSOLUTE) */}
-        <div className="absolute inset-0 w-full h-full z-0">
-          {backgroundImages.map((image, index) => (
-            <div
-              key={image}
-              className={cn(
-                "absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ease-in-out",
-                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-              )}
-              style={{ backgroundImage: `url(${image})` }}
-            />
-          ))}
-
-          {/* Overlay Gradient (Cyan/Blue Theme) */}
-          <div className="absolute inset-0 bg-cyan-500/80 mix-blend-multiply" />
-          <div className="absolute inset-0 bg-linear-to-t from-cyan-600 via-cyan-600/40 to-transparent" />
+        <div className="z-10 relative">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10">
+              <Image
+                src="/images/logokeuanganku.png"
+                alt="Logo Keuanganku"
+                width={140}
+                height={40}
+                className="object-contain brightness-0 invert" // Membuat logo putih agar kontras di background gelap
+                priority
+              />
+            </div>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-bold uppercase tracking-wider">
+            Enterprise System
+          </div>
         </div>
 
-        {/* 2. LAYER DEKORASI (Z-10) */}
-        <div className="absolute top-[-10%] right-[-5%] w-150 h-150 bg-cyan-400/10 rounded-full blur-[100px] pointer-events-none z-10" />
-        <div className="absolute bottom-0 left-0 w-125 h-125 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none z-10" />
-
-        {/* 3. LAYER KONTEN (Z-20) */}
-        <div className="relative z-20 max-w-7xl mx-auto text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="z-10 space-y-10 relative">
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-lg justify-center md:justify-start">
-              <Droplets className="w-4 h-4 text-cyan-300" />
-              <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Education Planner</span>
-            </div>
-
-            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight drop-shadow-xl">
-              Rencanakan <span className="text-cyan-300">Masa Depan</span> Anak
-            </h1>
-
-            <p className="text-cyan-50 text-sm md:text-base max-w-2xl leading-relaxed drop-shadow-md">
-              Simulasi dana pendidikan dengan metode <i>Sinking Fund</i>. Akurat, transparan, dan terintegrasi.
+            <h2 className="text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight">
+              Transformasi <br />
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-cyan-400">
+                Konsultasi Finansial
+              </span>
+            </h2>
+            <p className="text-lg text-slate-400 max-w-md leading-relaxed">
+              Bergabunglah dengan jaringan agen profesional yang menggunakan data untuk memberikan solusi, bukan sekadar janji.
             </p>
           </div>
 
-          {view === "DASHBOARD" && (
-            <Button
-              onClick={() => setView("WIZARD")}
-              className="bg-white text-cyan-900 hover:bg-cyan-50 font-bold rounded-xl h-12 px-8 shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Tambah Rencana
-            </Button>
-          )}
+          <div className="grid gap-6">
+            <FeatureItem
+              icon={<BarChart3 className="w-5 h-5 text-blue-300" />}
+              title="Analisa Berbasis Data"
+              desc="Visualisasi arus kas yang presisi."
+            />
+            <FeatureItem
+              icon={<ShieldCheck className="w-5 h-5 text-cyan-300" />}
+              title="Simulasi Risiko Riil"
+              desc="Hitungan proteksi yang logis & transparan."
+            />
+          </div>
+        </div>
+
+        <div className="z-10 pt-8 border-t border-white/10 relative">
+          <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            Tersertifikasi oleh Asosiasi Perencana Keuangan
+          </p>
         </div>
       </div>
 
-      {/* --- MAIN CONTENT (OVERLAPPING HEADER) --- */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 md:px-6 -mt-20">
+      {/* === RIGHT SIDE - FORM === */}
+      <div className="flex items-center justify-center p-6 bg-slate-50 relative overflow-hidden">
 
-        {view === "WIZARD" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="p-0 rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/40 relative overflow-hidden">
-              <div className="p-6 md:p-10 relative z-10">
-                <ChildWizard
-                  onSave={handleWizardSuccess}
-                  onCancel={() => setView("DASHBOARD")}
-                />
-              </div>
-            </Card>
-          </div>
-        )}
+        {/* Decorative BG Right Side */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
-        {view === "DASHBOARD" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-12">
+        <Card className="w-full max-w-md border-none shadow-[0_20px_50px_rgba(30,58,138,0.12)] bg-white/80 backdrop-blur-xl rounded-3xl relative z-10">
+          <CardHeader className="space-y-1 text-center pb-8">
+            <CardTitle className="text-2xl font-bold text-slate-900">Registrasi Mitra</CardTitle>
+            <CardDescription className="text-slate-500">
+              Buat akun untuk akses dashboard Pro-Agent
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleRegister} className="space-y-5">
 
-            {/* LEFT COLUMN: Main Data */}
-            <div className="lg:col-span-8 space-y-6">
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-                <SummaryBoard summary={portfolio} isLoading={isLoading} />
-              </div>
-
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-lg font-bold text-slate-700 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-cyan-600" />
-                    Daftar Rencana
-                  </h3>
-                  {children.length > 0 && (
-                    <span className="text-xs font-bold bg-white border border-slate-200 text-slate-500 px-3 py-1 rounded-full">
-                      {children.length} Anak
-                    </span>
-                  )}
+              {/* Full Name */}
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Nama Lengkap & Gelar</Label>
+                <div className="relative group">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    placeholder="Contoh: Budi Santoso, CFP"
+                    className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
+              </div>
 
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Email</Label>
+                <div className="relative group">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="nama@agency.co.id"
+                    className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password Group */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Password</Label>
+                  <div className="relative group">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="••••••"
+                      className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Konfirmasi</Label>
+                  <div className="relative group">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      placeholder="••••••"
+                      className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold h-12 mt-4 rounded-xl shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.01]"
+                disabled={isLoading}
+              >
                 {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-16 gap-3 bg-white rounded-3xl border border-slate-100 shadow-sm">
-                    <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
-                    <p className="text-sm text-slate-400 font-medium">Memuat data...</p>
-                  </div>
-                ) : children.length === 0 ? (
-                  <Card className="group relative overflow-hidden p-12 border-dashed border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-cyan-200 transition-all duration-500 rounded-3xl flex flex-col items-center justify-center text-center">
-                    <div className="relative z-10 w-16 h-16 bg-cyan-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                      <GraduationCap className="w-8 h-8 text-cyan-500 group-hover:text-cyan-600 transition-colors" />
-                    </div>
-                    <div className="relative z-10 max-w-sm">
-                      <h3 className="text-lg font-bold text-slate-800 mb-2">Belum ada simulasi</h3>
-                      <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-                        Mulai tambahkan profil anak untuk melihat kalkulasi biaya pendidikan di masa depan.
-                      </p>
-
-                      <Button
-                        onClick={() => setView("WIZARD")}
-                        className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 h-10"
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Mulai Sekarang
-                      </Button>
-                    </div>
-                  </Card>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifikasi Data...
+                  </>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4">
-                    {children.map((child, idx) => {
-                      const childResult = portfolio?.details.find(d => d.childId === child.id);
-                      return (
-                        <div key={child.id} className="animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${idx * 100}ms` }}>
-                          <ChildCard
-                            profile={child}
-                            result={childResult}
-                            onDelete={handleDeleteChild}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
+                  "Daftarkan Akun Agen"
                 )}
-              </div>
+              </Button>
+            </form>
+          </CardContent>
+
+          <CardFooter className="flex flex-col space-y-5 border-t border-slate-100 pt-6">
+            <p className="text-sm text-slate-500 text-center font-medium">
+              Sudah memiliki akun?{" "}
+              <Link href="/login" className="text-blue-600 font-bold hover:text-indigo-600 hover:underline transition-colors">
+                Login Dashboard
+              </Link>
+            </p>
+            <div className="flex items-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest justify-center opacity-70">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+              256-bit Secure Encryption
             </div>
-
-            {/* RIGHT COLUMN: Settings */}
-            <div className="lg:col-span-4 space-y-6">
-              <EducationGuide />
-              <div className="sticky top-6 space-y-6">
-                <Card className="p-6 rounded-3xl border border-slate-100 bg-white shadow-lg shadow-slate-100/80">
-
-                  <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-100">
-                    <div className="p-2.5 bg-cyan-50 rounded-xl">
-                      <Settings2 className="w-5 h-5 text-cyan-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-base">Parameter Ekonomi</h3>
-                      <p className="text-xs text-slate-400">Sesuaikan asumsi hitungan</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-8">
-                    {/* SLIDER INFLASI */}
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-end">
-                        <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5" /> Inflasi Pendidikan
-                        </Label>
-                        <div className={cn(
-                          "text-xs font-bold px-2.5 py-1 rounded-md border transition-colors",
-                          assumptions.inflation > 10 ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-50 text-slate-600 border-slate-100"
-                        )}>
-                          {assumptions.inflation}%
-                        </div>
-                      </div>
-                      <Slider
-                        value={assumptions.inflation} // [FIX] Array
-                        onChange={(val: number) => setAssumptions(prev => ({ ...prev, inflation: val }))}
-                        min={5} max={20} step={1}
-                        className="py-2"
-                      />
-                    </div>
-
-                    {/* SLIDER RETURN INVESTASI */}
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-end">
-                        <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                          <TrendingUp className="w-3.5 h-3.5" /> Return Investasi
-                        </Label>
-                        <div className={cn(
-                          "text-xs font-bold px-2.5 py-1 rounded-md border transition-colors",
-                          assumptions.returnRate > 10 ? "bg-green-50 text-green-600 border-green-100" : "bg-slate-50 text-slate-600 border-slate-100"
-                        )}>
-                          {assumptions.returnRate}%
-                        </div>
-                      </div>
-                      <Slider
-                        value={assumptions.returnRate} // [FIX] Array
-                        onChange={(val: number) => setAssumptions(prev => ({ ...prev, returnRate: val }))}
-                        min={2} max={20} step={1}
-                        className="py-2"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-8 bg-slate-50 p-4 rounded-2xl flex gap-3 border border-slate-100">
-                    <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-slate-500 leading-relaxed text-justify">
-                      Geser slider di atas untuk melihat dampak inflasi dan return investasi terhadap total tabungan bulanan secara langsung.
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    className="w-full mt-4 rounded-xl h-10 text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800 font-medium text-xs"
-                    onClick={handleDownloadPDF} // [UPDATED]
-                    disabled={showPdfModal || children.length === 0}
-                  >
-                    {showPdfModal ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="w-3.5 h-3.5 mr-2" />
-                    )}
-                    {showPdfModal ? "Memproses..." : "Download Laporan Keluarga"}
-                  </Button>
-                </Card>
-              </div>
-            </div>
-
-          </div>
-        )}
-
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
+}
+
+// Helper Component untuk Left Side
+function FeatureItem({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+  return (
+    <div className="flex items-start gap-4 p-3 rounded-2xl hover:bg-white/5 transition-colors cursor-default">
+      <div className="mt-1 bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-sm">
+        {icon}
+      </div>
+      <div>
+        <p className="font-bold text-white text-base">{title}</p>
+        <p className="text-sm text-slate-400 leading-snug">{desc}</p>
+      </div>
+    </div>
+  )
 }

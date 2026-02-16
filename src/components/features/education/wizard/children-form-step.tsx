@@ -1,0 +1,182 @@
+"use client";
+
+import React from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Baby, Plus, Trash2, GraduationCap, Calculator, ChevronLeft } from "lucide-react";
+import { SchoolLevel, CostType } from "@/lib/types/education";
+
+// Schema Definition - Menghapus method sesuai standar baru (Pure Flat/Annuity)
+const stageSchema = z.object({
+    level: z.nativeEnum(SchoolLevel),
+    costType: z.nativeEnum(CostType),
+    currentCost: z.coerce.number().min(0, "Biaya tidak boleh negatif"),
+    yearsToStart: z.coerce.number().min(0, "Tahun mulai tidak valid"),
+});
+
+const childPlanSchema = z.object({
+    childName: z.string().min(2, "Nama anak minimal 2 karakter"),
+    childDob: z.string().min(1, "Tanggal lahir anak wajib diisi"),
+    inflationRate: z.coerce.number().min(0),
+    returnRate: z.coerce.number().min(0),
+    stages: z.array(stageSchema).min(1, "Minimal pilih 1 jenjang sekolah"),
+});
+
+const childrenFormSchema = z.object({
+    childrenPlans: z.array(childPlanSchema).min(1, "Minimal masukkan 1 data anak"),
+});
+
+type ChildrenFormValues = z.infer<typeof childrenFormSchema>;
+
+interface ChildrenFormStepProps {
+    initialData?: {
+        childrenPlans?: {
+            childName?: string;
+            childDob?: string;
+            inflationRate?: number;
+            returnRate?: number;
+            stages?: any[];
+        }[];
+    };
+    onNext: (data: ChildrenFormValues) => void;
+    onBack: () => void;
+}
+
+export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
+    initialData,
+    onNext,
+    onBack
+}) => {
+    // Helper untuk default stages jika kosong
+    const defaultStages = [
+        { level: SchoolLevel.SD, costType: CostType.ENTRY, currentCost: 0, yearsToStart: 0 },
+        { level: SchoolLevel.SMP, costType: CostType.ENTRY, currentCost: 0, yearsToStart: 0 },
+        { level: SchoolLevel.SMA, costType: CostType.ENTRY, currentCost: 0, yearsToStart: 0 },
+        { level: SchoolLevel.S1, costType: CostType.ENTRY, currentCost: 0, yearsToStart: 0 },
+    ];
+
+    // Persiapkan Default Values dengan Sanitasi (Menghapus mapping method)
+    const sanitizedDefaultValues: ChildrenFormValues = {
+        childrenPlans: initialData?.childrenPlans?.map(plan => ({
+            childName: plan.childName ?? "",
+            childDob: plan.childDob ?? "",
+            inflationRate: plan.inflationRate ?? 10,
+            returnRate: plan.returnRate ?? 12,
+            stages: (plan.stages && plan.stages.length > 0) ? plan.stages : defaultStages
+        })) as any || [{
+            childName: "",
+            childDob: "",
+            inflationRate: 10,
+            returnRate: 12,
+            stages: defaultStages
+        }],
+    };
+
+    const form = useForm<ChildrenFormValues>({
+        // Menggunakan 'as any' pada resolver untuk bypass issue z.coerce TypeScript
+        resolver: zodResolver(childrenFormSchema) as any,
+        defaultValues: sanitizedDefaultValues,
+        mode: "onChange"
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        name: "childrenPlans",
+        control: form.control,
+    });
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                        <Baby className="w-5 h-5 text-primary" /> Daftar Anak Klien
+                    </h3>
+                    <p className="text-sm text-muted-foreground">Input rencana sekolah anak.</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => append({
+                    childName: "", childDob: "", inflationRate: 10, returnRate: 12, stages: defaultStages
+                })} className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> Tambah Anak
+                </Button>
+            </div>
+
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onNext)} className="space-y-6">
+                    <Accordion type="multiple" defaultValue={["child-0"]} className="space-y-4">
+                        {fields.map((field, index) => (
+                            <AccordionItem key={field.id} value={`child-${index}`} className="border rounded-lg bg-card px-4">
+                                <div className="flex items-center justify-between py-2">
+                                    <AccordionTrigger className="hover:no-underline py-2">
+                                        <span className="font-semibold text-primary">{form.watch(`childrenPlans.${index}.childName`) || `Anak Ke-${index + 1}`}</span>
+                                    </AccordionTrigger>
+                                    {fields.length > 1 && (
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                                <AccordionContent className="pt-2 pb-6 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name={`childrenPlans.${index}.childName`} render={({ field }) => (
+                                            <FormItem><FormLabel>Nama Anak</FormLabel><FormControl><Input placeholder="Andi" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name={`childrenPlans.${index}.childDob`} render={({ field }) => (
+                                            <FormItem><FormLabel>Tanggal Lahir</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                    </div>
+
+                                    <div className="bg-muted/30 p-4 rounded-md grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name={`childrenPlans.${index}.inflationRate`} render={({ field }) => (
+                                            <FormItem><FormLabel className="text-xs">Inflasi (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name={`childrenPlans.${index}.returnRate`} render={({ field }) => (
+                                            <FormItem><FormLabel className="text-xs">Return Investasi (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl></FormItem>
+                                        )} />
+                                        {/* Dropdown "Metode Hitung" Dihapus karena default FLAT */}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-medium flex items-center gap-2 underline">
+                                            <GraduationCap className="w-4 h-4" /> Rincian Biaya
+                                        </h4>
+                                        <div className="overflow-x-auto border rounded-md">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-muted"><tr><th className="px-3 py-2 text-left">Jenjang</th><th className="px-3 py-2">Tahun Lagi</th><th className="px-3 py-2">Biaya Skrg (Rp)</th></tr></thead>
+                                                <tbody className="divide-y">
+                                                    {form.watch(`childrenPlans.${index}.stages`).map((_, sIndex) => (
+                                                        <tr key={sIndex}>
+                                                            <td className="px-3 py-2 font-medium">{form.getValues(`childrenPlans.${index}.stages.${sIndex}.level`)}</td>
+                                                            <td className="px-3 py-2 w-24">
+                                                                <FormField control={form.control} name={`childrenPlans.${index}.stages.${sIndex}.yearsToStart`} render={({ field }) => (
+                                                                    <Input type="number" className="h-8 px-2" {...field} />
+                                                                )} />
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <FormField control={form.control} name={`childrenPlans.${index}.stages.${sIndex}.currentCost`} render={({ field }) => (
+                                                                    <Input type="number" className="h-8 px-2" {...field} />
+                                                                )} />
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                    <div className="flex items-center justify-between gap-4 pt-4 border-t">
+                        <Button type="button" variant="ghost" onClick={onBack} className="flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Kembali</Button>
+                        <Button type="submit" disabled={form.formState.isSubmitting} className="px-10"><Calculator className="w-4 h-4 mr-2" /> Hitung Simulasi</Button>
+                    </div>
+                </form>
+            </Form>
+        </div>
+    );
+};

@@ -34,3 +34,14 @@ export function formatBytes(bytes: number, decimals = 2): string {
 export function formatNumber(num: number): string {
     return new Intl.NumberFormat('id-ID').format(num);
 }
+
+export const formatCurrency = (value: number | string): string => {
+    const amount = typeof value === "string" ? parseFloat(value) : value;
+
+    return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount || 0);
+};
