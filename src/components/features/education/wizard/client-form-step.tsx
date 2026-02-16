@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, MapPin, Briefcase, Wallet, Calendar, Phone } from "lucide-react";
+import { User, MapPin, Briefcase, Wallet, Calendar, Phone, ArrowRight } from "lucide-react";
 
 // Schema definisi strict
 const clientFormSchema = z.object({
@@ -30,8 +30,9 @@ interface ClientFormStepProps {
 
 export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onNext }) => {
     const form = useForm<ClientFormValues>({
-        resolver: zodResolver(clientFormSchema),
-        // KUNCI PERBAIKAN: Default values harus eksplisit, jangan biarkan undefined masuk ke form control
+        // [FIX] Menggunakan 'as any' untuk menghindari konflik tipe TS pada z.coerce
+        resolver: zodResolver(clientFormSchema) as any,
+        // KUNCI PERBAIKAN: Default values harus eksplisit
         defaultValues: {
             clientName: initialData?.clientName ?? "",
             clientDob: initialData?.clientDob ?? "",
@@ -63,7 +64,12 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Nama Lengkap Klien</FormLabel>
-                                        <FormControl><div className="relative"><User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Contoh: Bpk. Dharma" {...field} /></div></FormControl>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input className="pl-9" placeholder="Contoh: Bpk. Dharma" {...field} />
+                                            </div>
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -74,7 +80,12 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Tanggal Lahir</FormLabel>
-                                        <FormControl><div className="relative"><Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input type="date" className="pl-9" {...field} /></div></FormControl>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input type="date" className="pl-9" {...field} />
+                                            </div>
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -85,7 +96,12 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Kota Domisili</FormLabel>
-                                        <FormControl><div className="relative"><MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Jakarta" {...field} /></div></FormControl>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input className="pl-9" placeholder="Jakarta" {...field} />
+                                            </div>
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -96,7 +112,12 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Pekerjaan</FormLabel>
-                                        <FormControl><div className="relative"><Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Wiraswasta" {...field} /></div></FormControl>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input className="pl-9" placeholder="Wiraswasta" {...field} />
+                                            </div>
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -107,7 +128,12 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>No. Telepon (Opsional)</FormLabel>
-                                        <FormControl><div className="relative"><Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="081..." {...field} /></div></FormControl>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input className="pl-9" placeholder="081..." {...field} />
+                                            </div>
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -121,13 +147,17 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                         <FormControl>
                                             <div className="relative">
                                                 <Wallet className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                <span className="absolute left-9 top-2.5 text-sm font-medium">Rp</span>
+                                                <span className="absolute left-9 top-2.5 text-sm font-medium text-muted-foreground">Rp</span>
                                                 <Input
                                                     type="number"
                                                     className="pl-16"
                                                     placeholder="0"
                                                     {...field}
-                                                    onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                                    // Handle manual change untuk memastikan number
+                                                    onChange={(e) => {
+                                                        const val = e.target.valueAsNumber;
+                                                        field.onChange(isNaN(val) ? 0 : val);
+                                                    }}
                                                 />
                                             </div>
                                         </FormControl>
@@ -137,7 +167,9 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                             />
                         </div>
                         <div className="flex justify-end pt-4">
-                            <Button type="submit" className="w-full md:w-auto px-8">Lanjut ke Data Anak</Button>
+                            <Button type="submit" className="w-full md:w-auto px-8" disabled={form.formState.isSubmitting}>
+                                Lanjut ke Data Anak <ArrowRight className="ml-2 w-4 h-4" />
+                            </Button>
                         </div>
                     </form>
                 </Form>

@@ -4,7 +4,6 @@ import React from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,7 +35,6 @@ const childrenFormSchema = z.object({
 
 type ChildrenFormValues = z.infer<typeof childrenFormSchema>;
 
-// Interface ini kita buat LONGGAR agar menerima data dari Page (Partial)
 interface ChildrenFormStepProps {
     initialData?: {
         childrenPlans?: {
@@ -88,7 +86,8 @@ export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
     };
 
     const form = useForm<ChildrenFormValues>({
-        resolver: zodResolver(childrenFormSchema),
+        // [NOTE] Menggunakan 'as any' pada resolver untuk bypass issue z.coerce
+        resolver: zodResolver(childrenFormSchema) as any,
         defaultValues: sanitizedDefaultValues,
         mode: "onChange"
     });
@@ -157,9 +156,12 @@ export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
                                             </FormItem>
                                         )} />
                                     </div>
-                                    {/* Tabel Stages disederhanakan visualnya disini, logic tetap sama */}
+
                                     <div className="space-y-3">
-                                        <FormLabel className="flex items-center gap-2 underline"><GraduationCap className="w-4 h-4" /> Rincian Biaya</FormLabel>
+                                        {/* [FIX] Ganti FormLabel menjadi h4/div karena tidak di dalam FormField */}
+                                        <h4 className="text-sm font-medium flex items-center gap-2 underline">
+                                            <GraduationCap className="w-4 h-4" /> Rincian Biaya
+                                        </h4>
                                         <div className="overflow-x-auto border rounded-md">
                                             <table className="w-full text-sm">
                                                 <thead className="bg-muted"><tr><th className="px-3 py-2 text-left">Jenjang</th><th className="px-3 py-2">Tahun Lagi</th><th className="px-3 py-2">Biaya Skrg (Rp)</th></tr></thead>
