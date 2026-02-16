@@ -6,16 +6,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { InfoPopover } from "@/components/ui/info-popover";
-import { Label } from "@/components/ui/label"; // Pastikan komponen Label ada/diimport
+import { Label } from "@/components/ui/label";
 import {
   ShieldCheck, HeartPulse, BadgeDollarSign,
   RefreshCcw, Download, Landmark, Wallet,
-  TrendingUp, AlertCircle, CheckCircle2, Loader2,
-  Calculator, User, MapPin, Briefcase, Calendar, Save, Upload, FileJson,
-  Play, FileText // Icon tambahan
+  CheckCircle2, Loader2,
+  Calculator, User, MapPin, Briefcase, Calendar, Upload, FileJson,
+  Play
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatRupiah } from "@/lib/financial-math";
 import { CreateInsuranceSimulationDto, InsuranceSimulationResult } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
@@ -59,7 +58,7 @@ export default function InsurancePage() {
   // --- STATE: RESULT & UI ---
   const [result, setResult] = useState<InsuranceSimulationResult | null>(null);
 
-  // [MODIFIED] State untuk menampung file di memori (Blob URL) agar tidak auto-download
+  // State untuk menampung file di memori (Blob URL) agar tidak auto-download
   const [generatedFiles, setGeneratedFiles] = useState<{
     pdfUrl: string | null;
     mgcToken: string | null;
@@ -95,8 +94,6 @@ export default function InsurancePage() {
   // --- HANDLERS UTILS ---
   const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setClientData({ ...clientData, [e.target.name]: e.target.value });
-    // Jika identitas berubah, file PDF lama mungkin namanya salah, tapi data angka masih valid.
-    // Opsional: Reset generatedFiles jika ingin strict.
   };
 
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
@@ -104,8 +101,7 @@ export default function InsurancePage() {
     if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 
-    // [UX IMPORTANT] Jika input angka berubah, hasil kalkulasi sebelumnya TIDAK VALID.
-    // Kita hapus result dan file generated untuk memaksa user klik "Hitung" lagi.
+    // Reset result jika input berubah
     if (result) {
       setResult(null);
       setGeneratedFiles(null);
@@ -222,54 +218,79 @@ export default function InsurancePage() {
     }
   };
 
-  // --- IMPORT LOGIC ---
+  // ===========================================================================
+  // 3. CORE LOGIC: IMPORT .MGC (DIPERBAIKI)
+  // ===========================================================================
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset value agar input bisa mendeteksi file yang sama
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
     setIsImporting(true);
     const reader = new FileReader();
 
     reader.onload = async (event) => {
       try {
-        const tokenContent = event.target?.result as string;
+        const rawContent = event.target?.result as string;
+
+        // [FIX] Sanitasi Input: Hapus spasi/newline agar signature match
+        const tokenContent = rawContent ? rawContent.trim() : "";
+
+        if (!tokenContent) throw new Error("File kosong");
+
         const response = await financialService.decodeSimulationToken(tokenContent);
 
-        if (response.data.meta?.module && response.data.meta.module !== 'INSURANCE') {
-          toast.error("Format Salah", { description: "File ini bukan data simulasi Asuransi." });
+        // [FIX] Handling Struktur Data (Safe Unwrapping)
+        const rootData = response.data || response;
+
+        // Validasi Module
+        if (rootData.meta?.module && rootData.meta.module !== 'INSURANCE') {
+          toast.error("Format Salah", { description: `File ini adalah data ${rootData.meta.module}, bukan Asuransi.` });
           return;
         }
 
-        const { client, financial } = response.data;
+        const { client, financial } = rootData;
+
+        if (!client || !financial) throw new Error("Struktur data tidak valid.");
 
         // Populate Form
         setClientData({
-          clientName: client.name,
-          clientDob: client.dob,
-          clientCity: client.city,
-          clientJob: client.job,
+          clientName: client.name || "",
+          clientDob: client.dob || "",
+          clientCity: client.city || "",
+          clientJob: client.job || "",
           clientPhone: client.phone || ""
         });
 
         const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
-        setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive("");
-        setDebtOther(fmt(financial.existingDebt || 0));
-        setAnnualIncome(fmt((financial.monthlyExpense || 0) * 12));
-        setProtectionDuration(String(financial.protectionDuration || 10));
-        setInflation(financial.inflationRate || 5);
-        setReturnRate(financial.returnRate || 6);
-        setFinalExpense(fmt(financial.finalExpense || 0));
-        setExistingInsurance(fmt(financial.existingCoverage || 0));
 
-        toast.success("Restore Berhasil", { description: "Data simulasi telah dimuat kembali. Silakan klik Hitung." });
+        // Reset breakdown debts (Backend hanya menyimpan total sum 'existingDebt')
+        setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive("");
+        setDebtOther(fmt(Number(financial.existingDebt) || 0));
+
+        // Konversi Bulanan ke Tahunan untuk tampilan input
+        setAnnualIncome(fmt((Number(financial.monthlyExpense) || 0) * 12));
+
+        setProtectionDuration(String(financial.protectionDuration || 10));
+        setInflation(Number(financial.inflationRate) || 5);
+        setReturnRate(Number(financial.returnRate) || 6);
+        setFinalExpense(fmt(Number(financial.finalExpense) || 0));
+        setExistingInsurance(fmt(Number(financial.existingCoverage) || 0));
+
+        toast.success("Restore Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
+
+        // Reset Result agar user dipaksa klik "Hitung" lagi
         setResult(null);
         setGeneratedFiles(null);
 
-      } catch (error) {
-        toast.error("File Rusak", { description: "Gagal membaca file backup." });
+      } catch (error: any) {
+        console.error("Import Error:", error);
+        const backendMessage = error.response?.data?.message || error.message;
+        toast.error("Gagal Import File", { description: backendMessage });
       } finally {
         setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
     reader.readAsText(file);
@@ -545,7 +566,7 @@ export default function InsurancePage() {
               <Button
                 onClick={handleCalculateOnly}
                 disabled={isLoading}
-                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all"
+                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all text-white"
               >
                 {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Play className="w-5 h-5 mr-2" />}
                 Lihat Analisa
@@ -685,7 +706,7 @@ export default function InsurancePage() {
                   onClick={() => { setShowKprModal(false); setShowKpmModal(false); setShowIncomeModal(false); }}>
                   Batal
                 </Button>
-                <Button className="flex-2 h-12 rounded-xl font-bold bg-brand-600 shadow-lg shadow-brand-500/30"
+                <Button className="flex-2 h-12 rounded-xl font-bold bg-brand-600 shadow-lg shadow-brand-500/30 text-white"
                   onClick={() => applyCalculation(showIncomeModal ? 'INCOME' : showKprModal ? 'KPR' : 'KPM')}>
                   Terapkan Hasil
                 </Button>

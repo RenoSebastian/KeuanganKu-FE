@@ -9,18 +9,17 @@ import { Label } from "@/components/ui/label";
 import {
   Calculator, User, Briefcase, TrendingUp,
   RefreshCcw, Download, Hourglass, PiggyBank,
-  AlertCircle, Loader2, Save, Upload, FileJson,
+  AlertCircle, Loader2, Upload, FileJson,
   MapPin, Calendar, CheckCircle2, Play
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatRupiah } from "@/lib/financial-math";
 import { CreatePensionSimulationDto, PensionSimulationResult } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { PensionGuide } from "@/components/features/calculator/pension-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 import { toast } from "sonner";
 
-// Import Visual Components (Fase 2)
+// Import Visual Components
 import { PensionTimelineCard } from "@/components/features/calculator/pension/pension-timeline-card";
 import { PensionRealityCard } from "@/components/features/calculator/pension/pension-reality-card";
 import { PensionSolutionCard } from "@/components/features/calculator/pension/pension-solution-card";
@@ -200,58 +199,84 @@ export default function PensionPage() {
     }
   };
 
-  // --- CORE LOGIC 3: IMPORT .MGC ---
+  // ===========================================================================
+  // 3. CORE LOGIC: IMPORT .MGC (DIPERBAIKI)
+  // ===========================================================================
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset value input agar file yang sama bisa dipilih ulang jika gagal
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
     setIsImporting(true);
     const reader = new FileReader();
 
     reader.onload = async (event) => {
       try {
-        const tokenContent = event.target?.result as string;
+        const rawContent = event.target?.result as string;
+
+        // [FIX] Sanitasi Input: Hapus spasi/newline agar signature match
+        const tokenContent = rawContent ? rawContent.trim() : "";
+
+        if (!tokenContent) throw new Error("File kosong");
+
         const response = await financialService.decodeSimulationToken(tokenContent);
 
-        if (response.data.meta?.module && response.data.meta.module !== 'PENSION') {
-          toast.error("Format Salah", { description: "File ini bukan data simulasi Pensiun." });
+        // [FIX] Handling Unwrapping Data
+        const rootData = response.data || response;
+
+        // Validasi Module Type
+        if (rootData.meta?.module && rootData.meta.module !== 'PENSION') {
+          toast.error("Modul Tidak Cocok", {
+            description: `File ini adalah data ${rootData.meta.module}, bukan Pensiun.`
+          });
           return;
         }
 
-        const { client, financial } = response.data;
+        const client = rootData.client;
+        const financial = rootData.financial;
 
-        // Populate Form
+        if (!client || !financial) {
+          throw new Error("Struktur data tidak valid.");
+        }
+
+        // Populate Form Identity
         setClientData({
-          clientName: client.name,
-          clientDob: client.dob,
-          clientCity: client.city,
+          clientName: client.name || "",
+          clientDob: client.dob || "",
+          clientCity: client.city || "",
           clientJob: client.job || "",
           clientPhone: client.phone || ""
         });
 
-        // Numeric Inputs
-        setCurrentAge(String(financial.currentAge));
-        setRetirementAge(String(financial.retirementAge));
-        setLifeExpectancy(String(financial.lifeExpectancy));
+        // Numeric Inputs (Konversi ke string agar input field membaca nilai)
+        setCurrentAge(String(financial.currentAge || ""));
+        setRetirementAge(String(financial.retirementAge || "55"));
+        setLifeExpectancy(String(financial.lifeExpectancy || "75"));
 
         // Financials (Format Rupiah)
         const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
-        setCurrentExpense(fmt(financial.currentExpense));
-        setCurrentSaving(fmt(financial.currentSaving));
+        setCurrentExpense(fmt(Number(financial.currentExpense) || 0));
+        setCurrentSaving(fmt(Number(financial.currentSaving) || 0));
 
         // Sliders
-        setInflation(financial.inflationRate);
-        setReturnRate(financial.returnRate);
+        setInflation(Number(financial.inflationRate) || 5);
+        setReturnRate(Number(financial.returnRate) || 10);
 
-        toast.success("Restore Berhasil", { description: "Data simulasi telah dimuat kembali." });
-        setResult(null); // Reset result agar user klik "Hitung" lagi (re-validasi)
+        toast.success("Import Berhasil", { description: `Data pensiun ${client.name} berhasil dimuat.` });
+
+        // Reset result agar user dipaksa klik "Hitung" lagi (memastikan kalkulasi fresh)
+        setResult(null);
         setGeneratedFiles(null);
 
-      } catch (error) {
-        toast.error("File Rusak", { description: "Gagal membaca file backup." });
+      } catch (error: any) {
+        console.error("Import Error:", error);
+        // Tampilkan pesan error spesifik dari backend (misal: "Signature Mismatch")
+        const backendMessage = error.response?.data?.message || error.message;
+        toast.error("Gagal Import File", { description: backendMessage });
       } finally {
         setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
     reader.readAsText(file);
@@ -460,7 +485,7 @@ export default function PensionPage() {
               <Button
                 onClick={handleSimulate}
                 disabled={isLoading}
-                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all"
+                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all text-white"
               >
                 {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Play className="w-5 h-5 mr-2" />}
                 Lihat Analisa

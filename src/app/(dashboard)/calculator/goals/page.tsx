@@ -225,7 +225,7 @@ export default function GoalsPage() {
         }
     };
 
-    // --- CORE LOGIC 3: IMPORT .MGC ---
+    // --- CORE LOGIC 3: IMPORT .MGC (FIXED) ---
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -235,51 +235,70 @@ export default function GoalsPage() {
 
         reader.onload = async (event) => {
             try {
-                const tokenContent = event.target?.result as string;
+                const rawContent = event.target?.result as string;
+
+                // [FIX] Sanitasi Input: Hapus spasi/newline agar signature match
+                const tokenContent = rawContent ? rawContent.trim() : "";
+
+                if (!tokenContent) throw new Error("File kosong");
+
                 const response = await financialService.decodeSimulationToken(tokenContent);
 
-                if (response.data.meta?.module && response.data.meta.module !== 'GOAL') {
-                    toast.error("Format Salah", { description: "File ini bukan data simulasi Tujuan Keuangan." });
+                // [FIX] Handling Unwrapping Data
+                const rootData = response.data || response;
+
+                // Validasi Module
+                if (rootData.meta?.module && rootData.meta.module !== 'GOAL') {
+                    toast.error("Format Salah", { description: `File ini adalah data ${rootData.meta.module}, bukan Tujuan Keuangan.` });
                     return;
                 }
 
-                const { client, financial } = response.data;
+                const { client, financial } = rootData;
 
                 // Populate Form
                 setClientData({
-                    clientName: client.name,
-                    clientDob: client.dob, // Restore DOB
-                    clientCity: client.city,
+                    clientName: client.name || "",
+                    clientDob: client.dob || "", // Restore DOB
+                    clientCity: client.city || "",
                     clientJob: client.job || "",
                     clientPhone: client.phone || ""
                 });
 
                 // Set Goal Params
                 // Mencoba menebak kategori berdasarkan nama, default LAINNYA
-                const foundCategory = GOAL_OPTIONS.find(opt => opt.label === financial.goalName);
-                if (foundCategory) {
-                    setSelectedGoal(foundCategory.id);
-                    setGoalNameCustom("");
-                } else {
-                    setSelectedGoal("LAINNYA");
-                    setGoalNameCustom(financial.goalName);
+                if (financial.goalName) {
+                    const foundCategory = GOAL_OPTIONS.find(opt => opt.label === financial.goalName);
+                    if (foundCategory) {
+                        setSelectedGoal(foundCategory.id);
+                        setGoalNameCustom("");
+                    } else {
+                        setSelectedGoal("LAINNYA");
+                        setGoalNameCustom(financial.goalName);
+                    }
                 }
 
-                setTargetDate(financial.targetDate);
+                // [FIX] Mapping Tanggal: ISOString -> YYYY-MM-DD
+                if (financial.targetDate) {
+                    const dateObj = new Date(financial.targetDate);
+                    const dateStr = dateObj.toISOString().split('T')[0];
+                    setTargetDate(dateStr);
+                }
 
                 const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
-                setTargetAmount(fmt(financial.targetAmount));
-                setCurrentSaving(fmt(financial.currentSaving || 0));
+                setTargetAmount(fmt(Number(financial.targetAmount) || 0));
+                setCurrentSaving(fmt(Number(financial.currentSaving) || 0));
 
-                setInflation(financial.inflationRate || 5);
-                setReturnRate(financial.returnRate || 6);
+                setInflation(Number(financial.inflationRate) || 5);
+                setReturnRate(Number(financial.returnRate) || 6);
 
                 toast.success("Restore Berhasil", { description: "Data simulasi telah dimuat kembali." });
                 setResult(null); // Force re-calculate
                 setGeneratedFiles(null);
 
-            } catch (error) {
-                toast.error("File Rusak", { description: "Gagal membaca file backup." });
+            } catch (error: any) {
+                console.error("Import Error:", error);
+                const backendMessage = error.response?.data?.message || error.message;
+                toast.error("Gagal Import File", { description: backendMessage });
             } finally {
                 setIsImporting(false);
                 if (fileInputRef.current) fileInputRef.current.value = "";
