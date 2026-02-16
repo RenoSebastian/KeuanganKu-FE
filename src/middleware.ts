@@ -5,11 +5,12 @@ import type { NextRequest } from 'next/server';
 
 // [FIX 1] Tambahkan '/auth' ke sini agar dianggap rute publik
 const PUBLIC_ROUTES = [
-  '/login', 
-  '/register', 
-  '/forgot-password', 
-  '/auth/login', 
-  '/auth/register'
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/auth/login',
+  '/auth/register',
+  '/pricing',
 ];
 
 export function middleware(request: NextRequest) {
@@ -30,11 +31,11 @@ export function middleware(request: NextRequest) {
   }
 
   const isAuth = !!token;
-  
+
   // Cek apakah rute saat ini ada di daftar public routes
   // [FIX] Logic startsWith diperbaiki agar lebih aman mencocokkan sub-path
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
-  
+
   const isRoot = pathname === '/';
 
   // Definisi Scope Area
@@ -49,7 +50,7 @@ export function middleware(request: NextRequest) {
       // PENTING: Jangan redirect jika ini adalah request API (/auth/...)
       // Biarkan API auth lewat meskipun user sudah login (misal untuk refresh token atau logout)
       if (pathname.startsWith('/auth')) {
-          return NextResponse.next();
+        return NextResponse.next();
       }
 
       let targetDashboard = '/dashboard'; // Default User
