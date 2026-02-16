@@ -68,23 +68,24 @@ export default function EducationPage() {
       // A. Construct Child Profiles (Untuk kebutuhan Edit/Wizard)
       const mappedChildren: ChildProfile[] = data.map((plan) => {
         const breakdown = plan.calculation.stagesBreakdown;
-        const uniqueLevels = Array.from(new Set(breakdown.map(b => b.level)));
+        const uniqueLevels = Array.from(new Set(breakdown.map((b: { level: any; }) => b.level)));
 
         const reconstructedPlans: PlanInput[] = uniqueLevels.map((level) => {
-          const entryItem = breakdown.find(b => b.level === level && b.costType === "ENTRY");
-          const annualItem = breakdown.find(b => b.level === level && b.costType === "ANNUAL");
+          const levelStr = level as string;
+          const entryItem = breakdown.find((b: { level: unknown; costType: string; }) => b.level === levelStr && b.costType === "ENTRY");
+          const annualItem = breakdown.find((b: { level: unknown; costType: string; }) => b.level === levelStr && b.costType === "ANNUAL");
 
           // [FIX] Handle jika Annual Item tidak ada (Kasus S2/Lumpsum)
           let monthlyFee = 0;
           if (annualItem) {
             const annualCost = annualItem.currentCost || 0;
-            monthlyFee = (level === "S2")
+            monthlyFee = (levelStr === "S2")
               ? annualCost / 2
               : annualCost / 12;
           }
 
           return {
-            stageId: level,
+            stageId: levelStr,
             startGrade: 1,
             costNow: {
               entryFee: entryItem ? (entryItem.currentCost || 0) : 0,
