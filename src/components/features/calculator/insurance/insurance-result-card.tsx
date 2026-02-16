@@ -58,7 +58,7 @@ export function InsuranceResultCard({
                     </div>
                     <div className="text-left sm:text-right w-full sm:w-auto bg-white/60 sm:bg-transparent p-4 sm:p-0 rounded-xl border border-white sm:border-0">
                         <p className="text-[10px] uppercase font-bold text-cyan-600 tracking-widest mb-1">
-                            Total Wajib Tersedia
+                            Total Biaya Pengganti Penghasilan
                         </p>
                         <p className="text-3xl font-black text-slate-800 tracking-tight">
                             {formatRupiah(incomeReplacement)}
@@ -121,7 +121,7 @@ export function InsuranceResultCard({
                     {/* Hero Number */}
                     <div className="text-left sm:text-right w-full sm:w-auto bg-white/60 sm:bg-transparent p-4 sm:p-0 rounded-xl border border-white sm:border-0">
                         <p className="text-[10px] uppercase font-bold text-rose-600 tracking-widest mb-1">
-                            Total Wajib Tersedia
+                            Total Biaya Segera
                         </p>
                         <p className="text-3xl font-black text-slate-800 tracking-tight">
                             {formatRupiah(debtClearance)}
