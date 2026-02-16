@@ -230,52 +230,87 @@ export default function AgentBudgetPage() {
   };
 
   // --- CORE LOGIC 3: IMPORT .MGC ---
+  // --- CORE LOGIC 3: IMPORT .MGC ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset value input agar file yang sama bisa dipilih ulang jika gagal
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
     setIsImporting(true);
     const reader = new FileReader();
 
     reader.onload = async (event) => {
       try {
-        const tokenContent = event.target?.result as string;
+        const rawContent = event.target?.result as string;
+
+        // [PERBAIKAN 1]: Sanitasi Input
+        // Hapus spasi/newline di awal & akhir string. Ini solusi utama "File Corrupt".
+        const tokenContent = rawContent ? rawContent.trim() : "";
+
+        if (!tokenContent) throw new Error("File kosong");
+
         const response = await financialService.decodeSimulationToken(tokenContent);
 
-        // Safety check module type (jika ada meta)
-        if (response.data.meta?.module && response.data.meta.module !== 'BUDGETING' && response.data.meta.module !== undefined) {
-          // Opsional: Validasi strict module type jika backend mendukung
+        // Safety check module type
+        if (response.data?.meta?.module && response.data.meta.module !== 'BUDGETING') {
+          toast.warning("Modul Tidak Cocok", {
+            description: `File ini untuk modul ${response.data.meta.module}, bukan Budgeting.`
+          });
+          // Kita tetap lanjut (soft warning), atau bisa di-return jika ingin strict.
         }
 
-        const { client, financial } = response.data;
+        // [PERBAIKAN 2]: Handling Struktur Data (Safe Unwrapping)
+        // Backend mengembalikan { data: { client, financial ... } } atau langsung { client, financial }
+        // Kita pastikan kita mengambil root data yang benar.
+        const rootData = response.data || response; // Fallback
+        const client = rootData.client;
+        const financial = rootData.financial;
 
-        // Auto-fill Form
+        if (!client || !financial) {
+          throw new Error("Struktur file tidak dikenali.");
+        }
+
+        // Auto-fill Form Client
         setClientData({
-          clientName: client.name,
-          clientDob: client.dob,
-          clientCity: client.city,
-          clientJob: client.job,
+          clientName: client.name || "",
+          clientDob: client.dob || "",
+          clientCity: client.city || "",
+          clientJob: client.job || "",
           clientPhone: client.phone || ""
         });
 
-        // Restore Angka (Input Form = Tahunan)
-        const fixedAnnual = (financial.fixedIncome || 0) * 12;
-        const variableAnnual = (financial.variableIncome || 0) * 12;
+        // [PERBAIKAN 3]: Koreksi Matematika (Hapus * 12)
+        // Di financial.service.ts, method decodeSimulationToken sudah memanggil 'toAnnualState'.
+        // Artinya 'financial.fixedIncome' SUDAH dalam bentuk TAHUNAN.
+        // JANGAN dikali 12 lagi, atau angkanya akan meledak.
+
+        const fixedAnnual = Number(financial.fixedIncome) || 0;
+        const variableAnnual = Number(financial.variableIncome) || 0;
 
         setFixedIncome(new Intl.NumberFormat("id-ID").format(fixedAnnual));
         setVariableIncome(new Intl.NumberFormat("id-ID").format(variableAnnual));
 
         toast.success("Import Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
 
-        // Reset Result agar user klik "Hitung" lagi (memastikan data sinkron)
+        // Reset Result agar user dipaksa klik "Hitung" lagi (memastikan kalkulasi ulang fresh)
         setResult(null);
         setGeneratedFiles(null);
 
-      } catch (error) {
-        toast.error("File Corrupt", { description: "File .mgc tidak valid atau rusak." });
+      } catch (error: any) {
+        console.error("Import Error:", error);
+
+        // [PERBAIKAN 4]: Menampilkan Pesan Error Spesifik dari Backend
+        // Backend sekarang mengirim pesan "File telah dimodifikasi" atau "Format rusak".
+        // Kita tampilkan itu ke user.
+        const backendMessage = error.response?.data?.message || error.message;
+
+        toast.error("Gagal Import File", {
+          description: backendMessage || "File .mgc tidak valid atau rusak."
+        });
       } finally {
         setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
 
