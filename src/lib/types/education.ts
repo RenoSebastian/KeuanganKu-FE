@@ -35,6 +35,25 @@ export enum EducationProgressStatus {
     COMPLETED = 'COMPLETED',
 }
 
+export enum SchoolLevel {
+    TK = 'TK',
+    SD = 'SD',
+    SMP = 'SMP',
+    SMA = 'SMA',
+    S1 = 'S1',
+    S2 = 'S2',
+}
+
+export enum CostType {
+    ENTRY = 'ENTRY',
+    ANNUAL = 'ANNUAL',
+}
+
+export enum EducationMethod {
+    ARITHMETIC = 'ARITHMETIC',
+    GEOMETRIC = 'GEOMETRIC',
+}
+
 // --- ENTITIES (Data dari GET Response) ---
 
 export interface EducationCategory {
@@ -253,6 +272,75 @@ export interface DatabaseStats {
 
 export interface PruneExecutionPayload {
     entityType: string;
+    entityId?: string; // [OPTIONAL] Bisa spesifik ID
     cutoffDate: string;
     pruneToken: string;
+}
+
+// --- AGENT SIMULATION DTOs (NEW for EDUCATION WIZARD) ---
+
+export interface EducationStagePlan {
+    level: SchoolLevel;
+    costType: CostType;
+    currentCost: number;
+    yearsToStart: number;
+    // futureCost & monthlySaving dihitung di backend,
+    // tapi kalau mau ditampilkan di preview FE bisa ditambahkan sebagai optional
+    futureCost?: number;
+    monthlySaving?: number;
+}
+
+export interface EducationChildPlan {
+    childName: string;
+    childDob: string; // YYYY-MM-DD
+
+    // Opsi Ekonomi per Anak
+    method?: EducationMethod;
+    inflationRate?: number;
+    returnRate?: number;
+
+    stages: EducationStagePlan[];
+}
+
+export interface EducationSimulationPayload {
+    // 1. Data Identitas Klien
+    clientName: string;
+    clientDob: string;
+    clientCity: string;
+    clientJob?: string;
+    clientPhone?: string;
+
+    // 2. Konteks Finansial
+    currentSaving?: number; // Tabungan existing
+
+    // 3. Rencana Anak (Array)
+    childrenPlans: EducationChildPlan[];
+}
+
+// Interface untuk menampung Response Hasil Kalkulasi dari Backend
+export interface EducationSimulationResult {
+    pdfBuffer?: Blob; // Jika FE handle blob langsung
+    filename?: string;
+    mgcToken?: string;
+
+    // Struktur Data Detail (jika perlu ditampilkan di UI Step 3)
+    data?: {
+        totalMonthlyInvestment: number;
+        totalFutureCost: number;
+        details: Array<{
+            childName: string;
+            summary: {
+                totalFutureCost: number;
+                totalMonthlySaving: number;
+            };
+            detail: {
+                stagesBreakdown: Array<{
+                    level: SchoolLevel;
+                    currentCost: number;
+                    futureCost: number;
+                    monthlySaving: number;
+                }>;
+            }
+        }>;
+    };
 }

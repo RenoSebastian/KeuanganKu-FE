@@ -36,6 +36,8 @@ import {
   convertRecordToAnnual
 } from "@/lib/financial-math";
 
+import { EducationSimulationPayload } from "@/lib/types/education";
+
 // ============================================================================
 // PRIVATE ADAPTER HELPERS (Internal Service Logic)
 // ============================================================================
@@ -356,6 +358,21 @@ export const financialService = {
     const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup", apiPayload);
 
     return response.data;
+  },
+
+  /**
+   * [NEW] simulateAgentEducation
+   * ----------------------------
+   * Menembak endpoint simulasi pendidikan anak (Agent Mode).
+   * Response berupa Blob PDF untuk langsung diunduh/ditampilkan.
+   */
+  simulateAgentEducation: async (data: EducationSimulationPayload): Promise<AxiosResponse<Blob>> => {
+    return await api.post("/financial/simulation/education", data, {
+      // responseType 'blob' sangat krusial agar Axios tidak mencoba mem-parse binary PDF menjadi JSON
+      responseType: 'blob',
+      // Timeout lebih panjang (60 detik) karena proses generation PDF di server cukup berat (Puppeteer)
+      timeout: 60000,
+    });
   },
 
   /**
