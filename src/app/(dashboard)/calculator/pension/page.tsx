@@ -185,7 +185,7 @@ export default function PensionPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success("Download PDF", { description: "Laporan resmi berhasil diunduh." });
+      toast.success("Download File", { description: "Laporan resmi berhasil diunduh." });
     }
     else if (type === 'MGC' && generatedFiles.mgcToken) {
       const blob = new Blob([generatedFiles.mgcToken], { type: 'text/plain' });

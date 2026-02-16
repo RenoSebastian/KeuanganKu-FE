@@ -430,7 +430,7 @@ export function CheckupResult({
                                 {isDownloading || localPdfLoading ? (
                                     <span className="flex items-center"><RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> Memproses...</span>
                                 ) : (
-                                    <span className="flex items-center"><Download className="w-4 h-4 mr-2" /> {isAgentMode ? "Cetak Laporan PDF" : "Simpan PDF"}</span>
+                                    <span className="flex items-center"><Download className="w-4 h-4 mr-2" /> {isAgentMode ? "Download Hasil Simulasi" : "Simpan PDF"}</span>
                                 )}
                             </Button>
                         </div>

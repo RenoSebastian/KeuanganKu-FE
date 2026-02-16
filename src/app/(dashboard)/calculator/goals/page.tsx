@@ -210,7 +210,7 @@ export default function GoalsPage() {
             document.body.appendChild(link);
             link.click();
             link.remove();
-            toast.success("Download PDF Berhasil");
+            toast.success("Download File Berhasil");
         }
         else if (type === 'MGC' && generatedFiles.mgcToken) {
             const blob = new Blob([generatedFiles.mgcToken], { type: 'text/plain' });

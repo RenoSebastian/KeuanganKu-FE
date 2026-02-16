@@ -22,16 +22,13 @@ export const NAVIGATION_CONFIG = {
   main: [
     { label: "Dashboard", icon: Home, href: "/dashboard" },
 
-    // [NEW] Learning Center Module
-    { label: "Learning Center", icon: BookOpenCheck, href: "/learning" },
 
-    // [NEW] Risk Profile Module
-    // Diletakkan disini sebagai langkah awal sebelum perencanaan keuangan mendalam
-    { label: "Profil Risiko", icon: Activity, href: "/risk-profile" },
 
     { label: "Financial Checkup", icon: Calculator, href: "/calculator/checkup" },
     { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
-    { label: "Riwayat", icon: History, href: "/history" },
+    { label: "Profil Risiko", icon: Activity, href: "/risk-profile" },
+    { label: "Learning Center", icon: BookOpenCheck, href: "/learning" },
+    // { label: "Riwayat", icon: History, href: "/history" },
     { label: "Profil", icon: User, href: "/profile" },
   ],
 

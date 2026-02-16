@@ -356,7 +356,7 @@ export function AnalysisResult({
                                 </span>
                             ) : (
                                 <span className="flex items-center gap-2">
-                                    <Download className="w-4 h-4" /> Download PDF
+                                    <Download className="w-4 h-4" /> Download File
                                 </span>
                             )}
                         </Button>
