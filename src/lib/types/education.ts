@@ -194,7 +194,7 @@ export interface CreateModulePayload {
     title: string;
     categoryId: string;
     excerpt: string;
-    description?: string; // [UPDATE] Ditambahkan agar sesuai dengan Entity
+    description?: string;
     level: EducationLevel;
     readingTime: number;
     points: number;
@@ -277,7 +277,7 @@ export interface PruneExecutionPayload {
     pruneToken: string;
 }
 
-// --- AGENT SIMULATION DTOs (NEW for EDUCATION WIZARD) ---
+// --- AGENT SIMULATION DTOs (UPDATED: STRICT MODE) ---
 
 export interface EducationStagePlan {
     level: SchoolLevel;
@@ -285,7 +285,6 @@ export interface EducationStagePlan {
     currentCost: number;
     yearsToStart: number;
     // futureCost & monthlySaving dihitung di backend,
-    // tapi kalau mau ditampilkan di preview FE bisa ditambahkan sebagai optional
     futureCost?: number;
     monthlySaving?: number;
 }
@@ -294,10 +293,12 @@ export interface EducationChildPlan {
     childName: string;
     childDob: string; // YYYY-MM-DD
 
-    // Opsi Ekonomi per Anak
-    method?: EducationMethod;
-    inflationRate?: number;
-    returnRate?: number;
+    // [UPDATED] Opsi Ekonomi per Anak dibuat REQUIRED.
+    // Ini memaksa Frontend untuk selalu memberikan nilai default (misal: GEOMETRIC, 10, 12).
+    // Hal ini mencegah error "undefined" saat mapping data di Page/Component.
+    method: EducationMethod;
+    inflationRate: number;
+    returnRate: number;
 
     stages: EducationStagePlan[];
 }
@@ -307,6 +308,7 @@ export interface EducationSimulationPayload {
     clientName: string;
     clientDob: string;
     clientCity: string;
+    // Pekerjaan dan Telepon tetap opsional di form, tapi di payload kita bisa kirim empty string
     clientJob?: string;
     clientPhone?: string;
 
@@ -319,11 +321,11 @@ export interface EducationSimulationPayload {
 
 // Interface untuk menampung Response Hasil Kalkulasi dari Backend
 export interface EducationSimulationResult {
-    pdfBuffer?: Blob; // Jika FE handle blob langsung
+    pdfBuffer?: Blob;
     filename?: string;
     mgcToken?: string;
 
-    // Struktur Data Detail (jika perlu ditampilkan di UI Step 3)
+    // Struktur Data Detail untuk UI Step 3
     data?: {
         totalMonthlyInvestment: number;
         totalFutureCost: number;
@@ -339,6 +341,9 @@ export interface EducationSimulationResult {
                     currentCost: number;
                     futureCost: number;
                     monthlySaving: number;
+                    // Properti tambahan untuk display jika diperlukan
+                    yearsToStart?: number;
+                    inflationRate?: number;
                 }>;
             }
         }>;
