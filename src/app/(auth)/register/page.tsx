@@ -149,7 +149,7 @@ export default function RegisterPage() {
                   <Input
                     id="fullName"
                     name="fullName"
-                    placeholder="Contoh: Budi Santoso, CFP®"
+                    placeholder="Contoh: Budi Santoso, CFP"
                     className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
                     value={formData.fullName}
                     onChange={handleChange}
@@ -160,7 +160,7 @@ export default function RegisterPage() {
 
               {/* Email */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Email Profesional</Label>
+                <Label htmlFor="email" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Email</Label>
                 <div className="relative group">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
                   <Input

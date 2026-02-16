@@ -4,6 +4,39 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* src/app/globals.css */
+
+.embla {
+  overflow: hidden;
+  width: 100%;
+  /* Pastikan lebar penuh */
+}
+
+.embla__container {
+  display: flex;
+}
+
+.embla__slide {
+  flex: 0 0 100%;
+  /* Default: 1 slide per view */
+  min-width: 0;
+}
+
+/* Breakpoints untuk multiple slides per view */
+@media (min-width: 768px) {
+  .embla__slide {
+    flex: 0 0 50%;
+    /* 2 slides per view on medium screens */
+  }
+}
+
+@media (min-width: 1024px) {
+  .embla__slide {
+    flex: 0 0 33.3333%;
+    /* 3 slides per view on large screens */
+  }
+}
+
 /* =========================================
    1. CSS VARIABLES (SHADCN UI + BRAND)
    ================================********* */

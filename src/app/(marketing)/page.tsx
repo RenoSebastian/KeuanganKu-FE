@@ -18,6 +18,10 @@ import {
   Briefcase
 } from "lucide-react";
 
+import PricingSection from "@/components/features/marketing/pricing-section";
+import TestimonialsCarouselSection from "@/components/features/marketing/testimonials-carousel-section"; // Import yang baru
+import FAQSection from "@/components/features/marketing/faq-section";
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-slate-50/30">
@@ -40,7 +44,15 @@ export default function LandingPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
+
+            <Link
+              href="/pricing"
+              className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              Pricing
+            </Link>
+
             <Link href="/login">
               <Button
                 variant="default"
@@ -233,6 +245,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      <TestimonialsCarouselSection />
+      {/* Pricing Section - Tambahkan di sini */}
+      <PricingSection />
 
       {/* 6. SUPPORT */}
       <section id="info" className="relative py-24 overflow-hidden bg-slate-900 text-white">
@@ -293,6 +308,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      <FAQSection />
 
       {/* FOOTER */}
       <footer className="bg-white border-t border-slate-200 py-8">
