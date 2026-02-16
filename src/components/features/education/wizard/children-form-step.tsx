@@ -8,11 +8,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Baby, Plus, Trash2, GraduationCap, Calculator, ChevronLeft } from "lucide-react";
-import { SchoolLevel, CostType, EducationMethod } from "@/lib/types/education";
+import { SchoolLevel, CostType } from "@/lib/types/education";
 
-// Schema Definition
+// Schema Definition - Menghapus method sesuai standar baru (Pure Flat/Annuity)
 const stageSchema = z.object({
     level: z.nativeEnum(SchoolLevel),
     costType: z.nativeEnum(CostType),
@@ -23,9 +22,8 @@ const stageSchema = z.object({
 const childPlanSchema = z.object({
     childName: z.string().min(2, "Nama anak minimal 2 karakter"),
     childDob: z.string().min(1, "Tanggal lahir anak wajib diisi"),
-    method: z.nativeEnum(EducationMethod), // Wajib Enum
-    inflationRate: z.coerce.number().min(0), // Wajib Number
-    returnRate: z.coerce.number().min(0),    // Wajib Number
+    inflationRate: z.coerce.number().min(0),
+    returnRate: z.coerce.number().min(0),
     stages: z.array(stageSchema).min(1, "Minimal pilih 1 jenjang sekolah"),
 });
 
@@ -40,7 +38,6 @@ interface ChildrenFormStepProps {
         childrenPlans?: {
             childName?: string;
             childDob?: string;
-            method?: EducationMethod;
             inflationRate?: number;
             returnRate?: number;
             stages?: any[];
@@ -63,22 +60,17 @@ export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
         { level: SchoolLevel.S1, costType: CostType.ENTRY, currentCost: 0, yearsToStart: 0 },
     ];
 
-    // Persiapkan Default Values dengan Sanitasi
+    // Persiapkan Default Values dengan Sanitasi (Menghapus mapping method)
     const sanitizedDefaultValues: ChildrenFormValues = {
         childrenPlans: initialData?.childrenPlans?.map(plan => ({
             childName: plan.childName ?? "",
             childDob: plan.childDob ?? "",
-            // Fallback ke GEOMETRIC jika undefined
-            method: plan.method ?? EducationMethod.GEOMETRIC,
-            // Fallback ke 10 jika undefined
             inflationRate: plan.inflationRate ?? 10,
-            // Fallback ke 12 jika undefined
             returnRate: plan.returnRate ?? 12,
             stages: (plan.stages && plan.stages.length > 0) ? plan.stages : defaultStages
-        })) as any || [{ // Default jika childrenPlans array kosong
+        })) as any || [{
             childName: "",
             childDob: "",
-            method: EducationMethod.GEOMETRIC,
             inflationRate: 10,
             returnRate: 12,
             stages: defaultStages
@@ -86,7 +78,7 @@ export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
     };
 
     const form = useForm<ChildrenFormValues>({
-        // [NOTE] Menggunakan 'as any' pada resolver untuk bypass issue z.coerce
+        // Menggunakan 'as any' pada resolver untuk bypass issue z.coerce TypeScript
         resolver: zodResolver(childrenFormSchema) as any,
         defaultValues: sanitizedDefaultValues,
         mode: "onChange"
@@ -107,7 +99,7 @@ export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
                     <p className="text-sm text-muted-foreground">Input rencana sekolah anak.</p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => append({
-                    childName: "", childDob: "", method: EducationMethod.GEOMETRIC, inflationRate: 10, returnRate: 12, stages: defaultStages
+                    childName: "", childDob: "", inflationRate: 10, returnRate: 12, stages: defaultStages
                 })} className="flex items-center gap-2">
                     <Plus className="w-4 h-4" /> Tambah Anak
                 </Button>
@@ -137,28 +129,18 @@ export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
                                             <FormItem><FormLabel>Tanggal Lahir</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                     </div>
-                                    <div className="bg-muted/30 p-4 rounded-md grid grid-cols-2 md:grid-cols-3 gap-4">
+
+                                    <div className="bg-muted/30 p-4 rounded-md grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <FormField control={form.control} name={`childrenPlans.${index}.inflationRate`} render={({ field }) => (
                                             <FormItem><FormLabel className="text-xs">Inflasi (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl></FormItem>
                                         )} />
                                         <FormField control={form.control} name={`childrenPlans.${index}.returnRate`} render={({ field }) => (
                                             <FormItem><FormLabel className="text-xs">Return Investasi (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl></FormItem>
                                         )} />
-                                        <FormField control={form.control} name={`childrenPlans.${index}.method`} render={({ field }) => (
-                                            <FormItem className="col-span-2 md:col-span-1"><FormLabel className="text-xs">Metode Hitung</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Pilih" /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value={EducationMethod.GEOMETRIC}>Geometric (Progresif)</SelectItem>
-                                                        <SelectItem value={EducationMethod.ARITHMETIC}>Arithmetic (Flat)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormItem>
-                                        )} />
+                                        {/* Dropdown "Metode Hitung" Dihapus karena default FLAT */}
                                     </div>
 
                                     <div className="space-y-3">
-                                        {/* [FIX] Ganti FormLabel menjadi h4/div karena tidak di dalam FormField */}
                                         <h4 className="text-sm font-medium flex items-center gap-2 underline">
                                             <GraduationCap className="w-4 h-4" /> Rincian Biaya
                                         </h4>

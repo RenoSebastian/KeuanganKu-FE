@@ -1,55 +1,50 @@
 "use client";
 
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { EducationSimulationResult } from "@/lib/types/education";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-    FileText,
     Download,
     RefreshCcw,
-    TrendingUp,
-    Wallet,
     CheckCircle2,
-    ArrowRight,
-    ShieldCheck
+    Wallet,
+    Target,
+    TrendingUp,
+    ChevronRight
 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
-import { EducationSimulationResult } from "@/lib/types/education";
-import { financialService } from "@/services/financial.service";
 import { toast } from "sonner";
 
 interface SimulationResultStepProps {
-    result: EducationSimulationResult | null;
+    result: EducationSimulationResult;
     onReset: () => void;
 }
 
-export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({
-    result,
-    onReset
-}) => {
-    if (!result || !result.data) {
-        return (
-            <div className="text-center py-10">
-                <p className="text-muted-foreground">Gagal memuat hasil kalkulasi. Silakan coba lagi.</p>
-                <Button onClick={onReset} variant="outline" className="mt-4">
-                    Kembali ke Awal
-                </Button>
-            </div>
-        );
-    }
-
-    const { totalMonthlyInvestment, totalFutureCost, details } = result.data;
+export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset }) => {
+    // Destructuring data dengan safety check
+    const simulationData = result?.data;
+    const details = simulationData?.details || [];
 
     const handleDownloadPdf = () => {
-        if (result.pdfBuffer) {
-            financialService.downloadSimulationFiles({
-                pdfBuffer: { data: result.pdfBuffer }, // Sesuai format helper service
-                mgcToken: result.mgcToken,
-                filename: result.filename
-            });
-            toast.success("Laporan berhasil diunduh");
-        } else {
+        if (!result.pdfBuffer) {
             toast.error("File PDF tidak tersedia");
+            return;
+        }
+
+        try {
+            // Jika pdfBuffer adalah Blob atau Base64, sesuaikan cara downloadnya
+            const url = window.URL.createObjectURL(new Blob([result.pdfBuffer as any]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', result.filename || 'Simulasi_Dana_Pendidikan.pdf');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success("PDF berhasil diunduh");
+        } catch (error) {
+            console.error("Download error:", error);
+            toast.error("Gagal mengunduh PDF");
         }
     };
 
@@ -57,74 +52,91 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header Success */}
             <div className="text-center space-y-2">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-2">
-                    <ShieldCheck className="w-6 h-6" />
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 mb-2">
+                    <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-2xl font-bold">Kalkulasi Selesai!</h3>
+                <h3 className="text-2xl font-bold">Simulasi Berhasil Dihitung</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                    Berikut adalah ringkasan kebutuhan dana pendidikan yang harus dipersiapkan klien Anda.
+                    Berikut adalah estimasi kebutuhan dana pendidikan berdasarkan target yang Anda tentukan.
                 </p>
             </div>
 
-            {/* Main Results Dashboard */}
+            {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Card 1: Total Future Cost (The Reality Check) */}
-                <Card className="border-primary/20 bg-primary/5 shadow-none">
+                <Card className="bg-primary text-primary-foreground border-none shadow-lg overflow-hidden relative">
+                    <div className="absolute right-[-10%] top-[-20%] opacity-10">
+                        <Wallet className="w-32 h-32" />
+                    </div>
                     <CardHeader className="pb-2">
-                        <CardDescription className="flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4" /> Total Biaya Masa Depan
-                        </CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-primary">
-                            {formatCurrency(totalFutureCost)}
+                        <p className="text-primary-foreground/80 text-sm font-medium">Total Investasi Bulanan</p>
+                        <CardTitle className="text-3xl font-bold">
+                            {formatCurrency(simulationData?.totalMonthlyInvestment || 0)}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-xs text-muted-foreground">
-                            Estimasi total biaya kuliah & sekolah seluruh anak dengan asumsi inflasi.
+                        <p className="text-xs text-primary-foreground/70">
+                            *Setoran tetap (Flat) untuk semua jenjang sekolah.
                         </p>
                     </CardContent>
                 </Card>
 
-                {/* Card 2: Monthly Saving (The Solution) */}
-                <Card className="border-emerald-200 bg-emerald-50 shadow-none dark:bg-emerald-950/20 dark:border-emerald-900/30">
+                <Card className="bg-card border-2 border-primary/20 shadow-md">
                     <CardHeader className="pb-2">
-                        <CardDescription className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                            <Wallet className="w-4 h-4" /> Investasi Rutin / Bulan
-                        </CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-emerald-600 dark:text-emerald-500">
-                            {formatCurrency(totalMonthlyInvestment)}
+                        <p className="text-muted-foreground text-sm font-medium">Total Target Dana (Masa Depan)</p>
+                        <CardTitle className="text-2xl font-bold text-primary">
+                            {formatCurrency(simulationData?.totalFutureCost || 0)}
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-emerald-700/70 dark:text-emerald-400/70">
-                            Rekomendasi dana yang disisihkan mulai bulan depan.
-                        </p>
+                    <CardContent className="flex items-center gap-2 text-green-600">
+                        <TrendingUp className="w-4 h-4" />
+                        <span className="text-xs font-semibold">Sudah memperhitungkan inflasi pendidikan</span>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Breakdown per Child Preview */}
+            {/* Children Details Breakdown */}
             <Card>
-                <CardHeader className="pb-0">
+                <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                        <Target className="w-5 h-5 text-primary" />
                         Rincian per Anak
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-4">
+                <CardContent className="pt-0">
                     <div className="space-y-4">
-                        {details.map((child, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                                <div>
-                                    <p className="font-semibold">{child.childName}</p>
-                                    <p className="text-xs text-muted-foreground">{child.detail.stagesBreakdown.length} Jenjang Sekolah</p>
+                        {details.length > 0 ? (
+                            details.map((child, idx) => (
+                                <div key={idx} className="group p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-all">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                                                {idx + 1}
+                                            </div>
+                                            <p className="font-bold text-lg">{child.childName}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Tabungan Bulanan</p>
+                                            <p className="text-primary font-bold">{formatCurrency(child.summary.totalMonthlySaving)}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 py-3 border-t border-dashed">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Total Dana Dibutuhkan</p>
+                                            <p className="font-semibold text-sm">{formatCurrency(child.summary.totalFutureCost)}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-muted-foreground">Jumlah Jenjang</p>
+                                            <p className="font-semibold text-sm">{child.detail.stagesBreakdown.length} Sekolah</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-mono font-medium text-sm">{formatCurrency(child.summary.totalMonthlySaving)}/bln</p>
-                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Investasi Bulanan</p>
-                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-6 text-muted-foreground italic">
+                                Tidak ada rincian data anak.
                             </div>
-                        ))}
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -133,25 +145,23 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({
             <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                 <Button
                     onClick={handleDownloadPdf}
-                    className="flex-1 h-12 text-base shadow-lg"
-                    size="lg"
+                    className="flex-1 h-12 gap-2 text-base font-bold shadow-lg shadow-primary/20"
                 >
-                    <Download className="w-5 h-5 mr-2" /> Download Laporan (PDF & MGC)
+                    <Download className="w-5 h-5" /> Unduh Laporan PDF
                 </Button>
                 <Button
                     variant="outline"
                     onClick={onReset}
-                    className="h-12"
-                    size="lg"
+                    className="flex-1 h-12 gap-2 text-base font-semibold"
                 >
-                    <RefreshCcw className="w-4 h-4 mr-2" /> Simulasi Baru
+                    <RefreshCcw className="w-5 h-5" /> Hitung Ulang
                 </Button>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground italic">
-                <FileText className="w-3 h-3" />
-                Laporan ini bersifat estimasi berdasarkan asumsi ekonomi yang dipilih.
-            </div>
+            <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
+                Hasil perhitungan ini bersifat simulasi dan estimasi. <br />
+                Realitas di masa depan dapat berubah sesuai dengan kebijakan institusi pendidikan dan kondisi pasar investasi.
+            </p>
         </div>
     );
 };

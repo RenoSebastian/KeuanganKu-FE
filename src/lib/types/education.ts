@@ -3,10 +3,6 @@
  * ------------------------------------------------------------------
  * File ini berisi seluruh Interface dan Enum yang digunakan dalam
  * modul Edukasi. Tipe ini disinkronkan dengan DTO di Backend (NestJS).
- *
- * Prinsip:
- * 1. Interface 'Entity' merepresentasikan data lengkap dari Database.
- * 2. Interface 'Payload' merepresentasikan data yang dikirim ke API.
  * ------------------------------------------------------------------
  */
 
@@ -26,8 +22,8 @@ export enum EducationLevel {
 
 export enum QuizType {
     SINGLE_CHOICE = 'SINGLE_CHOICE',
-    MULTIPLE_CHOICE = 'MULTIPLE_CHOICE', // Persiapan future-proof
-    TRUE_FALSE = 'TRUE_FALSE',           // Persiapan future-proof
+    MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
+    TRUE_FALSE = 'TRUE_FALSE',
 }
 
 export enum EducationProgressStatus {
@@ -49,10 +45,7 @@ export enum CostType {
     ANNUAL = 'ANNUAL',
 }
 
-export enum EducationMethod {
-    ARITHMETIC = 'ARITHMETIC',
-    GEOMETRIC = 'GEOMETRIC',
-}
+// [DELETED] EducationMethod dihapus karena default menggunakan FLAT (Annuity) sesuai rumus PAM Jaya.
 
 // --- ENTITIES (Data dari GET Response) ---
 
@@ -64,7 +57,7 @@ export interface EducationCategory {
     iconUrl: string;
     isActive: boolean;
     displayOrder: number;
-    createdAt: string; // ISO Date String
+    createdAt: string;
     updatedAt: string;
     _count?: {
         modules: number;
@@ -107,7 +100,7 @@ export interface Quiz {
     id: string;
     moduleId: string;
     passingScore: number;
-    timeLimit: number; // Dalam menit
+    timeLimit: number;
     maxAttempts: number;
     description?: string | null;
     questions: QuizQuestion[];
@@ -120,33 +113,24 @@ export interface EducationModule {
     title: string;
     slug: string;
     excerpt: string;
-    description?: string; // Optional di list, mungkin ada di detail
+    description?: string;
     thumbnailUrl?: string | null;
     level: EducationLevel;
-
-    // [FIX] Renamed duration -> readingTime to match DTO & Form Schema
     readingTime: number;
-
     points: number;
     status: EducationModuleStatus;
     publishedAt?: string | null;
-
-    // Relasi
     categoryId: string;
-    category?: EducationCategory; // Populated data
+    category?: EducationCategory;
     sections?: ModuleSection[];
     quiz?: Quiz | null;
-
-    // [CRITICAL] User Context Fields (Populated for Logged-in User)
-    userStatus?: EducationProgressStatus | null; // null = Belum mulai
-    progressPercentage?: number; // 0-100
-
+    userStatus?: EducationProgressStatus | null;
+    progressPercentage?: number;
     createdAt: string;
     updatedAt: string;
 }
 
-// --- USER QUIZ ENTITIES (Secure / Zero Leakage) ---
-// Digunakan saat Pegawai mengerjakan kuis. TIDAK BOLEH ada isCorrect.
+// --- USER QUIZ ENTITIES ---
 
 export interface UserQuizQuestion {
     id: string;
@@ -159,12 +143,11 @@ export interface UserQuizQuestion {
         id: string;
         optionText: string;
         imageUrl?: string | null;
-        // [SECURITY] isCorrect HARAM ada di sini
     }[];
 }
 
 export interface UserQuizData {
-    id: string; // Quiz ID
+    id: string;
     moduleId: string;
     timeLimit: number;
     passingScore: number;
@@ -172,22 +155,22 @@ export interface UserQuizData {
     questions: UserQuizQuestion[];
 }
 
-// --- PAYLOADS (Data untuk POST/PUT Request) ---
+// --- PAYLOADS ---
 
 export interface CreateCategoryPayload {
     name: string;
     description?: string;
-    iconUrl: string; // Wajib upload media dulu
+    iconUrl: string;
 }
 
 export interface UpdateCategoryPayload extends Partial<CreateCategoryPayload> { }
 
 export interface SectionPayload {
-    id?: string; // Optional untuk section baru
+    id?: string;
     title: string;
     contentMarkdown: string;
     sectionOrder: number;
-    illustrationUrl?: string; // Path relative (uploads/...)
+    illustrationUrl?: string;
 }
 
 export interface CreateModulePayload {
@@ -202,16 +185,14 @@ export interface CreateModulePayload {
     sections: SectionPayload[];
 }
 
-export interface UpdateModulePayload extends Partial<CreateModulePayload> {
-    // Status diupdate via endpoint khusus biasanya
-}
+export interface UpdateModulePayload extends Partial<CreateModulePayload> { }
 
 export interface UpdateModuleStatusPayload {
     status: EducationModuleStatus;
 }
 
 export interface QuizOptionPayload {
-    id?: string; // Jika edit option lama
+    id?: string;
     optionText: string;
     isCorrect: boolean;
     imageUrl?: string;
@@ -230,7 +211,7 @@ export interface QuizQuestionPayload {
 }
 
 export interface UpsertQuizPayload {
-    moduleId?: string; // Optional context helper
+    moduleId?: string;
     passingScore: number;
     timeLimit: number;
     maxAttempts: number;
@@ -246,7 +227,6 @@ export interface QuizSubmissionResult {
     attemptsUsed: number;
     maxAttempts: number;
     message: string;
-    // Opsional: Detail jawaban benar/salah jika kebijakan mengizinkan review
 }
 
 export interface SubmitQuizPayload {
@@ -254,6 +234,67 @@ export interface SubmitQuizPayload {
         questionId: string;
         selectedOptionId: string;
     }[];
+}
+
+// --- AGENT SIMULATION DTOs (UPDATED: FLAT MODE) ---
+
+export interface EducationStagePlan {
+    level: SchoolLevel;
+    costType: CostType;
+    currentCost: number;
+    yearsToStart: number;
+    futureCost?: number;
+    monthlySaving?: number;
+}
+
+export interface EducationChildPlan {
+    childName: string;
+    childDob: string;
+    inflationRate: number;
+    returnRate: number;
+    stages: EducationStagePlan[];
+    // [DELETED] method dihapus
+}
+
+export interface EducationSimulationPayload {
+    // 1. Data Identitas Klien
+    clientName: string;
+    clientDob: string;
+    clientCity: string;
+    clientJob?: string;
+    clientPhone?: string;
+
+    // [DELETED] currentSaving dihapus sesuai standar PAM Jaya
+
+    // 2. Rencana Anak (Array)
+    childrenPlans: EducationChildPlan[];
+}
+
+export interface EducationSimulationResult {
+    pdfBuffer?: Blob;
+    filename?: string;
+    mgcToken?: string;
+    data?: {
+        totalMonthlyInvestment: number;
+        totalFutureCost: number;
+        details: Array<{
+            childName: string;
+            summary: {
+                totalFutureCost: number;
+                totalMonthlySaving: number;
+            };
+            detail: {
+                stagesBreakdown: Array<{
+                    level: SchoolLevel;
+                    currentCost: number;
+                    futureCost: number;
+                    monthlySaving: number;
+                    yearsToStart?: number;
+                    inflationRate?: number;
+                }>;
+            }
+        }>;
+    };
 }
 
 // --- UTILITY TYPES ---
@@ -272,80 +313,7 @@ export interface DatabaseStats {
 
 export interface PruneExecutionPayload {
     entityType: string;
-    entityId?: string; // [OPTIONAL] Bisa spesifik ID
+    entityId?: string;
     cutoffDate: string;
     pruneToken: string;
-}
-
-// --- AGENT SIMULATION DTOs (UPDATED: STRICT MODE) ---
-
-export interface EducationStagePlan {
-    level: SchoolLevel;
-    costType: CostType;
-    currentCost: number;
-    yearsToStart: number;
-    // futureCost & monthlySaving dihitung di backend,
-    futureCost?: number;
-    monthlySaving?: number;
-}
-
-export interface EducationChildPlan {
-    childName: string;
-    childDob: string; // YYYY-MM-DD
-
-    // [UPDATED] Opsi Ekonomi per Anak dibuat REQUIRED.
-    // Ini memaksa Frontend untuk selalu memberikan nilai default (misal: GEOMETRIC, 10, 12).
-    // Hal ini mencegah error "undefined" saat mapping data di Page/Component.
-    method: EducationMethod;
-    inflationRate: number;
-    returnRate: number;
-
-    stages: EducationStagePlan[];
-}
-
-export interface EducationSimulationPayload {
-    // 1. Data Identitas Klien
-    clientName: string;
-    clientDob: string;
-    clientCity: string;
-    // Pekerjaan dan Telepon tetap opsional di form, tapi di payload kita bisa kirim empty string
-    clientJob?: string;
-    clientPhone?: string;
-
-    // 2. Konteks Finansial
-    currentSaving?: number; // Tabungan existing
-
-    // 3. Rencana Anak (Array)
-    childrenPlans: EducationChildPlan[];
-}
-
-// Interface untuk menampung Response Hasil Kalkulasi dari Backend
-export interface EducationSimulationResult {
-    pdfBuffer?: Blob;
-    filename?: string;
-    mgcToken?: string;
-
-    // Struktur Data Detail untuk UI Step 3
-    data?: {
-        totalMonthlyInvestment: number;
-        totalFutureCost: number;
-        details: Array<{
-            childName: string;
-            summary: {
-                totalFutureCost: number;
-                totalMonthlySaving: number;
-            };
-            detail: {
-                stagesBreakdown: Array<{
-                    level: SchoolLevel;
-                    currentCost: number;
-                    futureCost: number;
-                    monthlySaving: number;
-                    // Properti tambahan untuk display jika diperlukan
-                    yearsToStart?: number;
-                    inflationRate?: number;
-                }>;
-            }
-        }>;
-    };
 }

@@ -8,38 +8,35 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, MapPin, Briefcase, Wallet, Calendar, Phone, ArrowRight } from "lucide-react";
+import { User, MapPin, Briefcase, Calendar, Phone, ArrowRight } from "lucide-react";
 
-// Schema definisi strict
+// Schema definisi sesuai standar perbaikan (currentSaving dihapus)
 const clientFormSchema = z.object({
     clientName: z.string().min(3, "Nama klien minimal 3 karakter"),
     clientDob: z.string().min(1, "Tanggal lahir wajib diisi"),
     clientCity: z.string().min(2, "Kota domisili wajib diisi"),
     clientJob: z.string().min(2, "Pekerjaan wajib diisi"),
-    clientPhone: z.string().optional().default(""), // Input boleh undefined, Output string
-    currentSaving: z.coerce.number().min(0, "Tabungan tidak boleh negatif").default(0),
+    clientPhone: z.string().optional().default(""),
 });
 
 export type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 interface ClientFormStepProps {
-    // Kita longgarkan tipe initialData agar menerima Partial data
     initialData?: Partial<ClientFormValues>;
     onNext: (data: ClientFormValues) => void;
 }
 
 export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onNext }) => {
     const form = useForm<ClientFormValues>({
-        // [FIX] Menggunakan 'as any' untuk menghindari konflik tipe TS pada z.coerce
+        // [FIX] Bypass strict type mismatch antara z.coerce/optional dengan form values
         resolver: zodResolver(clientFormSchema) as any,
-        // KUNCI PERBAIKAN: Default values harus eksplisit
+        // KUNCI PERBAIKAN: Default values eksplisit tanpa currentSaving
         defaultValues: {
             clientName: initialData?.clientName ?? "",
             clientDob: initialData?.clientDob ?? "",
             clientCity: initialData?.clientCity ?? "",
             clientJob: initialData?.clientJob ?? "",
             clientPhone: initialData?.clientPhone ?? "",
-            currentSaving: initialData?.currentSaving ?? 0,
         },
     });
 
@@ -51,7 +48,7 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                     Informasi Klien
                 </CardTitle>
                 <CardDescription>
-                    Masukkan data orang tua (Klien) untuk memulai simulasi.
+                    Masukkan data orang tua (Klien) untuk memulai simulasi Dana Pendidikan.
                 </CardDescription>
             </CardHeader>
             <CardContent className="px-0">
@@ -126,39 +123,12 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 control={form.control}
                                 name="clientPhone"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="md:col-span-2">
                                         <FormLabel>No. Telepon (Opsional)</FormLabel>
                                         <FormControl>
                                             <div className="relative">
                                                 <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                <Input className="pl-9" placeholder="081..." {...field} />
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="currentSaving"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Tabungan Pendidikan Saat Ini</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <Wallet className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                <span className="absolute left-9 top-2.5 text-sm font-medium text-muted-foreground">Rp</span>
-                                                <Input
-                                                    type="number"
-                                                    className="pl-16"
-                                                    placeholder="0"
-                                                    {...field}
-                                                    // Handle manual change untuk memastikan number
-                                                    onChange={(e) => {
-                                                        const val = e.target.valueAsNumber;
-                                                        field.onChange(isNaN(val) ? 0 : val);
-                                                    }}
-                                                />
+                                                <Input className="pl-9" placeholder="08123456789" {...field} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
@@ -166,6 +136,7 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 )}
                             />
                         </div>
+
                         <div className="flex justify-end pt-4">
                             <Button type="submit" className="w-full md:w-auto px-8" disabled={form.formState.isSubmitting}>
                                 Lanjut ke Data Anak <ArrowRight className="ml-2 w-4 h-4" />
