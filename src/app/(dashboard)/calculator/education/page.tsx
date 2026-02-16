@@ -4,11 +4,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  Droplets,
   Calculator,
   RefreshCcw,
   ShieldCheck,
-  Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +18,8 @@ import { SimulationResultStep } from "@/components/features/education/wizard/sim
 // Types & Services
 import {
   EducationSimulationPayload,
-  EducationSimulationResult
+  EducationSimulationResult,
+  EducationMethod // Diperlukan untuk default value saat mapping data
 } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
@@ -61,8 +60,9 @@ export default function EducationSimulationPage() {
     setIsCalculating(true);
 
     // Gabungkan data client dan data children
+    // Note: data.childrenPlans dari form sudah strict (method ada isinya), aman untuk di-assign ke payload
     const finalPayload: EducationSimulationPayload = {
-      ...(payload as any),
+      ...(payload as EducationSimulationPayload), // Cast as Payload untuk memastikan base property ada
       childrenPlans: data.childrenPlans
     };
 
@@ -77,20 +77,20 @@ export default function EducationSimulationPage() {
         ? contentDisposition.split('filename=')[1].replace(/"/g, '')
         : `Education_Simulation_${Date.now()}.pdf`;
 
-      // 3. Simpan Result ke State (Untuk ditampilkan di Step 3)
-      // Note: Data detail untuk UI bisa diextract jika BE mengembalikan JSON, 
-      // namun pola Agent Tool biasanya fokus pada PDF. 
-      // Di sini kita asumsikan BE mengembalikan Object sesuai Tahap 2 Controller.
-
+      // 3. Simpan Result ke State
       setSimulationResult({
         pdfBuffer: response.data as any, // Blob data
         mgcToken,
         filename,
-        // Mock data detail untuk UI preview (bisa disinkronkan dengan response BE)
+        // Mock data detail untuk UI preview (sinkronisasi visual dengan input user)
         data: {
-          totalMonthlyInvestment: 0, // Akan dihitung ulang dari payload untuk display
+          totalMonthlyInvestment: 0, // Nilai ini idealnya dihitung BE, tapi untuk preview PDF-first bisa 0 dulu
           totalFutureCost: 0,
-          details: data.childrenPlans.map((c: any) => ({ childName: c.childName, detail: { stagesBreakdown: c.stages }, summary: { totalMonthlySaving: 0 } }))
+          details: data.childrenPlans.map((c: any) => ({
+            childName: c.childName,
+            detail: { stagesBreakdown: c.stages },
+            summary: { totalMonthlySaving: 0 }
+          }))
         }
       });
 
@@ -170,7 +170,15 @@ export default function EducationSimulationPage() {
 
           {currentStep === "CHILDREN" && (
             <ChildrenFormStep
-              initialData={{ childrenPlans: payload.childrenPlans }}
+              // FIX: Mapping payload untuk memastikan tipe data sesuai dengan Schema Form Strict
+              // Terutama pada field 'method' yang optional di payload tapi required di form
+              initialData={{
+                childrenPlans: payload.childrenPlans?.map(plan => ({
+                  ...plan,
+                  method: plan.method ?? EducationMethod.GEOMETRIC, // Fallback default value
+                  stages: plan.stages // Stages biasanya sudah kompatibel
+                }))
+              }}
               onBack={() => setCurrentStep("CLIENT")}
               onNext={handleChildrenSubmit}
             />

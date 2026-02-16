@@ -26,6 +26,7 @@ const stageSchema = z.object({
 const childPlanSchema = z.object({
     childName: z.string().min(2, "Nama anak minimal 2 karakter"),
     childDob: z.string().min(1, "Tanggal lahir anak wajib diisi"),
+    // Aksi 2: Hardening Schema - Pastikan method memiliki default value 'GEOMETRIC'
     method: z.nativeEnum(EducationMethod).default(EducationMethod.GEOMETRIC),
     inflationRate: z.coerce.number().default(10),
     returnRate: z.coerce.number().default(12),
@@ -36,6 +37,7 @@ const childrenFormSchema = z.object({
     childrenPlans: z.array(childPlanSchema).min(1, "Minimal masukkan 1 data anak"),
 });
 
+// Aksi 3: Sinkronisasi Type - Menggunakan z.infer agar TypeScript mengikuti aturan Schema
 type ChildrenFormValues = z.infer<typeof childrenFormSchema>;
 
 interface ChildrenFormStepProps {
@@ -211,7 +213,8 @@ export const ChildrenFormStep: React.FC<ChildrenFormStepProps> = ({
                                                     <FormLabel className="text-xs">Metode</FormLabel>
                                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                         <FormControl>
-                                                            <SelectTrigger size="sm">
+                                                            {/* Aksi 1: Hapus properti size="sm", ganti dengan className h-8 */}
+                                                            <SelectTrigger className="h-8">
                                                                 <SelectValue placeholder="Pilih Metode" />
                                                             </SelectTrigger>
                                                         </FormControl>

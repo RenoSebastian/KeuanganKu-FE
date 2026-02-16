@@ -8,14 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, MapPin, Briefcase, Wallet, Calendar } from "lucide-react";
+import { User, MapPin, Briefcase, Wallet, Calendar, Phone } from "lucide-react";
 
+// 1. Hardening Schema: Input boleh optional/undefined, tapi Output DIJAMIN string/number
 const clientFormSchema = z.object({
     clientName: z.string().min(3, "Nama klien minimal 3 karakter"),
     clientDob: z.string().min(1, "Tanggal lahir wajib diisi"),
     clientCity: z.string().min(2, "Kota domisili wajib diisi"),
     clientJob: z.string().min(2, "Pekerjaan wajib diisi"),
+    // Fix: Terima string/undefined, default ke string kosong ""
     clientPhone: z.string().optional().default(""),
+    // Fix: Coerce input ke number, minimal 0, default 0 jika kosong
     currentSaving: z.coerce.number().min(0, "Tabungan tidak boleh negatif").default(0),
 });
 
@@ -29,13 +32,14 @@ interface ClientFormStepProps {
 export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onNext }) => {
     const form = useForm<ClientFormValues>({
         resolver: zodResolver(clientFormSchema),
+        // 2. Hardening Default Values: Pastikan tidak ada value yang 'undefined' saat inisialisasi
         defaultValues: {
             clientName: initialData?.clientName || "",
             clientDob: initialData?.clientDob || "",
             clientCity: initialData?.clientCity || "",
             clientJob: initialData?.clientJob || "",
-            clientPhone: initialData?.clientPhone || "",
-            currentSaving: initialData?.currentSaving || 0,
+            clientPhone: initialData?.clientPhone || "", // Fallback ke string kosong
+            currentSaving: initialData?.currentSaving || 0, // Fallback ke 0
         },
     });
 
@@ -127,12 +131,30 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                 )}
                             />
 
+                            {/* Field clientPhone ditambahkan agar konsisten dengan schema */}
+                            <FormField
+                                control={form.control}
+                                name="clientPhone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nomor Telepon (Opsional)</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input placeholder="Contoh: 08123456789" className="pl-9" {...field} />
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
                             <FormField
                                 control={form.control}
                                 name="currentSaving"
                                 render={({ field }) => (
-                                    <FormItem className="md:col-span-2">
-                                        <FormLabel>Dana Pendidikan Tersedia Saat Ini (Opsional)</FormLabel>
+                                    <FormItem className="md:col-span-1">
+                                        <FormLabel>Dana Pendidikan Tersedia (Opsional)</FormLabel>
                                         <FormControl>
                                             <div className="relative">
                                                 <Wallet className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -141,12 +163,17 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                                     type="number"
                                                     placeholder="0"
                                                     className="pl-16"
-                                                    // Gunakan value dan onChange manual untuk sinkronisasi tipe number
+                                                    // Gunakan spread props standar field
                                                     name={field.name}
                                                     ref={field.ref}
                                                     onBlur={field.onBlur}
-                                                    value={field.value ?? ""}
-                                                    onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                                                    // Handle value 0 agar tidak kosong stringnya
+                                                    value={field.value}
+                                                    // 3. Hardening Number Input: Handle NaN saat user menghapus semua angka
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        field.onChange(val === "" ? 0 : Number(val));
+                                                    }}
                                                 />
                                             </div>
                                         </FormControl>
