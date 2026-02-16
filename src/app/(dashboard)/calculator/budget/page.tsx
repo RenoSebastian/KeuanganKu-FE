@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import {
   Calculator, Wallet, BadgePercent, TrendingUp,
   AlertTriangle, ShieldCheck, PiggyBank, RefreshCcw, Download,
-  Loader2, Save, Upload, FileJson, User, MapPin, Briefcase, Calendar,
-  Play, CheckCircle2 // Icon tambahan
+  Loader2, Upload, FileJson, User, MapPin, Briefcase, Calendar,
+  Play, CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/financial-math";
@@ -17,7 +17,7 @@ import { BudgetResult, BudgetAllocation, CreateBudgetSimulationDto } from "@/lib
 import { financialService } from "@/services/financial.service";
 import { BudgetGuide } from "@/components/features/calculator/budget-guide";
 import { MonthlyHelperModal } from "@/components/features/finance/monthly-helper-modal";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // Pastikan import ini ada
+import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 import { toast } from "sonner";
 
 // --- 1. HELPER: MAPPING VISUAL ---
@@ -53,7 +53,7 @@ export default function AgentBudgetPage() {
   const [result, setResult] = useState<BudgetResult | null>(null);
   const [recommendation, setRecommendation] = useState<string>("");
 
-  // [NEW] State untuk menampung file di memori (Blob URL)
+  // State untuk menampung file di memori (Blob URL)
   const [generatedFiles, setGeneratedFiles] = useState<{
     pdfUrl: string | null;
     mgcToken: string | null;
@@ -63,7 +63,7 @@ export default function AgentBudgetPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [showPdfModal, setShowPdfModal] = useState(false); // Untuk visual loading
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   // Helper Modal State
   const [monthlyHelperTarget, setMonthlyHelperTarget] = useState<"fixedIncome" | "variableIncome" | null>(null);
@@ -85,7 +85,6 @@ export default function AgentBudgetPage() {
   // --- HANDLERS: INPUT ---
   const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setClientData({ ...clientData, [e.target.name]: e.target.value });
-    // Optional: Reset result jika nama berubah
   };
 
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
@@ -93,7 +92,7 @@ export default function AgentBudgetPage() {
     if (!rawValue) { setter(""); return; }
     setter(new Intl.NumberFormat("id-ID").format(parseInt(rawValue)));
 
-    // [UX] Reset hasil jika angka berubah agar user hitung ulang
+    // Reset hasil jika angka berubah agar user hitung ulang
     if (result) {
       setResult(null);
       setGeneratedFiles(null);
@@ -123,7 +122,7 @@ export default function AgentBudgetPage() {
     }
 
     setIsLoading(true);
-    setShowPdfModal(true); // Visual feedback "Sedang memproses..."
+    setShowPdfModal(true);
 
     try {
       // 2. Prepare Payload (Konversi Tahunan -> Bulanan untuk logic BE)
@@ -229,8 +228,9 @@ export default function AgentBudgetPage() {
     }
   };
 
-  // --- CORE LOGIC 3: IMPORT .MGC ---
-  // --- CORE LOGIC 3: IMPORT .MGC ---
+  // ===========================================================================
+  // 3. CORE LOGIC: IMPORT .MGC (FIXED: BULANAN -> TAHUNAN)
+  // ===========================================================================
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -245,8 +245,7 @@ export default function AgentBudgetPage() {
       try {
         const rawContent = event.target?.result as string;
 
-        // [PERBAIKAN 1]: Sanitasi Input
-        // Hapus spasi/newline di awal & akhir string. Ini solusi utama "File Corrupt".
+        // [FIX] Sanitasi Input: Hapus spasi/newline
         const tokenContent = rawContent ? rawContent.trim() : "";
 
         if (!tokenContent) throw new Error("File kosong");
@@ -258,13 +257,10 @@ export default function AgentBudgetPage() {
           toast.warning("Modul Tidak Cocok", {
             description: `File ini untuk modul ${response.data.meta.module}, bukan Budgeting.`
           });
-          // Kita tetap lanjut (soft warning), atau bisa di-return jika ingin strict.
         }
 
-        // [PERBAIKAN 2]: Handling Struktur Data (Safe Unwrapping)
-        // Backend mengembalikan { data: { client, financial ... } } atau langsung { client, financial }
-        // Kita pastikan kita mengambil root data yang benar.
-        const rootData = response.data || response; // Fallback
+        // [FIX] Handling Unwrapping Data
+        const rootData = response.data || response;
         const client = rootData.client;
         const financial = rootData.financial;
 
@@ -281,31 +277,26 @@ export default function AgentBudgetPage() {
           clientPhone: client.phone || ""
         });
 
-        // [PERBAIKAN 3]: Koreksi Matematika (Hapus * 12)
-        // Di financial.service.ts, method decodeSimulationToken sudah memanggil 'toAnnualState'.
-        // Artinya 'financial.fixedIncome' SUDAH dalam bentuk TAHUNAN.
-        // JANGAN dikali 12 lagi, atau angkanya akan meledak.
+        // [FIX] KOREKSI PERHITUNGAN: BULANAN -> TAHUNAN (Dikali 12)
+        // Data di token tersimpan dalam format BULANAN.
+        // UI Form meminta input dalam format TAHUNAN.
 
-        const fixedAnnual = Number(financial.fixedIncome) || 0;
-        const variableAnnual = Number(financial.variableIncome) || 0;
+        const fixedAnnual = (Number(financial.fixedIncome) || 0) * 12;
+        const variableAnnual = (Number(financial.variableIncome) || 0) * 12;
 
         setFixedIncome(new Intl.NumberFormat("id-ID").format(fixedAnnual));
         setVariableIncome(new Intl.NumberFormat("id-ID").format(variableAnnual));
 
         toast.success("Import Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
 
-        // Reset Result agar user dipaksa klik "Hitung" lagi (memastikan kalkulasi ulang fresh)
+        // Reset Result agar user dipaksa klik "Hitung" lagi
         setResult(null);
         setGeneratedFiles(null);
 
       } catch (error: any) {
         console.error("Import Error:", error);
-
-        // [PERBAIKAN 4]: Menampilkan Pesan Error Spesifik dari Backend
-        // Backend sekarang mengirim pesan "File telah dimodifikasi" atau "Format rusak".
-        // Kita tampilkan itu ke user.
+        // Tampilkan pesan error spesifik dari Backend
         const backendMessage = error.response?.data?.message || error.message;
-
         toast.error("Gagal Import File", {
           description: backendMessage || "File .mgc tidak valid atau rusak."
         });
@@ -352,7 +343,6 @@ export default function AgentBudgetPage() {
 
       {/* HEADER SECTION */}
       <div className="relative pt-10 pb-32 px-5 overflow-hidden shadow-2xl bg-brand-900">
-        {/* Background Layers */}
         <div className="absolute inset-0 w-full h-full z-0">
           {backgroundImages.map((image, index) => (
             <div key={image}
@@ -363,7 +353,6 @@ export default function AgentBudgetPage() {
           <div className="absolute inset-0 bg-brand-900/90 mix-blend-multiply" />
         </div>
 
-        {/* Header Content */}
         <div className="relative z-20 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-center md:text-left">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
@@ -448,7 +437,6 @@ export default function AgentBudgetPage() {
               </div>
 
               <div className="space-y-5">
-                {/* FIXED INCOME */}
                 <div className="space-y-1">
                   <div className="flex justify-between">
                     <Label className="text-xs text-slate-500 font-semibold">Pemasukan Tetap (Setahun)</Label>
@@ -462,7 +450,6 @@ export default function AgentBudgetPage() {
                   </div>
                 </div>
 
-                {/* VARIABLE INCOME */}
                 <div className="space-y-1">
                   <div className="flex justify-between">
                     <Label className="text-xs text-slate-500 font-semibold">Pemasukan Tidak Tetap (Setahun)</Label>
@@ -507,7 +494,7 @@ export default function AgentBudgetPage() {
             ) : (
               <div className="animate-in slide-in-from-bottom-8 duration-700 space-y-6">
 
-                {/* 1. DOWNLOAD CENTER (Only show if calculated) */}
+                {/* DOWNLOAD CENTER */}
                 {generatedFiles && (
                   <Card className="bg-emerald-50 border-emerald-200 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in zoom-in-95 duration-300">
                     <div className="flex items-center gap-3 w-full">
@@ -531,7 +518,7 @@ export default function AgentBudgetPage() {
                   </Card>
                 )}
 
-                {/* 2. VIEW TOGGLE & HEADER */}
+                {/* VIEW TOGGLE & HEADER */}
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-black text-slate-800">Preview Analisa</h2>
                   <div className="bg-white p-1 rounded-lg border border-slate-200 flex shadow-sm">
@@ -540,7 +527,7 @@ export default function AgentBudgetPage() {
                   </div>
                 </div>
 
-                {/* 3. SAFE TO SPEND CARD */}
+                {/* SAFE TO SPEND CARD */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card className={cn("text-white p-6 rounded-[2rem] shadow-lg relative overflow-hidden border-0 flex flex-col justify-center", viewMode === "MONTHLY" ? "bg-brand-600" : "bg-cyan-600")}>
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -562,7 +549,7 @@ export default function AgentBudgetPage() {
                   </Card>
                 </div>
 
-                {/* 4. ALLOCATION GRID */}
+                {/* ALLOCATION GRID */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {displayedResult.allocations.map((item, idx) => {
                     const style = getAllocationStyle(item.type);
@@ -583,7 +570,7 @@ export default function AgentBudgetPage() {
                   })}
                 </div>
 
-                {/* 5. RECOMMENDATION BOX */}
+                {/* RECOMMENDATION BOX */}
                 {recommendation && (
                   <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start">
                     <div className="p-1 bg-blue-100 rounded-full text-blue-600 mt-0.5"><ShieldCheck className="w-4 h-4" /></div>

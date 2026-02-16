@@ -256,6 +256,7 @@ export default function PensionPage() {
         setLifeExpectancy(String(financial.lifeExpectancy || "75"));
 
         // Financials (Format Rupiah)
+        // Note: Untuk Pensiun, 'currentExpense' adalah BULANAN. Tidak perlu dikali 12.
         const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
         setCurrentExpense(fmt(Number(financial.currentExpense) || 0));
         setCurrentSaving(fmt(Number(financial.currentSaving) || 0));

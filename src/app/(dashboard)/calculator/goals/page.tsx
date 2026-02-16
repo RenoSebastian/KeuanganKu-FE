@@ -8,18 +8,17 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import {
     Target, Plane, Heart, Star,
-    RefreshCcw, Download, CalendarDays, Coins,
-    TrendingUp, Wallet, ArrowRight, Loader2, Sparkles, Upload, FileJson, CheckCircle2, User, Briefcase
+    RefreshCcw, Download, CalendarDays,
+    Wallet, Loader2, Sparkles, Upload, FileJson, CheckCircle2, User, Briefcase
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatRupiah } from "@/lib/financial-math";
 import { GoalSimulationResult, CreateGoalSimulationDto } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { GoalsGuide } from "@/components/features/calculator/goals-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 import { toast } from "sonner";
 
-// Components Visual (Fase 2)
+// Components Visual
 import { GoalRealityCard } from "@/components/features/calculator/goals/goal-reality-card";
 import { GoalStrategyCard } from "@/components/features/calculator/goals/goal-strategy-card";
 import { GoalSolutionCard } from "@/components/features/calculator/goals/goal-solution-card";
@@ -66,7 +65,7 @@ export default function GoalsPage() {
     // --- STATE 1: IDENTITY ---
     const [clientData, setClientData] = useState({
         clientName: "",
-        clientDob: "", // [FIXED] Wajib diisi via UI
+        clientDob: "",
         clientCity: "",
         clientJob: "",
         clientPhone: ""
@@ -284,6 +283,7 @@ export default function GoalsPage() {
                     setTargetDate(dateStr);
                 }
 
+                // Mapping Uang: Tidak perlu dikali 12 karena Goal adalah Lump Sum (Total)
                 const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
                 setTargetAmount(fmt(Number(financial.targetAmount) || 0));
                 setCurrentSaving(fmt(Number(financial.currentSaving) || 0));

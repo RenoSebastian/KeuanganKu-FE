@@ -125,6 +125,9 @@ export default function InsurancePage() {
 
     try {
       // 2. Prepare Payload
+      // Gaji Tahunan (UI) -> Gaji Bulanan (Backend)
+      const monthlyExpense = parseMoney(annualIncome) / 12;
+
       const totalDebt =
         parseMoney(debtKPR) +
         parseMoney(debtKPM) +
@@ -132,13 +135,11 @@ export default function InsurancePage() {
         parseMoney(debtConsumptive) +
         parseMoney(debtOther);
 
-      const monthlyExpense = parseMoney(annualIncome) / 12;
-
       const payload: CreateInsuranceSimulationDto = {
         ...clientData,
         type: 'LIFE',
         dependentCount: 2,
-        monthlyExpense,
+        monthlyExpense, // Dikirim sebagai bulanan
         existingDebt: totalDebt,
         existingCoverage: parseMoney(existingInsurance),
         protectionDuration: parseInt(protectionDuration) || 10,
@@ -267,11 +268,15 @@ export default function InsurancePage() {
         const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
         // Reset breakdown debts (Backend hanya menyimpan total sum 'existingDebt')
+        // Kita masukkan total ke 'debtOther' agar kalkulasi tetap benar
         setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive("");
         setDebtOther(fmt(Number(financial.existingDebt) || 0));
 
-        // Konversi Bulanan ke Tahunan untuk tampilan input
-        setAnnualIncome(fmt((Number(financial.monthlyExpense) || 0) * 12));
+        // [FIX KOREKSI] Backend simpan 'monthlyExpense' (Bulanan).
+        // UI Form meminta 'Annual Income' (Tahunan).
+        // Maka saat import, nilai bulanan harus dikali 12.
+        const annualIncomeValue = (Number(financial.monthlyExpense) || 0) * 12;
+        setAnnualIncome(fmt(annualIncomeValue));
 
         setProtectionDuration(String(financial.protectionDuration || 10));
         setInflation(Number(financial.inflationRate) || 5);
@@ -281,12 +286,13 @@ export default function InsurancePage() {
 
         toast.success("Restore Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
 
-        // Reset Result agar user dipaksa klik "Hitung" lagi
+        // Reset Result agar user dipaksa klik "Hitung" lagi (memastikan kalkulasi ulang fresh)
         setResult(null);
         setGeneratedFiles(null);
 
       } catch (error: any) {
         console.error("Import Error:", error);
+        // Tampilkan pesan error spesifik dari Backend (misal: "Signature Mismatch")
         const backendMessage = error.response?.data?.message || error.message;
         toast.error("Gagal Import File", { description: backendMessage });
       } finally {
