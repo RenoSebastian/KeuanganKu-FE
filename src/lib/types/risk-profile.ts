@@ -11,8 +11,13 @@ export interface RiskProfileAnswerItem {
 }
 
 /**
- * [FIX]: Nama disesuaikan menjadi CreateRiskProfileSimulationDto 
- * agar sesuai dengan import di financial.service.ts
+ * [FIX]: Tambahkan Alias agar RiskProfilePayload dikenali oleh Wizard
+ * Ini menyelesaikan error: Module has no exported member 'RiskProfilePayload'
+ */
+export type RiskProfilePayload = CreateRiskProfileSimulationDto;
+
+/**
+ * DTO Utama untuk membuat simulasi
  */
 export interface CreateRiskProfileSimulationDto {
     clientName: string;
@@ -20,8 +25,8 @@ export interface CreateRiskProfileSimulationDto {
     clientPhone?: string;
     clientJob?: string;
     clientCity?: string;
+    // Mendukung input berupa Array (dari UI state) atau Map (dari raw form data)
     answers: Record<string, string> | RiskProfileAnswerItem[];
-    // Menggunakan Record<string, string> jika input dari UI berupa map { q1: "5" }
 }
 
 // ============================================================================
@@ -71,6 +76,7 @@ export interface RiskProfileSimulationResult {
         phone?: string;
     };
     financial: {
+        // [FIX] Fleksibilitas tipe data untuk parsing token
         answers: Record<string, string> | RiskProfileAnswerItem[];
     };
     result: RiskAnalysisResult;

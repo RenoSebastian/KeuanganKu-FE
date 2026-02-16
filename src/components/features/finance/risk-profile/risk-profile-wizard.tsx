@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 
 // Types & Services
 import {
-    RiskProfilePayload,
+    CreateRiskProfileSimulationDto as RiskProfilePayload, // [FIX] Import Alias agar sesuai Type Def
     RiskProfileSimulationResult,
     RiskProfileAnswerItem
 } from "@/lib/types/risk-profile";
@@ -66,15 +66,22 @@ export function RiskProfileWizard() {
     const {
         draftAvailable,
         restoreDraft,
-        clearDraft,
+        clearStorage, // [FIX] Gunakan nama asli dari hook (clearStorage)
         ignoreDraft,
         draftData
     } = useSimulationPersistence<ClientIdentity, RiskProfileAnswerItem[]>(
         SIMULATION_STORAGE_KEYS.RISK_PROFILE,
         clientData,
         answers,
-        stepIndex
+        stepIndex,
+        simulationResult, // State Hasil
+        pdfUrl,           // State PDF
+        mgcToken          // State Token
     );
+
+    // [FIX] Helper alias agar kode di bawah tetap bersih & Safe Access untuk draftData
+    const clearDraft = clearStorage;
+    const savedDraftName = (draftData as any)?.clientData?.name || "Klien";
 
     // --- HANDLERS: IMPORT .MGC ---
 
@@ -104,9 +111,23 @@ export function RiskProfileWizard() {
                     // 1. Decode token via service
                     const decoded = await riskProfileService.decodeSimulationToken(tokenString);
 
-                    // 2. Hydrate State
+                    // [FIX] Normalisasi Answers: Backend mungkin kirim Object, Frontend butuh Array
+                    let normalizedAnswers: RiskProfileAnswerItem[] = [];
+                    const rawAnswers = decoded.financial.answers;
+
+                    if (Array.isArray(rawAnswers)) {
+                        normalizedAnswers = rawAnswers as RiskProfileAnswerItem[];
+                    } else if (typeof rawAnswers === 'object' && rawAnswers !== null) {
+                        // Konversi dari Record<string, string> ke Array
+                        normalizedAnswers = Object.entries(rawAnswers).map(([key, val]) => ({
+                            questionId: key,
+                            value: Number(val) // Pastikan jadi number
+                        }));
+                    }
+
+                    // 2. Hydrate State dengan data yang sudah dinormalisasi
                     setClientData(decoded.client);
-                    setAnswers(decoded.financial.answers);
+                    setAnswers(normalizedAnswers);
                     setSimulationResult(decoded);
                     setMgcToken(tokenString);
                     setPdfUrl(null); // Reset PDF URL karena hasil import belum punya blob PDF
@@ -133,13 +154,21 @@ export function RiskProfileWizard() {
     // --- HANDLERS: RESTORE & FLOW ---
 
     const handleRestoreSession = () => {
-        const draft = restoreDraft();
+        // [FIX] Type Casting 'any' untuk mengakses properti payload storage dengan aman
+        const draft = restoreDraft() as any;
+
         if (draft) {
             if (draft.clientData) setClientData(draft.clientData);
             if (draft.inputData) setAnswers(draft.inputData);
 
-            if (draft.step === 1) setCurrentStep("QUIZ");
-            else if (draft.step === 2) setCurrentStep("QUIZ");
+            // [FIX] Restore Result State juga
+            if (draft.result) setSimulationResult(draft.result);
+            if (draft.pdfUrl) setPdfUrl(draft.pdfUrl);
+            if (draft.mgcToken) setMgcToken(draft.mgcToken);
+
+            // Smart Step Restoration
+            if (draft.step === 2 || draft.result) setCurrentStep("RESULT");
+            else if (draft.step === 1) setCurrentStep("QUIZ");
             else setCurrentStep("IDENTITY");
 
             toast.success("Sesi sebelumnya berhasil dipulihkan.");
@@ -247,7 +276,7 @@ export function RiskProfileWizard() {
                     toast.success("Dokumen dan backup berhasil diunduh.");
                 }
 
-                clearDraft();
+                clearDraft(); // Menggunakan alias clearStorage
             } else {
                 toast.error("Gagal membuat dokumen PDF.");
             }
@@ -271,7 +300,7 @@ export function RiskProfileWizard() {
             setSimulationResult(null);
             setPdfUrl(null);
             setMgcToken(null);
-            clearDraft();
+            clearDraft(); // Menggunakan alias clearStorage
             setCurrentStep("IDENTITY");
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -295,7 +324,8 @@ export function RiskProfileWizard() {
                     <AlertTitle className="font-bold text-blue-700">Sesi Belum Selesai Ditemukan</AlertTitle>
                     <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
                         <div className="text-xs">
-                            Ditemukan data klien <strong>{draftData?.clientData?.name}</strong> yang belum selesai diproses.
+                            {/* [FIX] Gunakan safe variable savedDraftName untuk menghindari error TS */}
+                            Ditemukan data klien <strong>{savedDraftName}</strong> yang belum selesai diproses.
                         </div>
                         <div className="flex gap-2">
                             <Button size="sm" variant="ghost" className="h-8 text-xs hover:bg-blue-100" onClick={ignoreDraft}>

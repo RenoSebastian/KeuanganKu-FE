@@ -118,7 +118,8 @@ export function AnalysisResult({
         // Prioritaskan prop 'userAnswers' (Live State), fallback ke 'data.financial.answers' (Saved Token)
         const answersSource = userAnswers || financial?.answers || [];
 
-        return answersSource.map((ans) => {
+        // [FIX] Type Casting Explicit untuk mengatasi error implicit 'any'
+        return (answersSource as RiskProfileAnswerItem[]).map((ans: RiskProfileAnswerItem) => {
             const questionRef = RISK_PROFILE_QUESTIONS.find((q) => q.id === ans.questionId);
             const optionRef = questionRef?.options.find((opt) => opt.value === ans.value);
 
@@ -239,7 +240,8 @@ export function AnalysisResult({
                                             onMouseEnter: onPieEnter
                                         } as any}
                                     >
-                                        {chartData.map((entry, index) => (
+                                        {/* [FIX] Tambahkan type index number agar tidak implicit any */}
+                                        {chartData.map((entry, index: number) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
