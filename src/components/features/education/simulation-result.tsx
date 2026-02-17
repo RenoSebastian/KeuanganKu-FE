@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Clock, Target, FileDown } from "lucide-react";
+import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Clock, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/financial-math";
 import { cn } from "@/lib/utils";
@@ -138,13 +138,14 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {child.stages.map((stage, sIdx) => {
-                        // Safe parsing numbers
+                        // [FIX] Casting 'as string' agar TypeScript tidak komplain 'never'
+                        // Safe parsing numbers: Handle kemungkinan string format "1.000.000"
                         const fv = typeof stage.futureCost === 'string'
-                          ? parseFloat(stage.futureCost.replace(/[^0-9,-]+/g, "").replace(",", "."))
+                          ? parseFloat((stage.futureCost as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
                           : stage.futureCost;
 
                         const pmt = typeof stage.monthlySaving === 'string'
-                          ? parseFloat(stage.monthlySaving.replace(/[^0-9,-]+/g, "").replace(",", "."))
+                          ? parseFloat((stage.monthlySaving as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
                           : stage.monthlySaving;
 
                         return (
