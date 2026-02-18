@@ -25,11 +25,6 @@ const PartnershipSection = () => {
                         transition={{ duration: 0.8 }}
                         className="relative"
                     >
-                        {/* Decorative Badge melayang */}
-                        <div className="absolute -top-8 -left-8 bg-blue-600 text-white p-4 rounded-2xl shadow-2xl z-20 animate-bounce-slow hidden md:block">
-                            <ShieldCheck size={32} />
-                        </div>
-
                         <div className="relative bg-linear-to-br from-white to-slate-50 rounded-[3rem] p-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] border border-white overflow-hidden">
                             {/* Grainy Texture Overlay */}
                             <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
@@ -66,17 +61,6 @@ const PartnershipSection = () => {
                                 <p className="text-slate-400 text-sm font-medium italic">
                                     Bersama membangun standar baru industri asuransi
                                 </p>
-                            </div>
-                        </div>
-
-                        {/* Floating Card Kecil */}
-                        <div className="absolute -bottom-14 -right-6 bg-white p-6 rounded-3xl shadow-2xl border border-slate-50 z-20 hidden md:flex items-center gap-4">
-                            <div className="w-14 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white">
-                                <ArrowUpRight size={24} />
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-500 font-bold uppercase">Growth</p>
-                                <p className="text-lg font-black text-slate-900">+120% Efficiency</p>
                             </div>
                         </div>
                     </motion.div>

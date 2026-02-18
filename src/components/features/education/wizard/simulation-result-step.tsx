@@ -86,7 +86,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     Rencana Dana Pendidikan
                 </h2>
                 <p className="text-slate-500 max-w-lg mx-auto leading-relaxed text-sm">
-                    Berikut adalah strategi keuangan yang disesuaikan untuk <span className="font-bold text-slate-900">{children.length} anak</span> Anda dengan metode investasi <i>Sinking Fund</i>.
+                    Berikut adalah strategi keuangan yang disesuaikan untuk <span className="font-bold text-slate-900">{children.length} anak</span> Anda dengan metode investasi.
                 </p>
             </div>
 
