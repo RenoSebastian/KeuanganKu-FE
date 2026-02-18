@@ -35,7 +35,7 @@ import { calculateEducationInvestment } from "@/lib/financial-math";
 export default function EducationCalculatorPage() {
   const [step, setStep] = useState(1);
 
-  // State Form Input (Global State untuk semua step)
+  // State Form Input
   const [formData, setFormData] = useState<Partial<EducationSimulationForm>>({});
 
   // State Hasil Simulasi
@@ -57,8 +57,6 @@ export default function EducationCalculatorPage() {
 
   // --- HANDLER BACK / REVISI ---
   const handleBackToRevision = () => {
-    // Logic: Mundur ke step 2 TANPA menghapus formData.
-    // Form di step 2 akan otomatis terisi kembali (re-hydrate) dari state formData.
     setStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -66,19 +64,10 @@ export default function EducationCalculatorPage() {
   // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
-
-    // [CRITICAL FIX] Simpan data Step 2 ke State Global sebelum API Call
-    // Ini memastikan data anak tidak hilang saat user melakukan Revisi (Back)
-    setFormData((prev) => ({
-      ...prev,
-      ...data
-    }));
+    setFormData((prev) => ({ ...prev, ...data }));
 
     try {
-      // 1. Gabungkan data (gunakan 'data' terbaru dari parameter untuk akurasi payload)
       const finalFormData = { ...formData, ...data } as EducationSimulationForm;
-
-      // 2. Lakukan Kalkulasi Lokal (Enrichment Payload)
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
 
@@ -106,7 +95,6 @@ export default function EducationCalculatorPage() {
         };
       });
 
-      // 3. Siapkan payload final
       const payload: EducationSimulationPayload = {
         clientName: finalFormData.clientName,
         clientDob: finalFormData.clientDob || "",
@@ -118,10 +106,8 @@ export default function EducationCalculatorPage() {
         childrenPlans: childrenPlansPayload
       };
 
-      // 4. PANGGIL API
       const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
 
-      // 5. Set State Hasil
       setResult(response);
       setStep(3);
       toast.success("Simulasi berhasil dihitung!", {
@@ -139,7 +125,7 @@ export default function EducationCalculatorPage() {
     }
   };
 
-  // --- HANDLER IMPORT FILE ---
+  // --- HANDLER IMPORT FILE (DIPERBAIKI: Add Status) ---
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,26 +142,90 @@ export default function EducationCalculatorPage() {
       const fileContent = await file.text();
       const response = await financialService.decodeSimulationToken(fileContent);
 
-      if (response) {
-        const importedData = response.data || response;
+      if (response && response.data) {
+        const importedData = response.data;
+        const metaData = response.meta || {};
 
+        // 1. Mapping Data Form
         const mappedForm: EducationSimulationForm = {
           clientName: importedData.clientName || "",
           clientCity: importedData.clientCity || "",
-          clientDob: importedData.clientDob,
-          clientJob: importedData.clientJob,
-          clientPhone: importedData.clientPhone,
-          inflationRate: importedData.inflationRate || 10,
-          returnRate: importedData.returnRate || 12,
-          childrenPlans: importedData.childrenPlans || []
+          clientDob: importedData.clientDob ? String(importedData.clientDob).split('T')[0] : "",
+          clientJob: importedData.clientJob || "",
+          clientPhone: importedData.clientPhone || "",
+          inflationRate: Number(importedData.inflationRate) || 10,
+          returnRate: Number(importedData.returnRate) || 12,
+          childrenPlans: Array.isArray(importedData.childrenPlans)
+            ? importedData.childrenPlans.map((child: any) => ({
+              childName: child.childName || "",
+              childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
+              stages: Array.isArray(child.stages)
+                ? child.stages.map((stage: any) => ({
+                  level: stage.level,
+                  startYear: Number(stage.startYear),
+                  duration: Number(stage.duration),
+                  costEntry: Number(stage.costEntry || 0),
+                  costMonthly: Number(stage.costMonthly || 0),
+                  costSemester: Number(stage.costSemester || 0),
+                  costFull: Number(stage.costFull || 0),
+                  calculatedFutureValue: Number(stage.calculatedFutureValue || 0),
+                  calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || 0),
+                }))
+                : []
+            }))
+            : []
         };
 
         setFormData(mappedForm);
-        toast.dismiss();
-        toast.success("File berhasil dimuat!");
 
-        if (mappedForm.childrenPlans && mappedForm.childrenPlans.length > 0) {
+        // 2. Kalkulasi Total Manual
+        let totalMonthlySaving = 0;
+        let totalFutureCost = 0;
+
+        mappedForm.childrenPlans.forEach(child => {
+          child.stages.forEach(stage => {
+            totalMonthlySaving += (stage as any).calculatedMonthlySaving || 0;
+            totalFutureCost += (stage as any).calculatedFutureValue || 0;
+          });
+        });
+
+        // 3. Bypass ke Result jika data valid
+        if (totalFutureCost > 0) {
+          // [FIX] Tambahkan properti 'status' disini
+          const reconstructedResult: EducationSimulationResponse = {
+            status: "success", // <--- PERBAIKAN: Menambahkan status
+            simulationId: metaData.simulationId || "imported-session",
+            mgcToken: fileContent,
+            filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
+            data: {
+              ...mappedForm,
+              totalMonthlySaving,
+              totalFutureCost,
+              childrenPlans: mappedForm.childrenPlans.map(child => ({
+                ...child,
+                totalFutureCost: child.stages.reduce((acc, s: any) => acc + (s.calculatedFutureValue || 0), 0),
+                monthlySaving: child.stages.reduce((acc, s: any) => acc + (s.calculatedMonthlySaving || 0), 0),
+                stages: child.stages.map((s: any) => ({
+                  ...s,
+                  costType: s.costEntry > 0 ? "ENTRY" : "MONTHLY",
+                  futureCost: s.calculatedFutureValue,
+                  monthlySaving: s.calculatedMonthlySaving,
+                  yearsToStart: s.startYear - new Date().getFullYear()
+                }))
+              })) as any
+            }
+          };
+
+          setResult(reconstructedResult);
+          setStep(3);
+          toast.dismiss();
+          toast.success("Sesi berhasil dipulihkan!", {
+            description: "Menampilkan hasil simulasi terakhir."
+          });
+        } else {
           setStep(2);
+          toast.dismiss();
+          toast.success("Draft berhasil dimuat. Silakan lanjutkan pengisian.");
         }
       }
     } catch (err: any) {
@@ -188,7 +238,6 @@ export default function EducationCalculatorPage() {
     }
   };
 
-  // --- HANDLER RESET ---
   const handleReset = () => {
     setStep(1);
     setFormData({});

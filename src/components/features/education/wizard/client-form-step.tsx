@@ -49,7 +49,6 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
     }, []);
 
     const form = useForm<ClientFormValues>({
-        // [FIX] Menggunakan 'as any' untuk bypass strict mismatch type antara Zod Optional & RHF
         resolver: zodResolver(clientFormSchema) as any,
         defaultValues: {
             clientName: initialData?.clientName ?? "",
@@ -58,8 +57,21 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
             clientJob: initialData?.clientJob ?? "",
             clientPhone: initialData?.clientPhone ?? "",
         },
-        mode: "onChange", // Validasi real-time agar tombol bisa bereaksi
+        mode: "onChange",
     });
+
+    // [FIX] useEffect untuk re-hydrate form saat initialData berubah (dari Import / Back)
+    useEffect(() => {
+        if (initialData) {
+            form.reset({
+                clientName: initialData.clientName ?? "",
+                clientDob: initialData.clientDob ?? "",
+                clientCity: initialData.clientCity ?? "",
+                clientJob: initialData.clientJob ?? "",
+                clientPhone: initialData.clientPhone ?? "",
+            });
+        }
+    }, [initialData, form]);
 
     const { isValid } = form.formState;
 
@@ -68,7 +80,7 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
 
             {/* 1. Header Section: Humanis & Personal */}
             <div className="text-center space-y-4">
-                <div className="mx-auto w-20 h-20 bg-linear-to-tr from-blue-100 to-blue-50 rounded-3xl flex items-center justify-center text-blue-600 mb-6 shadow-blue-100 shadow-xl rotate-3 hover:rotate-0 transition-transform duration-500 border border-blue-200">
+                <div className="mx-auto w-20 h-20 bg-linear-to-trrom-blue-100 to-blue-50 rounded-3xl flex items-center justify-center text-blue-600 mb-6 shadow-blue-100 shadow-xl rotate-3 hover:rotate-0 transition-transform duration-500 border border-blue-200">
                     <HeartHandshake className="w-10 h-10" />
                 </div>
                 <h2 className="text-3xl font-black tracking-tight text-slate-800">
@@ -202,7 +214,6 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                                             type="tel"
                                                             inputMode="numeric"
                                                             {...field}
-                                                            // Simple filter: hanya angka
                                                             onChange={(e) => {
                                                                 const val = e.target.value.replace(/\D/g, '');
                                                                 field.onChange(val);

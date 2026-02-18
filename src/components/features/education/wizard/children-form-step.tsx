@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray, useWatch, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider"; // Pastikan komponen ini ada
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 // --- CUSTOM FEATURES ---
@@ -72,6 +72,21 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
         },
         mode: "onChange"
     });
+
+    // [FIX] useEffect untuk re-hydrate form saat initialData berubah (dari Import / Back)
+    useEffect(() => {
+        if (initialData) {
+            // Kita reset form dengan menggabungkan value saat ini dengan data baru
+            // Agar field yang tidak ada di initialData tidak hilang
+            form.reset((formValues) => ({
+                ...formValues,
+                ...initialData,
+                childrenPlans: initialData.childrenPlans?.length
+                    ? initialData.childrenPlans
+                    : formValues.childrenPlans
+            }));
+        }
+    }, [initialData, form]);
 
     // 2. FIELD ARRAY
     const { fields, append, remove } = useFieldArray({
