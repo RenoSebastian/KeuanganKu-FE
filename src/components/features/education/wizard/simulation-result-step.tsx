@@ -12,7 +12,6 @@ import {
     Loader2,
     Wallet,
     ChevronDown,
-    FileText,
     Sparkles,
     ChevronLeft
 } from "lucide-react";
@@ -58,11 +57,19 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 const url = window.URL.createObjectURL(blob);
                 const link = document.createElement("a");
                 link.href = url;
+
                 // Nama file sesuai dari BE atau default
-                link.download = result.filename ? result.filename.replace('.pdf', '.mgc') : `session-${result.simulationId}.mgc`;
+                const filename = result.filename ? result.filename.replace('.pdf', '.mgc') : `session-${result.simulationId}.mgc`;
+                link.download = filename;
+
                 document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link);
+
+                // Cleanup
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
             }
 
             toast.dismiss();
@@ -243,7 +250,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 <Button
                     onClick={handleDownloadPackage}
                     disabled={isDownloading}
-                    // Gunakan flex-[2] agar tombol download lebih lebar di desktop
                     className="flex-2 h-12 gap-2 text-base font-bold shadow-xl shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
                 >
                     {isDownloading ? (
@@ -256,6 +262,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                         </>
                     )}
                 </Button>
+
                 <Button
                     variant="outline"
                     onClick={onBack}
@@ -264,11 +271,12 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 >
                     <ChevronLeft className="w-4 h-4" /> Revisi Data
                 </Button>
+
                 <Button
                     variant="outline"
                     onClick={onReset}
                     disabled={isDownloading}
-                    className="flex-1 h-12 gap-2 text-base font-semibold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    className="flex-1 h-12 gap-2 text-base font-semibold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
                 >
                     <RefreshCcw className="w-5 h-5" /> Hitung Ulang
                 </Button>

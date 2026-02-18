@@ -14,6 +14,7 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // Wizard Steps Components
@@ -34,7 +35,7 @@ import { calculateEducationInvestment } from "@/lib/financial-math";
 export default function EducationCalculatorPage() {
   const [step, setStep] = useState(1);
 
-  // State Form Input
+  // State Form Input (Global State untuk semua step)
   const [formData, setFormData] = useState<Partial<EducationSimulationForm>>({});
 
   // State Hasil Simulasi
@@ -54,18 +55,30 @@ export default function EducationCalculatorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // 1. Tambahkan handler di dalam function EducationCalculatorPage()
+  // --- HANDLER BACK / REVISI ---
   const handleBackToRevision = () => {
-    setStep(2); // Kembali ke form rencana anak
+    // Logic: Mundur ke step 2 TANPA menghapus formData.
+    // Form di step 2 akan otomatis terisi kembali (re-hydrate) dari state formData.
+    setStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
+
+    // [CRITICAL FIX] Simpan data Step 2 ke State Global sebelum API Call
+    // Ini memastikan data anak tidak hilang saat user melakukan Revisi (Back)
+    setFormData((prev) => ({
+      ...prev,
+      ...data
+    }));
+
     try {
+      // 1. Gabungkan data (gunakan 'data' terbaru dari parameter untuk akurasi payload)
       const finalFormData = { ...formData, ...data } as EducationSimulationForm;
 
+      // 2. Lakukan Kalkulasi Lokal (Enrichment Payload)
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
 
@@ -93,6 +106,7 @@ export default function EducationCalculatorPage() {
         };
       });
 
+      // 3. Siapkan payload final
       const payload: EducationSimulationPayload = {
         clientName: finalFormData.clientName,
         clientDob: finalFormData.clientDob || "",
@@ -104,8 +118,10 @@ export default function EducationCalculatorPage() {
         childrenPlans: childrenPlansPayload
       };
 
+      // 4. PANGGIL API
       const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
 
+      // 5. Set State Hasil
       setResult(response);
       setStep(3);
       toast.success("Simulasi berhasil dihitung!", {
@@ -172,6 +188,7 @@ export default function EducationCalculatorPage() {
     }
   };
 
+  // --- HANDLER RESET ---
   const handleReset = () => {
     setStep(1);
     setFormData({});
@@ -245,9 +262,9 @@ export default function EducationCalculatorPage() {
             const isActive = step >= stepNum;
             const isCurrent = step === stepNum;
             return (
-              <div key={label} className={cn("flex flex-col items-center gap-2", isActive ? "text-blue-600" : "text-slate-400")}>
+              <div key={label} className={cn("flex flex-col items-center gap-2 transition-all duration-500", isActive ? "text-blue-600" : "text-slate-400")}>
                 <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ring-4",
+                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ring-4",
                   isActive ? "bg-blue-600 text-white ring-blue-50" : "bg-slate-100 ring-transparent",
                   isCurrent && "ring-blue-100 scale-110"
                 )}>
@@ -289,7 +306,7 @@ export default function EducationCalculatorPage() {
             <SimulationResultStep
               result={result}
               onReset={handleReset}
-              onBack={handleBackToRevision} // <--- Tambahkan ini
+              onBack={handleBackToRevision}
             />
           )}
         </CardContent>
@@ -311,7 +328,7 @@ export default function EducationCalculatorPage() {
           <InfoCard
             icon={CalcIcon}
             title="Metode Sinking Fund"
-            desc="Perhitungan akurat menggunakan asumsi inflasi dan target return investasi berkala."
+            desc="Perhitungan akurat menggunakan asumsi inflasi geometrik dan investasi anuitas (Future Value)."
           />
         </div>
       )}
