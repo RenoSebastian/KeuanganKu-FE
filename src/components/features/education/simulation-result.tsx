@@ -1,22 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Target } from "lucide-react";
+import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Target, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatRupiah } from "@/lib/financial-math";
-import { EducationSimulationResult } from "@/lib/types/education";
+import { formatCurrency } from "@/lib/formatters";
+import { EducationSimulationResponse } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
 import { toast } from "sonner";
 
 interface SimulationResultProps {
-  result: EducationSimulationResult;
+  result: EducationSimulationResponse;
   onReset: () => void;
 }
 
 export function SimulationResultStep({ result, onReset }: SimulationResultProps) {
   // State untuk toggle accordion detail per anak
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({});
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const toggleDetail = (childName: string) => {
     setShowDetails(prev => ({
@@ -25,10 +26,31 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
     }));
   };
 
-  // --- [SCENARIO B] HANDLER DOWNLOAD ---
+  // --- DATA PREPARATION ---
+  // Transformasi data mentah dari API menjadi format yang siap render
+  const simulationData = result.data;
+  const childrenData = simulationData.childrenPlans.map(child => {
+    const totalFutureCost = child.stages.reduce((acc, s) => acc + (s.calculatedFutureValue || 0), 0);
+    const totalMonthlySaving = child.stages.reduce((acc, s) => acc + (s.calculatedMonthlySaving || 0), 0);
+    const currentYear = new Date().getFullYear();
+
+    return {
+      name: child.childName,
+      totalFutureCost,
+      monthlySaving: totalMonthlySaving,
+      stages: child.stages.map(stage => ({
+        level: stage.level,
+        costType: stage.costType || "MONTHLY",
+        yearsToStart: Math.max(0, stage.startYear - currentYear),
+        futureCost: stage.calculatedFutureValue || 0,
+        monthlySaving: stage.calculatedMonthlySaving || 0,
+      }))
+    };
+  });
+
+  // --- HANDLER DOWNLOAD ---
   const handleDownload = async () => {
     try {
-      // 1. Validasi ID Simulasi
       if (!result.simulationId) {
         toast.error("ID Simulasi tidak ditemukan.", {
           description: "Gagal mengidentifikasi data di database."
@@ -36,24 +58,25 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         return;
       }
 
+      setIsDownloading(true);
       toast.loading("Menyiapkan dokumen...");
 
-      // 2. Download PDF (Request Stream ke Backend)
-      // Ini akan memicu loading berat di BE, tapi browser akan menganggapnya download file biasa
+      // 1. Download PDF (Request Stream ke Backend)
       await financialService.downloadEducationSimulationPdf(result.simulationId);
 
-      // 3. Download File Sesi .mgc (Generate lokal dari token)
-      // Fungsi ini tidak memanggil API lagi, hanya mengolah token yang sudah ada di state
-      financialService.downloadSimulationFiles(result);
+      // 2. Download File Sesi .mgc (Generate lokal dari token jika ada logic-nya)
+      // financialService.downloadSimulationFiles(result); // Uncomment jika fitur ini ada
 
       toast.dismiss();
       toast.success("Dokumen berhasil diunduh!", {
-        description: "Laporan PDF dan file sesi (.mgc) telah tersimpan."
+        description: "Laporan PDF telah tersimpan."
       });
     } catch (error) {
       console.error("Download error:", error);
       toast.dismiss();
       toast.error("Gagal mengunduh dokumen. Silakan coba lagi.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -67,7 +90,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         </div>
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">Rencana Dana Pendidikan</h2>
         <p className="text-slate-500 font-medium max-w-lg mx-auto">
-          Strategi pemenuhan biaya pendidikan untuk <span className="font-bold text-slate-900">{result.summary.totalChildren} orang anak</span> dengan metode <i>Sinking Fund</i>.
+          Strategi pemenuhan biaya pendidikan untuk <span className="font-bold text-slate-900">{childrenData.length} orang anak</span> dengan metode <i>Sinking Fund</i>.
         </p>
       </div>
 
@@ -84,7 +107,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Dana Dibutuhkan (FV)</p>
               <h3 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-                {formatRupiah(result.summary.totalFutureCost)}
+                {formatCurrency(simulationData.totalFutureCost)}
               </h3>
             </div>
           </div>
@@ -100,7 +123,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
             <div>
               <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Investasi Rutin</p>
               <h3 className="text-3xl md:text-4xl font-black text-emerald-700 tracking-tighter">
-                {formatRupiah(result.summary.totalMonthlyInvestment)}
+                {formatCurrency(simulationData.totalMonthlySaving)}
                 <span className="text-lg font-bold text-emerald-600/70 ml-1">/bln</span>
               </h3>
             </div>
@@ -112,7 +135,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
       <div className="space-y-4">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider ml-1">Rincian Per Anak</h4>
 
-        {result.children.map((child, index) => (
+        {childrenData.map((child, index) => (
           <div key={index} className="bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
 
             <button
@@ -126,8 +149,8 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                 <div className="text-left">
                   <div className="font-bold text-slate-800 text-base">{child.name}</div>
                   <div className="text-xs text-slate-500">
-                    Kebutuhan: <span className="font-semibold text-slate-700">{formatRupiah(child.totalFutureCost)}</span> •
-                    Investasi: <span className="font-semibold text-emerald-600">{formatRupiah(child.monthlySaving)}/bln</span>
+                    Kebutuhan: <span className="font-semibold text-slate-700">{formatCurrency(child.totalFutureCost)}</span> •
+                    Investasi: <span className="font-semibold text-emerald-600">{formatCurrency(child.monthlySaving)}/bln</span>
                   </div>
                 </div>
               </div>
@@ -152,36 +175,25 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {child.stages.map((stage, sIdx) => {
-                        // Safe parsing numbers
-                        const futureCost = typeof stage.futureCost === 'string'
-                          ? parseFloat((stage.futureCost as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
-                          : stage.futureCost;
-
-                        const monthlySaving = typeof stage.monthlySaving === 'string'
-                          ? parseFloat((stage.monthlySaving as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
-                          : stage.monthlySaving;
-
-                        return (
-                          <tr key={sIdx} className="hover:bg-blue-50/20 transition-colors">
-                            <td className="px-4 py-3 pl-16 font-medium text-slate-700">
-                              {stage.level}
-                              <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-slate-100 rounded text-slate-500 border border-slate-200">
-                                {stage.costType === "ENTRY" ? "Pangkal" : "SPP"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-slate-500">
-                              {stage.yearsToStart} tahun lagi
-                            </td>
-                            <td className="px-4 py-3 text-right font-medium text-slate-600">
-                              {formatRupiah(futureCost)}
-                            </td>
-                            <td className="px-4 py-3 text-right font-bold text-emerald-600">
-                              {formatRupiah(monthlySaving)}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {child.stages.map((stage, sIdx) => (
+                        <tr key={sIdx} className="hover:bg-blue-50/20 transition-colors">
+                          <td className="px-4 py-3 pl-16 font-medium text-slate-700">
+                            {stage.level}
+                            <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-slate-100 rounded text-slate-500 border border-slate-200">
+                              {stage.costType === "ENTRY" ? "Pangkal" : "SPP"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">
+                            {stage.yearsToStart} tahun lagi
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-slate-600">
+                            {formatCurrency(stage.futureCost)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-emerald-600">
+                            {formatCurrency(stage.monthlySaving)}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -195,8 +207,8 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
       <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 flex gap-4 text-sm text-indigo-900/80">
         <Info className="w-5 h-5 shrink-0 text-indigo-600 mt-0.5" />
         <p className="leading-relaxed">
-          Angka di atas menggunakan asumsi <b>Inflasi Pendidikan {result.financial?.inflationRate || 10}%</b> dan
-          target <b>Return Investasi {result.financial?.returnRate || 12}%</b>. Disarankan meninjau ulang rencana ini setiap tahun (Financial Checkup).
+          Angka di atas adalah estimasi menggunakan asumsi inflasi pendidikan dan return investasi yang wajar.
+          Disarankan untuk meninjau ulang rencana ini secara berkala setiap tahun (Financial Checkup).
         </p>
       </div>
 
@@ -205,6 +217,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         <Button
           variant="outline"
           onClick={onReset}
+          disabled={isDownloading}
           className="flex-1 h-12 rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
         >
           <RefreshCcw className="w-4 h-4 mr-2" /> Buat Simulasi Baru
@@ -212,10 +225,15 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
 
         <Button
           onClick={handleDownload}
+          disabled={isDownloading}
           className="flex-1 h-12 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xl shadow-slate-900/20 group"
         >
-          <Download className="w-4 h-4 mr-2 group-hover:animate-bounce" />
-          Unduh Laporan & Sesi
+          {isDownloading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 mr-2 group-hover:animate-bounce" />
+          )}
+          {isDownloading ? "Mengunduh..." : "Unduh Laporan PDF"}
         </Button>
       </div>
     </div>
