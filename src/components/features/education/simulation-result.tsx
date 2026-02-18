@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Clock, Target } from "lucide-react";
+import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-// Pastikan path ini sesuai dengan utility di project Anda
+// Pastikan formatRupiah diimport dari lokasi yang benar (biasanya utils atau formatters)
 import { formatRupiah } from "@/lib/financial-math";
 import { EducationSimulationResult } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
@@ -16,7 +16,7 @@ interface SimulationResultProps {
 }
 
 export function SimulationResultStep({ result, onReset }: SimulationResultProps) {
-  // State toggle accordion detail per anak
+  // State untuk toggle accordion detail per anak
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({});
 
   const toggleDetail = (childName: string) => {
@@ -26,18 +26,24 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
     }));
   };
 
-  // --- HANDLER DOWNLOAD ---
-  // Menghubungkan tombol download dengan fungsi hybrid download di service
+  // --- HANDLER DOWNLOAD (THE BRIDGE) ---
+  // Fungsi ini menjembatani tombol UI dengan Helper Service
+  // Helper akan mengekstrak 'pdfBuffer' yang tersembunyi di dalam prop 'result'
   const handleDownload = async () => {
     try {
-      toast.loading("Menyiapkan dokumen...");
+      if (!result.pdfBuffer) {
+        toast.error("File PDF belum siap.", { description: "Silakan coba hitung ulang." });
+        return;
+      }
 
-      // Menggunakan helper yang bisa mengekstrak PDF Buffer & Token dari object result
+      toast.loading("Menyiapkan dokumen PDF & Session...");
+
+      // Magic happens here: Mengubah JSON Buffer -> File Blob
       financialService.downloadSimulationFiles(result);
 
       toast.dismiss();
       toast.success("Dokumen berhasil diunduh!", {
-        description: "File PDF laporan dan file sesi (.mgc) tersimpan di perangkat Anda."
+        description: "Laporan PDF dan file sesi (.mgc) telah disimpan."
       });
     } catch (error) {
       console.error("Download error:", error);
@@ -49,7 +55,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
   return (
     <div className="space-y-8 animate-in zoom-in-95 duration-500 ease-out">
 
-      {/* --- HEADER --- */}
+      {/* --- HEADER SECTION --- */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider mb-2 border border-blue-100">
           <Target className="w-3 h-3" /> Hasil Analisa AI
@@ -60,7 +66,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         </p>
       </div>
 
-      {/* --- GRAND TOTAL SUMMARY CARDS --- */}
+      {/* --- SUMMARY CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Card 1: Total Future Cost */}
@@ -97,14 +103,14 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         </div>
       </div>
 
-      {/* --- DETAIL PER ANAK --- */}
+      {/* --- DETAILS PER CHILD --- */}
       <div className="space-y-4">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider ml-1">Rincian Per Anak</h4>
 
         {result.children.map((child, index) => (
           <div key={index} className="bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
 
-            {/* Header Accordion */}
+            {/* Accordion Trigger */}
             <button
               onClick={() => toggleDetail(child.name)}
               className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
@@ -129,7 +135,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
               </div>
             </button>
 
-            {/* Content Accordion (Tabel) */}
+            {/* Accordion Content (Stage Table) */}
             {showDetails[child.name] && (
               <div className="border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
                 <div className="overflow-x-auto">
@@ -144,12 +150,12 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {child.stages.map((stage, sIdx) => {
-                        // Safe parsing logic untuk memastikan angka valid
-                        const fv = typeof stage.futureCost === 'string'
+                        // Safe parsing number untuk menghindari error 'replace of undefined'
+                        const futureCost = typeof stage.futureCost === 'string'
                           ? parseFloat((stage.futureCost as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
                           : stage.futureCost;
 
-                        const pmt = typeof stage.monthlySaving === 'string'
+                        const monthlySaving = typeof stage.monthlySaving === 'string'
                           ? parseFloat((stage.monthlySaving as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
                           : stage.monthlySaving;
 
@@ -165,10 +171,10 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                               {stage.yearsToStart} tahun lagi
                             </td>
                             <td className="px-4 py-3 text-right font-medium text-slate-600">
-                              {formatRupiah(fv)}
+                              {formatRupiah(futureCost)}
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-emerald-600">
-                              {formatRupiah(pmt)}
+                              {formatRupiah(monthlySaving)}
                             </td>
                           </tr>
                         );
@@ -182,7 +188,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         ))}
       </div>
 
-      {/* --- TIPS & DISCLAIMER --- */}
+      {/* --- DISCLAIMER --- */}
       <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 flex gap-4 text-sm text-indigo-900/80">
         <Info className="w-5 h-5 shrink-0 text-indigo-600 mt-0.5" />
         <p className="leading-relaxed">
@@ -191,7 +197,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         </p>
       </div>
 
-      {/* --- ACTION BUTTONS --- */}
+      {/* --- FOOTER ACTIONS --- */}
       <div className="flex flex-col md:flex-row w-full gap-4 pt-4 border-t">
         <Button
           variant="outline"

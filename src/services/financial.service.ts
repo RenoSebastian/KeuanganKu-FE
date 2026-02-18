@@ -36,7 +36,7 @@ import {
   convertRecordToAnnual
 } from "@/lib/financial-math";
 
-// [UPDATED] Import Response Type baru
+// [UPDATED] Import Response Type baru untuk Education
 import {
   EducationSimulationPayload,
   EducationSimulationResponse
@@ -371,8 +371,8 @@ export const financialService = {
    * yang berisi Data Visualisasi + PDF Buffer + Token.
    */
   simulateAgentEducation: async (data: EducationSimulationPayload): Promise<EducationSimulationResponse> => {
+    // HAPUS responseType: 'blob' karena sekarang kita mengharapkan JSON
     const response = await api.post<EducationSimulationResponse>("/financial/simulation/education", data, {
-      // HAPUS responseType: 'blob' agar axios memproses JSON response
       timeout: 60000,
     });
     return response.data;

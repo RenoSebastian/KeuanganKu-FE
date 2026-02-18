@@ -267,7 +267,7 @@ export interface EducationSimulationPayload {
     }>;
 }
 
-// 2. Response Data (Diterima FE <- BE) - [BARU]
+// 2. Response Data (Diterima FE <- BE)
 // Ini menggantikan konsep terima Blob langsung.
 export interface EducationSimulationResponse {
     status: string;
@@ -276,7 +276,7 @@ export interface EducationSimulationResponse {
     data: {
         totalFutureCost: number;
         totalMonthlySaving: number;
-        childrenPlans: EducationSimulationPayload['childrenPlans']; // Mengembalikan detail plan
+        childrenPlans: EducationSimulationPayload['childrenPlans'];
     };
 
     // Buffer PDF untuk didownload (JSON representation of Buffer)
@@ -289,21 +289,8 @@ export interface EducationSimulationResponse {
     filename: string;
 }
 
-// 3. Struktur Data UI (Digunakan di Component)
-// Bisa menggunakan EducationSimulationResponse['data'] atau interface ini jika butuh manipulasi lebih lanjut
-export interface EducationSimulationResult {
-    financial: {
-        inflationRate: number;
-        returnRate: number;
-    };
-    summary: {
-        totalChildren: number;
-        totalFutureCost: number;
-        totalMonthlyInvestment: number;
-    };
-    // children: ChildSimulationResult[]; // Opsional, bisa pakai childrenPlans dari response
-}
-
+// 3. Struktur Data UI (Digunakan di Component Page & Result)
+// Definisi ini sangat krusial untuk page.tsx
 export interface StageBreakdownItem {
     level: string;
     costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL";
@@ -319,6 +306,26 @@ export interface ChildSimulationResult {
     totalFutureCost: number;
     monthlySaving: number;
     stages: StageBreakdownItem[];
+}
+
+export interface EducationSimulationResult {
+    financial: {
+        inflationRate: number;
+        returnRate: number;
+    };
+    summary: {
+        totalChildren: number;
+        totalFutureCost: number;
+        totalMonthlyInvestment: number;
+    };
+
+    // Data Breakdown untuk UI (Wajib ada untuk render grafik/tabel)
+    children: ChildSimulationResult[];
+
+    // Data File (Opsional - Diisi setelah response dari backend diterima)
+    pdfBuffer?: { type: 'Buffer'; data: number[] };
+    mgcToken?: string;
+    filename?: string;
 }
 
 // --- UTILITY TYPES ---

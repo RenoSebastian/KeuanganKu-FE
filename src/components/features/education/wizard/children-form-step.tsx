@@ -10,7 +10,8 @@ import {
     Calculator,
     ChevronLeft,
     User,
-    TrendingUp
+    TrendingUp,
+    Loader2 // [NEW] Import icon loader
 } from "lucide-react";
 
 // --- UI COMPONENTS ---
@@ -33,17 +34,18 @@ import {
     DEFAULT_STAGE_DURATION
 } from "@/lib/schemas/education-simulation.schema";
 
+// [UPDATE] Menambahkan isLoading ke props interface
 interface ChildrenFormStepProps {
     initialData?: Partial<EducationSimulationForm>;
     onNext: (data: EducationSimulationForm) => void;
     onBack: () => void;
+    isLoading?: boolean; // Optional agar tidak break jika tidak dipassing
 }
 
-export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormStepProps) {
+export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = false }: ChildrenFormStepProps) {
 
     // 1. SETUP FORM UTAMA
     const form = useForm<EducationSimulationForm>({
-        // [FIX]: Menggunakan 'as any' untuk menghindari konflik tipe Zod Coerce vs RHF Resolver
         resolver: zodResolver(educationSimulationSchema) as any,
         defaultValues: {
             childrenPlans: initialData?.childrenPlans?.length
@@ -102,6 +104,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormSt
                     size="sm"
                     onClick={() => append({ childName: "", childDob: "", stages: [] })}
                     className="flex items-center gap-2 shadow-sm"
+                    disabled={isLoading} // Disable saat loading
                 >
                     <Plus className="w-4 h-4" /> Tambah Anak
                 </Button>
@@ -121,7 +124,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormSt
                                         <TrendingUp className="w-3 h-3" /> Asumsi Inflasi Pendidikan (%)
                                     </FormLabel>
                                     <FormControl>
-                                        <Input type="number" step="0.1" {...field} className="bg-background" />
+                                        <Input type="number" step="0.1" {...field} className="bg-background" disabled={isLoading} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -136,7 +139,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormSt
                                         <TrendingUp className="w-3 h-3" /> Target Return Investasi (%)
                                     </FormLabel>
                                     <FormControl>
-                                        <Input type="number" step="0.1" {...field} className="bg-background" />
+                                        <Input type="number" step="0.1" {...field} className="bg-background" disabled={isLoading} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -179,6 +182,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormSt
                                                 e.stopPropagation();
                                                 remove(index);
                                             }}
+                                            disabled={isLoading}
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
@@ -195,7 +199,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormSt
                                                 <FormItem>
                                                     <FormLabel>Nama Lengkap</FormLabel>
                                                     <FormControl>
-                                                        <Input placeholder="Misal: Budi Santoso" {...field} />
+                                                        <Input placeholder="Misal: Budi Santoso" {...field} disabled={isLoading} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -208,7 +212,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormSt
                                                 <FormItem>
                                                     <FormLabel>Tanggal Lahir</FormLabel>
                                                     <FormControl>
-                                                        <Input type="date" {...field} />
+                                                        <Input type="date" {...field} disabled={isLoading} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -244,17 +248,25 @@ export function ChildrenFormStep({ initialData, onNext, onBack }: ChildrenFormSt
                             variant="ghost"
                             onClick={onBack}
                             className="flex items-center gap-2"
+                            disabled={isLoading}
                         >
                             <ChevronLeft className="w-4 h-4" /> Kembali
                         </Button>
 
                         <Button
                             type="submit"
-                            className="px-8 shadow-lg shadow-primary/20"
-                            disabled={form.formState.isSubmitting}
+                            className="px-8 shadow-lg shadow-primary/20 min-w-40"
+                            disabled={form.formState.isSubmitting || isLoading}
                         >
-                            <Calculator className="w-4 h-4 mr-2" />
-                            {form.formState.isSubmitting ? "Menghitung..." : "Hitung Simulasi"}
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menghitung...
+                                </>
+                            ) : (
+                                <>
+                                    <Calculator className="w-4 h-4 mr-2" /> Hitung Simulasi
+                                </>
+                            )}
                         </Button>
                     </div>
                 </form>
