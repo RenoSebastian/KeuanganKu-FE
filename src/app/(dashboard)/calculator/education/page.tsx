@@ -2,11 +2,19 @@
 
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { GraduationCap, User, Baby, Calculator as CalcIcon, FileUp } from "lucide-react";
+import {
+  GraduationCap,
+  User,
+  Baby,
+  Calculator as CalcIcon,
+  FileUp,
+  Sparkles,
+  Loader2
+} from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Wizard Steps Components
 import { ClientFormStep } from "@/components/features/education/wizard/client-form-step";
@@ -18,7 +26,7 @@ import { EducationSimulationForm } from "@/lib/schemas/education-simulation.sche
 import {
   EducationSimulationPayload,
   SchoolLevel,
-  EducationSimulationResponse // [FIX] Gunakan Tipe Response API
+  EducationSimulationResponse
 } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
 import { calculateEducationInvestment } from "@/lib/financial-math";
@@ -29,7 +37,7 @@ export default function EducationCalculatorPage() {
   // State Form Input
   const [formData, setFormData] = useState<Partial<EducationSimulationForm>>({});
 
-  // State Hasil Simulasi (Menggunakan Tipe Response API)
+  // State Hasil Simulasi
   const [result, setResult] = useState<EducationSimulationResponse | null>(null);
 
   // State Loading & Proses
@@ -50,12 +58,8 @@ export default function EducationCalculatorPage() {
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
     try {
-      // 1. Gabungkan data Form Step 1 & 2
       const finalFormData = { ...formData, ...data } as EducationSimulationForm;
 
-      // 2. Lakukan Kalkulasi Lokal
-      // Tujuannya: Mengisi field 'calculatedFutureValue' & 'calculatedMonthlySaving'
-      // agar data yang dikirim ke Backend lengkap untuk disimpan di Log/Database.
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
 
@@ -73,10 +77,8 @@ export default function EducationCalculatorPage() {
           stages: child.stages.map((stage, idx) => ({
             ...stage,
             level: stage.level as SchoolLevel,
-            // Enrich payload dengan hasil hitungan lokal
             calculatedFutureValue: calc.stageResults[idx].totalFv,
             calculatedMonthlySaving: calc.stageResults[idx].totalPmt,
-            // Pastikan field numeric tidak undefined
             costEntry: stage.costEntry || 0,
             costMonthly: stage.costMonthly || 0,
             costSemester: stage.costSemester || 0,
@@ -85,7 +87,6 @@ export default function EducationCalculatorPage() {
         };
       });
 
-      // 3. Siapkan payload final untuk Backend
       const payload: EducationSimulationPayload = {
         clientName: finalFormData.clientName,
         clientDob: finalFormData.clientDob || "",
@@ -97,16 +98,13 @@ export default function EducationCalculatorPage() {
         childrenPlans: childrenPlansPayload
       };
 
-      // 4. PANGGIL API (Backend menyimpan Log & mengembalikan struktur Response standar)
       const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
 
-      // 5. Set State Hasil langsung dari Response API
-      // Response API sudah berisi { data, simulationId, mgcToken, filename }
-      // yang dibutuhkan oleh SimulationResultStep
       setResult(response);
-
       setStep(3);
-      toast.success("Simulasi berhasil dihitung!");
+      toast.success("Simulasi berhasil dihitung!", {
+        icon: <Sparkles className="w-4 h-4 text-yellow-500" />
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (error: any) {
@@ -137,10 +135,8 @@ export default function EducationCalculatorPage() {
       const response = await financialService.decodeSimulationToken(fileContent);
 
       if (response) {
-        // Mapping data dari Token ke Form State
         const importedData = response.data || response;
 
-        // Pastikan mapping tipe aman
         const mappedForm: EducationSimulationForm = {
           clientName: importedData.clientName || "",
           clientCity: importedData.clientCity || "",
@@ -156,7 +152,6 @@ export default function EducationCalculatorPage() {
         toast.dismiss();
         toast.success("File berhasil dimuat!");
 
-        // Auto jump ke step 2 jika ada data anak
         if (mappedForm.childrenPlans && mappedForm.childrenPlans.length > 0) {
           setStep(2);
         }
@@ -167,11 +162,10 @@ export default function EducationCalculatorPage() {
       toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
     } finally {
       setIsImporting(false);
-      e.target.value = ''; // Reset input file
+      e.target.value = '';
     }
   };
 
-  // --- HANDLER RESET ---
   const handleReset = () => {
     setStep(1);
     setFormData({});
@@ -180,59 +174,95 @@ export default function EducationCalculatorPage() {
   };
 
   return (
-    <div className="container max-w-4xl py-8 pb-24 space-y-8 animate-in fade-in duration-700">
+    <div className="container max-w-5xl py-10 pb-32 space-y-10 animate-in fade-in duration-1000">
 
-      {/* HEADER & INFO */}
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-xl shadow-sm">
-              <GraduationCap className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Kalkulator Dana Pendidikan
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Rencanakan masa depan pendidikan buah hati Anda dengan metode anuitas tetap.
-              </p>
-            </div>
+      {/* HEADER AREA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-5">
+          <div className="p-4 bg-linear-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg shadow-blue-500/20 text-white">
+            <GraduationCap className="w-8 h-8" />
           </div>
-
-          {step === 1 && (
-            <div className="relative">
-              <input
-                type="file"
-                accept=".mgc"
-                onChange={handleImportFile}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                disabled={isImporting}
-              />
-              <Button
-                variant="outline"
-                className="gap-2 bg-background border-dashed border-primary/50 text-primary hover:bg-primary/5 w-full md:w-auto"
-                disabled={isImporting}
-              >
-                <FileUp className="w-4 h-4" />
-                {isImporting ? "Memuat..." : "Load Session (.mgc)"}
-              </Button>
-            </div>
-          )}
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-800">
+              Kalkulator Pendidikan
+            </h1>
+            <p className="text-slate-500 font-medium mt-1">
+              Rencanakan masa depan pendidikan buah hati dengan presisi.
+            </p>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            <span className={step >= 1 ? "text-primary" : ""}>1. Identitas Klien</span>
-            <span className={step >= 2 ? "text-primary" : ""}>2. Rencana Anak</span>
-            <span className={step >= 3 ? "text-primary" : ""}>3. Hasil Simulasi</span>
+        {/* EYE CATCHING LOAD SESSION BUTTON */}
+        {step === 1 && (
+          <div className="relative group">
+            <input
+              type="file"
+              accept=".mgc"
+              onChange={handleImportFile}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 disabled:cursor-not-allowed"
+              disabled={isImporting}
+            />
+            <div className={cn(
+              "relative flex items-center gap-3 px-5 py-2.5 rounded-2xl border transition-all duration-300 overflow-hidden select-none",
+              "bg-white border-slate-200 shadow-sm",
+              !isImporting && "group-hover:border-blue-400 group-hover:shadow-lg group-hover:shadow-blue-500/10 group-hover:-translate-y-0.5",
+              isImporting && "bg-slate-50 border-slate-200 opacity-80 cursor-wait"
+            )}>
+              <div className="absolute inset-0 bg-linear-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className={cn(
+                "relative z-10 flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300",
+                isImporting
+                  ? "bg-slate-200 text-slate-500"
+                  : "bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white group-hover:scale-110"
+              )}>
+                {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+              </div>
+              <div className="relative z-10 flex flex-col items-start text-left">
+                <span className={cn("text-xs font-bold transition-colors", isImporting ? "text-slate-500" : "text-slate-700 group-hover:text-blue-700")}>
+                  {isImporting ? "Memproses..." : "Muat Sesi"}
+                </span>
+                <span className="text-[10px] font-medium text-slate-400">File .mgc</span>
+              </div>
+              {!isImporting && (
+                <div className="absolute right-3 top-3 w-1.5 h-1.5 rounded-full bg-blue-400 opacity-0 group-hover:opacity-100 group-hover:animate-pulse transition-all" />
+              )}
+            </div>
           </div>
-          <Progress value={step === 1 ? 33 : step === 2 ? 66 : 100} className="h-2" />
+        )}
+      </div>
+
+      {/* PROGRESS INDICATOR */}
+      <div className="max-w-3xl mx-auto">
+        <div className="flex justify-between mb-4 px-2">
+          {['Klien', 'Rencana', 'Hasil'].map((label, index) => {
+            const stepNum = index + 1;
+            const isActive = step >= stepNum;
+            const isCurrent = step === stepNum;
+            return (
+              <div key={label} className={cn("flex flex-col items-center gap-2", isActive ? "text-blue-600" : "text-slate-400")}>
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ring-4",
+                  isActive ? "bg-blue-600 text-white ring-blue-50" : "bg-slate-100 ring-transparent",
+                  isCurrent && "ring-blue-100 scale-110"
+                )}>
+                  {stepNum}
+                </div>
+                <span className={cn("text-[10px] uppercase tracking-wider font-bold", isCurrent ? "text-blue-700" : "text-slate-400")}>{label}</span>
+              </div>
+            )
+          })}
+        </div>
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-linear-to-r from-blue-500 to-indigo-600 transition-all duration-700 ease-in-out"
+            style={{ width: step === 1 ? '33.33%' : step === 2 ? '66.66%' : '100%' }}
+          />
         </div>
       </div>
 
       {/* MAIN CONTENT CARD */}
-      <Card className="border shadow-lg bg-card/50 backdrop-blur-sm">
-        <CardContent className="pt-6 md:p-8">
+      <Card className="border-none shadow-2xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl ring-1 ring-white/50 rounded-3xl overflow-hidden">
+        <CardContent className="pt-8 md:p-10 min-h-100">
           {step === 1 && (
             <ClientFormStep
               initialData={formData as any}
@@ -258,11 +288,24 @@ export default function EducationCalculatorPage() {
         </CardContent>
       </Card>
 
+      {/* FOOTER INFO CARDS */}
       {step < 3 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <InfoCard icon={User} title="Data Klien" desc="Informasi ini digunakan untuk personalisasi header laporan PDF hasil simulasi." />
-          <InfoCard icon={Baby} title="Multi-Anak" desc="Anda dapat menambahkan lebih dari satu anak dengan jenjang sekolah berbeda dalam satu sesi." />
-          <InfoCard icon={CalcIcon} title="Metode PAM Jaya" desc="Kalkulasi menggunakan asumsi inflasi geometrik dan investasi anuitas (sinking fund)." />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <InfoCard
+            icon={User}
+            title="Personalisasi Laporan"
+            desc="Identitas klien akan ditampilkan di header laporan PDF untuk memberikan kesan profesional."
+          />
+          <InfoCard
+            icon={Baby}
+            title="Multi-Simulasi"
+            desc="Dapat merancang rencana pendidikan untuk banyak anak sekaligus dalam satu sesi simulasi."
+          />
+          <InfoCard
+            icon={CalcIcon}
+            title="Metode Sinking Fund"
+            desc="Perhitungan akurat menggunakan asumsi inflasi dan target return investasi berkala."
+          />
         </div>
       )}
     </div>
@@ -271,13 +314,15 @@ export default function EducationCalculatorPage() {
 
 function InfoCard({ icon: Icon, title, desc }: { icon: any, title: string, desc: string }) {
   return (
-    <div className="p-4 rounded-xl bg-muted/40 border flex gap-3 items-start hover:bg-muted/60 transition-colors">
-      <div className="bg-background p-2 rounded-lg shadow-sm">
-        <Icon className="w-4 h-4 text-primary" />
-      </div>
-      <div>
-        <h4 className="text-xs font-bold text-foreground mb-1">{title}</h4>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">{desc}</p>
+    <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-xl bg-blue-50 text-blue-600 group-hover:scale-110 transition-transform duration-300">
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-slate-800 mb-2 group-hover:text-blue-700 transition-colors">{title}</h4>
+          <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+        </div>
       </div>
     </div>
   );

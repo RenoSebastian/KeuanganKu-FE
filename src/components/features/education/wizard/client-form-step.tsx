@@ -15,7 +15,8 @@ import {
     Calendar,
     Phone,
     ArrowRight,
-    HeartHandshake
+    HeartHandshake,
+    Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,37 +68,37 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
 
             {/* 1. Header Section: Humanis & Personal */}
             <div className="text-center space-y-4">
-                <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 shadow-sm rotate-3 hover:rotate-0 transition-transform duration-300">
-                    <HeartHandshake className="w-8 h-8" />
+                <div className="mx-auto w-20 h-20 bg-linear-to-tr from-blue-100 to-blue-50 rounded-3xl flex items-center justify-center text-blue-600 mb-6 shadow-blue-100 shadow-xl rotate-3 hover:rotate-0 transition-transform duration-500 border border-blue-200">
+                    <HeartHandshake className="w-10 h-10" />
                 </div>
-                <h2 className="text-3xl font-bold tracking-tight text-foreground">
+                <h2 className="text-3xl font-black tracking-tight text-slate-800">
                     {greeting}, mari berkenalan!
                 </h2>
-                <p className="text-muted-foreground text-lg max-w-md mx-auto leading-relaxed">
-                    Sebelum merencanakan masa depan buah hati, kami perlu mengenal siapa "Nahkoda" perjalanan ini.
+                <p className="text-slate-500 text-lg max-w-md mx-auto leading-relaxed">
+                    Sebelum merencanakan masa depan buah hati, kami perlu mengenal siapa <span className="font-semibold text-blue-600">"Nahkoda"</span> perjalanan ini.
                 </p>
             </div>
 
-            {/* 2. Form Section: Clean & Focused */}
-            <Card className="border-none shadow-xl bg-card/80 backdrop-blur-sm ring-1 ring-border/50">
-                <CardContent className="p-6 md:p-8">
+            {/* 2. Form Section: Clean & Focused with Blue Theme */}
+            <Card className="border-none shadow-2xl shadow-blue-900/5 bg-linear-to-br from-white to-blue-50/30 backdrop-blur-sm ring-1 ring-blue-100 rounded-2xl overflow-hidden">
+                <CardContent className="p-8 md:p-10">
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onNext)} className="space-y-6">
+                        <form onSubmit={form.handleSubmit(onNext)} className="space-y-8">
 
                             {/* Group: Identitas Personal */}
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField
                                         control={form.control}
                                         name="clientName"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="text-foreground/80 font-medium">Siapa nama lengkap Anda?</FormLabel>
+                                                <FormLabel className="text-slate-700 font-semibold">Siapa nama lengkap Anda?</FormLabel>
                                                 <FormControl>
                                                     <div className="relative group">
-                                                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                        <User className="absolute left-3.5 top-3.5 h-4 w-4 text-blue-300 group-focus-within:text-blue-600 transition-colors" />
                                                         <Input
-                                                            className="pl-10 h-11 bg-background/50 focus:bg-background transition-all"
+                                                            className="pl-11 h-12 bg-white border-blue-100 focus:border-blue-400 focus:ring-blue-100 rounded-xl shadow-xs transition-all"
                                                             placeholder="Nama Ayah / Ibu"
                                                             {...field}
                                                         />
@@ -113,13 +114,13 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                         name="clientDob"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="text-foreground/80 font-medium">Kapan tanggal lahir Anda?</FormLabel>
+                                                <FormLabel className="text-slate-700 font-semibold">Kapan tanggal lahir Anda?</FormLabel>
                                                 <FormControl>
                                                     <div className="relative group">
-                                                        <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                        <Calendar className="absolute left-3.5 top-3.5 h-4 w-4 text-blue-300 group-focus-within:text-blue-600 transition-colors" />
                                                         <Input
                                                             type="date"
-                                                            className="pl-10 h-11 bg-background/50 focus:bg-background transition-all"
+                                                            className="pl-11 h-12 bg-white border-blue-100 focus:border-blue-400 focus:ring-blue-100 rounded-xl shadow-xs transition-all"
                                                             {...field}
                                                         />
                                                     </div>
@@ -132,22 +133,27 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                             </div>
 
                             {/* Group: Konteks Lokasi & Profesi */}
-                            <div className="space-y-4 pt-2">
-                                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 border-b pb-2">
-                                    Domisili & Profesi
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="pt-2">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="h-px bg-blue-100 flex-1"></div>
+                                    <span className="text-xs font-bold uppercase tracking-widest text-blue-400 flex items-center gap-2">
+                                        <Sparkles className="w-3 h-3" /> Domisili & Profesi
+                                    </span>
+                                    <div className="h-px bg-blue-100 flex-1"></div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField
                                         control={form.control}
                                         name="clientCity"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="text-foreground/80 font-medium">Kota Domisili</FormLabel>
+                                                <FormLabel className="text-slate-700 font-semibold">Kota Domisili</FormLabel>
                                                 <FormControl>
                                                     <div className="relative group">
-                                                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                        <MapPin className="absolute left-3.5 top-3.5 h-4 w-4 text-blue-300 group-focus-within:text-blue-600 transition-colors" />
                                                         <Input
-                                                            className="pl-10 h-11 bg-background/50 focus:bg-background transition-all"
+                                                            className="pl-11 h-12 bg-white border-blue-100 focus:border-blue-400 focus:ring-blue-100 rounded-xl shadow-xs transition-all"
                                                             placeholder="Contoh: Bandung"
                                                             {...field}
                                                         />
@@ -163,12 +169,12 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                         name="clientJob"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="text-foreground/80 font-medium">Pekerjaan Saat Ini</FormLabel>
+                                                <FormLabel className="text-slate-700 font-semibold">Pekerjaan Saat Ini</FormLabel>
                                                 <FormControl>
                                                     <div className="relative group">
-                                                        <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                        <Briefcase className="absolute left-3.5 top-3.5 h-4 w-4 text-blue-300 group-focus-within:text-blue-600 transition-colors" />
                                                         <Input
-                                                            className="pl-10 h-11 bg-background/50 focus:bg-background transition-all"
+                                                            className="pl-11 h-12 bg-white border-blue-100 focus:border-blue-400 focus:ring-blue-100 rounded-xl shadow-xs transition-all"
                                                             placeholder="Contoh: Karyawan Swasta"
                                                             {...field}
                                                         />
@@ -184,14 +190,14 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                                         name="clientPhone"
                                         render={({ field }) => (
                                             <FormItem className="md:col-span-2">
-                                                <FormLabel className="text-foreground/80 font-medium">
-                                                    Nomor WhatsApp <span className="text-muted-foreground font-normal text-xs ml-1">(Opsional)</span>
+                                                <FormLabel className="text-slate-700 font-semibold">
+                                                    Nomor WhatsApp <span className="text-blue-400 font-normal text-xs ml-1">(Opsional)</span>
                                                 </FormLabel>
                                                 <FormControl>
                                                     <div className="relative group">
-                                                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                        <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-blue-300 group-focus-within:text-blue-600 transition-colors" />
                                                         <Input
-                                                            className="pl-10 h-11 bg-background/50 focus:bg-background transition-all"
+                                                            className="pl-11 h-12 bg-white border-blue-100 focus:border-blue-400 focus:ring-blue-100 rounded-xl shadow-xs transition-all"
                                                             placeholder="0812..."
                                                             type="tel"
                                                             inputMode="numeric"
@@ -212,21 +218,21 @@ export const ClientFormStep: React.FC<ClientFormStepProps> = ({ initialData, onN
                             </div>
 
                             {/* Action Button: Prominent & Reactive */}
-                            <div className="pt-6">
+                            <div className="pt-8">
                                 <Button
                                     type="submit"
                                     className={cn(
-                                        "w-full h-12 text-base font-bold shadow-lg transition-all duration-300",
+                                        "w-full h-14 text-base font-bold shadow-xl shadow-blue-500/20 transition-all duration-300 rounded-xl",
                                         isValid
-                                            ? "shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5"
-                                            : "opacity-80"
+                                            ? "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-600/30 hover:-translate-y-1"
+                                            : "bg-slate-200 text-slate-400 hover:bg-slate-300"
                                     )}
                                     disabled={form.formState.isSubmitting}
                                 >
                                     Lanjut ke Data Anak <ArrowRight className="ml-2 w-5 h-5" />
                                 </Button>
-                                <p className="text-center text-xs text-muted-foreground mt-4">
-                                    Data Anda aman dan hanya digunakan untuk keperluan simulasi ini.
+                                <p className="text-center text-xs text-slate-400 mt-4 font-medium">
+                                    🔒 Data Anda aman dan hanya digunakan untuk keperluan simulasi ini.
                                 </p>
                             </div>
                         </form>
