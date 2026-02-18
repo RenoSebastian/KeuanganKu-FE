@@ -1,0 +1,107 @@
+"use client";
+
+import React from 'react';
+import { Building2, Mail, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import Link from 'next/link';
+import { cn } from "@/lib/utils";
+
+const SupportSection = () => {
+    return (
+        <section id="support" className="relative py-32 overflow-hidden bg-[#0B1120] text-white">
+
+            {/* 1. LAYER DEKORASI (Abstract & Glow) */}
+            <div className="absolute top-0 right-0 w-150 h-150 bg-blue-600/10 rounded-full blur-[140px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-125 h-125 bg-indigo-600/10 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+
+            {/* Grid Pattern Overlay halus biar berasa techy */}
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+
+            <div className="container mx-auto px-4 relative z-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+
+                    {/* SISI KIRI: COPYWRITING & CONTACT */}
+                    <div className="text-left space-y-8">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-[0.3em] backdrop-blur-md">
+                            <Sparkles className="w-3 h-3 animate-pulse" /> Strategic Partnership
+                        </div>
+
+                        <h2 className="text-4xl md:text-6xl font-black mb-8 leading-[1.1] tracking-tighter">
+                            Ingin Bergabung Sebagai <br />
+                            <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-indigo-400">Early Adopter?</span>
+                        </h2>
+
+                        <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
+                            Kami sedang melakukan uji coba eksklusif untuk <span className="text-white font-bold underline decoration-blue-500/50 underline-offset-8">30 agen aktif pertama</span>. Jadilah pionir dalam transformasi agen asuransi berbasis data di Indonesia.
+                        </p>
+
+                        <div className="pt-4">
+                            <div className="group relative flex items-start gap-6 p-1 rounded-[2.5rem] bg-linear-to-br from-white/10 to-transparent backdrop-blur-sm border border-white/10 transition-all duration-500 hover:border-blue-500/50 max-w-md">
+                                <div className="flex items-center gap-5 p-5 w-full">
+                                    <div className="bg-blue-600 p-4 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.4)] group-hover:scale-110 transition-transform duration-500">
+                                        <Mail className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest mb-1">Kemitraan Strategis</h4>
+                                        <p className="text-xl font-black text-white tracking-tight group-hover:text-blue-400 transition-colors">admin@geocitra.id</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SISI KANAN: THE CARD (Premium White Glass Card) */}
+                    <div className="relative">
+                        {/* Efek Cahaya di belakang Card */}
+                        <div className="absolute -inset-1 bg-linear-to-r from-blue-600 to-indigo-600 rounded-[3.5rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+
+                        <div className="relative bg-white text-slate-900 p-10 md:p-14 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/20">
+
+                            <div className="flex items-center gap-3 mb-10">
+                                <div className="h-1 w-12 bg-blue-600 rounded-full" />
+                                <h3 className="text-2xl font-black tracking-tight">
+                                    Keunggulan <span className="text-blue-600">Pro-Agent</span>
+                                </h3>
+                            </div>
+
+                            <ul className="grid grid-cols-1 gap-6 mb-12">
+                                {[
+                                    "Visualisasi kebutuhan & manajemen risiko berbasis data riil klien",
+                                    "Akses fleksibel kapan saja dengan UI/UX yang user-friendly",
+                                    "Sistem agnostik: Dapat digunakan oleh seluruh agen asuransi",
+                                    "Enkripsi data tingkat tinggi yang aman dan dapat dipercaya"
+                                ].map((item, idx) => (
+                                    <li key={idx} className="group/list flex items-start gap-4">
+                                        <div className="mt-1 bg-blue-50 p-1 rounded-full group-hover/list:bg-blue-600 transition-colors duration-300">
+                                            <CheckCircle2 className="w-4 h-4 text-blue-600 group-hover/list:text-white transition-colors" />
+                                        </div>
+                                        <span className="text-slate-600 font-bold text-[15px] leading-snug group-hover/list:text-slate-900 transition-colors">
+                                            {item}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            <div className="pt-10 border-t border-slate-100 space-y-4">
+                                <Link href="/login" className="block">
+                                    <Button size="lg" className="w-full bg-slate-900 text-white hover:bg-blue-600 rounded-2xl h-18 text-xl font-black shadow-2xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 group/btn">
+                                        Login Dashboard <ArrowRight className="w-6 h-6 group-hover/btn:translate-x-2 transition-transform" />
+                                    </Button>
+                                </Link>
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">
+                                        Verified Professional Access Only
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    );
+};
+
+export default SupportSection;
