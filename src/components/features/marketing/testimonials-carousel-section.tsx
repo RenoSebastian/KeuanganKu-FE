@@ -4,48 +4,45 @@ import React, { useCallback, useEffect, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Star, ChevronLeft, ChevronRight, Quote } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const testimonials = [
     {
         name: "Mira Indrawati",
-        role: "Agen Asuransi Berprestasi",
-        content: "Sejak pakai KeuanganKu, prospek klien saya naik 2x lipat! Fitur analisis kebutuhan nasabah sangat akurat. Closing deal jadi jauh lebih gampang dan cepat. Ini tools wajib agen pro!",
-        avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&h=300&auto=format&fit=crop",
+        role: "Top Performer Agent",
+        content: "Sejak pakai KeuanganKu, prospek klien saya naik 2x lipat! Analisisnya tajam, closing jadi jauh lebih cepat. Ini senjata rahasia saya.",
+        avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop", // Ganti ke foto portrait/body shot yang lebih professional
         rating: 5
     },
     {
         name: "Rudi Hartono",
-        role: "Agen Asuransi Senior",
-        content: "Dulu sering kehilangan jejak prospek. Sekarang semua terorganisir rapi, pengingat follow-up otomatis, dan saya bisa fokus bangun relasi. Hasilnya? Target penjualan tercapai tiap bulan!",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&h=300&auto=format&fit=crop",
+        role: "Senior Partner",
+        content: "Dulu data berantakan, sekarang saya memegang kendali penuh atas bisnis saya. Target bukan lagi wacana, tapi rutinitas bulanan.",
+        avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=800&auto=format&fit=crop",
         rating: 5
     },
     {
         name: "Citra Lestari",
-        role: "Agen Asuransi Baru",
-        content: "Aplikasi ini mempermudah saya memahami produk asuransi dan menyajikannya ke klien dengan lebih profesional. Saya merasa lebih percaya diri dan sudah berhasil closing beberapa klien pertama saya!",
-        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=300&h=300&auto=format&fit=crop",
+        role: "Rising Star Agent",
+        content: "Aplikasi ini membuat saya terlihat jauh lebih profesional di depan klien. Kepercayaan diri saya meningkat pesat saat presentasi.",
+        avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=800&auto=format&fit=crop",
         rating: 4
     },
     {
         name: "Agus Salim",
-        role: "Team Leader Asuransi",
-        content: "Sebagai team leader, saya melihat produktivitas tim meningkat drastis. Fitur kolaborasi dan pelaporan progres agen sangat membantu kami dalam mentoring dan mencapai target tim.",
-        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300&h=300&auto=format&fit=crop",
+        role: "Agency Director",
+        content: "Produktivitas tim adalah segalanya. Dengan tools ini, monitoring dan mentoring agen jadi sangat efisien dan berbasis data.",
+        avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=800&auto=format&fit=crop",
         rating: 5
     }
 ];
 
 const TestimonialsCarouselSection = () => {
+    // Logic carousel tetap sama, hanya styling slide yang berubah
     const [emblaRef, emblaApi] = useEmblaCarousel({
         loop: true,
-        align: 'start',
-        dragFree: false,
+        align: 'center', // Center align biar fokus ke 'hero' card
         breakpoints: {
-            '(min-width: 768px)': { slidesToScroll: 2 },
-            '(min-width: 1024px)': { slidesToScroll: 3 },
+            '(min-width: 768px)': { align: 'start' }
         }
     });
 
@@ -68,89 +65,114 @@ const TestimonialsCarouselSection = () => {
     }, [emblaApi, onSelect]);
 
     return (
-        <section id="testimonials-carousel" className="py-24 bg-slate-50 relative overflow-hidden">
+        <section id="testimonials-carousel" className="py-24 bg-slate-950 relative overflow-hidden">
+            {/* Background decoration - optional untuk nuansa premium */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20 pointer-events-none">
+                <div className="absolute -top-[20%] -right-[10%] w-150 h-150 rounded-full bg-blue-900 blur-[120px]" />
+                <div className="absolute top-[40%] -left-[10%] w-100 h-100 rounded-full bg-indigo-900 blur-[100px]" />
+            </div>
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                <div className="text-center mb-24">
+                <div className="text-center mb-16">
                     <Badge
                         variant="outline"
-                        className="mb-4 border-blue-200 text-blue-700 bg-blue-50 px-4 py-1 uppercase tracking-[0.2em] text-[10px] font-black"
+                        className="mb-6 border-blue-500/30 text-blue-400 bg-blue-950/30 px-4 py-1.5 uppercase tracking-[0.3em] text-[10px] font-bold backdrop-blur-sm"
                     >
-                        Trusted by Professionals
+                        Hall of Fame
                     </Badge>
-                    <h2 className="text-4xl font-black text-slate-900 sm:text-5xl tracking-tighter leading-[1.1]">
-                        Apa Kata Mereka yang <br />
-                        <span className="relative inline-block mt-2">
-                            <span className="relative z-10 text-blue-700">Telah Membuktikan?</span>
-                            <div className="absolute -bottom-2 left-0 w-full h-3 bg-blue-100 -z-10 rounded-full opacity-60" />
+                    <h2 className="text-4xl font-black text-white sm:text-5xl tracking-tighter leading-[1.1]">
+                        Apa Kata Mereka <br />
+                        <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-indigo-400">
+                            Tentang Aplikasi Kami
                         </span>
                     </h2>
-                    <p className="mt-6 text-slate-500 max-w-xl mx-auto font-medium leading-relaxed">
-                        Dengarkan langsung pengalaman para agen dalam mentransformasi cara mereka berjualan menggunakan data.
-                    </p>
                 </div>
 
+                {/* Carousel Container */}
                 <div className="relative group">
-                    <div className="embla" ref={emblaRef}>
-                        <div className="embla__container -ml-8">
+                    <div className="embla overflow-hidden" ref={emblaRef}>
+                        <div className="embla__container flex touch-pan-y gap-6 ml-0">
                             {testimonials.map((t, i) => (
-                                <div key={i} className="embla__slide pl-8 pt-16 pb-8"> {/* Padding top untuk ruang avatar mencuat */}
-                                    <Card className="border-none shadow-2xl shadow-slate-200 rounded-[3rem] relative h-full flex flex-col bg-white hover:scale-[1.02] transition-all duration-500">
+                                <div key={i} className="embla__slide flex-[0_0_100%] md:flex-[0_0_50%] lg:flex-[0_0_33.33%] min-w-0 relative">
 
-                                        {/* AVATAR BESAR - MENCUAT KE ATAS */}
-                                        <div className="absolute -top-16 left-1/2 -translate-x-1/2">
-                                            <div className="relative">
-                                                <Avatar className="h-32 w-32 border-[6px] border-white shadow-2xl ring-1 ring-slate-100">
-                                                    <AvatarImage src={t.avatar} className="object-cover" />
-                                                    <AvatarFallback>{t.name.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-2 rounded-full shadow-lg">
-                                                    <Quote size={16} fill="currentColor" />
+                                    {/* CARD UTAMA: Full Image Overlay Style */}
+                                    <div className="relative h-137.5 w-full rounded-2xl overflow-hidden group/card cursor-pointer shadow-2xl shadow-black/50 border border-white/10">
+
+                                        {/* 1. BACKGROUND IMAGE (Full) */}
+                                        <div className="absolute inset-0 w-full h-full">
+                                            <img
+                                                src={t.avatar}
+                                                alt={t.name}
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110 filter brightness-[0.85] group-hover/card:brightness-100"
+                                            />
+                                        </div>
+
+                                        {/* 2. GRADIENT OVERLAY (Supaya text terbaca) */}
+                                        <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/60 to-transparent opacity-90 transition-opacity duration-500" />
+
+                                        {/* 3. CONTENT OVERLAY */}
+                                        <div className="absolute inset-0 p-8 flex flex-col justify-end">
+
+                                            {/* Quote Icon Besar di background (aesthetic) */}
+                                            <div className="absolute top-6 right-6 text-white/10">
+                                                <Quote size={80} fill="currentColor" />
+                                            </div>
+
+                                            <div className="relative z-10 translate-y-4 transition-transform duration-500 group-hover/card:translate-y-0">
+                                                {/* Rating Stars */}
+                                                <div className="flex gap-1 mb-4">
+                                                    {[...Array(5)].map((_, index) => (
+                                                        <Star
+                                                            key={index}
+                                                            size={14}
+                                                            fill={index < t.rating ? "#fbbf24" : "transparent"} // Amber-400
+                                                            className={index < t.rating ? "text-amber-400" : "text-slate-600"}
+                                                        />
+                                                    ))}
+                                                </div>
+
+                                                {/* Quote Text */}
+                                                <p className="text-lg text-slate-200 font-medium leading-relaxed italic mb-8 border-l-4 border-blue-500 pl-4">
+                                                    "{t.content}"
+                                                </p>
+
+                                                {/* Divider */}
+                                                <div className="h-px w-full bg-linear-to-r from-white/20 to-transparent mb-6" />
+
+                                                {/* Personal Identity */}
+                                                <div>
+                                                    <h4 className="text-2xl font-black text-white uppercase tracking-wide">
+                                                        {t.name}
+                                                    </h4>
+                                                    <p className="text-sm font-bold text-blue-400 tracking-[0.2em] mt-1 uppercase">
+                                                        {t.role}
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <CardContent className="pt-20 px-8 pb-10 flex-1 flex flex-col text-center">
-                                            {/* INFO AGEN */}
-                                            <div className="mb-6">
-                                                <h4 className="text-xl font-black text-slate-900 leading-tight uppercase tracking-tight">{t.name}</h4>
-                                                <p className="text-sm text-blue-600 font-bold mt-1 tracking-widest">{t.role}</p>
-                                            </div>
-
-                                            <div className="flex justify-center gap-1 mb-6">
-                                                {[...Array(5)].map((_, index) => (
-                                                    <Star
-                                                        key={index}
-                                                        size={16}
-                                                        className={`${index < t.rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-200'}`}
-                                                    />
-                                                ))}
-                                            </div>
-
-                                            <p className="text-slate-600 leading-relaxed italic text-base">
-                                                "{t.content}"
-                                            </p>
-                                        </CardContent>
-                                    </Card>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Navigation */}
-                    <button
-                        onClick={scrollPrev}
-                        disabled={!prevBtnEnabled}
-                        className="absolute top-1/2 -left-6 -translate-y-1/2 z-20 bg-white p-4 rounded-full shadow-2xl border border-slate-100 text-slate-400 hover:text-blue-600 disabled:hidden transition-all"
-                    >
-                        <ChevronLeft size={28} strokeWidth={3} />
-                    </button>
-                    <button
-                        onClick={scrollNext}
-                        disabled={!nextBtnEnabled}
-                        className="absolute top-1/2 -right-6 -translate-y-1/2 z-20 bg-white p-4 rounded-full shadow-2xl border border-slate-100 text-slate-400 hover:text-blue-600 disabled:hidden transition-all"
-                    >
-                        <ChevronRight size={28} strokeWidth={3} />
-                    </button>
+                    {/* Navigation Buttons (Ditaruh diluar atau floating) */}
+                    <div className="hidden md:flex items-center justify-end gap-2 mt-8 px-4">
+                        <button
+                            onClick={scrollPrev}
+                            disabled={!prevBtnEnabled}
+                            className="p-3 rounded-full border border-white/10 bg-white/5 text-white hover:bg-blue-600 hover:border-blue-600 disabled:opacity-30 transition-all"
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
+                        <button
+                            onClick={scrollNext}
+                            disabled={!nextBtnEnabled}
+                            className="p-3 rounded-full border border-white/10 bg-white/5 text-white hover:bg-blue-600 hover:border-blue-600 disabled:opacity-30 transition-all"
+                        >
+                            <ChevronRight size={24} />
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
