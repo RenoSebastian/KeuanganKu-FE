@@ -4,7 +4,6 @@ import { useState } from "react";
 import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-// Pastikan formatRupiah diimport dari lokasi yang benar (biasanya utils atau formatters)
 import { formatRupiah } from "@/lib/financial-math";
 import { EducationSimulationResult } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
@@ -26,24 +25,30 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
     }));
   };
 
-  // --- HANDLER DOWNLOAD (THE BRIDGE) ---
-  // Fungsi ini menjembatani tombol UI dengan Helper Service
-  // Helper akan mengekstrak 'pdfBuffer' yang tersembunyi di dalam prop 'result'
+  // --- [SCENARIO B] HANDLER DOWNLOAD ---
   const handleDownload = async () => {
     try {
-      if (!result.pdfBuffer) {
-        toast.error("File PDF belum siap.", { description: "Silakan coba hitung ulang." });
+      // 1. Validasi ID Simulasi
+      if (!result.simulationId) {
+        toast.error("ID Simulasi tidak ditemukan.", {
+          description: "Gagal mengidentifikasi data di database."
+        });
         return;
       }
 
-      toast.loading("Menyiapkan dokumen PDF & Session...");
+      toast.loading("Menyiapkan dokumen...");
 
-      // Magic happens here: Mengubah JSON Buffer -> File Blob
+      // 2. Download PDF (Request Stream ke Backend)
+      // Ini akan memicu loading berat di BE, tapi browser akan menganggapnya download file biasa
+      await financialService.downloadEducationSimulationPdf(result.simulationId);
+
+      // 3. Download File Sesi .mgc (Generate lokal dari token)
+      // Fungsi ini tidak memanggil API lagi, hanya mengolah token yang sudah ada di state
       financialService.downloadSimulationFiles(result);
 
       toast.dismiss();
       toast.success("Dokumen berhasil diunduh!", {
-        description: "Laporan PDF dan file sesi (.mgc) telah disimpan."
+        description: "Laporan PDF dan file sesi (.mgc) telah tersimpan."
       });
     } catch (error) {
       console.error("Download error:", error);
@@ -86,7 +91,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         </div>
 
         {/* Card 2: Total Monthly Investment */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100 shadow-lg shadow-emerald-100/50 group hover:ring-2 hover:ring-emerald-200 transition-all duration-300">
+        <div className="relative overflow-hidden bg-linear-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100 shadow-lg shadow-emerald-100/50 group hover:ring-2 hover:ring-emerald-200 transition-all duration-300">
           <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
           <div className="relative z-10 flex flex-col items-center text-center space-y-2">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mb-1 text-emerald-600 shadow-sm group-hover:scale-110 transition-transform">
@@ -110,7 +115,6 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         {result.children.map((child, index) => (
           <div key={index} className="bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
 
-            {/* Accordion Trigger */}
             <button
               onClick={() => toggleDetail(child.name)}
               className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
@@ -135,7 +139,6 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
               </div>
             </button>
 
-            {/* Accordion Content (Stage Table) */}
             {showDetails[child.name] && (
               <div className="border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
                 <div className="overflow-x-auto">
@@ -150,7 +153,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {child.stages.map((stage, sIdx) => {
-                        // Safe parsing number untuk menghindari error 'replace of undefined'
+                        // Safe parsing numbers
                         const futureCost = typeof stage.futureCost === 'string'
                           ? parseFloat((stage.futureCost as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
                           : stage.futureCost;
@@ -188,7 +191,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         ))}
       </div>
 
-      {/* --- DISCLAIMER --- */}
+      {/* --- TIPS SECTION --- */}
       <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 flex gap-4 text-sm text-indigo-900/80">
         <Info className="w-5 h-5 shrink-0 text-indigo-600 mt-0.5" />
         <p className="leading-relaxed">
@@ -197,7 +200,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         </p>
       </div>
 
-      {/* --- FOOTER ACTIONS --- */}
+      {/* --- ACTION BUTTONS --- */}
       <div className="flex flex-col md:flex-row w-full gap-4 pt-4 border-t">
         <Button
           variant="outline"

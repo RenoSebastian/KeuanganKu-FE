@@ -20,7 +20,7 @@ import {
   EducationSimulationPayload,
   ChildSimulationResult,
   StageBreakdownItem,
-  SchoolLevel, // Import Enum
+  SchoolLevel,
   EducationSimulationResponse
 } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
@@ -49,15 +49,14 @@ export default function EducationCalculatorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- HANDLER STEP 2: CHILDREN & CALCULATION (THE HYBRID CORE) ---
+  // --- HANDLER STEP 2: CHILDREN & CALCULATION (SCENARIO B: DATA ONLY) ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
     try {
       // 1. Gabungkan data Form Step 1 & 2
       const finalFormData = { ...formData, ...data } as EducationSimulationForm;
 
-      // 2. Lakukan Kalkulasi Lokal untuk Instant UI Feedback (Zero Latency)
-      // Kita menghitung ini dulu agar user bisa melihat hasil sambil menunggu PDF dari server
+      // 2. Lakukan Kalkulasi Lokal untuk Instant UI (Opsional - agar UI terasa snappy)
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
 
@@ -65,9 +64,7 @@ export default function EducationCalculatorPage() {
       let grandTotalMonthlySaving = 0;
       const childrenResults: ChildSimulationResult[] = [];
 
-      // Loop setiap anak untuk kalkulasi detail
       const childrenPlansPayload = finalFormData.childrenPlans.map(child => {
-        // A. Hitung Angka Finansial (Local Math Util)
         const calc = calculateEducationInvestment({
           inflationRate,
           returnRate,
@@ -75,15 +72,12 @@ export default function EducationCalculatorPage() {
           stages: child.stages
         });
 
-        // B. Akumulasi Grand Total
         grandTotalFutureCost += calc.totalFutureCost;
         grandTotalMonthlySaving += calc.totalMonthlySaving;
 
-        // C. Siapkan Breakdown untuk UI (Grafik)
         const currentYear = new Date().getFullYear();
         const stagesBreakdown: StageBreakdownItem[] = child.stages.map((stage, idx) => {
           const res = calc.stageResults[idx];
-
           let costTypeLabel: any = "MONTHLY";
           if (stage.costEntry > 0 && !stage.costMonthly) costTypeLabel = "ENTRY";
           if (stage.costSemester) costTypeLabel = "SEMESTER";
@@ -107,7 +101,6 @@ export default function EducationCalculatorPage() {
           stages: stagesBreakdown
         });
 
-        // D. Return Payload clean untuk Backend
         return {
           ...child,
           stages: child.stages.map((stage, idx) => ({
@@ -119,23 +112,7 @@ export default function EducationCalculatorPage() {
         };
       });
 
-      // 3. Construct Result Object Awal (Tanpa PDF)
-      const uiResult: EducationSimulationResult = {
-        financial: { inflationRate, returnRate },
-        summary: {
-          totalChildren: finalFormData.childrenPlans.length,
-          totalFutureCost: grandTotalFutureCost,
-          totalMonthlyInvestment: grandTotalMonthlySaving
-        },
-        children: childrenResults,
-        // Init kosong dulu, akan diisi setelah fetch backend
-        pdfBuffer: undefined,
-        mgcToken: undefined,
-        filename: undefined
-      };
-
-      // 4. Request ke Backend (Generate PDF & Log)
-      // Payload dikirim agar Backend membuatkan File PDF
+      // 3. Siapkan payload untuk Backend
       const payload: EducationSimulationPayload = {
         clientName: finalFormData.clientName,
         clientDob: finalFormData.clientDob || "",
@@ -147,29 +124,31 @@ export default function EducationCalculatorPage() {
         childrenPlans: childrenPlansPayload
       };
 
-      // PANGGIL API (HYBRID RESPONSE)
+      // 4. PANGGIL API (Hanya Kalkulasi & Simpan Log)
       const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
 
-      // 5. Gabungkan Hasil UI + Data File dari Backend
-      // Kita menimpa result dengan data Buffer yang baru datang dari server
+      // 5. Set State Hasil (Tanpa parsing Buffer yang berat)
       setResult({
-        ...uiResult,
-        pdfBuffer: response.pdfBuffer, // Buffer PDF (Array of Numbers)
-        mgcToken: response.mgcToken,   // Token Sesi
-        filename: response.filename    // Nama File
+        financial: { inflationRate, returnRate },
+        summary: {
+          totalChildren: finalFormData.childrenPlans.length,
+          totalFutureCost: grandTotalFutureCost,
+          totalMonthlyInvestment: grandTotalMonthlySaving
+        },
+        children: childrenResults,
+        simulationId: response.simulationId, // ID Penting untuk Download PDF nanti
+        mgcToken: response.mgcToken,
+        filename: response.filename
       });
 
-      // 6. Pindah ke Halaman Hasil
       setStep(3);
-      toast.success("Simulasi berhasil!", {
-        description: "Laporan PDF telah siap diunduh."
-      });
+      toast.success("Simulasi berhasil dihitung!");
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (error: any) {
       console.error(error);
       toast.error("Gagal memproses simulasi", {
-        description: "Terjadi kesalahan koneksi ke server."
+        description: "Terjadi kesalahan pada server."
       });
     } finally {
       setIsLoading(false);
@@ -193,9 +172,8 @@ export default function EducationCalculatorPage() {
       const fileContent = await file.text();
       const response = await financialService.decodeSimulationToken(fileContent);
 
-      if (response && response.data) {
-        // Mapping data import ke format Form
-        const importedData = response.data.data || response.data; // Handle wrapping variations
+      if (response) {
+        const importedData = response.data || response;
 
         const mappedForm: EducationSimulationForm = {
           clientName: importedData.clientName || "",
@@ -210,11 +188,8 @@ export default function EducationCalculatorPage() {
 
         setFormData(mappedForm);
         toast.dismiss();
-        toast.success("File berhasil dimuat!", {
-          description: `Melanjutkan simulasi untuk klien: ${mappedForm.clientName}`
-        });
+        toast.success("File berhasil dimuat!");
 
-        // Auto jump to step 2 if import valid
         if (mappedForm.childrenPlans && mappedForm.childrenPlans.length > 0) {
           setStep(2);
         }
@@ -224,7 +199,7 @@ export default function EducationCalculatorPage() {
       toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
     } finally {
       setIsImporting(false);
-      e.target.value = ''; // Reset input agar bisa re-upload file sama
+      e.target.value = '';
     }
   };
 
@@ -248,7 +223,6 @@ export default function EducationCalculatorPage() {
             </div>
           </div>
 
-          {/* Tombol Load Session (Hanya di Step 1) */}
           {step === 1 && (
             <div className="relative">
               <input
@@ -265,7 +239,6 @@ export default function EducationCalculatorPage() {
           )}
         </div>
 
-        {/* STEP PROGRESS BAR */}
         <div className="space-y-2">
           <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <span className={step >= 1 ? "text-primary" : ""}>1. Identitas Klien</span>
@@ -279,8 +252,6 @@ export default function EducationCalculatorPage() {
       {/* MAIN CONTENT CARD */}
       <Card className="border shadow-lg bg-card/50 backdrop-blur-sm">
         <CardContent className="pt-6 md:p-8">
-
-          {/* STEP 1: CLIENT FORM */}
           {step === 1 && (
             <ClientFormStep
               initialData={formData as any}
@@ -288,17 +259,15 @@ export default function EducationCalculatorPage() {
             />
           )}
 
-          {/* STEP 2: CHILDREN FORM */}
           {step === 2 && (
             <ChildrenFormStep
               initialData={formData}
               onNext={handleChildrenSubmit}
               onBack={() => setStep(1)}
-              isLoading={isLoading} // Prop loading ditambahkan untuk disable tombol saat fetch BE
+              isLoading={isLoading}
             />
           )}
 
-          {/* STEP 3: RESULT */}
           {step === 3 && result && (
             <SimulationResultStep
               result={result}
@@ -313,7 +282,6 @@ export default function EducationCalculatorPage() {
         </CardContent>
       </Card>
 
-      {/* FOOTER INFO CARDS */}
       {step < 3 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <InfoCard icon={User} title="Data Klien" desc="Informasi ini digunakan untuk personalisasi header laporan PDF hasil simulasi." />
@@ -325,7 +293,6 @@ export default function EducationCalculatorPage() {
   );
 }
 
-// Simple Info Card Component
 function InfoCard({ icon: Icon, title, desc }: { icon: any, title: string, desc: string }) {
   return (
     <div className="p-4 rounded-xl bg-muted/40 border flex gap-3 items-start hover:bg-muted/60 transition-colors">

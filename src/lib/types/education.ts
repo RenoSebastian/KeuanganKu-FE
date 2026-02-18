@@ -231,7 +231,7 @@ export interface SubmitQuizPayload {
 }
 
 // ============================================================================
-// AGENT SIMULATION DTOs (UPDATED FOR NEW FEATURE)
+// AGENT SIMULATION DTOs (UPDATED FOR SCENARIO B)
 // ============================================================================
 
 // 1. Payload Request (Dikirim FE -> BE)
@@ -268,7 +268,7 @@ export interface EducationSimulationPayload {
 }
 
 // 2. Response Data (Diterima FE <- BE)
-// Ini menggantikan konsep terima Blob langsung.
+// Skenario B: Hanya menerima Data JSON dan ID Simulasi. Tidak ada Buffer PDF.
 export interface EducationSimulationResponse {
     status: string;
 
@@ -279,18 +279,14 @@ export interface EducationSimulationResponse {
         childrenPlans: EducationSimulationPayload['childrenPlans'];
     };
 
-    // Buffer PDF untuk didownload (JSON representation of Buffer)
-    pdfBuffer: {
-        type: 'Buffer';
-        data: number[]; // Array of bytes
-    };
+    // ID Simulasi untuk request download terpisah
+    simulationId: string;
 
     mgcToken: string;
     filename: string;
 }
 
 // 3. Struktur Data UI (Digunakan di Component Page & Result)
-// Definisi ini sangat krusial untuk page.tsx
 export interface StageBreakdownItem {
     level: string;
     costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL";
@@ -322,8 +318,8 @@ export interface EducationSimulationResult {
     // Data Breakdown untuk UI (Wajib ada untuk render grafik/tabel)
     children: ChildSimulationResult[];
 
-    // Data File (Opsional - Diisi setelah response dari backend diterima)
-    pdfBuffer?: { type: 'Buffer'; data: number[] };
+    // Data State (Updated for Scenario B)
+    simulationId: string; // ID Database untuk Download on Demand
     mgcToken?: string;
     filename?: string;
 }
