@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { TrendingUp, Wallet, Info, RefreshCcw, Download, ChevronDown, Clock, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatRupiah } from "@/lib/financial-math";
 import { cn } from "@/lib/utils";
+// Pastikan path ini sesuai dengan utility di project Anda
+import { formatRupiah } from "@/lib/financial-math";
 import { EducationSimulationResult } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
 import { toast } from "sonner";
@@ -15,7 +16,8 @@ interface SimulationResultProps {
 }
 
 export function SimulationResultStep({ result, onReset }: SimulationResultProps) {
-  const [showDetails, setShowDetails] = useState<Record<string, boolean>>({}); // State toggle per anak
+  // State toggle accordion detail per anak
+  const [showDetails, setShowDetails] = useState<Record<string, boolean>>({});
 
   const toggleDetail = (childName: string) => {
     setShowDetails(prev => ({
@@ -24,13 +26,15 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
     }));
   };
 
-  // Handler Download PDF & Token
+  // --- HANDLER DOWNLOAD ---
+  // Menghubungkan tombol download dengan fungsi hybrid download di service
   const handleDownload = async () => {
     try {
       toast.loading("Menyiapkan dokumen...");
-      // Panggil helper service yang sudah kita update di fase sebelumnya
-      // Helper ini otomatis menghandle blob PDF dan token MGC
+
+      // Menggunakan helper yang bisa mengekstrak PDF Buffer & Token dari object result
       financialService.downloadSimulationFiles(result);
+
       toast.dismiss();
       toast.success("Dokumen berhasil diunduh!", {
         description: "File PDF laporan dan file sesi (.mgc) tersimpan di perangkat Anda."
@@ -56,10 +60,10 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
         </p>
       </div>
 
-      {/* --- GRAND TOTAL SUMMARY --- */}
+      {/* --- GRAND TOTAL SUMMARY CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* 1. Total Future Cost */}
+        {/* Card 1: Total Future Cost */}
         <div className="relative overflow-hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-lg shadow-slate-200/50 group hover:border-blue-300 transition-all duration-300">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
           <div className="relative z-10 flex flex-col items-center text-center space-y-2">
@@ -75,8 +79,8 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
           </div>
         </div>
 
-        {/* 2. Total Monthly Investment */}
-        <div className="relative overflow-hidden bg-linear-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100 shadow-lg shadow-emerald-100/50 group hover:ring-2 hover:ring-emerald-200 transition-all duration-300">
+        {/* Card 2: Total Monthly Investment */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100 shadow-lg shadow-emerald-100/50 group hover:ring-2 hover:ring-emerald-200 transition-all duration-300">
           <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
           <div className="relative z-10 flex flex-col items-center text-center space-y-2">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mb-1 text-emerald-600 shadow-sm group-hover:scale-110 transition-transform">
@@ -99,6 +103,8 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
 
         {result.children.map((child, index) => (
           <div key={index} className="bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
+
+            {/* Header Accordion */}
             <button
               onClick={() => toggleDetail(child.name)}
               className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
@@ -123,7 +129,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
               </div>
             </button>
 
-            {/* TABEL STAGE BREAKDOWN */}
+            {/* Content Accordion (Tabel) */}
             {showDetails[child.name] && (
               <div className="border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
                 <div className="overflow-x-auto">
@@ -138,8 +144,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {child.stages.map((stage, sIdx) => {
-                        // [FIX] Casting 'as string' agar TypeScript tidak komplain 'never'
-                        // Safe parsing numbers: Handle kemungkinan string format "1.000.000"
+                        // Safe parsing logic untuk memastikan angka valid
                         const fv = typeof stage.futureCost === 'string'
                           ? parseFloat((stage.futureCost as string).replace(/[^0-9,-]+/g, "").replace(",", "."))
                           : stage.futureCost;
@@ -149,7 +154,7 @@ export function SimulationResultStep({ result, onReset }: SimulationResultProps)
                           : stage.monthlySaving;
 
                         return (
-                          <tr key={sIdx} className="hover:bg-blue-50/20">
+                          <tr key={sIdx} className="hover:bg-blue-50/20 transition-colors">
                             <td className="px-4 py-3 pl-16 font-medium text-slate-700">
                               {stage.level}
                               <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-slate-100 rounded text-slate-500 border border-slate-200">

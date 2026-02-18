@@ -41,8 +41,6 @@ export enum CostType {
     MONTHLY = 'ANNUAL', // Mapping ke ANNUAL untuk konsistensi DB lama
 }
 
-// [DELETED] EducationMethod dihapus karena default menggunakan FLAT (Annuity) sesuai rumus PAM Jaya.
-
 // --- ENTITIES (Data dari GET Response Modul Edukasi) ---
 
 export interface EducationCategory {
@@ -236,7 +234,7 @@ export interface SubmitQuizPayload {
 // AGENT SIMULATION DTOs (UPDATED FOR NEW FEATURE)
 // ============================================================================
 
-// Payload yang dikirim ke Backend
+// 1. Payload Request (Dikirim FE -> BE)
 export interface EducationSimulationPayload {
     clientName: string;
     clientDob?: string;
@@ -269,28 +267,31 @@ export interface EducationSimulationPayload {
     }>;
 }
 
-// Struktur Data untuk Komponen Result UI (Breakdown Per Jenjang)
-export interface StageBreakdownItem {
-    level: string;
-    costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL";
-    yearsToStart: number;
-    currentCost: number;
-    futureCost: number;
-    monthlySaving: number;
+// 2. Response Data (Diterima FE <- BE) - [BARU]
+// Ini menggantikan konsep terima Blob langsung.
+export interface EducationSimulationResponse {
+    status: string;
+
+    // Data angka untuk visualisasi (Grafik/Ringkasan)
+    data: {
+        totalFutureCost: number;
+        totalMonthlySaving: number;
+        childrenPlans: EducationSimulationPayload['childrenPlans']; // Mengembalikan detail plan
+    };
+
+    // Buffer PDF untuk didownload (JSON representation of Buffer)
+    pdfBuffer: {
+        type: 'Buffer';
+        data: number[]; // Array of bytes
+    };
+
+    mgcToken: string;
+    filename: string;
 }
 
-// Struktur Data untuk Komponen Result UI (Per Anak)
-export interface ChildSimulationResult {
-    name: string;
-    age: number;
-    totalFutureCost: number;
-    monthlySaving: number;
-    stages: StageBreakdownItem[];
-}
-
-// Struktur Data Utama untuk Hasil Simulasi (Gabungan UI Data & File Data)
+// 3. Struktur Data UI (Digunakan di Component)
+// Bisa menggunakan EducationSimulationResponse['data'] atau interface ini jika butuh manipulasi lebih lanjut
 export interface EducationSimulationResult {
-    // Data untuk Tampilan UI
     financial: {
         inflationRate: number;
         returnRate: number;
@@ -300,12 +301,24 @@ export interface EducationSimulationResult {
         totalFutureCost: number;
         totalMonthlyInvestment: number;
     };
-    children: ChildSimulationResult[];
+    // children: ChildSimulationResult[]; // Opsional, bisa pakai childrenPlans dari response
+}
 
-    // Data tambahan untuk download file (dari Backend)
-    pdfBuffer?: any; // Blob/ArrayBuffer
-    mgcToken?: string;
-    filename?: string;
+export interface StageBreakdownItem {
+    level: string;
+    costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL";
+    yearsToStart: number;
+    currentCost: number;
+    futureCost: number;
+    monthlySaving: number;
+}
+
+export interface ChildSimulationResult {
+    name: string;
+    age: number;
+    totalFutureCost: number;
+    monthlySaving: number;
+    stages: StageBreakdownItem[];
 }
 
 // --- UTILITY TYPES ---

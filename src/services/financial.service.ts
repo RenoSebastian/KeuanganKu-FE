@@ -36,7 +36,11 @@ import {
   convertRecordToAnnual
 } from "@/lib/financial-math";
 
-import { EducationSimulationPayload } from "@/lib/types/education";
+// [UPDATED] Import Response Type baru
+import {
+  EducationSimulationPayload,
+  EducationSimulationResponse
+} from "@/lib/types/education";
 
 // ============================================================================
 // PRIVATE ADAPTER HELPERS (Internal Service Logic)
@@ -361,18 +365,17 @@ export const financialService = {
   },
 
   /**
-   * [NEW] simulateAgentEducation
-   * ----------------------------
-   * Menembak endpoint simulasi pendidikan anak (Agent Mode).
-   * Response berupa Blob PDF untuk langsung diunduh/ditampilkan.
+   * [UPDATED PHASE 1] simulateAgentEducation
+   * ----------------------------------------
+   * Mengirim payload ke Backend dan menerima JSON Object
+   * yang berisi Data Visualisasi + PDF Buffer + Token.
    */
-  simulateAgentEducation: async (data: EducationSimulationPayload): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/education", data, {
-      // responseType 'blob' sangat krusial agar Axios tidak mencoba mem-parse binary PDF menjadi JSON
-      responseType: 'blob',
-      // Timeout lebih panjang (60 detik) karena proses generation PDF di server cukup berat (Puppeteer)
+  simulateAgentEducation: async (data: EducationSimulationPayload): Promise<EducationSimulationResponse> => {
+    const response = await api.post<EducationSimulationResponse>("/financial/simulation/education", data, {
+      // HAPUS responseType: 'blob' agar axios memproses JSON response
       timeout: 60000,
     });
+    return response.data;
   },
 
   /**

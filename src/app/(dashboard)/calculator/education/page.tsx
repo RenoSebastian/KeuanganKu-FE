@@ -20,16 +20,22 @@ import {
   EducationSimulationPayload,
   ChildSimulationResult,
   StageBreakdownItem,
-  SchoolLevel // Import Enum
+  SchoolLevel, // Import Enum
+  EducationSimulationResponse
 } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
-// [FIX] Import Logic Kalkulasi Frontend
 import { calculateEducationInvestment } from "@/lib/financial-math";
 
 export default function EducationCalculatorPage() {
   const [step, setStep] = useState(1);
+
+  // State Form Input
   const [formData, setFormData] = useState<Partial<EducationSimulationForm>>({});
+
+  // State Hasil Simulasi (Visualisasi UI)
   const [result, setResult] = useState<EducationSimulationResult | null>(null);
+
+  // State Loading & Proses
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -43,16 +49,15 @@ export default function EducationCalculatorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
+  // --- HANDLER STEP 2: CHILDREN & CALCULATION (THE HYBRID CORE) ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
     try {
       // 1. Gabungkan data Form Step 1 & 2
       const finalFormData = { ...formData, ...data } as EducationSimulationForm;
 
-      // -----------------------------------------------------------------------
-      // [LOGIC PERBAIKAN] 2. KALKULASI DI FRONTEND (Agar UI Tampil Instant)
-      // -----------------------------------------------------------------------
+      // 2. Lakukan Kalkulasi Lokal untuk Instant UI Feedback (Zero Latency)
+      // Kita menghitung ini dulu agar user bisa melihat hasil sambil menunggu PDF dari server
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
 
@@ -60,9 +65,9 @@ export default function EducationCalculatorPage() {
       let grandTotalMonthlySaving = 0;
       const childrenResults: ChildSimulationResult[] = [];
 
-      // Siapkan payload untuk Backend (sambil menghitung angka untuk UI)
+      // Loop setiap anak untuk kalkulasi detail
       const childrenPlansPayload = finalFormData.childrenPlans.map(child => {
-        // A. Hitung Angka Finansial menggunakan Utility Lokal
+        // A. Hitung Angka Finansial (Local Math Util)
         const calc = calculateEducationInvestment({
           inflationRate,
           returnRate,
@@ -70,11 +75,11 @@ export default function EducationCalculatorPage() {
           stages: child.stages
         });
 
-        // B. Update Grand Total
+        // B. Akumulasi Grand Total
         grandTotalFutureCost += calc.totalFutureCost;
         grandTotalMonthlySaving += calc.totalMonthlySaving;
 
-        // C. Siapkan Data Breakdown untuk Tampilan UI
+        // C. Siapkan Breakdown untuk UI (Grafik)
         const currentYear = new Date().getFullYear();
         const stagesBreakdown: StageBreakdownItem[] = child.stages.map((stage, idx) => {
           const res = calc.stageResults[idx];
@@ -102,19 +107,19 @@ export default function EducationCalculatorPage() {
           stages: stagesBreakdown
         });
 
-        // D. Kembalikan struktur untuk Payload Backend
+        // D. Return Payload clean untuk Backend
         return {
           ...child,
           stages: child.stages.map((stage, idx) => ({
             ...stage,
-            level: stage.level as SchoolLevel, // Casting Enum
+            level: stage.level as SchoolLevel,
             calculatedFutureValue: calc.stageResults[idx].totalFv,
             calculatedMonthlySaving: calc.stageResults[idx].totalPmt
           }))
         };
       });
 
-      // 3. Construct Result Object untuk UI (Dari hasil hitungan lokal)
+      // 3. Construct Result Object Awal (Tanpa PDF)
       const uiResult: EducationSimulationResult = {
         financial: { inflationRate, returnRate },
         summary: {
@@ -122,10 +127,15 @@ export default function EducationCalculatorPage() {
           totalFutureCost: grandTotalFutureCost,
           totalMonthlyInvestment: grandTotalMonthlySaving
         },
-        children: childrenResults
+        children: childrenResults,
+        // Init kosong dulu, akan diisi setelah fetch backend
+        pdfBuffer: undefined,
+        mgcToken: undefined,
+        filename: undefined
       };
 
-      // 4. Request ke Backend (Hanya untuk PDF & Log)
+      // 4. Request ke Backend (Generate PDF & Log)
+      // Payload dikirim agar Backend membuatkan File PDF
       const payload: EducationSimulationPayload = {
         clientName: finalFormData.clientName,
         clientDob: finalFormData.clientDob || "",
@@ -137,39 +147,30 @@ export default function EducationCalculatorPage() {
         childrenPlans: childrenPlansPayload
       };
 
-      // Panggil API (Akan return Blob PDF)
-      const response = await financialService.simulateAgentEducation(payload);
+      // PANGGIL API (HYBRID RESPONSE)
+      const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
 
-      // 5. Gabungkan Hasil UI + File PDF dari Backend
-      // Header ini bisa dibaca JIKA Langkah 1 (CORS Backend) sudah dilakukan
-      const mgcToken = response.headers['x-mgc-token'];
-
-      // Ambil Binary Data PDF
-      const pdfBlobData = response.data; // Ini adalah Blob/Buffer
-
-      // Set State Akhir
+      // 5. Gabungkan Hasil UI + Data File dari Backend
+      // Kita menimpa result dengan data Buffer yang baru datang dari server
       setResult({
-        ...uiResult, // Pakai angka hitungan frontend (JAMINAN TIDAK KOSONG)
-        // Convert Blob ke struktur yang dimengerti helper download
-        pdfBuffer: { data: await (pdfBlobData as any).arrayBuffer() },
-        mgcToken: mgcToken,
-        filename: `Simulasi_Pendidikan_${finalFormData.clientName}.pdf`
+        ...uiResult,
+        pdfBuffer: response.pdfBuffer, // Buffer PDF (Array of Numbers)
+        mgcToken: response.mgcToken,   // Token Sesi
+        filename: response.filename    // Nama File
       });
 
+      // 6. Pindah ke Halaman Hasil
       setStep(3);
       toast.success("Simulasi berhasil!", {
-        description: "Laporan PDF siap diunduh."
+        description: "Laporan PDF telah siap diunduh."
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (error: any) {
       console.error(error);
-      toast.error("Gagal menyimpan data ke server", {
-        description: "Namun hasil hitungan tetap ditampilkan."
+      toast.error("Gagal memproses simulasi", {
+        description: "Terjadi kesalahan koneksi ke server."
       });
-      // Fallback: Jika backend error, tetap tampilkan hasil hitungan lokal (tanpa PDF)
-      // Ini membuat aplikasi terasa 'Offline-First'
-      // setResult(uiResult); // Uncomment jika ingin fallback aktif
     } finally {
       setIsLoading(false);
     }
@@ -193,7 +194,9 @@ export default function EducationCalculatorPage() {
       const response = await financialService.decodeSimulationToken(fileContent);
 
       if (response && response.data) {
-        const importedData = response.data.data as any;
+        // Mapping data import ke format Form
+        const importedData = response.data.data || response.data; // Handle wrapping variations
+
         const mappedForm: EducationSimulationForm = {
           clientName: importedData.clientName || "",
           clientCity: importedData.clientCity || "",
@@ -204,12 +207,15 @@ export default function EducationCalculatorPage() {
           returnRate: importedData.returnRate || 12,
           childrenPlans: importedData.childrenPlans || []
         };
+
         setFormData(mappedForm);
         toast.dismiss();
         toast.success("File berhasil dimuat!", {
           description: `Melanjutkan simulasi untuk klien: ${mappedForm.clientName}`
         });
-        if (mappedForm.childrenPlans.length > 0) {
+
+        // Auto jump to step 2 if import valid
+        if (mappedForm.childrenPlans && mappedForm.childrenPlans.length > 0) {
           setStep(2);
         }
       }
@@ -218,12 +224,14 @@ export default function EducationCalculatorPage() {
       toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
     } finally {
       setIsImporting(false);
-      e.target.value = '';
+      e.target.value = ''; // Reset input agar bisa re-upload file sama
     }
   };
 
   return (
     <div className="container max-w-4xl py-8 pb-24 space-y-8 animate-in fade-in duration-700">
+
+      {/* HEADER & INFO */}
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -239,15 +247,25 @@ export default function EducationCalculatorPage() {
               </p>
             </div>
           </div>
+
+          {/* Tombol Load Session (Hanya di Step 1) */}
           {step === 1 && (
             <div className="relative">
-              <input type="file" accept=".mgc" onChange={handleImportFile} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={isImporting} />
+              <input
+                type="file"
+                accept=".mgc"
+                onChange={handleImportFile}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                disabled={isImporting}
+              />
               <Button variant="outline" className="gap-2 bg-background border-dashed border-primary/50 text-primary hover:bg-primary/5 w-full md:w-auto" disabled={isImporting}>
                 <FileUp className="w-4 h-4" /> {isImporting ? "Memuat..." : "Load Session (.mgc)"}
               </Button>
             </div>
           )}
         </div>
+
+        {/* STEP PROGRESS BAR */}
         <div className="space-y-2">
           <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <span className={step >= 1 ? "text-primary" : ""}>1. Identitas Klien</span>
@@ -258,19 +276,44 @@ export default function EducationCalculatorPage() {
         </div>
       </div>
 
+      {/* MAIN CONTENT CARD */}
       <Card className="border shadow-lg bg-card/50 backdrop-blur-sm">
         <CardContent className="pt-6 md:p-8">
-          {step === 1 && <ClientFormStep initialData={formData as any} onNext={handleClientNext} />}
-          {step === 2 && <ChildrenFormStep initialData={formData} onNext={handleChildrenSubmit} onBack={() => setStep(1)} />}
+
+          {/* STEP 1: CLIENT FORM */}
+          {step === 1 && (
+            <ClientFormStep
+              initialData={formData as any}
+              onNext={handleClientNext}
+            />
+          )}
+
+          {/* STEP 2: CHILDREN FORM */}
+          {step === 2 && (
+            <ChildrenFormStep
+              initialData={formData}
+              onNext={handleChildrenSubmit}
+              onBack={() => setStep(1)}
+              isLoading={isLoading} // Prop loading ditambahkan untuk disable tombol saat fetch BE
+            />
+          )}
+
+          {/* STEP 3: RESULT */}
           {step === 3 && result && (
             <SimulationResultStep
               result={result}
-              onReset={() => { setStep(1); setFormData({}); setResult(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onReset={() => {
+                setStep(1);
+                setFormData({});
+                setResult(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
           )}
         </CardContent>
       </Card>
 
+      {/* FOOTER INFO CARDS */}
       {step < 3 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <InfoCard icon={User} title="Data Klien" desc="Informasi ini digunakan untuk personalisasi header laporan PDF hasil simulasi." />
@@ -282,6 +325,7 @@ export default function EducationCalculatorPage() {
   );
 }
 
+// Simple Info Card Component
 function InfoCard({ icon: Icon, title, desc }: { icon: any, title: string, desc: string }) {
   return (
     <div className="p-4 rounded-xl bg-muted/40 border flex gap-3 items-start hover:bg-muted/60 transition-colors">
