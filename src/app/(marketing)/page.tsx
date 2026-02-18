@@ -55,7 +55,7 @@ export default function LandingPage() {
               href="/pricing"
               className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition-colors"
             >
-              Pricing
+              Harga
             </Link>
 
             <Link href="/login">

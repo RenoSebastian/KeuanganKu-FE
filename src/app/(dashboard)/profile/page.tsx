@@ -30,6 +30,16 @@ export default function ProfilePage() {
     goals: "",
   });
 
+  const handleLogout = () => {
+    // Hapus token dari storage (sesuai implementasi lib/axios Anda)
+    localStorage.removeItem('token');
+    // Jika menggunakan cookies, hapus juga di sini
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+    // Redirect ke login
+    router.push('/login');
+  };
+
   const [formData, setFormData] = useState({
     fullName: "",
     dateOfBirth: "",
@@ -190,13 +200,32 @@ export default function ProfilePage() {
                 <InfoItem icon={<Briefcase size={14} />} label="Jabatan" value={formData.agentLevel} />
               </div>
 
-              <Button
-                onClick={() => isEditing ? setIsEditing(false) : router.push('/login')}
-                variant="ghost"
-                className="mt-8 text-slate-400 hover:text-red-600 hover:bg-red-50 w-full rounded-xl transition-all"
-              >
-                <LogOut size={16} className="mr-2" /> Keluar Sistem
-              </Button>
+              {/* Ganti Button logout lama di lg:col-span-4 dengan ini */}
+              <div className="mt-8 pt-6 border-t border-slate-50">
+                <button
+                  onClick={handleLogout}
+                  className="group flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all duration-300 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-colors",
+                      userData.role === "ADMIN" ? "bg-teal-100 text-teal-700" :
+                        userData.role === "DIRECTOR" ? "bg-slate-200 text-slate-700" :
+                          "bg-blue-100 text-blue-700"
+                    )}>
+                      {/* Mengambil inisial nama */}
+                      {userData.fullName?.split(' ').map((n: any) => n[0]).join('').toUpperCase() || "AG"}
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="leading-none group-hover:text-red-600 transition-colors font-bold">Keluar</span>
+                      <span className="text-[9px] text-slate-400 font-normal mt-1 uppercase tracking-tighter">
+                        {userData.role === "ADMIN" ? "Administrator" : userData.role === "DIRECTOR" ? "Director" : "Agent"}
+                      </span>
+                    </div>
+                  </div>
+                  <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500 transition-transform group-hover:translate-x-1" />
+                </button>
+              </div>
             </div>
 
             {/* Blue Achievement Box */}

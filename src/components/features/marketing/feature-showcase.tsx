@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 interface FeatureItem {
     id: number;
     title: string;
-    icon: LucideIcon; // Gunakan tipe khusus LucideIcon
+    icon: LucideIcon;
     heading: string;
     desc: string;
     image: string;
@@ -30,7 +30,7 @@ const features: FeatureItem[] = [
         icon: GraduationCap,
         heading: "Ubah Kekhawatiran Orang Tua Menjadi Kepastian",
         desc: "Bukan sekadar hitung-hitungan sekolah. Bantu klien memvisualisasikan masa depan anak mereka dengan data inflasi pendidikan yang riil. Jadikan proteksi Anda sebagai satu-satunya solusi logis untuk masa depan buah hati mereka.",
-        image: "https://images.unsplash.com/photo-1554224155-169641357599?q=80&w=1000",
+        image: "/images/pendidikan.gif", // Ganti ke file lokal
         color: "text-blue-600",
         bgColor: "bg-blue-50"
     },
@@ -40,7 +40,7 @@ const features: FeatureItem[] = [
         icon: Umbrella,
         heading: "Pensiun dengan Martabat & Kebebasan Finansial",
         desc: "Buka mata klien tentang gap dana pensiun mereka sebelum terlambat. Tunjukkan grafik proyeksi kekayaan yang membuat mereka sadar bahwa menunda proteksi hari ini adalah kerugian besar di masa depan.",
-        image: "https://images.unsplash.com/photo-1454165833968-0e71584bb82b?q=80&w=1000",
+        image: "/images/hari_tua.gif", // Ganti ke file lokal
         color: "text-indigo-600",
         bgColor: "bg-indigo-50"
     },
@@ -50,7 +50,7 @@ const features: FeatureItem[] = [
         icon: ShieldCheck,
         heading: "Nilai Uang Pertanggungan yang Tidak Terbantahkan",
         desc: "Gunakan metode 'Human Life Value' untuk menghitung kebutuhan proteksi secara akurat. Klien tidak akan lagi berargumen tentang premi, karena angka yang Anda sajikan didasarkan pada data pengeluaran riil mereka.",
-        image: "https://images.unsplash.com/photo-1551288049-bbbda50d279d?q=80&w=1000",
+        image: "/images/asuransi.jpeg", // Ganti ke file lokal
         color: "text-sky-600",
         bgColor: "bg-sky-50"
     },
@@ -80,7 +80,7 @@ const features: FeatureItem[] = [
         icon: Activity,
         heading: "Manajemen Klien Dalam Satu Genggaman",
         desc: "Pantau semua prospek dan diskusi keuangan tanpa tercecer. Tingkatkan profesionalisme Anda di depan klien dengan menunjukkan ringkasan data yang rapi dan terorganisir lewat tablet atau smartphone.",
-        image: "https://images.unsplash.com/photo-1504868584819-f8e905263543?q=80&w=1000",
+        image: "/images/multiklien.jpeg", // Ganti ke file lokal
         color: "text-teal-600",
         bgColor: "bg-teal-50"
     },
@@ -119,13 +119,13 @@ const FeatureShowcase = () => {
                     {/* NAVIGATION TABS */}
                     <div className="w-full lg:w-1/3 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 no-scrollbar">
                         {features.map((f, index) => {
-                            const IconComponent = f.icon; // Ambil komponen icon
+                            const IconComponent = f.icon;
                             return (
                                 <button
                                     key={f.id}
                                     onClick={() => setActiveTab(index)}
                                     className={cn(
-                                        "flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 text-left min-w-50 lg:min-w-full border-2", // Menggunakan min-w-50 sesuai saran linter
+                                        "flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 text-left min-w-50 lg:min-w-full border-2",
                                         activeTab === index
                                             ? "bg-white border-blue-600 shadow-lg translate-x-2"
                                             : "bg-transparent border-transparent text-slate-500 hover:bg-slate-100"
@@ -135,7 +135,6 @@ const FeatureShowcase = () => {
                                         "p-2 rounded-lg",
                                         activeTab === index ? f.bgColor + " " + f.color : "bg-slate-200 text-slate-500"
                                     )}>
-                                        {/* Render icon sebagai komponen, bukan cloneElement */}
                                         <IconComponent size={20} />
                                     </div>
                                     <span className={cn(
@@ -150,7 +149,7 @@ const FeatureShowcase = () => {
                     </div>
 
                     {/* DISPLAY CONTENT */}
-                    <div className="flex-1 w-full min-h-125 relative"> {/* Menggunakan min-h-125 */}
+                    <div className="flex-1 w-full min-h-125 relative">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeTab}
@@ -176,7 +175,7 @@ const FeatureShowcase = () => {
                                     <img
                                         src={features[activeTab].image}
                                         alt={features[activeTab].title}
-                                        className="w-full h-75 lg:h-100 object-cover rounded-2xl shadow-inner border border-slate-100" // Menggunakan h-75 & lg:h-100
+                                        className="w-full h-75 lg:h-100 object-cover rounded-2xl shadow-inner border border-slate-100"
                                     />
                                 </div>
                             </motion.div>
