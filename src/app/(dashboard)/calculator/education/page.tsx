@@ -16,12 +16,9 @@ import { SimulationResultStep } from "@/components/features/education/wizard/sim
 // Types, Schema & Services
 import { EducationSimulationForm } from "@/lib/schemas/education-simulation.schema";
 import {
-  EducationSimulationResult,
   EducationSimulationPayload,
-  ChildSimulationResult,
-  StageBreakdownItem,
   SchoolLevel,
-  EducationSimulationResponse
+  EducationSimulationResponse // [FIX] Gunakan Tipe Response API
 } from "@/lib/types/education";
 import { financialService } from "@/services/financial.service";
 import { calculateEducationInvestment } from "@/lib/financial-math";
@@ -32,8 +29,8 @@ export default function EducationCalculatorPage() {
   // State Form Input
   const [formData, setFormData] = useState<Partial<EducationSimulationForm>>({});
 
-  // State Hasil Simulasi (Visualisasi UI)
-  const [result, setResult] = useState<EducationSimulationResult | null>(null);
+  // State Hasil Simulasi (Menggunakan Tipe Response API)
+  const [result, setResult] = useState<EducationSimulationResponse | null>(null);
 
   // State Loading & Proses
   const [isLoading, setIsLoading] = useState(false);
@@ -49,20 +46,18 @@ export default function EducationCalculatorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- HANDLER STEP 2: CHILDREN & CALCULATION (SCENARIO B: DATA ONLY) ---
+  // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
     try {
       // 1. Gabungkan data Form Step 1 & 2
       const finalFormData = { ...formData, ...data } as EducationSimulationForm;
 
-      // 2. Lakukan Kalkulasi Lokal untuk Instant UI (Opsional - agar UI terasa snappy)
+      // 2. Lakukan Kalkulasi Lokal
+      // Tujuannya: Mengisi field 'calculatedFutureValue' & 'calculatedMonthlySaving'
+      // agar data yang dikirim ke Backend lengkap untuk disimpan di Log/Database.
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
-
-      let grandTotalFutureCost = 0;
-      let grandTotalMonthlySaving = 0;
-      const childrenResults: ChildSimulationResult[] = [];
 
       const childrenPlansPayload = finalFormData.childrenPlans.map(child => {
         const calc = calculateEducationInvestment({
@@ -72,47 +67,25 @@ export default function EducationCalculatorPage() {
           stages: child.stages
         });
 
-        grandTotalFutureCost += calc.totalFutureCost;
-        grandTotalMonthlySaving += calc.totalMonthlySaving;
-
-        const currentYear = new Date().getFullYear();
-        const stagesBreakdown: StageBreakdownItem[] = child.stages.map((stage, idx) => {
-          const res = calc.stageResults[idx];
-          let costTypeLabel: any = "MONTHLY";
-          if (stage.costEntry > 0 && !stage.costMonthly) costTypeLabel = "ENTRY";
-          if (stage.costSemester) costTypeLabel = "SEMESTER";
-          if (stage.costFull) costTypeLabel = "FULL";
-
-          return {
-            level: stage.level,
-            costType: costTypeLabel,
-            yearsToStart: Math.max(0, stage.startYear - currentYear),
-            currentCost: stage.costEntry + (stage.costMonthly || 0) * 12 * stage.duration,
-            futureCost: res.totalFv,
-            monthlySaving: res.totalPmt
-          };
-        });
-
-        childrenResults.push({
-          name: child.childName,
-          age: new Date().getFullYear() - new Date(child.childDob).getFullYear(),
-          totalFutureCost: calc.totalFutureCost,
-          monthlySaving: calc.totalMonthlySaving,
-          stages: stagesBreakdown
-        });
-
         return {
-          ...child,
+          childName: child.childName,
+          childDob: child.childDob,
           stages: child.stages.map((stage, idx) => ({
             ...stage,
             level: stage.level as SchoolLevel,
+            // Enrich payload dengan hasil hitungan lokal
             calculatedFutureValue: calc.stageResults[idx].totalFv,
-            calculatedMonthlySaving: calc.stageResults[idx].totalPmt
+            calculatedMonthlySaving: calc.stageResults[idx].totalPmt,
+            // Pastikan field numeric tidak undefined
+            costEntry: stage.costEntry || 0,
+            costMonthly: stage.costMonthly || 0,
+            costSemester: stage.costSemester || 0,
+            costFull: stage.costFull || 0,
           }))
         };
       });
 
-      // 3. Siapkan payload untuk Backend
+      // 3. Siapkan payload final untuk Backend
       const payload: EducationSimulationPayload = {
         clientName: finalFormData.clientName,
         clientDob: finalFormData.clientDob || "",
@@ -124,22 +97,13 @@ export default function EducationCalculatorPage() {
         childrenPlans: childrenPlansPayload
       };
 
-      // 4. PANGGIL API (Hanya Kalkulasi & Simpan Log)
+      // 4. PANGGIL API (Backend menyimpan Log & mengembalikan struktur Response standar)
       const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
 
-      // 5. Set State Hasil (Tanpa parsing Buffer yang berat)
-      setResult({
-        financial: { inflationRate, returnRate },
-        summary: {
-          totalChildren: finalFormData.childrenPlans.length,
-          totalFutureCost: grandTotalFutureCost,
-          totalMonthlyInvestment: grandTotalMonthlySaving
-        },
-        children: childrenResults,
-        simulationId: response.simulationId, // ID Penting untuk Download PDF nanti
-        mgcToken: response.mgcToken,
-        filename: response.filename
-      });
+      // 5. Set State Hasil langsung dari Response API
+      // Response API sudah berisi { data, simulationId, mgcToken, filename }
+      // yang dibutuhkan oleh SimulationResultStep
+      setResult(response);
 
       setStep(3);
       toast.success("Simulasi berhasil dihitung!");
@@ -148,7 +112,7 @@ export default function EducationCalculatorPage() {
     } catch (error: any) {
       console.error(error);
       toast.error("Gagal memproses simulasi", {
-        description: "Terjadi kesalahan pada server."
+        description: "Terjadi kesalahan pada server saat menyimpan data."
       });
     } finally {
       setIsLoading(false);
@@ -173,8 +137,10 @@ export default function EducationCalculatorPage() {
       const response = await financialService.decodeSimulationToken(fileContent);
 
       if (response) {
+        // Mapping data dari Token ke Form State
         const importedData = response.data || response;
 
+        // Pastikan mapping tipe aman
         const mappedForm: EducationSimulationForm = {
           clientName: importedData.clientName || "",
           clientCity: importedData.clientCity || "",
@@ -190,17 +156,27 @@ export default function EducationCalculatorPage() {
         toast.dismiss();
         toast.success("File berhasil dimuat!");
 
+        // Auto jump ke step 2 jika ada data anak
         if (mappedForm.childrenPlans && mappedForm.childrenPlans.length > 0) {
           setStep(2);
         }
       }
     } catch (err: any) {
+      console.error("Import error:", err);
       toast.dismiss();
       toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
     } finally {
       setIsImporting(false);
-      e.target.value = '';
+      e.target.value = ''; // Reset input file
     }
+  };
+
+  // --- HANDLER RESET ---
+  const handleReset = () => {
+    setStep(1);
+    setFormData({});
+    setResult(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -232,8 +208,13 @@ export default function EducationCalculatorPage() {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 disabled={isImporting}
               />
-              <Button variant="outline" className="gap-2 bg-background border-dashed border-primary/50 text-primary hover:bg-primary/5 w-full md:w-auto" disabled={isImporting}>
-                <FileUp className="w-4 h-4" /> {isImporting ? "Memuat..." : "Load Session (.mgc)"}
+              <Button
+                variant="outline"
+                className="gap-2 bg-background border-dashed border-primary/50 text-primary hover:bg-primary/5 w-full md:w-auto"
+                disabled={isImporting}
+              >
+                <FileUp className="w-4 h-4" />
+                {isImporting ? "Memuat..." : "Load Session (.mgc)"}
               </Button>
             </div>
           )}
@@ -271,12 +252,7 @@ export default function EducationCalculatorPage() {
           {step === 3 && result && (
             <SimulationResultStep
               result={result}
-              onReset={() => {
-                setStep(1);
-                setFormData({});
-                setResult(null);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onReset={handleReset}
             />
           )}
         </CardContent>

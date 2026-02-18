@@ -1,6 +1,8 @@
 import { EducationStage } from "@/lib/schemas/education-simulation.schema";
 
-// --- ENUMS (Sinkron dengan Prisma Schema) ---
+// ============================================================================
+// ENUMS (Sinkron dengan Prisma Schema)
+// ============================================================================
 
 export enum EducationModuleStatus {
     DRAFT = 'DRAFT',
@@ -41,7 +43,9 @@ export enum CostType {
     MONTHLY = 'ANNUAL', // Mapping ke ANNUAL untuk konsistensi DB lama
 }
 
-// --- ENTITIES (Data dari GET Response Modul Edukasi) ---
+// ============================================================================
+// ENTITIES (Data dari GET Response Modul Edukasi)
+// ============================================================================
 
 export interface EducationCategory {
     id: string;
@@ -100,6 +104,9 @@ export interface Quiz {
     questions: QuizQuestion[];
     createdAt: string;
     updatedAt: string;
+    // Helper fields untuk UI (jika ada progress user)
+    lastAttemptScore?: number | null;
+    isPassed?: boolean;
 }
 
 export interface EducationModule {
@@ -124,7 +131,9 @@ export interface EducationModule {
     updatedAt: string;
 }
 
-// --- USER QUIZ ENTITIES ---
+// ============================================================================
+// USER QUIZ ENTITIES
+// ============================================================================
 
 export interface UserQuizQuestion {
     id: string;
@@ -149,7 +158,9 @@ export interface UserQuizData {
     questions: UserQuizQuestion[];
 }
 
-// --- PAYLOADS (Untuk Admin CMS) ---
+// ============================================================================
+// PAYLOADS (Untuk Admin CMS)
+// ============================================================================
 
 export interface CreateCategoryPayload {
     name: string;
@@ -213,7 +224,9 @@ export interface UpsertQuizPayload {
     questions: QuizQuestionPayload[];
 }
 
-// --- SUBMISSION DTOs ---
+// ============================================================================
+// SUBMISSION DTOs
+// ============================================================================
 
 export interface QuizSubmissionResult {
     score: number;
@@ -260,7 +273,7 @@ export interface EducationSimulationPayload {
             costSemester?: number;
             costFull?: number;
 
-            // Hasil Kalkulasi FE (dikirim ke BE untuk dicetak di PDF)
+            // Hasil Kalkulasi FE (dikirim ke BE untuk dicetak di PDF/Disimpan)
             calculatedFutureValue?: number;
             calculatedMonthlySaving?: number;
         }>
@@ -268,9 +281,9 @@ export interface EducationSimulationPayload {
 }
 
 // 2. Response Data (Diterima FE <- BE)
-// Skenario B: Hanya menerima Data JSON dan ID Simulasi. Tidak ada Buffer PDF.
+// Skenario B: Hanya menerima Data JSON dan ID Simulasi. Tidak ada Buffer PDF/Blob.
 export interface EducationSimulationResponse {
-    status: string;
+    status: string; // "success" | "error"
 
     // Data angka untuk visualisasi (Grafik/Ringkasan)
     data: {
@@ -282,11 +295,13 @@ export interface EducationSimulationResponse {
     // ID Simulasi untuk request download terpisah
     simulationId: string;
 
+    // Token & Filename untuk keperluan save/restore state
     mgcToken: string;
     filename: string;
 }
 
-// 3. Struktur Data UI (Digunakan di Component Page & Result)
+// 3. Struktur Data UI / View Model (Digunakan di Component Page & Result)
+// Interface ini digunakan jika Anda melakukan mapping data dari Response -> Tampilan UI
 export interface StageBreakdownItem {
     level: string;
     costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL";
@@ -318,13 +333,18 @@ export interface EducationSimulationResult {
     // Data Breakdown untuk UI (Wajib ada untuk render grafik/tabel)
     children: ChildSimulationResult[];
 
-    // Data State (Updated for Scenario B)
+    // Metadata Simulasi
     simulationId: string; // ID Database untuk Download on Demand
     mgcToken?: string;
     filename?: string;
+
+    // Opsional: Raw Response jika dibutuhkan debugging
+    rawResponse?: EducationSimulationResponse;
 }
 
-// --- UTILITY TYPES ---
+// ============================================================================
+// UTILITY TYPES (Maintenance & DB Stats)
+// ============================================================================
 
 export interface DatabaseStats {
     tables: {

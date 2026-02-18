@@ -1,7 +1,13 @@
+/**
+ * TYPE: Uploaded File
+ * FILE: src/components/features/education/wizard/simulation-result-step.tsx
+ */
+
 "use client";
 
-import React from "react";
-import { EducationSimulationResult } from "@/lib/types/education";
+import React, { useState } from "react";
+// [FIX] Gunakan EducationSimulationResponse (API format), bukan Result (View Model)
+import { EducationSimulationResponse } from "@/lib/types/education";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,40 +17,40 @@ import {
     Wallet,
     Target,
     TrendingUp,
-    ChevronRight
+    Loader2
 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
+import { financialService } from "@/services/financial.service";
 
 interface SimulationResultStepProps {
-    result: EducationSimulationResult;
+    // [FIX] Update tipe data props agar support field 'data' & 'simulationId'
+    result: EducationSimulationResponse;
     onReset: () => void;
 }
 
 export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset }) => {
-    // Destructuring data dengan safety check
-    const simulationData = result?.data;
-    const details = simulationData?.details || [];
+    const [isDownloading, setIsDownloading] = useState(false);
 
-    const handleDownloadPdf = () => {
-        if (!result.pdfBuffer) {
-            toast.error("File PDF tidak tersedia");
+    // [FIX] Type Inference sekarang akan berjalan otomatis karena 'result' sudah bertipe EducationSimulationResponse
+    const simulationData = result?.data;
+    const children = simulationData?.childrenPlans || [];
+
+    const handleDownloadPdf = async () => {
+        if (!result.simulationId) {
+            toast.error("ID Simulasi tidak ditemukan. Mohon hitung ulang.");
             return;
         }
 
+        setIsDownloading(true);
         try {
-            // Jika pdfBuffer adalah Blob atau Base64, sesuaikan cara downloadnya
-            const url = window.URL.createObjectURL(new Blob([result.pdfBuffer as any]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', result.filename || 'Simulasi_Dana_Pendidikan.pdf');
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+            await financialService.downloadEducationSimulationPdf(result.simulationId);
             toast.success("PDF berhasil diunduh");
         } catch (error) {
             console.error("Download error:", error);
-            toast.error("Gagal mengunduh PDF");
+            toast.error("Gagal mengunduh PDF. Silakan coba lagi.");
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -70,12 +76,12 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     <CardHeader className="pb-2">
                         <p className="text-primary-foreground/80 text-sm font-medium">Total Investasi Bulanan</p>
                         <CardTitle className="text-3xl font-bold">
-                            {formatCurrency(simulationData?.totalMonthlyInvestment || 0)}
+                            {formatCurrency(simulationData?.totalMonthlySaving || 0)}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-xs text-primary-foreground/70">
-                            *Setoran tetap (Flat) untuk semua jenjang sekolah.
+                            *Setoran tetap (Flat) akumulasi untuk semua anak.
                         </p>
                     </CardContent>
                 </Card>
@@ -104,34 +110,58 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 </CardHeader>
                 <CardContent className="pt-0">
                     <div className="space-y-4">
-                        {details.length > 0 ? (
-                            details.map((child, idx) => (
-                                <div key={idx} className="group p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-all">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                                                {idx + 1}
-                                            </div>
-                                            <p className="font-bold text-lg">{child.childName}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Tabungan Bulanan</p>
-                                            <p className="text-primary font-bold">{formatCurrency(child.summary.totalMonthlySaving)}</p>
-                                        </div>
-                                    </div>
+                        {children.length > 0 ? (
+                            // [FIX] Error implicit any akan hilang karena 'children' sudah ter-inferensi dengan benar
+                            children.map((child, idx) => {
+                                // Hitung total per anak secara manual (Client-Side Aggregation)
+                                const totalSavingPerChild = child.stages.reduce(
+                                    (sum, stage) => sum + (stage.calculatedMonthlySaving || 0), 0
+                                );
+                                const totalCostPerChild = child.stages.reduce(
+                                    (sum, stage) => sum + (stage.calculatedFutureValue || 0), 0
+                                );
 
-                                    <div className="grid grid-cols-2 gap-4 py-3 border-t border-dashed">
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Total Dana Dibutuhkan</p>
-                                            <p className="font-semibold text-sm">{formatCurrency(child.summary.totalFutureCost)}</p>
+                                return (
+                                    <div key={idx} className="group p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-all">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                                                    {idx + 1}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-lg">{child.childName}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Lahir: {child.childDob}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
+                                                    Tabungan Bulanan
+                                                </p>
+                                                <p className="text-primary font-bold">
+                                                    {formatCurrency(totalSavingPerChild)}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-muted-foreground">Jumlah Jenjang</p>
-                                            <p className="font-semibold text-sm">{child.detail.stagesBreakdown.length} Sekolah</p>
+
+                                        <div className="grid grid-cols-2 gap-4 py-3 border-t border-dashed">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Total Dana Dibutuhkan</p>
+                                                <p className="font-semibold text-sm">
+                                                    {formatCurrency(totalCostPerChild)}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground">Jumlah Jenjang</p>
+                                                <p className="font-semibold text-sm">
+                                                    {child.stages.length} Sekolah
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="text-center py-6 text-muted-foreground italic">
                                 Tidak ada rincian data anak.
@@ -145,13 +175,23 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
             <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                 <Button
                     onClick={handleDownloadPdf}
+                    disabled={isDownloading}
                     className="flex-1 h-12 gap-2 text-base font-bold shadow-lg shadow-primary/20"
                 >
-                    <Download className="w-5 h-5" /> Unduh Laporan PDF
+                    {isDownloading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" /> Mengunduh...
+                        </>
+                    ) : (
+                        <>
+                            <Download className="w-5 h-5" /> Unduh Laporan PDF
+                        </>
+                    )}
                 </Button>
                 <Button
                     variant="outline"
                     onClick={onReset}
+                    disabled={isDownloading}
                     className="flex-1 h-12 gap-2 text-base font-semibold"
                 >
                     <RefreshCcw className="w-5 h-5" /> Hitung Ulang
