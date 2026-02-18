@@ -54,6 +54,12 @@ export default function EducationCalculatorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // 1. Tambahkan handler di dalam function EducationCalculatorPage()
+  const handleBackToRevision = () => {
+    setStep(2); // Kembali ke form rencana anak
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
@@ -283,6 +289,7 @@ export default function EducationCalculatorPage() {
             <SimulationResultStep
               result={result}
               onReset={handleReset}
+              onBack={handleBackToRevision} // <--- Tambahkan ini
             />
           )}
         </CardContent>

@@ -13,7 +13,8 @@ import {
     Wallet,
     ChevronDown,
     FileText,
-    Sparkles
+    Sparkles,
+    ChevronLeft
 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
@@ -23,9 +24,10 @@ import { cn } from "@/lib/utils";
 interface SimulationResultStepProps {
     result: EducationSimulationResponse;
     onReset: () => void;
+    onBack: () => void;
 }
 
-export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset }) => {
+export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset, onBack }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
@@ -241,7 +243,8 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 <Button
                     onClick={handleDownloadPackage}
                     disabled={isDownloading}
-                    className="flex-1 h-12 gap-2 text-base font-bold shadow-xl shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
+                    // Gunakan flex-[2] agar tombol download lebih lebar di desktop
+                    className="flex-2 h-12 gap-2 text-base font-bold shadow-xl shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
                 >
                     {isDownloading ? (
                         <>
@@ -252,6 +255,14 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                             <Download className="w-5 h-5" /> Unduh PDF & Sesi
                         </>
                     )}
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={onBack}
+                    disabled={isDownloading}
+                    className="flex-1 h-12 gap-2 text-base font-semibold border-blue-200 text-blue-600 hover:bg-blue-50 transition-all"
+                >
+                    <ChevronLeft className="w-4 h-4" /> Revisi Data
                 </Button>
                 <Button
                     variant="outline"
