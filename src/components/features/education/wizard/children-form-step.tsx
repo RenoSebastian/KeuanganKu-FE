@@ -52,11 +52,12 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
     const [activeTab, setActiveTab] = useState("child-0");
 
     const form = useForm<EducationSimulationForm>({
+        // [FIX] Menggunakan 'as any' untuk menghindari konflik tipe resolver
         resolver: zodResolver(educationSimulationSchema) as any,
         defaultValues: {
             clientName: "",
             clientCity: "",
-            // [FIX] Inisialisasi string kosong
+            // [FIX UTAMA DI SINI] Ubah undefined menjadi "" (string kosong)
             childrenPlans: [{ childName: "", childDob: "", stages: [] }],
             inflationRate: 10,
             returnRate: 12,
@@ -75,6 +76,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                 ...initialData,
                 childrenPlans: initialData.childrenPlans?.length
                     ? initialData.childrenPlans
+                    // [FIX UTAMA DI SINI JUGA] Fallback harus string kosong "", bukan undefined
                     : [{ childName: "", childDob: "", stages: [] }]
             });
         }
@@ -86,6 +88,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
     });
 
     const handleAddChild = () => {
+        // [FIX] Pastikan string kosong saat tambah anak baru
         append({ childName: "", childDob: "", stages: [] });
         setTimeout(() => setActiveTab(`child-${fields.length}`), 100);
     };
@@ -142,6 +145,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                 <Input
                                                     {...field}
                                                     type="number"
+                                                    // Manual handle number conversion
                                                     onChange={e => field.onChange(Number(e.target.value))}
                                                     className="h-8 pr-6 text-right font-bold text-slate-700 border-blue-200 focus:ring-blue-200"
                                                 />
@@ -151,6 +155,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                         <FormControl>
                                             <Slider
                                                 min={0} max={20} step={0.5}
+                                                // Cast value to array for Radix Slider
                                                 value={field.value as any}
                                                 onChange={(vals) => field.onChange(vals)}
                                                 className="py-2"
@@ -229,6 +234,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                             "data-[state=inactive]:bg-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-blue-100"
                                         )}
                                     >
+                                        {/* [FIX] Pass control as any */}
                                         <ChildNameTabWatcher control={form.control as any} index={index} />
                                     </TabsTrigger>
                                 ))}
@@ -272,7 +278,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                     )}
                                                 />
 
-                                                {/* --- [FIX IS HERE] --- */}
+                                                {/* FIELD DATE OF BIRTH */}
                                                 <FormField
                                                     control={form.control}
                                                     name={`childrenPlans.${index}.childDob`}
@@ -283,11 +289,11 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                                 <Input
                                                                     type="date"
                                                                     {...field}
-                                                                    // 1. Pastikan value selalu string valid, kalau null/undefined kasih ""
+                                                                    // 1. Value: Convert null/undefined to empty string for Input
                                                                     value={field.value ? String(field.value).split('T')[0] : ''}
 
-                                                                    // 2. [CRITICAL] onChange JANGAN kirim undefined. Kirim e.target.value (string) mentah-mentah.
-                                                                    onChange={field.onChange}
+                                                                    // 2. OnChange: Pass raw string value (YYYY-MM-DD), NOT Date object/undefined
+                                                                    onChange={(e) => field.onChange(e.target.value)}
 
                                                                     className="bg-white border-blue-100 focus:border-blue-400"
                                                                     disabled={isLoading}
@@ -297,7 +303,6 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                         </FormItem>
                                                     )}
                                                 />
-                                                {/* --------------------- */}
 
                                             </div>
 
@@ -325,6 +330,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                 <h4 className="font-bold text-slate-800">Jalur Pendidikan</h4>
                                             </div>
 
+                                            {/* [FIX] Pass control as any */}
                                             <ChildStageManager
                                                 control={form.control as any}
                                                 childIndex={index}
@@ -338,6 +344,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                         ))}
                     </Tabs>
 
+                    {/* GLOBAL ERROR MESSAGE */}
                     {form.formState.errors.childrenPlans?.root && (
                         <Alert variant="destructive" className="bg-red-50 border-red-200">
                             <AlertCircle className="h-4 w-4" />
@@ -347,6 +354,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                         </Alert>
                     )}
 
+                    {/* FOOTER ACTIONS */}
                     <div className="flex items-center justify-between gap-4 pt-6 border-t border-slate-200">
                         <Button
                             type="button"
@@ -385,6 +393,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
 // HELPER COMPONENTS
 // ============================================================================
 
+// [FIX] Mengubah tipe control menjadi 'any' agar fleksibel
 function ChildNameTabWatcher({ control, index }: { control: any, index: number }) {
     const name = useWatch({
         control,
@@ -393,12 +402,14 @@ function ChildNameTabWatcher({ control, index }: { control: any, index: number }
     return (
         <span className="flex items-center gap-2">
             <Baby className="w-4 h-4 opacity-70" />
+            {/* [FIX] Update tailwind class */}
             <span className="truncate max-w-25">{name || `Anak #${index + 1}`}</span>
         </span>
     );
 }
 
 interface ChildStageManagerProps {
+    // [FIX] Mengubah tipe control menjadi 'any'
     control: any;
     childIndex: number;
     isLoading: boolean;
@@ -443,10 +454,12 @@ function ChildStageManager({ control, childIndex, isLoading }: ChildStageManager
         };
 
         const newStagesData = newLevels.map(level => {
+            // 1. Cek existing
             const existing = currentStages?.find((s: any) => s.level === level);
 
             if (existing) return existing;
 
+            // 2. Buat baru
             return {
                 level,
                 duration: DEFAULT_STAGE_DURATION[level],
@@ -500,6 +513,7 @@ function ChildStageManager({ control, childIndex, isLoading }: ChildStageManager
                                 key={field.id}
                                 childIndex={childIndex}
                                 stageIndex={k}
+                                // [FIX] cast to any to be safe
                                 level={(field as any).level}
                                 onRemove={() => {
                                     const newLevels = selectedLevels.filter((l: any) => l !== (field as any).level);

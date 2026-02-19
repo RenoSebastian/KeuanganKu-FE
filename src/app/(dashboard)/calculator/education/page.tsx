@@ -85,7 +85,6 @@ export default function EducationCalculatorPage() {
         return {
           childName: child.childName,
           childDob: child.childDob,
-          // [FIX] Hapus field 'gender' karena tidak ada di Schema/Type Definition
           stages: child.stages.map((stage, idx) => ({
             ...stage,
             level: stage.level as SchoolLevel,
@@ -154,39 +153,48 @@ export default function EducationCalculatorPage() {
       const response = await financialService.decodeSimulationToken(fileContent);
 
       if (response && response.data) {
-        const importedData = response.data;
+        const rawData = response.data;
         const metaData = response.meta || {};
 
-        console.log("Imported Data Raw:", importedData);
+        console.log("Imported Data Raw:", rawData);
+
+        // --- ADAPTER PATTERN MAPPING ---
+        const clientName = rawData.clientName || rawData.client?.name || "";
+        const clientCity = rawData.clientCity || rawData.client?.city || "";
+        const clientJob = rawData.clientJob || rawData.client?.job || "";
+        const clientPhone = rawData.clientPhone || rawData.client?.phone || "";
+        const clientDobRaw = rawData.clientDob || rawData.client?.dob || "";
+
+        const inflationRate = Number(rawData.inflationRate || rawData.financial?.inflationRate || 10);
+        const returnRate = Number(rawData.returnRate || rawData.financial?.returnRate || 12);
+
+        const childrenPlansRaw = rawData.childrenPlans || rawData.financial?.childrenPlans || [];
 
         // 1. DATA MAPPING (Backend DTO -> Frontend Form)
-        // Sangat penting: Konversi String Date kembali ke Object Date
         const mappedForm: EducationSimulationForm = {
-          clientName: importedData.clientName || "",
-          clientCity: importedData.clientCity || "",
-          clientDob: importedData.clientDob ? String(importedData.clientDob).split('T')[0] : "", // String YYYY-MM-DD
-          clientJob: importedData.clientJob || "",
-          clientPhone: importedData.clientPhone || "",
-          inflationRate: Number(importedData.inflationRate) || 10,
-          returnRate: Number(importedData.returnRate) || 12,
-          // Mapping array anak
-          childrenPlans: Array.isArray(importedData.childrenPlans)
-            ? importedData.childrenPlans.map((child: any) => ({
+          clientName,
+          clientCity,
+          // DATE FIX: Konversi string ke format YYYY-MM-DD (String)
+          clientDob: clientDobRaw ? String(clientDobRaw).split('T')[0] : "",
+          clientJob,
+          clientPhone,
+          inflationRate,
+          returnRate,
+          // Mapping array anak dengan Defensive Programming
+          childrenPlans: Array.isArray(childrenPlansRaw)
+            ? childrenPlansRaw.map((child: any) => ({
               childName: child.childName || "",
-              // Konversi string date ke Date object jika diperlukan oleh DatePicker
-              childDob: child.childDob ? new Date(child.childDob) : new Date(),
-              // [FIX] Hapus gender mapping
+              // [FIX TYPE ERROR] childDob harus String, bukan Date Object
+              childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
               stages: Array.isArray(child.stages)
                 ? child.stages.map((stage: any) => ({
-                  level: stage.level || stage.schoolLevel, // Handle naming inconsistencies
+                  level: stage.level || stage.schoolLevel,
                   startYear: Number(stage.startYear),
                   duration: Number(stage.duration),
-                  // Mapping biaya (fallback ke 0 jika null)
                   costEntry: Number(stage.costEntry || 0),
                   costMonthly: Number(stage.costMonthly || 0),
                   costSemester: Number(stage.costSemester || 0),
                   costFull: Number(stage.costFull || 0),
-                  // Hasil kalkulasi lama (disimpan untuk referensi)
                   calculatedFutureValue: Number(stage.calculatedFutureValue || stage.futureCost || 0),
                   calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || stage.monthlySaving || 0),
                 }))
@@ -199,10 +207,9 @@ export default function EducationCalculatorPage() {
         setFormData(mappedForm);
 
         // 3. FORCE RE-RENDER WIZARD
-        // Kita ubah key agar komponen form hancur dan dibuat ulang dengan defaultValues baru
         setFormKey(prev => prev + 1);
 
-        // 4. Rekonstruksi Result (Agar bisa langsung loncat ke Step 3)
+        // 4. Rekonstruksi Result
         let totalMonthlySaving = 0;
         let totalFutureCost = 0;
 
@@ -213,12 +220,12 @@ export default function EducationCalculatorPage() {
           });
         });
 
-        // Jika data valid dan memiliki hasil hitungan -> Langsung ke Result
+        // Jika data valid -> Langsung ke Result
         if (totalFutureCost > 0) {
           const reconstructedResult: EducationSimulationResponse = {
-            status: "success", // WAJIB ADA agar komponen Result tidak error
+            status: "success",
             simulationId: metaData.simulationId || "imported-session",
-            mgcToken: fileContent, // Token asli disimpan lagi
+            mgcToken: fileContent,
             filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
             data: {
               ...mappedForm,
@@ -230,7 +237,7 @@ export default function EducationCalculatorPage() {
                 monthlySaving: child.stages.reduce((acc, s: any) => acc + (s.calculatedMonthlySaving || 0), 0),
                 stages: child.stages.map((s: any) => ({
                   ...s,
-                  costType: s.costEntry > 0 ? "ENTRY" : "MONTHLY", // Infer cost type
+                  costType: s.costEntry > 0 ? "ENTRY" : "MONTHLY",
                   futureCost: s.calculatedFutureValue,
                   monthlySaving: s.calculatedMonthlySaving,
                   yearsToStart: s.startYear - new Date().getFullYear()
@@ -240,13 +247,13 @@ export default function EducationCalculatorPage() {
           };
 
           setResult(reconstructedResult);
-          setStep(3); // Loncat ke Step Result
+          setStep(3);
           toast.success("Sesi berhasil dipulihkan!", {
             id: toastId,
             description: "Menampilkan hasil simulasi terakhir."
           });
         } else {
-          // Jika data belum lengkap/belum dihitung -> Ke Step 2
+          // Jika data draft -> Ke Step 2
           setStep(2);
           toast.success("Draft berhasil dimuat.", {
             id: toastId,
@@ -255,10 +262,11 @@ export default function EducationCalculatorPage() {
         }
       }
     } catch (err: any) {
-      console.error("Import error:", err);
+      console.error("Import error details:", err);
+      // ERROR HANDLING YANG ROBUST: Matikan loading apapun yang terjadi
       toast.error("Gagal memuat file.", {
         id: toastId,
-        description: "File corrupt atau token tidak valid."
+        description: "File corrupt atau struktur data tidak valid."
       });
     } finally {
       setIsImporting(false);
@@ -270,7 +278,7 @@ export default function EducationCalculatorPage() {
     setStep(1);
     setFormData({});
     setResult(null);
-    setFormKey(prev => prev + 1); // Reset form components too
+    setFormKey(prev => prev + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -280,7 +288,6 @@ export default function EducationCalculatorPage() {
       {/* HEADER AREA */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
-          {/* [FIX] Update tailwind class: bg-gradient -> bg-linear */}
           <div className="p-4 bg-linear-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg shadow-blue-500/20 text-white">
             <GraduationCap className="w-8 h-8" />
           </div>
@@ -294,8 +301,7 @@ export default function EducationCalculatorPage() {
           </div>
         </div>
 
-        {/* EYE CATCHING LOAD SESSION BUTTON */}
-        {/* Tombol import selalu muncul di Step 1 atau 2 untuk kemudahan */}
+        {/* LOAD SESSION BUTTON */}
         {step < 3 && (
           <div className="relative group">
             <input
@@ -311,7 +317,6 @@ export default function EducationCalculatorPage() {
               !isImporting && "group-hover:border-blue-400 group-hover:shadow-lg group-hover:shadow-blue-500/10 group-hover:-translate-y-0.5",
               isImporting && "bg-slate-50 border-slate-200 opacity-80 cursor-wait"
             )}>
-              {/* [FIX] Update tailwind class: bg-gradient -> bg-linear */}
               <div className="absolute inset-0 bg-linear-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className={cn(
                 "relative z-10 flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300",
@@ -354,7 +359,6 @@ export default function EducationCalculatorPage() {
           })}
         </div>
         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-          {/* [FIX] Update tailwind class: bg-gradient -> bg-linear */}
           <div
             className="h-full bg-linear-to-r from-blue-500 to-indigo-600 transition-all duration-700 ease-in-out"
             style={{ width: step === 1 ? '33.33%' : step === 2 ? '66.66%' : '100%' }}
@@ -364,11 +368,7 @@ export default function EducationCalculatorPage() {
 
       {/* MAIN CONTENT CARD */}
       <Card className="border-none shadow-2xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl ring-1 ring-white/50 rounded-3xl overflow-hidden">
-        {/* [FIX] Update tailwind class: min-h-[400px] -> min-h-100 (atau class utility yg valid) */}
         <CardContent className="pt-8 md:p-10 min-h-100">
-          {/* PENTING: Gunakan key={formKey} untuk memaksa komponen 
-            me-reset form state-nya ketika data baru di-import.
-          */}
 
           {step === 1 && (
             <ClientFormStep
