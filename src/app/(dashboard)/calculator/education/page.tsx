@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // Wizard Steps Components
@@ -35,9 +37,6 @@ export default function EducationCalculatorPage() {
 
   // State Form Input
   const [formData, setFormData] = useState<Partial<EducationSimulationForm>>({});
-
-  // State untuk memaksa re-render komponen form saat import
-  const [formKey, setFormKey] = useState(0);
 
   // State Hasil Simulasi
   const [result, setResult] = useState<EducationSimulationResponse | null>(null);
@@ -65,15 +64,13 @@ export default function EducationCalculatorPage() {
   // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
     setIsLoading(true);
-    // Gabungkan data step 1 dan step 2
-    const finalFormData = { ...formData, ...data } as EducationSimulationForm;
-    setFormData(finalFormData);
+    setFormData((prev) => ({ ...prev, ...data }));
 
     try {
+      const finalFormData = { ...formData, ...data } as EducationSimulationForm;
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
 
-      // Kalkulasi Lokal sebelum dikirim ke server (untuk preview/check)
       const childrenPlansPayload = finalFormData.childrenPlans.map(child => {
         const calc = calculateEducationInvestment({
           inflationRate,
@@ -90,11 +87,10 @@ export default function EducationCalculatorPage() {
             level: stage.level as SchoolLevel,
             calculatedFutureValue: calc.stageResults[idx].totalFv,
             calculatedMonthlySaving: calc.stageResults[idx].totalPmt,
-            // Pastikan angka tidak NaN
-            costEntry: Number(stage.costEntry) || 0,
-            costMonthly: Number(stage.costMonthly) || 0,
-            costSemester: Number(stage.costSemester) || 0,
-            costFull: Number(stage.costFull) || 0,
+            costEntry: stage.costEntry || 0,
+            costMonthly: stage.costMonthly || 0,
+            costSemester: stage.costSemester || 0,
+            costFull: stage.costFull || 0,
           }))
         };
       });
@@ -110,7 +106,6 @@ export default function EducationCalculatorPage() {
         childrenPlans: childrenPlansPayload
       };
 
-      // Kirim ke Backend untuk Log & Token Generation
       const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
 
       setResult(response);
@@ -130,86 +125,60 @@ export default function EducationCalculatorPage() {
     }
   };
 
-  // --- HANDLER IMPORT FILE (.mgc) ---
+  // --- HANDLER IMPORT FILE (DIPERBAIKI: Add Status) ---
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset input value agar bisa upload file yang sama jika perlu
-    const target = e.target;
-
     if (!file.name.endsWith('.mgc')) {
       toast.error("Format file salah", { description: "Harap upload file dengan ekstensi .mgc" });
-      target.value = "";
       return;
     }
 
     setIsImporting(true);
-    const toastId = toast.loading("Membaca file simulasi...");
+    toast.loading("Membaca file simulasi...");
 
     try {
       const fileContent = await file.text();
-      // Decode token di server untuk validasi signature
       const response = await financialService.decodeSimulationToken(fileContent);
 
       if (response && response.data) {
-        const rawData = response.data;
+        const importedData = response.data;
         const metaData = response.meta || {};
 
-        console.log("Imported Data Raw:", rawData);
-
-        // --- ADAPTER PATTERN MAPPING ---
-        const clientName = rawData.clientName || rawData.client?.name || "";
-        const clientCity = rawData.clientCity || rawData.client?.city || "";
-        const clientJob = rawData.clientJob || rawData.client?.job || "";
-        const clientPhone = rawData.clientPhone || rawData.client?.phone || "";
-        const clientDobRaw = rawData.clientDob || rawData.client?.dob || "";
-
-        const inflationRate = Number(rawData.inflationRate || rawData.financial?.inflationRate || 10);
-        const returnRate = Number(rawData.returnRate || rawData.financial?.returnRate || 12);
-
-        const childrenPlansRaw = rawData.childrenPlans || rawData.financial?.childrenPlans || [];
-
-        // 1. DATA MAPPING (Backend DTO -> Frontend Form)
+        // 1. Mapping Data Form
         const mappedForm: EducationSimulationForm = {
-          clientName,
-          clientCity,
-          // DATE FIX: Konversi string ke format YYYY-MM-DD (String)
-          clientDob: clientDobRaw ? String(clientDobRaw).split('T')[0] : "",
-          clientJob,
-          clientPhone,
-          inflationRate,
-          returnRate,
-          // Mapping array anak dengan Defensive Programming
-          childrenPlans: Array.isArray(childrenPlansRaw)
-            ? childrenPlansRaw.map((child: any) => ({
+          clientName: importedData.clientName || "",
+          clientCity: importedData.clientCity || "",
+          clientDob: importedData.clientDob ? String(importedData.clientDob).split('T')[0] : "",
+          clientJob: importedData.clientJob || "",
+          clientPhone: importedData.clientPhone || "",
+          inflationRate: Number(importedData.inflationRate) || 10,
+          returnRate: Number(importedData.returnRate) || 12,
+          childrenPlans: Array.isArray(importedData.childrenPlans)
+            ? importedData.childrenPlans.map((child: any) => ({
               childName: child.childName || "",
-              // [FIX TYPE ERROR] childDob harus String, bukan Date Object
               childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
               stages: Array.isArray(child.stages)
                 ? child.stages.map((stage: any) => ({
-                  level: stage.level || stage.schoolLevel,
+                  level: stage.level,
                   startYear: Number(stage.startYear),
                   duration: Number(stage.duration),
                   costEntry: Number(stage.costEntry || 0),
                   costMonthly: Number(stage.costMonthly || 0),
                   costSemester: Number(stage.costSemester || 0),
                   costFull: Number(stage.costFull || 0),
-                  calculatedFutureValue: Number(stage.calculatedFutureValue || stage.futureCost || 0),
-                  calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || stage.monthlySaving || 0),
+                  calculatedFutureValue: Number(stage.calculatedFutureValue || 0),
+                  calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || 0),
                 }))
                 : []
             }))
             : []
         };
 
-        // 2. Update State Form
         setFormData(mappedForm);
 
-        // 3. FORCE RE-RENDER WIZARD
-        setFormKey(prev => prev + 1);
-
-        // 4. Rekonstruksi Result
+        // 2. Kalkulasi Total Manual
         let totalMonthlySaving = 0;
         let totalFutureCost = 0;
 
@@ -220,10 +189,11 @@ export default function EducationCalculatorPage() {
           });
         });
 
-        // Jika data valid -> Langsung ke Result
+        // 3. Bypass ke Result jika data valid
         if (totalFutureCost > 0) {
+          // [FIX] Tambahkan properti 'status' disini
           const reconstructedResult: EducationSimulationResponse = {
-            status: "success",
+            status: "success", // <--- PERBAIKAN: Menambahkan status
             simulationId: metaData.simulationId || "imported-session",
             mgcToken: fileContent,
             filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
@@ -248,29 +218,23 @@ export default function EducationCalculatorPage() {
 
           setResult(reconstructedResult);
           setStep(3);
+          toast.dismiss();
           toast.success("Sesi berhasil dipulihkan!", {
-            id: toastId,
             description: "Menampilkan hasil simulasi terakhir."
           });
         } else {
-          // Jika data draft -> Ke Step 2
           setStep(2);
-          toast.success("Draft berhasil dimuat.", {
-            id: toastId,
-            description: "Silakan lanjutkan pengisian data anak."
-          });
+          toast.dismiss();
+          toast.success("Draft berhasil dimuat. Silakan lanjutkan pengisian.");
         }
       }
     } catch (err: any) {
-      console.error("Import error details:", err);
-      // ERROR HANDLING YANG ROBUST: Matikan loading apapun yang terjadi
-      toast.error("Gagal memuat file.", {
-        id: toastId,
-        description: "File corrupt atau struktur data tidak valid."
-      });
+      console.error("Import error:", err);
+      toast.dismiss();
+      toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
     } finally {
       setIsImporting(false);
-      target.value = ""; // Reset input file
+      e.target.value = '';
     }
   };
 
@@ -278,7 +242,6 @@ export default function EducationCalculatorPage() {
     setStep(1);
     setFormData({});
     setResult(null);
-    setFormKey(prev => prev + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -301,8 +264,8 @@ export default function EducationCalculatorPage() {
           </div>
         </div>
 
-        {/* LOAD SESSION BUTTON */}
-        {step < 3 && (
+        {/* EYE CATCHING LOAD SESSION BUTTON */}
+        {step === 1 && (
           <div className="relative group">
             <input
               type="file"
@@ -332,6 +295,9 @@ export default function EducationCalculatorPage() {
                 </span>
                 <span className="text-[10px] font-medium text-slate-400">File .mgc</span>
               </div>
+              {!isImporting && (
+                <div className="absolute right-3 top-3 w-1.5 h-1.5 rounded-full bg-blue-400 opacity-0 group-hover:opacity-100 group-hover:animate-pulse transition-all" />
+              )}
             </div>
           </div>
         )}
@@ -369,10 +335,8 @@ export default function EducationCalculatorPage() {
       {/* MAIN CONTENT CARD */}
       <Card className="border-none shadow-2xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl ring-1 ring-white/50 rounded-3xl overflow-hidden">
         <CardContent className="pt-8 md:p-10 min-h-100">
-
           {step === 1 && (
             <ClientFormStep
-              key={`client-${formKey}`}
               initialData={formData as any}
               onNext={handleClientNext}
             />
@@ -380,8 +344,7 @@ export default function EducationCalculatorPage() {
 
           {step === 2 && (
             <ChildrenFormStep
-              key={`children-${formKey}`}
-              initialData={formData as any}
+              initialData={formData}
               onNext={handleChildrenSubmit}
               onBack={() => setStep(1)}
               isLoading={isLoading}
@@ -390,7 +353,6 @@ export default function EducationCalculatorPage() {
 
           {step === 3 && result && (
             <SimulationResultStep
-              key={`result-${formKey}`}
               result={result}
               onReset={handleReset}
               onBack={handleBackToRevision}
