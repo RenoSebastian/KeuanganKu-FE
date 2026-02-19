@@ -65,6 +65,11 @@ export interface PruneResponse {
 
 export interface StreamMetadata {
     entityType: string;
+
+    // [UPDATED] Field 'module' ditambahkan untuk kompatibilitas dengan Token Simulasi Pendidikan
+    // yang menggunakan key 'module' di metadatanya, bukan hanya entityType.
+    module?: string;
+
     cutoffDate: string;
     totalRecords: number;
     exportedAt: string;

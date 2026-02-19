@@ -30,6 +30,8 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
     const [isDownloading, setIsDownloading] = useState(false);
     const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
+    // [VALIDATION] Memastikan akses data aman (Null Safety)
+    // Kita membaca 'childrenPlans' langsung dari 'result.data', bukan dari 'result.data.result'
     const simulationData = result?.data;
     const children = simulationData?.childrenPlans || [];
 
@@ -48,6 +50,8 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
         try {
             // 1. Download PDF (Request Stream ke Backend)
+            // Jika ini adalah sesi import, pastikan Backend bisa menangani ID simulasi lama
+            // atau Frontend memblokir jika ID tidak valid.
             await financialService.downloadEducationSimulationPdf(result.simulationId);
 
             // 2. Download File Sesi (.mgc) - Client Side Generation
@@ -149,7 +153,9 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
                 {children.length > 0 ? (
                     children.map((child, idx) => {
-                        // Agregasi Data di Client Side
+                        // [CRITICAL] Agregasi Data di Client Side untuk memastikan total konsisten
+                        // Data ini diambil dari 'calculatedMonthlySaving' yang ada di setiap stage
+                        // baik dari hasil kalkulasi backend maupun hasil restore session.
                         const totalSavingPerChild = child.stages.reduce(
                             (sum, stage) => sum + (stage.calculatedMonthlySaving || 0), 0
                         );

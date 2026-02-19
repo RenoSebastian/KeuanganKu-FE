@@ -125,7 +125,7 @@ export default function EducationCalculatorPage() {
     }
   };
 
-  // --- HANDLER IMPORT FILE (DIPERBAIKI: Add Status) ---
+  // --- HANDLER IMPORT FILE (SMART DETECTION IMPL) ---
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -140,13 +140,14 @@ export default function EducationCalculatorPage() {
 
     try {
       const fileContent = await file.text();
+      // 1. Decode Token via Service
       const response = await financialService.decodeSimulationToken(fileContent);
 
       if (response && response.data) {
         const importedData = response.data;
         const metaData = response.meta || {};
 
-        // 1. Mapping Data Form
+        // 2. Mapping Data ke Form State
         const mappedForm: EducationSimulationForm = {
           clientName: importedData.clientName || "",
           clientCity: importedData.clientCity || "",
@@ -168,6 +169,7 @@ export default function EducationCalculatorPage() {
                   costMonthly: Number(stage.costMonthly || 0),
                   costSemester: Number(stage.costSemester || 0),
                   costFull: Number(stage.costFull || 0),
+                  // Penting: Ambil nilai hasil kalkulasi jika ada
                   calculatedFutureValue: Number(stage.calculatedFutureValue || 0),
                   calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || 0),
                 }))
@@ -178,7 +180,8 @@ export default function EducationCalculatorPage() {
 
         setFormData(mappedForm);
 
-        // 2. Kalkulasi Total Manual
+        // 3. Kalkulasi Total Manual (Deep Inspection)
+        // Kita hitung apakah ada hasil kalkulasi (> 0) di dalam data yang diimport
         let totalMonthlySaving = 0;
         let totalFutureCost = 0;
 
@@ -189,11 +192,11 @@ export default function EducationCalculatorPage() {
           });
         });
 
-        // 3. Bypass ke Result jika data valid
+        // 4. BRANCHING LOGIC: Bypass ke Result jika data valid (Is Calculated)
         if (totalFutureCost > 0) {
-          // [FIX] Tambahkan properti 'status' disini
+          // Reconstruct Result Object untuk Step 3
           const reconstructedResult: EducationSimulationResponse = {
-            status: "success", // <--- PERBAIKAN: Menambahkan status
+            status: "success", // Tambahkan status manual karena mungkin hilang di token flat
             simulationId: metaData.simulationId || "imported-session",
             mgcToken: fileContent,
             filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
@@ -217,12 +220,13 @@ export default function EducationCalculatorPage() {
           };
 
           setResult(reconstructedResult);
-          setStep(3);
+          setStep(3); // FORCE NAVIGATION KE STEP 3
           toast.dismiss();
           toast.success("Sesi berhasil dipulihkan!", {
             description: "Menampilkan hasil simulasi terakhir."
           });
         } else {
+          // Jika Draft (Belum ada hasil kalkulasi), masuk ke Step 2
           setStep(2);
           toast.dismiss();
           toast.success("Draft berhasil dimuat. Silakan lanjutkan pengisian.");
@@ -234,7 +238,7 @@ export default function EducationCalculatorPage() {
       toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
     } finally {
       setIsImporting(false);
-      e.target.value = '';
+      e.target.value = ''; // Reset input file
     }
   };
 
