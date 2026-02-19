@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { EducationSimulationResponse } from "@/lib/types/education";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,29 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
     const [isDownloading, setIsDownloading] = useState(false);
     const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
+    // [VALIDATION & AGGREGATION]
+    // Kita membaca 'childrenPlans' langsung dari 'result.data'.
     const simulationData = result?.data;
     const children = simulationData?.childrenPlans || [];
+
+    // [ROBUSTNESS FIX] Hitung Grand Total secara real-time dari array children.
+    // Ini memastikan angka di Card Summary SELALU sinkron dengan detail tabel,
+    // bahkan jika field summary global dari backend/token hilang atau tidak update.
+    const { grandTotalMonthlySaving, grandTotalFutureCost } = useMemo(() => {
+        let saving = 0;
+        let cost = 0;
+
+        children.forEach(child => {
+            if (Array.isArray(child.stages)) {
+                child.stages.forEach(stage => {
+                    saving += (stage.calculatedMonthlySaving || 0);
+                    cost += (stage.calculatedFutureValue || 0);
+                });
+            }
+        });
+
+        return { grandTotalMonthlySaving: saving, grandTotalFutureCost: cost };
+    }, [children]);
 
     const toggleAccordion = (index: number) => {
         setOpenItems(prev => ({ ...prev, [index]: !prev[index] }));
@@ -51,7 +72,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
             await financialService.downloadEducationSimulationPdf(result.simulationId);
 
             // 2. Download File Sesi (.mgc) - Client Side Generation
-            // Kita membuat file text sederhana berisi token untuk di-load kembali nanti
             if (result.mgcToken) {
                 const blob = new Blob([result.mgcToken], { type: "text/plain;charset=utf-8" });
                 const url = window.URL.createObjectURL(blob);
@@ -99,7 +119,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 </p>
             </div>
 
-            {/* --- SUMMARY CARDS --- */}
+            {/* --- SUMMARY CARDS (Menggunakan Aggregated Values) --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Card Total Investasi */}
                 <Card className="bg-linear-to-br from-blue-600 to-blue-700 text-white border-none shadow-xl shadow-blue-900/20 relative overflow-hidden group">
@@ -111,7 +131,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                             <Wallet className="w-4 h-4" /> Investasi Bulanan Rutin
                         </p>
                         <CardTitle className="text-4xl font-extrabold tracking-tight mt-1">
-                            {formatCurrency(simulationData?.totalMonthlySaving || 0)}
+                            {formatCurrency(grandTotalMonthlySaving)}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="relative z-10">
@@ -128,7 +148,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                             <Target className="w-4 h-4 text-blue-500" /> Total Dana Masa Depan (FV)
                         </p>
                         <CardTitle className="text-3xl font-bold text-slate-800">
-                            {formatCurrency(simulationData?.totalFutureCost || 0)}
+                            {formatCurrency(grandTotalFutureCost)}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -149,7 +169,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
                 {children.length > 0 ? (
                     children.map((child, idx) => {
-                        // Agregasi Data di Client Side
+                        // Kalkulasi per child (tetap dilakukan untuk display row level)
                         const totalSavingPerChild = child.stages.reduce(
                             (sum, stage) => sum + (stage.calculatedMonthlySaving || 0), 0
                         );

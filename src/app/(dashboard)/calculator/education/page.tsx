@@ -125,7 +125,7 @@ export default function EducationCalculatorPage() {
     }
   };
 
-  // --- HANDLER IMPORT FILE (DIPERBAIKI: Add Status) ---
+  // --- HANDLER IMPORT FILE (FIXED) ---
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -136,103 +136,134 @@ export default function EducationCalculatorPage() {
     }
 
     setIsImporting(true);
-    toast.loading("Membaca file simulasi...");
+    // Simpan ID toast agar bisa di-dismiss secara spesifik
+    const toastId = toast.loading("Membaca file simulasi...");
 
     try {
       const fileContent = await file.text();
+      // 1. Decode Token via Service
       const response = await financialService.decodeSimulationToken(fileContent);
 
-      if (response && response.data) {
-        const importedData = response.data;
-        const metaData = response.meta || {};
+      console.log("DEBUG RESPONSE IMPORT:", response); // Cek di console browser
 
-        // 1. Mapping Data Form
-        const mappedForm: EducationSimulationForm = {
-          clientName: importedData.clientName || "",
-          clientCity: importedData.clientCity || "",
-          clientDob: importedData.clientDob ? String(importedData.clientDob).split('T')[0] : "",
-          clientJob: importedData.clientJob || "",
-          clientPhone: importedData.clientPhone || "",
-          inflationRate: Number(importedData.inflationRate) || 10,
-          returnRate: Number(importedData.returnRate) || 12,
-          childrenPlans: Array.isArray(importedData.childrenPlans)
-            ? importedData.childrenPlans.map((child: any) => ({
-              childName: child.childName || "",
-              childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
-              stages: Array.isArray(child.stages)
-                ? child.stages.map((stage: any) => ({
-                  level: stage.level,
-                  startYear: Number(stage.startYear),
-                  duration: Number(stage.duration),
-                  costEntry: Number(stage.costEntry || 0),
-                  costMonthly: Number(stage.costMonthly || 0),
-                  costSemester: Number(stage.costSemester || 0),
-                  costFull: Number(stage.costFull || 0),
-                  calculatedFutureValue: Number(stage.calculatedFutureValue || 0),
-                  calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || 0),
-                }))
-                : []
+      // [FIX] EKTRAKSI DATA LEBIH AMAN
+      // Service mungkin mengembalikan data yang sudah di-unwrap atau masih terbungkus.
+      // Kita cek kedua kemungkinan.
+      const importedData = response.data || response;
+      const metaData = response.meta || {};
+
+      // Validasi data minimal
+      if (!importedData || !importedData.clientName) {
+        throw new Error("Struktur data file tidak valid atau kosong.");
+      }
+
+      // Ambil Rate Global dari data import atau default
+      const inflationRate = Number(importedData.inflationRate) || 10;
+      const returnRate = Number(importedData.returnRate) || 12;
+
+      // 2. Mapping Data & RE-CALCULATE
+      const recalculatedChildrenPlans = Array.isArray(importedData.childrenPlans)
+        ? importedData.childrenPlans.map((child: any) => {
+          const rawStages = Array.isArray(child.stages) ? child.stages.map((s: any) => ({
+            level: s.level,
+            startYear: Number(s.startYear),
+            duration: Number(s.duration),
+            costEntry: Number(s.costEntry || 0),
+            costMonthly: Number(s.costMonthly || 0),
+            costSemester: Number(s.costSemester || 0),
+            costFull: Number(s.costFull || 0),
+          })) : [];
+
+          // Kalkulasi Ulang (Client-Side Math)
+          const calculation = calculateEducationInvestment({
+            inflationRate,
+            returnRate,
+            childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
+            stages: rawStages
+          });
+
+          return {
+            childName: child.childName || "",
+            childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
+            stages: rawStages.map((stage: any, idx: number) => ({
+              ...stage,
+              calculatedFutureValue: calculation.stageResults[idx]?.totalFv || 0,
+              calculatedMonthlySaving: calculation.stageResults[idx]?.totalPmt || 0,
             }))
-            : []
+          };
+        })
+        : [];
+
+      const mappedForm: EducationSimulationForm = {
+        clientName: importedData.clientName || "",
+        clientCity: importedData.clientCity || "",
+        clientDob: importedData.clientDob ? String(importedData.clientDob).split('T')[0] : "",
+        clientJob: importedData.clientJob || "",
+        clientPhone: importedData.clientPhone || "",
+        inflationRate,
+        returnRate,
+        childrenPlans: recalculatedChildrenPlans
+      };
+
+      setFormData(mappedForm);
+
+      // 3. Cek Total Biaya untuk menentukan Step
+      let totalFutureCost = 0;
+      let totalMonthlySaving = 0;
+
+      mappedForm.childrenPlans.forEach(child => {
+        child.stages.forEach(stage => {
+          totalMonthlySaving += (stage as any).calculatedMonthlySaving || 0;
+          totalFutureCost += (stage as any).calculatedFutureValue || 0;
+        });
+      });
+
+      // 4. NAVIGATION LOGIC
+      if (totalFutureCost > 0) {
+        // Rekonstruksi hasil jika perhitungan valid
+        const reconstructedResult: EducationSimulationResponse = {
+          status: "success",
+          simulationId: metaData.simulationId || "imported-session",
+          mgcToken: fileContent,
+          filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
+          data: {
+            ...mappedForm,
+            totalMonthlySaving,
+            totalFutureCost,
+            childrenPlans: mappedForm.childrenPlans.map(child => ({
+              ...child,
+              totalFutureCost: child.stages.reduce((acc, s: any) => acc + (s.calculatedFutureValue || 0), 0),
+              monthlySaving: child.stages.reduce((acc, s: any) => acc + (s.calculatedMonthlySaving || 0), 0),
+              stages: child.stages.map((s: any) => ({
+                ...s,
+                costType: s.costEntry > 0 ? "ENTRY" : "MONTHLY",
+                futureCost: s.calculatedFutureValue,
+                monthlySaving: s.calculatedMonthlySaving,
+                yearsToStart: s.startYear - new Date().getFullYear()
+              }))
+            })) as any
+          }
         };
 
-        setFormData(mappedForm);
-
-        // 2. Kalkulasi Total Manual
-        let totalMonthlySaving = 0;
-        let totalFutureCost = 0;
-
-        mappedForm.childrenPlans.forEach(child => {
-          child.stages.forEach(stage => {
-            totalMonthlySaving += (stage as any).calculatedMonthlySaving || 0;
-            totalFutureCost += (stage as any).calculatedFutureValue || 0;
-          });
+        setResult(reconstructedResult);
+        setStep(3);
+        toast.success("Sesi berhasil dipulihkan!", {
+          description: "Hasil simulasi telah dihitung ulang."
         });
-
-        // 3. Bypass ke Result jika data valid
-        if (totalFutureCost > 0) {
-          // [FIX] Tambahkan properti 'status' disini
-          const reconstructedResult: EducationSimulationResponse = {
-            status: "success", // <--- PERBAIKAN: Menambahkan status
-            simulationId: metaData.simulationId || "imported-session",
-            mgcToken: fileContent,
-            filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
-            data: {
-              ...mappedForm,
-              totalMonthlySaving,
-              totalFutureCost,
-              childrenPlans: mappedForm.childrenPlans.map(child => ({
-                ...child,
-                totalFutureCost: child.stages.reduce((acc, s: any) => acc + (s.calculatedFutureValue || 0), 0),
-                monthlySaving: child.stages.reduce((acc, s: any) => acc + (s.calculatedMonthlySaving || 0), 0),
-                stages: child.stages.map((s: any) => ({
-                  ...s,
-                  costType: s.costEntry > 0 ? "ENTRY" : "MONTHLY",
-                  futureCost: s.calculatedFutureValue,
-                  monthlySaving: s.calculatedMonthlySaving,
-                  yearsToStart: s.startYear - new Date().getFullYear()
-                }))
-              })) as any
-            }
-          };
-
-          setResult(reconstructedResult);
-          setStep(3);
-          toast.dismiss();
-          toast.success("Sesi berhasil dipulihkan!", {
-            description: "Menampilkan hasil simulasi terakhir."
-          });
-        } else {
-          setStep(2);
-          toast.dismiss();
-          toast.success("Draft berhasil dimuat. Silakan lanjutkan pengisian.");
-        }
+      } else {
+        // Jika data valid tapi biaya 0 (Draft)
+        setStep(2);
+        toast.success("Draft berhasil dimuat. Silakan lengkapi biaya.");
       }
+
     } catch (err: any) {
-      console.error("Import error:", err);
-      toast.dismiss();
-      toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
+      console.error("Import error FULL:", err);
+      toast.error("Gagal memuat file.", {
+        description: "File corrupt atau struktur data tidak sesuai."
+      });
     } finally {
+      // [CRITICAL FIX] Selalu dismiss toast loading & matikan spinner
+      toast.dismiss(toastId);
       setIsImporting(false);
       e.target.value = '';
     }
