@@ -125,7 +125,7 @@ export default function EducationCalculatorPage() {
     }
   };
 
-  // --- HANDLER IMPORT FILE (SMART DETECTION IMPL) ---
+  // --- HANDLER IMPORT FILE (SELF-HEALING / SIMULATION REPLAY IMPL) ---
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -147,41 +147,64 @@ export default function EducationCalculatorPage() {
         const importedData = response.data;
         const metaData = response.meta || {};
 
-        // 2. Mapping Data ke Form State
+        // Ambil Rate Global dari data import atau default
+        const inflationRate = Number(importedData.inflationRate) || 10;
+        const returnRate = Number(importedData.returnRate) || 12;
+
+        // 2. Mapping Data ke Form State & FIX: HITUNG ULANG (RE-CALCULATE)
+        // Kita tidak percaya nilai 'calculatedFutureValue' dari token karena mungkin kosong/nol/null.
+        // Kita hitung ulang menggunakan fungsi utilitas frontend (Simulation Replay Pattern).
+
+        const recalculatedChildrenPlans = Array.isArray(importedData.childrenPlans)
+          ? importedData.childrenPlans.map((child: any) => {
+            // a. Siapkan struktur stages untuk kalkulasi
+            const rawStages = Array.isArray(child.stages) ? child.stages.map((s: any) => ({
+              level: s.level,
+              startYear: Number(s.startYear),
+              duration: Number(s.duration),
+              costEntry: Number(s.costEntry || 0),
+              costMonthly: Number(s.costMonthly || 0),
+              costSemester: Number(s.costSemester || 0),
+              costFull: Number(s.costFull || 0),
+            })) : [];
+
+            // b. LAKUKAN KALKULASI DI SINI (Client-Side Math)
+            // Ini memastikan kita mendapatkan angka yang presisi berdasarkan input biaya.
+            const calculation = calculateEducationInvestment({
+              inflationRate,
+              returnRate,
+              childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
+              stages: rawStages
+            });
+
+            // c. Kembalikan object Child dengan Stages yang sudah berisi HASIL HITUNGAN BARU
+            return {
+              childName: child.childName || "",
+              childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
+              stages: rawStages.map((stage: any, idx: number) => ({
+                ...stage,
+                // Override nilai token dengan hasil hitungan baru
+                calculatedFutureValue: calculation.stageResults[idx]?.totalFv || 0,
+                calculatedMonthlySaving: calculation.stageResults[idx]?.totalPmt || 0,
+              }))
+            };
+          })
+          : [];
+
         const mappedForm: EducationSimulationForm = {
           clientName: importedData.clientName || "",
           clientCity: importedData.clientCity || "",
           clientDob: importedData.clientDob ? String(importedData.clientDob).split('T')[0] : "",
           clientJob: importedData.clientJob || "",
           clientPhone: importedData.clientPhone || "",
-          inflationRate: Number(importedData.inflationRate) || 10,
-          returnRate: Number(importedData.returnRate) || 12,
-          childrenPlans: Array.isArray(importedData.childrenPlans)
-            ? importedData.childrenPlans.map((child: any) => ({
-              childName: child.childName || "",
-              childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
-              stages: Array.isArray(child.stages)
-                ? child.stages.map((stage: any) => ({
-                  level: stage.level,
-                  startYear: Number(stage.startYear),
-                  duration: Number(stage.duration),
-                  costEntry: Number(stage.costEntry || 0),
-                  costMonthly: Number(stage.costMonthly || 0),
-                  costSemester: Number(stage.costSemester || 0),
-                  costFull: Number(stage.costFull || 0),
-                  // Penting: Ambil nilai hasil kalkulasi jika ada
-                  calculatedFutureValue: Number(stage.calculatedFutureValue || 0),
-                  calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || 0),
-                }))
-                : []
-            }))
-            : []
+          inflationRate,
+          returnRate,
+          childrenPlans: recalculatedChildrenPlans
         };
 
         setFormData(mappedForm);
 
-        // 3. Kalkulasi Total Manual (Deep Inspection)
-        // Kita hitung apakah ada hasil kalkulasi (> 0) di dalam data yang diimport
+        // 3. Kalkulasi Total Manual (Sekarang pasti > 0 jika data input valid)
         let totalMonthlySaving = 0;
         let totalFutureCost = 0;
 
@@ -192,11 +215,13 @@ export default function EducationCalculatorPage() {
           });
         });
 
-        // 4. BRANCHING LOGIC: Bypass ke Result jika data valid (Is Calculated)
+        // 4. FORCE NAVIGATION:
+        // Karena kita sudah hitung ulang, jika input biaya > 0, maka totalFutureCost pasti > 0.
+        // Ini menjamin user langsung masuk ke Step 3 (Result).
         if (totalFutureCost > 0) {
-          // Reconstruct Result Object untuk Step 3
+          // Kita rekonstruksi struktur response hasil simulasi seolah-olah baru keluar dari backend
           const reconstructedResult: EducationSimulationResponse = {
-            status: "success", // Tambahkan status manual karena mungkin hilang di token flat
+            status: "success",
             simulationId: metaData.simulationId || "imported-session",
             mgcToken: fileContent,
             filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
@@ -220,16 +245,16 @@ export default function EducationCalculatorPage() {
           };
 
           setResult(reconstructedResult);
-          setStep(3); // FORCE NAVIGATION KE STEP 3
+          setStep(3); // Langsung lempar ke Result
           toast.dismiss();
           toast.success("Sesi berhasil dipulihkan!", {
-            description: "Menampilkan hasil simulasi terakhir."
+            description: "Hasil simulasi telah dihitung ulang."
           });
         } else {
-          // Jika Draft (Belum ada hasil kalkulasi), masuk ke Step 2
+          // Hanya masuk ke sini jika input biaya di file import benar-benar 0 semua
           setStep(2);
           toast.dismiss();
-          toast.success("Draft berhasil dimuat. Silakan lanjutkan pengisian.");
+          toast.success("Draft berhasil dimuat. Silakan lengkapi biaya.");
         }
       }
     } catch (err: any) {

@@ -67,7 +67,8 @@ export interface StreamMetadata {
     entityType: string;
 
     // [UPDATED] Field 'module' ditambahkan untuk kompatibilitas dengan Token Simulasi Pendidikan
-    // yang menggunakan key 'module' di metadatanya, bukan hanya entityType.
+    // yang menggunakan key 'module' di metadatanya (misal: "EDUCATION"), bukan hanya entityType.
+    // Opsional (?) karena token lama atau modul lain mungkin tidak memilikinya.
     module?: string;
 
     cutoffDate: string;
