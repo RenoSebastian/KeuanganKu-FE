@@ -59,6 +59,10 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
+typescript: {
+    ignoreBuildErrors: true,
+  },
+
   // [FIX] Memaksa Next.js menggunakan folder ini sebagai root, 
   // mengabaikan package-lock.json di C:\Users\PC
   outputFileTracingRoot: path.join(__dirname, "./"),

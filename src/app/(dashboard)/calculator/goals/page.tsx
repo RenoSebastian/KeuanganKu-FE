@@ -346,7 +346,7 @@ export default function GoalsPage() {
                             Wujudkan Mimpi
                         </h1>
                         <p className="text-brand-100 text-sm md:text-base max-w-lg leading-relaxed opacity-90 drop-shadow-md">
-                            Apapun impiannya, mari kita hitung strategi menabung yang tepat untuk mencapainya bersama MAXIPRO.
+                            Apapun impiannya, mari kita hitung strategi menabung yang tepat untuk mencapainya bersama kami.
                         </p>
                     </div>
 

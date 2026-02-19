@@ -36,7 +36,11 @@ import {
   convertRecordToAnnual
 } from "@/lib/financial-math";
 
-import { EducationSimulationPayload } from "@/lib/types/education";
+// [UPDATED] Import Response Type baru untuk Education
+import {
+  EducationSimulationPayload,
+  EducationSimulationResponse
+} from "@/lib/types/education";
 
 // ============================================================================
 // PRIVATE ADAPTER HELPERS (Internal Service Logic)
@@ -225,7 +229,7 @@ export const financialService = {
     link.remove();
   },
 
-  // D. Pendidikan Anak
+  // D. Pendidikan Anak (PERSONAL - DB SAVED)
   calculateEducation: async (data: CreateEducationPlanDto) => {
     const response = await api.post<{ plan: EducationPlanData, calculation: any }>("/financial/calculator/education", data);
     return response.data;
@@ -261,6 +265,7 @@ export const financialService = {
     return response.data;
   },
 
+  // Download for PERSONAL Education Plan
   downloadEducationPdf: async () => {
     const response = await api.get(`/financial/education/pdf`, {
       responseType: 'blob',
@@ -334,133 +339,103 @@ export const financialService = {
     });
   },
 
-  // [NEW] Risk Profile Simulation (Fix PDF Download)
   simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/risk-profile/simulation", data, {
-      // PENTING: responseType 'arraybuffer' atau 'blob' agar Axios tidak menganggap ini teks/JSON
-      // dan merusak binary data PDF.
       responseType: 'arraybuffer'
     });
   },
 
-  /**
-   * simulateAgentCheckup (ADAPTER PATTERN IMPLEMENTATION)
-   * -----------------------------------------------------
-   * Menerima Data TAHUNAN dari UI, mengonversi ke BULANAN untuk API.
-   * Mencegah 'Double Division' bug.
-   */
   simulateAgentCheckup: async (data: FinancialFormState): Promise<CheckupSimulationResponse> => {
-    // 1. TRANSFORMER: Convert Annual State -> Monthly API Payload
-    // Gunakan helper private yang sudah aman
     const apiPayload = toMonthlyPayload(data);
-
-    // 2. REQUEST: Kirim data BULANAN ke Backend
     const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup", apiPayload);
-
     return response.data;
   },
 
   /**
-   * [NEW] simulateAgentEducation
-   * ----------------------------
-   * Menembak endpoint simulasi pendidikan anak (Agent Mode).
-   * Response berupa Blob PDF untuk langsung diunduh/ditampilkan.
+   * [SCENARIO B] simulateAgentEducation
+   * ----------------------------------------
+   * 1. Request Kalkulasi (JSON)
+   * Mengirim payload ke Backend untuk dihitung dan LOG disimpan ke DB.
+   * Return: JSON berisi Data Angka + ID Simulasi (bukan file PDF).
    */
-  simulateAgentEducation: async (data: EducationSimulationPayload): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/education", data, {
-      // responseType 'blob' sangat krusial agar Axios tidak mencoba mem-parse binary PDF menjadi JSON
-      responseType: 'blob',
-      // Timeout lebih panjang (60 detik) karena proses generation PDF di server cukup berat (Puppeteer)
-      timeout: 60000,
-    });
+  simulateAgentEducation: async (data: EducationSimulationPayload): Promise<EducationSimulationResponse> => {
+    const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
+    return response.data;
   },
 
   /**
-   * decodeSimulationToken (AGGRESSIVE UNWRAPPING STRATEGY)
-   * ------------------------------------------------------
-   * Membuka paksa nesting data dan mengonversi BULANAN -> TAHUNAN.
-   * Mencegah 'Shrinking Number' bug saat import.
+   * [SCENARIO B] downloadEducationSimulationPdf
+   * ----------------------------------------
+   * 2. Request Download (On-Demand)
+   * Menggunakan ID Simulasi dari langkah 1 untuk men-stream file PDF.
+   */
+  downloadEducationSimulationPdf: async (simulationId: string) => {
+    const response = await api.get(`/financial/simulation/education/${simulationId}/pdf`, {
+      responseType: 'blob',
+      timeout: 60000,
+    });
+
+    // Proses pembuatan Link Download dari Blob
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Deteksi nama file dari Header (opsional) atau gunakan default
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = `Education_Plan_${simulationId}.pdf`;
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (fileNameMatch && fileNameMatch.length === 2)
+        filename = fileNameMatch[1];
+    }
+
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  /**
+   * decodeSimulationToken
    */
   decodeSimulationToken: async (token: string) => {
     const response = await api.post("/financial/simulation/decode", { simulationToken: token });
-
-    // 1. AGGRESSIVE UNWRAPPING (Mencari payload asli)
-    // Kadang response.data masih membungkus 'data' lagi (e.g., { status: 'ok', data: { ... } })
-    // Kita cari root object yang memiliki properti 'financial'
     let rawData = response.data;
 
     if (rawData && rawData.data && !rawData.financial) {
-      // Jika 'financial' tidak ada di root, tapi ada di dalam 'data', kita masuk ke dalam.
       rawData = rawData.data;
     }
 
-    // 2. ADAPTER: Convert Monthly API Data -> Annual UI State
-    // Jika ditemukan data finansial, PAKSA konversi ke Annual (x12)
     if (rawData && rawData.financial) {
       rawData.financial = toAnnualState(rawData.financial);
     }
 
-    // Hasilnya adalah object { client, financial (Annual), result } yang aman untuk UI
     return rawData;
   },
 
   /**
-   * [NEW FIX] Helper untuk download hasil simulasi dari JSON Response.
-   * Digunakan di Component Result untuk menangani 'Hybrid JSON Response' dari Backend.
+   * Helper untuk mendownload .mgc Token (JSON -> File)
+   * Digunakan jika kita ingin user bisa save session tanpa download PDF.
    */
   downloadSimulationFiles: (simulationResult: any) => {
-    // 1. Validasi Data
-    if (!simulationResult) {
-      console.warn("Data simulasi kosong, download dibatalkan.");
-      return;
-    }
+    const { mgcToken, filename } = simulationResult;
+    const baseFilename = filename || `Simulation_${new Date().toISOString().split('T')[0]}`;
 
-    const { pdfBuffer, mgcToken, filename } = simulationResult;
-    const baseFilename = filename || `Financial_Checkup_${new Date().toISOString().split('T')[0]}`;
-
-    // 2. PROSES DOWNLOAD PDF (Re-hydrating Buffer -> Blob)
-    if (pdfBuffer && pdfBuffer.data) {
-      try {
-        // Konversi Array Angka (dari JSON) menjadi Uint8Array (Binary)
-        const byteArray = new Uint8Array(pdfBuffer.data);
-        const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
-
-        // Buat Object URL
-        const pdfUrl = window.URL.createObjectURL(pdfBlob);
-
-        // Trigger Download
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = baseFilename.endsWith('.pdf') ? baseFilename : `${baseFilename}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-
-        // Cleanup
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(pdfUrl);
-      } catch (e) {
-        console.error("Gagal memproses file PDF dari simulasi:", e);
-      }
-    }
-
-    // 3. PROSES DOWNLOAD TOKEN (.mgc)
     if (mgcToken) {
       try {
         const tokenBlob = new Blob([mgcToken], { type: 'text/plain' });
         const tokenUrl = window.URL.createObjectURL(tokenBlob);
-
         const link = document.createElement('a');
         link.href = tokenUrl;
 
-        // Gunakan nama file yang sama tapi ekstensi .mgc
-        // Regex: hapus .pdf di akhir string (case insensitive) jika ada
         const tokenName = baseFilename.replace(/\.pdf$/i, '') + '.mgc';
         link.download = tokenName;
 
         document.body.appendChild(link);
         link.click();
-
-        // Cleanup
         document.body.removeChild(link);
         window.URL.revokeObjectURL(tokenUrl);
       } catch (e) {

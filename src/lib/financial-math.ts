@@ -15,11 +15,12 @@ import {
   SpecialGoalResult,
 } from "./types";
 
-// Import Type Baru untuk Financial Checkup Adapter
+// Import Schema & Type Baru untuk Financial Checkup Adapter
 import { FinancialFormState, FinancialApiPayload } from "@/lib/types/financial-checkup";
+import { SchoolLevelType, DEFAULT_STAGE_DURATION } from "@/lib/schemas/education-simulation.schema";
 
 // ============================================================================
-// 1. EXISTING LOGIC (EDUCATION, PENSION, ETC)
+// 1. EXISTING LOGIC (LEGACY)
 // ============================================================================
 
 export interface EducationStage {
@@ -71,136 +72,161 @@ export const calculatePMT = (
   const rate = investmentRate / 100;
   if (rate === 0) return fv / years / 12;
 
+  // Rumus Anuitas / Sinking Fund: PMT = FV * i / ((1+i)^n - 1)
+  // Dibagi 12 untuk jadi bulanan
   const annualPMT = (fv * rate) / (Math.pow(1 + rate, years) - 1);
   return annualPMT / 12;
 };
 
-// --- ADVANCED CALCULATION ENGINE (EDUCATION) ---
+// ============================================================================
+// 2. NEW EDUCATION LOGIC (AGENT TOOL - STATELESS)
+// ============================================================================
 
-const calculateStageGranular = (
-  input: PlanInput,
-  childAge: number,
-  inflation: number,
-  returnRate: number
-): StageResult | null => {
+/**
+ * Menghitung Future Value (FV) dan Monthly Investment (PMT)
+ * untuk SATU item biaya pendidikan (misal: Uang Pangkal TK, SPP SD, UKT S1)
+ *
+ * @param currentCost Biaya saat ini (PV)
+ * @param inflationRate Inflasi Pendidikan (%)
+ * @param returnRate Return Investasi (%)
+ * @param yearsToStart Jarak tahun dari sekarang sampai biaya dibutuhkan
+ */
+export const calculateStageFutureValue = (
+  currentCost: number,
+  inflationRate: number,
+  returnRate: number,
+  yearsToStart: number
+) => {
+  // 1. Future Value (Nilai Masa Depan)
+  // FV = PV * (1 + i)^n
+  const fv = calculateFV(currentCost, inflationRate, yearsToStart);
 
-  const refStage = STAGES_DB.find(s => s.id === input.stageId);
-  if (!refStage) return null;
-
-  let gradeOffset = 0;
-  if (refStage.paymentFrequency === "SEMESTER") {
-    gradeOffset = Math.floor((input.startGrade - 1) / 2);
-  } else {
-    gradeOffset = input.startGrade - 1;
-  }
-
-  const targetEntryAge = refStage.entryAge + gradeOffset;
-  let yearsUntilEntry = targetEntryAge - childAge;
-  if (yearsUntilEntry < 0) yearsUntilEntry = 0;
-
-  let totalFutureCost = 0;
-  let totalMonthlySaving = 0;
-  const breakdownDetails: any[] = [];
-
-  if (input.startGrade === 1 && input.costNow.entryFee > 0) {
-    const timeDistance = yearsUntilEntry;
-    const fvEntry = calculateFV(input.costNow.entryFee, inflation, timeDistance);
-    const savingReq = calculatePMT(fvEntry, returnRate, timeDistance);
-
-    totalFutureCost += fvEntry;
-    totalMonthlySaving += savingReq;
-
-    breakdownDetails.push({
-      item: "Uang Pangkal",
-      dueYear: timeDistance,
-      futureCost: fvEntry,
-      requiredSaving: savingReq
-    });
-  }
-
-  const remainingDuration = refStage.duration - gradeOffset;
-
-  for (let i = 0; i < remainingDuration; i++) {
-    const timeDistance = yearsUntilEntry + i;
-    let yearlyBaseCost = 0;
-    let labelItem = "";
-
-    if (refStage.paymentFrequency === "MONTHLY") {
-      yearlyBaseCost = input.costNow.monthlyFee * 12;
-      if (refStage.id === "TK") {
-        const effectiveGrade = input.startGrade + i;
-        labelItem = effectiveGrade === 1 ? "SPP TK A" : "SPP TK B";
-      } else {
-        labelItem = `SPP Tahun ke-${i + 1}`;
-      }
-    } else {
-      yearlyBaseCost = input.costNow.monthlyFee * 2;
-      labelItem = `Biaya Kuliah Tahun ke-${i + 1}`;
-    }
-
-    if (yearlyBaseCost > 0) {
-      const fvYearly = calculateFV(yearlyBaseCost, inflation, timeDistance);
-      const savingReq = calculatePMT(fvYearly, returnRate, timeDistance);
-
-      totalFutureCost += fvYearly;
-      totalMonthlySaving += savingReq;
-
-      breakdownDetails.push({
-        item: labelItem,
-        dueYear: timeDistance,
-        futureCost: fvYearly,
-        requiredSaving: savingReq
-      });
-    }
-  }
+  // 2. Payment (Tabungan Rutin)
+  // Menggunakan Interest Rate "Riil" jika inflasi & return dihitung terpisah
+  // Namun sesuai dokumen PAM Jaya, PMT dihitung dari FV yang sudah diinflasikan,
+  // dengan asumsi return investasi murni.
+  const pmt = calculatePMT(fv, returnRate, yearsToStart);
 
   return {
-    stageId: input.stageId,
-    label: refStage.label,
-    startGrade: input.startGrade,
-    paymentFrequency: refStage.paymentFrequency,
-    totalFutureCost,
-    monthlySaving: totalMonthlySaving,
-    details: breakdownDetails
+    fv: Math.round(fv),
+    pmt: Math.round(pmt),
   };
 };
 
-export const calculatePortfolio = (
-  children: ChildProfile[],
-  inflation: number,
-  returnRate: number
-): PortfolioSummary => {
-  let grandTotalSaving = 0;
-  let totalPortfolioCost = 0;
-  const details: ChildSimulationResult[] = [];
+export interface EducationInvestmentInput {
+  inflationRate: number;
+  returnRate: number;
+  childDob: string;
+  stages: Array<{
+    level: SchoolLevelType;
+    startYear: number;
+    duration: number;
+    costEntry: number;
+    costMonthly?: number;   // TK-SMA
+    costSemester?: number;  // S1
+    costFull?: number;      // S2
+  }>;
+}
 
-  children.forEach(child => {
-    const childAge = calculateAge(child.dob);
-    const stageResults: StageResult[] = [];
-    let childTotalSaving = 0;
+/**
+ * Menghitung Total Investasi Pendidikan untuk Satu Anak
+ * Mengagregasi semua jenjang (TK -> S2) yang dipilih.
+ */
+export const calculateEducationInvestment = (input: EducationInvestmentInput) => {
+  let totalFutureCost = 0;
+  let totalMonthlySaving = 0;
+  const currentYear = new Date().getFullYear();
 
-    child.plans.forEach(plan => {
-      const result = calculateStageGranular(plan, childAge, inflation, returnRate);
-      if (result) {
-        stageResults.push(result);
-        childTotalSaving += result.monthlySaving;
-        totalPortfolioCost += result.totalFutureCost;
+  // Mapping hasil per jenjang
+  const stageResults = input.stages.map((stage) => {
+    const yearsToStart = Math.max(0, stage.startYear - currentYear);
+
+    let stageTotalFV = 0;
+    let stageTotalPMT = 0;
+
+    // A. HITUNG BIAYA MASUK (ENTRY FEE / UANG PANGKAL)
+    // Dibutuhkan di awal tahun masuk (Tahun ke-0 jenjang tersebut)
+    if (stage.costEntry > 0) {
+      const entryCalc = calculateStageFutureValue(
+        stage.costEntry,
+        input.inflationRate,
+        input.returnRate,
+        yearsToStart
+      );
+      stageTotalFV += entryCalc.fv;
+      stageTotalPMT += entryCalc.pmt;
+    }
+
+    // B. HITUNG BIAYA PERIODIK (SPP / UKT)
+    // Dilakukan loop untuk setiap tahun/semester durasi pendidikan
+
+    // CASE 1: BULANAN (TK, SD, SMP, SMA)
+    if (stage.costMonthly && stage.costMonthly > 0) {
+      const annualSPP = stage.costMonthly * 12;
+      for (let i = 0; i < stage.duration; i++) {
+        // Biaya tahun ke-i dibutuhkan di (yearsToStart + i)
+        const timeHorizon = yearsToStart + i;
+        const sppCalc = calculateStageFutureValue(
+          annualSPP,
+          input.inflationRate,
+          input.returnRate,
+          timeHorizon
+        );
+        stageTotalFV += sppCalc.fv;
+        stageTotalPMT += sppCalc.pmt;
       }
-    });
+    }
 
-    details.push({
-      childId: child.id,
-      childName: child.name,
-      stages: stageResults as any,
-      totalMonthlySaving: childTotalSaving
-    });
-    grandTotalSaving += childTotalSaving;
+    // CASE 2: SEMESTER (S1 - Kuliah)
+    if (stage.costSemester && stage.costSemester > 0) {
+      const annualUKT = stage.costSemester * 2; // Asumsi 2 semester/tahun
+      for (let i = 0; i < stage.duration; i++) {
+        const timeHorizon = yearsToStart + i;
+        const uktCalc = calculateStageFutureValue(
+          annualUKT,
+          input.inflationRate,
+          input.returnRate,
+          timeHorizon
+        );
+        stageTotalFV += uktCalc.fv;
+        stageTotalPMT += uktCalc.pmt;
+      }
+    }
+
+    // CASE 3: FULL PACKAGE (S2 - Pascasarjana)
+    // Asumsi dibayar lunas di awal (seperti Entry Fee)
+    if (stage.costFull && stage.costFull > 0) {
+      const fullCalc = calculateStageFutureValue(
+        stage.costFull,
+        input.inflationRate,
+        input.returnRate,
+        yearsToStart
+      );
+      stageTotalFV += fullCalc.fv;
+      stageTotalPMT += fullCalc.pmt;
+    }
+
+    totalFutureCost += stageTotalFV;
+    totalMonthlySaving += stageTotalPMT;
+
+    return {
+      level: stage.level,
+      totalFv: stageTotalFV,
+      totalPmt: stageTotalPMT,
+    };
   });
 
-  return { grandTotalMonthlySaving: grandTotalSaving, totalFutureCost: totalPortfolioCost, details };
+  return {
+    totalFutureCost,
+    totalMonthlySaving,
+    stageResults,
+  };
 };
 
-// --- BUDGET ENGINE ---
+
+// ============================================================================
+// 3. LEGACY BUDGET ENGINE
+// ============================================================================
 
 export const calculateSmartBudget = (fixedIncome: number, variableIncome: number): BudgetResult => {
   const prodDebt = fixedIncome * 0.20;
@@ -344,62 +370,32 @@ export const calculateSpecialGoal = (input: SpecialGoalInput): SpecialGoalResult
 };
 
 // ============================================================================
-// 2. FINANCIAL CHECKUP TRANSFORMER (ADAPTER LOGIC)
+// 4. FINANCIAL CHECKUP TRANSFORMER (ADAPTER LOGIC)
 // ============================================================================
 
-/**
- * Daftar field yang termasuk kategori "Arus Kas" (Flow).
- * Field-field ini WAJIB dikonversi (Kali 12 atau Bagi 12) saat transformasi.
- * * NOTE: Field "Neraca" (Asset & Debt Outstanding) TIDAK masuk sini karena nilainya tetap.
- */
 const FLOW_FIELDS: (keyof FinancialFormState)[] = [
-  // Income
   'incomeFixed', 'incomeVariable',
-  // Installments (Cicilan Bulanan)
   'installmentKPR', 'installmentKPM', 'installmentCC', 'installmentCoop', 'installmentConsumptiveOther', 'installmentBusiness',
-  // Insurance (Premi Bulanan)
   'insuranceLife', 'insuranceHealth', 'insuranceHome', 'insuranceVehicle', 'insuranceBPJS', 'insuranceOther',
-  // Savings (Tabungan Rutin Bulanan)
   'savingEducation', 'savingRetirement', 'savingPilgrimage', 'savingHoliday', 'savingEmergency', 'savingOther',
-  // Living Expenses (Biaya Hidup Bulanan)
   'expenseFood', 'expenseSchool', 'expenseTransport', 'expenseCommunication', 'expenseHelpers', 'expenseTax', 'expenseLifestyle', 'expenseOther'
 ];
 
-/**
- * ADAPTER: Annual -> Monthly
- * Mengubah data UI (Tahunan) menjadi data API (Bulanan).
- * Digunakan sebelum mengirim data ke Backend.
- * @param annualData Data dari Form (Annual)
- */
 export function convertRecordToMonthly(annualData: FinancialFormState): FinancialApiPayload {
-  // 1. Shallow Copy untuk menghindari mutasi object asli
   const monthlyData: any = { ...annualData };
-
-  // 2. Iterasi field Flow untuk konversi (Bagi 12)
   FLOW_FIELDS.forEach((field) => {
     const value = annualData[field];
     if (typeof value === 'number' && value > 0) {
-      // Pembulatan ke integer terdekat untuk menghindari desimal aneh di API (misal 3333.33)
       monthlyData[field] = Math.round(value / 12);
     } else {
       monthlyData[field] = 0;
     }
   });
-
   return monthlyData as FinancialApiPayload;
 }
 
-/**
- * ADAPTER: Monthly -> Annual
- * Mengubah data API/Import (Bulanan) menjadi data UI (Tahunan).
- * Digunakan saat Import file .mgc (Re-hydration) agar UI menampilkan angka Tahunan yang benar.
- * @param monthlyData Data dari API/File (Monthly)
- */
 export function convertRecordToAnnual(monthlyData: FinancialApiPayload): FinancialFormState {
-  // 1. Shallow Copy
   const annualData: any = { ...monthlyData };
-
-  // 2. Iterasi field Flow untuk konversi (Kali 12)
   FLOW_FIELDS.forEach((field) => {
     const value = monthlyData[field];
     if (typeof value === 'number' && value > 0) {
@@ -408,14 +404,9 @@ export function convertRecordToAnnual(monthlyData: FinancialApiPayload): Financi
       annualData[field] = 0;
     }
   });
-
   return annualData as FinancialFormState;
 }
 
-/**
- * Helper untuk menghitung Total Aset (Neraca)
- * Menjumlahkan semua field kategori Asset
- */
 export function calculateTotalAssets(data: Partial<FinancialFormState>): number {
   const assetFields: (keyof FinancialFormState)[] = [
     'assetCash', 'assetHome', 'assetVehicle', 'assetJewelry', 'assetAntique', 'assetPersonalOther',
@@ -429,10 +420,6 @@ export function calculateTotalAssets(data: Partial<FinancialFormState>): number 
   }, 0);
 }
 
-/**
- * Helper untuk menghitung Total Utang (Neraca)
- * Menjumlahkan semua field kategori Debt Outstanding
- */
 export function calculateTotalDebt(data: Partial<FinancialFormState>): number {
   const debtFields: (keyof FinancialFormState)[] = [
     'debtKPR', 'debtKPM', 'debtCC', 'debtCoop', 'debtConsumptiveOther', 'debtBusiness'

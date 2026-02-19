@@ -1,263 +1,402 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import {
-  ShieldCheck,
-  Lock,
-  User,
-  Loader2,
-  Mail,
-  BarChart3,
-  CheckCircle2
-} from "lucide-react";
+import React, { useState } from "react";
 import { toast } from "sonner";
-import { authService } from "@/services/auth.service";
+import {
+  GraduationCap,
+  User,
+  Baby,
+  Calculator as CalcIcon,
+  FileUp,
+  Sparkles,
+  Loader2
+} from "lucide-react";
 
-export default function RegisterPage() {
-  const router = useRouter();
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+// Wizard Steps Components
+import { ClientFormStep } from "@/components/features/education/wizard/client-form-step";
+import { ChildrenFormStep } from "@/components/features/education/wizard/children-form-step";
+import { SimulationResultStep } from "@/components/features/education/wizard/simulation-result-step";
+
+// Types, Schema & Services
+import { EducationSimulationForm } from "@/lib/schemas/education-simulation.schema";
+import {
+  EducationSimulationPayload,
+  SchoolLevel,
+  EducationSimulationResponse
+} from "@/lib/types/education";
+import { financialService } from "@/services/financial.service";
+import { calculateEducationInvestment } from "@/lib/financial-math";
+
+export default function EducationCalculatorPage() {
+  const [step, setStep] = useState(1);
+
+  // State Form Input
+  const [formData, setFormData] = useState<Partial<EducationSimulationForm>>({});
+
+  // State Hasil Simulasi
+  const [result, setResult] = useState<EducationSimulationResponse | null>(null);
+
+  // State Loading & Proses
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    confirmPassword: ""
-  });
+  const [isImporting, setIsImporting] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // --- HANDLER STEP 1: CLIENT DATA ---
+  const handleClientNext = (data: Partial<EducationSimulationForm>) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...data
+    }));
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  // --- HANDLER BACK / REVISI ---
+  const handleBackToRevision = () => {
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Konfirmasi password tidak cocok!");
-      setIsLoading(false);
-      return;
-    }
+  // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
+  const handleChildrenSubmit = async (data: EducationSimulationForm) => {
+    setIsLoading(true);
+    setFormData((prev) => ({ ...prev, ...data }));
 
     try {
-      await authService.register({
-        fullName: formData.fullName,
-        email: formData.email,
-        password: formData.password
+      const finalFormData = { ...formData, ...data } as EducationSimulationForm;
+      const inflationRate = finalFormData.inflationRate || 10;
+      const returnRate = finalFormData.returnRate || 12;
+
+      const childrenPlansPayload = finalFormData.childrenPlans.map(child => {
+        const calc = calculateEducationInvestment({
+          inflationRate,
+          returnRate,
+          childDob: child.childDob,
+          stages: child.stages
+        });
+
+        return {
+          childName: child.childName,
+          childDob: child.childDob,
+          stages: child.stages.map((stage, idx) => ({
+            ...stage,
+            level: stage.level as SchoolLevel,
+            calculatedFutureValue: calc.stageResults[idx].totalFv,
+            calculatedMonthlySaving: calc.stageResults[idx].totalPmt,
+            costEntry: stage.costEntry || 0,
+            costMonthly: stage.costMonthly || 0,
+            costSemester: stage.costSemester || 0,
+            costFull: stage.costFull || 0,
+          }))
+        };
       });
 
-      toast.success("Akun agen berhasil dibuat! Silakan login.");
-      router.push("/login");
+      const payload: EducationSimulationPayload = {
+        clientName: finalFormData.clientName,
+        clientDob: finalFormData.clientDob || "",
+        clientCity: finalFormData.clientCity,
+        clientJob: finalFormData.clientJob,
+        clientPhone: finalFormData.clientPhone,
+        inflationRate,
+        returnRate,
+        childrenPlans: childrenPlansPayload
+      };
+
+      const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
+
+      setResult(response);
+      setStep(3);
+      toast.success("Simulasi berhasil dihitung!", {
+        icon: <Sparkles className="w-4 h-4 text-yellow-500" />
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
     } catch (error: any) {
-      console.error("Register Error:", error);
-      toast.error(error.message || "Gagal melakukan registrasi.");
+      console.error(error);
+      toast.error("Gagal memproses simulasi", {
+        description: "Terjadi kesalahan pada server saat menyimpan data."
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- HANDLER IMPORT FILE (DIPERBAIKI: Add Status) ---
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.mgc')) {
+      toast.error("Format file salah", { description: "Harap upload file dengan ekstensi .mgc" });
+      return;
+    }
+
+    setIsImporting(true);
+    toast.loading("Membaca file simulasi...");
+
+    try {
+      const fileContent = await file.text();
+      const response = await financialService.decodeSimulationToken(fileContent);
+
+      if (response && response.data) {
+        const importedData = response.data;
+        const metaData = response.meta || {};
+
+        // 1. Mapping Data Form
+        const mappedForm: EducationSimulationForm = {
+          clientName: importedData.clientName || "",
+          clientCity: importedData.clientCity || "",
+          clientDob: importedData.clientDob ? String(importedData.clientDob).split('T')[0] : "",
+          clientJob: importedData.clientJob || "",
+          clientPhone: importedData.clientPhone || "",
+          inflationRate: Number(importedData.inflationRate) || 10,
+          returnRate: Number(importedData.returnRate) || 12,
+          childrenPlans: Array.isArray(importedData.childrenPlans)
+            ? importedData.childrenPlans.map((child: any) => ({
+              childName: child.childName || "",
+              childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
+              stages: Array.isArray(child.stages)
+                ? child.stages.map((stage: any) => ({
+                  level: stage.level,
+                  startYear: Number(stage.startYear),
+                  duration: Number(stage.duration),
+                  costEntry: Number(stage.costEntry || 0),
+                  costMonthly: Number(stage.costMonthly || 0),
+                  costSemester: Number(stage.costSemester || 0),
+                  costFull: Number(stage.costFull || 0),
+                  calculatedFutureValue: Number(stage.calculatedFutureValue || 0),
+                  calculatedMonthlySaving: Number(stage.calculatedMonthlySaving || 0),
+                }))
+                : []
+            }))
+            : []
+        };
+
+        setFormData(mappedForm);
+
+        // 2. Kalkulasi Total Manual
+        let totalMonthlySaving = 0;
+        let totalFutureCost = 0;
+
+        mappedForm.childrenPlans.forEach(child => {
+          child.stages.forEach(stage => {
+            totalMonthlySaving += (stage as any).calculatedMonthlySaving || 0;
+            totalFutureCost += (stage as any).calculatedFutureValue || 0;
+          });
+        });
+
+        // 3. Bypass ke Result jika data valid
+        if (totalFutureCost > 0) {
+          // [FIX] Tambahkan properti 'status' disini
+          const reconstructedResult: EducationSimulationResponse = {
+            status: "success", // <--- PERBAIKAN: Menambahkan status
+            simulationId: metaData.simulationId || "imported-session",
+            mgcToken: fileContent,
+            filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
+            data: {
+              ...mappedForm,
+              totalMonthlySaving,
+              totalFutureCost,
+              childrenPlans: mappedForm.childrenPlans.map(child => ({
+                ...child,
+                totalFutureCost: child.stages.reduce((acc, s: any) => acc + (s.calculatedFutureValue || 0), 0),
+                monthlySaving: child.stages.reduce((acc, s: any) => acc + (s.calculatedMonthlySaving || 0), 0),
+                stages: child.stages.map((s: any) => ({
+                  ...s,
+                  costType: s.costEntry > 0 ? "ENTRY" : "MONTHLY",
+                  futureCost: s.calculatedFutureValue,
+                  monthlySaving: s.calculatedMonthlySaving,
+                  yearsToStart: s.startYear - new Date().getFullYear()
+                }))
+              })) as any
+            }
+          };
+
+          setResult(reconstructedResult);
+          setStep(3);
+          toast.dismiss();
+          toast.success("Sesi berhasil dipulihkan!", {
+            description: "Menampilkan hasil simulasi terakhir."
+          });
+        } else {
+          setStep(2);
+          toast.dismiss();
+          toast.success("Draft berhasil dimuat. Silakan lanjutkan pengisian.");
+        }
+      }
+    } catch (err: any) {
+      console.error("Import error:", err);
+      toast.dismiss();
+      toast.error("Gagal memuat file.", { description: "File corrupt atau token tidak valid." });
+    } finally {
+      setIsImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleReset = () => {
+    setStep(1);
+    setFormData({});
+    setResult(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="container max-w-5xl py-10 pb-32 space-y-10 animate-in fade-in duration-1000">
 
-      {/* === LEFT SIDE - BRAND NARRATIVE === */}
-      {/* Background: Dark Blue Slate untuk kesan korporat yang dalam */}
-      <div className="hidden md:flex flex-col bg-slate-900 text-white p-12 justify-between relative overflow-hidden">
-
-        {/* Background Gradients (Blue & Cyan) */}
-        <div className="absolute top-0 right-0 w-125 h-125 bg-blue-600/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-125 h-125 bg-cyan-600/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
-
-        <div className="z-10 relative">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10">
-              <Image
-                src="/images/logokeuanganku.png"
-                alt="Logo Keuanganku"
-                width={140}
-                height={40}
-                className="object-contain brightness-0 invert" // Membuat logo putih agar kontras di background gelap
-                priority
-              />
-            </div>
+      {/* HEADER AREA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-5">
+          <div className="p-4 bg-linear-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg shadow-blue-500/20 text-white">
+            <GraduationCap className="w-8 h-8" />
           </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-bold uppercase tracking-wider">
-            Enterprise System
-          </div>
-        </div>
-
-        <div className="z-10 space-y-10 relative">
-          <div className="space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight">
-              Transformasi <br />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-cyan-400">
-                Konsultasi Finansial
-              </span>
-            </h2>
-            <p className="text-lg text-slate-400 max-w-md leading-relaxed">
-              Bergabunglah dengan jaringan agen profesional yang menggunakan data untuk memberikan solusi, bukan sekadar janji.
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-800">
+              Kalkulator Pendidikan
+            </h1>
+            <p className="text-slate-500 font-medium mt-1">
+              Rencanakan masa depan pendidikan buah hati dengan presisi.
             </p>
           </div>
-
-          <div className="grid gap-6">
-            <FeatureItem
-              icon={<BarChart3 className="w-5 h-5 text-blue-300" />}
-              title="Analisa Berbasis Data"
-              desc="Visualisasi arus kas yang presisi."
-            />
-            <FeatureItem
-              icon={<ShieldCheck className="w-5 h-5 text-cyan-300" />}
-              title="Simulasi Risiko Riil"
-              desc="Hitungan proteksi yang logis & transparan."
-            />
-          </div>
         </div>
 
-        <div className="z-10 pt-8 border-t border-white/10 relative">
-          <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            Tersertifikasi oleh Asosiasi Perencana Keuangan
-          </p>
+        {/* EYE CATCHING LOAD SESSION BUTTON */}
+        {step === 1 && (
+          <div className="relative group">
+            <input
+              type="file"
+              accept=".mgc"
+              onChange={handleImportFile}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 disabled:cursor-not-allowed"
+              disabled={isImporting}
+            />
+            <div className={cn(
+              "relative flex items-center gap-3 px-5 py-2.5 rounded-2xl border transition-all duration-300 overflow-hidden select-none",
+              "bg-white border-slate-200 shadow-sm",
+              !isImporting && "group-hover:border-blue-400 group-hover:shadow-lg group-hover:shadow-blue-500/10 group-hover:-translate-y-0.5",
+              isImporting && "bg-slate-50 border-slate-200 opacity-80 cursor-wait"
+            )}>
+              <div className="absolute inset-0 bg-linear-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className={cn(
+                "relative z-10 flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300",
+                isImporting
+                  ? "bg-slate-200 text-slate-500"
+                  : "bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white group-hover:scale-110"
+              )}>
+                {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+              </div>
+              <div className="relative z-10 flex flex-col items-start text-left">
+                <span className={cn("text-xs font-bold transition-colors", isImporting ? "text-slate-500" : "text-slate-700 group-hover:text-blue-700")}>
+                  {isImporting ? "Memproses..." : "Muat Sesi"}
+                </span>
+                <span className="text-[10px] font-medium text-slate-400">File .mgc</span>
+              </div>
+              {!isImporting && (
+                <div className="absolute right-3 top-3 w-1.5 h-1.5 rounded-full bg-blue-400 opacity-0 group-hover:opacity-100 group-hover:animate-pulse transition-all" />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* PROGRESS INDICATOR */}
+      <div className="max-w-3xl mx-auto">
+        <div className="flex justify-between mb-4 px-2">
+          {['Klien', 'Rencana', 'Hasil'].map((label, index) => {
+            const stepNum = index + 1;
+            const isActive = step >= stepNum;
+            const isCurrent = step === stepNum;
+            return (
+              <div key={label} className={cn("flex flex-col items-center gap-2 transition-all duration-500", isActive ? "text-blue-600" : "text-slate-400")}>
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ring-4",
+                  isActive ? "bg-blue-600 text-white ring-blue-50" : "bg-slate-100 ring-transparent",
+                  isCurrent && "ring-blue-100 scale-110"
+                )}>
+                  {stepNum}
+                </div>
+                <span className={cn("text-[10px] uppercase tracking-wider font-bold", isCurrent ? "text-blue-700" : "text-slate-400")}>{label}</span>
+              </div>
+            )
+          })}
+        </div>
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-linear-to-r from-blue-500 to-indigo-600 transition-all duration-700 ease-in-out"
+            style={{ width: step === 1 ? '33.33%' : step === 2 ? '66.66%' : '100%' }}
+          />
         </div>
       </div>
 
-      {/* === RIGHT SIDE - FORM === */}
-      <div className="flex items-center justify-center p-6 bg-slate-50 relative overflow-hidden">
+      {/* MAIN CONTENT CARD */}
+      <Card className="border-none shadow-2xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl ring-1 ring-white/50 rounded-3xl overflow-hidden">
+        <CardContent className="pt-8 md:p-10 min-h-100">
+          {step === 1 && (
+            <ClientFormStep
+              initialData={formData as any}
+              onNext={handleClientNext}
+            />
+          )}
 
-        {/* Decorative BG Right Side */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          {step === 2 && (
+            <ChildrenFormStep
+              initialData={formData}
+              onNext={handleChildrenSubmit}
+              onBack={() => setStep(1)}
+              isLoading={isLoading}
+            />
+          )}
 
-        <Card className="w-full max-w-md border-none shadow-[0_20px_50px_rgba(30,58,138,0.12)] bg-white/80 backdrop-blur-xl rounded-3xl relative z-10">
-          <CardHeader className="space-y-1 text-center pb-8">
-            <CardTitle className="text-2xl font-bold text-slate-900">Registrasi Mitra</CardTitle>
-            <CardDescription className="text-slate-500">
-              Buat akun untuk akses dashboard Pro-Agent
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleRegister} className="space-y-5">
+          {step === 3 && result && (
+            <SimulationResultStep
+              result={result}
+              onReset={handleReset}
+              onBack={handleBackToRevision}
+            />
+          )}
+        </CardContent>
+      </Card>
 
-              {/* Full Name */}
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Nama Lengkap & Gelar</Label>
-                <div className="relative group">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    placeholder="Contoh: Budi Santoso, CFP"
-                    className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Email</Label>
-                <div className="relative group">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="nama@agency.co.id"
-                    className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Password Group */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Password</Label>
-                  <div className="relative group">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder="••••••"
-                      className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-slate-700 font-bold text-xs uppercase tracking-wide">Konfirmasi</Label>
-                  <div className="relative group">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-600 transition-colors duration-300" />
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      placeholder="••••••"
-                      className="pl-11 h-11 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold h-12 mt-4 rounded-xl shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.01]"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifikasi Data...
-                  </>
-                ) : (
-                  "Daftarkan Akun Agen"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-
-          <CardFooter className="flex flex-col space-y-5 border-t border-slate-100 pt-6">
-            <p className="text-sm text-slate-500 text-center font-medium">
-              Sudah memiliki akun?{" "}
-              <Link href="/login" className="text-blue-600 font-bold hover:text-indigo-600 hover:underline transition-colors">
-                Login Dashboard
-              </Link>
-            </p>
-            <div className="flex items-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest justify-center opacity-70">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
-              256-bit Secure Encryption
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
+      {/* FOOTER INFO CARDS */}
+      {step < 3 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <InfoCard
+            icon={User}
+            title="Personalisasi Laporan"
+            desc="Identitas klien akan ditampilkan di header laporan PDF untuk memberikan kesan profesional."
+          />
+          <InfoCard
+            icon={Baby}
+            title="Multi-Simulasi"
+            desc="Dapat merancang rencana pendidikan untuk banyak anak sekaligus dalam satu sesi simulasi."
+          />
+          <InfoCard
+            icon={CalcIcon}
+            title="Metode Sinking Fund"
+            desc="Perhitungan akurat menggunakan asumsi inflasi geometrik dan investasi anuitas (Future Value)."
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-// Helper Component untuk Left Side
-function FeatureItem({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+function InfoCard({ icon: Icon, title, desc }: { icon: any, title: string, desc: string }) {
   return (
-    <div className="flex items-start gap-4 p-3 rounded-2xl hover:bg-white/5 transition-colors cursor-default">
-      <div className="mt-1 bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-sm">
-        {icon}
-      </div>
-      <div>
-        <p className="font-bold text-white text-base">{title}</p>
-        <p className="text-sm text-slate-400 leading-snug">{desc}</p>
+    <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-xl bg-blue-50 text-blue-600 group-hover:scale-110 transition-transform duration-300">
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-slate-800 mb-2 group-hover:text-blue-700 transition-colors">{title}</h4>
+          <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+        </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,167 +1,292 @@
 "use client";
 
-import React from "react";
-import { EducationSimulationResult } from "@/lib/types/education";
+import React, { useState } from "react";
+import { EducationSimulationResponse } from "@/lib/types/education";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
     Download,
     RefreshCcw,
-    CheckCircle2,
-    Wallet,
     Target,
     TrendingUp,
-    ChevronRight
+    Loader2,
+    Wallet,
+    ChevronDown,
+    Sparkles,
+    ChevronLeft
 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
+import { financialService } from "@/services/financial.service";
+import { cn } from "@/lib/utils";
 
 interface SimulationResultStepProps {
-    result: EducationSimulationResult;
+    result: EducationSimulationResponse;
     onReset: () => void;
+    onBack: () => void;
 }
 
-export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset }) => {
-    // Destructuring data dengan safety check
-    const simulationData = result?.data;
-    const details = simulationData?.details || [];
+export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset, onBack }) => {
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
-    const handleDownloadPdf = () => {
-        if (!result.pdfBuffer) {
-            toast.error("File PDF tidak tersedia");
+    const simulationData = result?.data;
+    const children = simulationData?.childrenPlans || [];
+
+    const toggleAccordion = (index: number) => {
+        setOpenItems(prev => ({ ...prev, [index]: !prev[index] }));
+    };
+
+    const handleDownloadPackage = async () => {
+        if (!result.simulationId) {
+            toast.error("ID Simulasi tidak ditemukan. Mohon hitung ulang.");
             return;
         }
 
+        setIsDownloading(true);
+        toast.loading("Menyiapkan dokumen laporan...");
+
         try {
-            // Jika pdfBuffer adalah Blob atau Base64, sesuaikan cara downloadnya
-            const url = window.URL.createObjectURL(new Blob([result.pdfBuffer as any]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', result.filename || 'Simulasi_Dana_Pendidikan.pdf');
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success("PDF berhasil diunduh");
+            // 1. Download PDF (Request Stream ke Backend)
+            await financialService.downloadEducationSimulationPdf(result.simulationId);
+
+            // 2. Download File Sesi (.mgc) - Client Side Generation
+            // Kita membuat file text sederhana berisi token untuk di-load kembali nanti
+            if (result.mgcToken) {
+                const blob = new Blob([result.mgcToken], { type: "text/plain;charset=utf-8" });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+
+                // Nama file sesuai dari BE atau default
+                const filename = result.filename ? result.filename.replace('.pdf', '.mgc') : `session-${result.simulationId}.mgc`;
+                link.download = filename;
+
+                document.body.appendChild(link);
+                link.click();
+
+                // Cleanup
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+            }
+
+            toast.dismiss();
+            toast.success("Berhasil mengunduh Laporan PDF & File Sesi (.mgc)");
         } catch (error) {
             console.error("Download error:", error);
-            toast.error("Gagal mengunduh PDF");
+            toast.dismiss();
+            toast.error("Gagal mengunduh dokumen. Silakan coba lagi.");
+        } finally {
+            setIsDownloading(false);
         }
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header Success */}
-            <div className="text-center space-y-2">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 mb-2">
-                    <CheckCircle2 className="w-8 h-8" />
+        <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700">
+
+            {/* --- HEADER SECTION --- */}
+            <div className="text-center space-y-3">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-100">
+                    <Sparkles className="w-3.5 h-3.5" /> Hasil Analisa Cerdas
                 </div>
-                <h3 className="text-2xl font-bold">Simulasi Berhasil Dihitung</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                    Berikut adalah estimasi kebutuhan dana pendidikan berdasarkan target yang Anda tentukan.
+                <h2 className="text-3xl font-black text-slate-800 tracking-tight">
+                    Rencana Dana Pendidikan
+                </h2>
+                <p className="text-slate-500 max-w-lg mx-auto leading-relaxed text-sm">
+                    Berikut adalah strategi keuangan yang disesuaikan untuk <span className="font-bold text-slate-900">{children.length} anak</span> Anda dengan metode investasi.
                 </p>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="bg-primary text-primary-foreground border-none shadow-lg overflow-hidden relative">
-                    <div className="absolute right-[-10%] top-[-20%] opacity-10">
-                        <Wallet className="w-32 h-32" />
+            {/* --- SUMMARY CARDS --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Card Total Investasi */}
+                <Card className="bg-linear-to-br from-blue-600 to-blue-700 text-white border-none shadow-xl shadow-blue-900/20 relative overflow-hidden group">
+                    <div className="absolute right-[-10%] top-[-20%] opacity-10 group-hover:opacity-20 transition-opacity duration-500">
+                        <Wallet className="w-40 h-40" />
                     </div>
-                    <CardHeader className="pb-2">
-                        <p className="text-primary-foreground/80 text-sm font-medium">Total Investasi Bulanan</p>
-                        <CardTitle className="text-3xl font-bold">
-                            {formatCurrency(simulationData?.totalMonthlyInvestment || 0)}
+                    <CardHeader className="pb-2 relative z-10">
+                        <p className="text-blue-100 text-sm font-medium flex items-center gap-2">
+                            <Wallet className="w-4 h-4" /> Investasi Bulanan Rutin
+                        </p>
+                        <CardTitle className="text-4xl font-extrabold tracking-tight mt-1">
+                            {formatCurrency(simulationData?.totalMonthlySaving || 0)}
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-primary-foreground/70">
-                            *Setoran tetap (Flat) untuk semua jenjang sekolah.
+                    <CardContent className="relative z-10">
+                        <p className="text-xs text-blue-100/80 bg-blue-800/30 inline-block px-2 py-1 rounded">
+                            *Total yang harus disisihkan untuk semua anak
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-card border-2 border-primary/20 shadow-md">
+                {/* Card Total Target Dana */}
+                <Card className="bg-white border-blue-100 shadow-lg shadow-slate-200/50">
                     <CardHeader className="pb-2">
-                        <p className="text-muted-foreground text-sm font-medium">Total Target Dana (Masa Depan)</p>
-                        <CardTitle className="text-2xl font-bold text-primary">
+                        <p className="text-slate-500 text-sm font-medium flex items-center gap-2">
+                            <Target className="w-4 h-4 text-blue-500" /> Total Dana Masa Depan (FV)
+                        </p>
+                        <CardTitle className="text-3xl font-bold text-slate-800">
                             {formatCurrency(simulationData?.totalFutureCost || 0)}
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="flex items-center gap-2 text-green-600">
-                        <TrendingUp className="w-4 h-4" />
-                        <span className="text-xs font-semibold">Sudah memperhitungkan inflasi pendidikan</span>
+                    <CardContent>
+                        <div className="flex items-center gap-2 text-green-600 text-xs font-semibold bg-green-50 px-3 py-1.5 rounded-lg w-fit">
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            Sudah termasuk asumsi inflasi
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Children Details Breakdown */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Target className="w-5 h-5 text-primary" />
-                        Rincian per Anak
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                    <div className="space-y-4">
-                        {details.length > 0 ? (
-                            details.map((child, idx) => (
-                                <div key={idx} className="group p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-all">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                                                {idx + 1}
-                                            </div>
-                                            <p className="font-bold text-lg">{child.childName}</p>
+            {/* --- CHILDREN DETAILS ACCORDION --- */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-lg px-1">
+                    <div className="w-1 h-6 bg-blue-500 rounded-full" />
+                    Rincian Per Anak
+                </div>
+
+                {children.length > 0 ? (
+                    children.map((child, idx) => {
+                        // Agregasi Data di Client Side
+                        const totalSavingPerChild = child.stages.reduce(
+                            (sum, stage) => sum + (stage.calculatedMonthlySaving || 0), 0
+                        );
+                        const totalCostPerChild = child.stages.reduce(
+                            (sum, stage) => sum + (stage.calculatedFutureValue || 0), 0
+                        );
+                        const isOpen = openItems[idx];
+
+                        return (
+                            <div
+                                key={idx}
+                                className={cn(
+                                    "rounded-xl border transition-all duration-300 overflow-hidden bg-white",
+                                    isOpen ? "border-blue-200 shadow-md ring-1 ring-blue-50" : "border-slate-200 hover:border-blue-200"
+                                )}
+                            >
+                                {/* Accordion Header */}
+                                <div
+                                    onClick={() => toggleAccordion(idx)}
+                                    className="p-5 flex items-center justify-between cursor-pointer bg-linear-to-r from-transparent via-transparent to-blue-50/30 hover:bg-slate-50"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shadow-inner">
+                                            {idx + 1}
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Tabungan Bulanan</p>
-                                            <p className="text-primary font-bold">{formatCurrency(child.summary.totalMonthlySaving)}</p>
+                                        <div>
+                                            <p className="font-bold text-lg text-slate-800">{child.childName}</p>
+                                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                <span>Lahir: {child.childDob}</span>
+                                                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                                <span className="text-blue-600 font-semibold">{child.stages.length} Jenjang Sekolah</span>
+                                            </div>
                                         </div>
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-4 py-3 border-t border-dashed">
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Total Dana Dibutuhkan</p>
-                                            <p className="font-semibold text-sm">{formatCurrency(child.summary.totalFutureCost)}</p>
+                                    <div className="text-right flex items-center gap-4">
+                                        <div className="hidden sm:block">
+                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Nabung Bulanan</p>
+                                            <p className="text-blue-700 font-bold text-base">{formatCurrency(totalSavingPerChild)}</p>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-muted-foreground">Jumlah Jenjang</p>
-                                            <p className="font-semibold text-sm">{child.detail.stagesBreakdown.length} Sekolah</p>
-                                        </div>
+                                        <ChevronDown className={cn("w-5 h-5 text-slate-400 transition-transform duration-300", isOpen && "rotate-180")} />
                                     </div>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="text-center py-6 text-muted-foreground italic">
-                                Tidak ada rincian data anak.
-                            </div>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                                {/* Accordion Content (Table) */}
+                                {isOpen && (
+                                    <div className="border-t border-slate-100 animate-in slide-in-from-top-2">
+                                        <div className="bg-slate-50/50 p-4">
+                                            <div className="overflow-hidden rounded-lg border border-slate-200">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+                                                        <tr>
+                                                            <th className="px-4 py-3">Jenjang</th>
+                                                            <th className="px-4 py-3 text-right">Dana Dibutuhkan (FV)</th>
+                                                            <th className="px-4 py-3 text-right">Tabungan/Bulan</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                                        {child.stages.map((stage, sIdx) => (
+                                                            <tr key={sIdx} className="hover:bg-blue-50/30 transition-colors">
+                                                                <td className="px-4 py-3">
+                                                                    <div className="font-semibold text-slate-700">{stage.level}</div>
+                                                                    <div className="text-[10px] text-slate-400">
+                                                                        Start: Thn {stage.startYear} ({stage.duration} Thn)
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right font-medium text-slate-600">
+                                                                    {formatCurrency(stage.calculatedFutureValue || 0)}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right font-bold text-blue-600">
+                                                                    {formatCurrency(stage.calculatedMonthlySaving || 0)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {/* Subtotal Row */}
+                                                        <tr className="bg-blue-50/30 font-bold text-slate-800">
+                                                            <td className="px-4 py-3 text-right text-xs uppercase text-blue-600">Total</td>
+                                                            <td className="px-4 py-3 text-right">{formatCurrency(totalCostPerChild)}</td>
+                                                            <td className="px-4 py-3 text-right text-blue-700">{formatCurrency(totalSavingPerChild)}</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                ) : (
+                    <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl">
+                        <p className="text-slate-400 italic">Tidak ada data rincian anak.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* --- ACTION BUTTONS --- */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-slate-200">
                 <Button
-                    onClick={handleDownloadPdf}
-                    className="flex-1 h-12 gap-2 text-base font-bold shadow-lg shadow-primary/20"
+                    onClick={handleDownloadPackage}
+                    disabled={isDownloading}
+                    className="flex-2 h-12 gap-2 text-base font-bold shadow-xl shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
                 >
-                    <Download className="w-5 h-5" /> Unduh Laporan PDF
+                    {isDownloading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" /> Menyiapkan Dokumen...
+                        </>
+                    ) : (
+                        <>
+                            <Download className="w-5 h-5" /> Unduh PDF & Sesi
+                        </>
+                    )}
                 </Button>
+
+                <Button
+                    variant="outline"
+                    onClick={onBack}
+                    disabled={isDownloading}
+                    className="flex-1 h-12 gap-2 text-base font-semibold border-blue-200 text-blue-600 hover:bg-blue-50 transition-all"
+                >
+                    <ChevronLeft className="w-4 h-4" /> Revisi Data
+                </Button>
+
                 <Button
                     variant="outline"
                     onClick={onReset}
-                    className="flex-1 h-12 gap-2 text-base font-semibold"
+                    disabled={isDownloading}
+                    className="flex-1 h-12 gap-2 text-base font-semibold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
                 >
                     <RefreshCcw className="w-5 h-5" /> Hitung Ulang
                 </Button>
             </div>
 
-            <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
-                Hasil perhitungan ini bersifat simulasi dan estimasi. <br />
-                Realitas di masa depan dapat berubah sesuai dengan kebijakan institusi pendidikan dan kondisi pasar investasi.
-            </p>
+            <div className="text-center">
+                <p className="text-[10px] text-slate-400 leading-relaxed max-w-lg mx-auto">
+                    *File <strong>.mgc</strong> yang diunduh dapat digunakan untuk memuat ulang data simulasi ini di masa mendatang tanpa perlu mengetik ulang (Fitur Load Session).
+                </p>
+            </div>
         </div>
     );
 };

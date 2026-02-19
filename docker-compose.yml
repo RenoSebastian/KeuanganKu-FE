@@ -4,10 +4,10 @@ services:
       context: .
       args:
         # Menyuntikkan URL API HTTPS untuk build Next.js
-        - NEXT_PUBLIC_API_URL=https://keuanganku.geocitra.com
+        - NEXT_PUBLIC_API_URL=https://keuanganku.geocitra.com/api
     container_name: keuanganku-fe
     restart: always
-    
+
     # Port 8080 tetap dibuka agar bisa diakses via IP VM jika diperlukan
     ports:
       - "8080:3000"
