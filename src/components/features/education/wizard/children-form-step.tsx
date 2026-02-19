@@ -14,10 +14,10 @@ import {
     Sparkles,
     Smile,
     Percent,
-    Settings2
+    Settings2,
+    AlertCircle
 } from "lucide-react";
 
-// --- UI COMPONENTS ---
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,13 +26,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
-// --- CUSTOM FEATURES ---
+// Components
 import { StageSelector } from "./stage-selector";
 import { StageInputCard } from "./stage-input-card";
 
-// --- SCHEMA & TYPES ---
+// Schemas & Types
 import {
     educationSimulationSchema,
     EducationSimulationForm,
@@ -50,45 +51,35 @@ interface ChildrenFormStepProps {
 export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = false }: ChildrenFormStepProps) {
     const [activeTab, setActiveTab] = useState("child-0");
 
-    // 1. SETUP FORM UTAMA
     const form = useForm<EducationSimulationForm>({
         resolver: zodResolver(educationSimulationSchema) as any,
         defaultValues: {
-            childrenPlans: initialData?.childrenPlans?.length
-                ? initialData.childrenPlans
-                : [{
-                    childName: "",
-                    childDob: "",
-                    stages: []
-                }],
-            clientName: initialData?.clientName || "",
-            clientCity: initialData?.clientCity || "",
-            clientDob: initialData?.clientDob || "",
-            clientJob: initialData?.clientJob || "",
-            clientPhone: initialData?.clientPhone || "",
-            // Default Assumptions
-            inflationRate: initialData?.inflationRate || 10,
-            returnRate: initialData?.returnRate || 12,
+            clientName: "",
+            clientCity: "",
+            // [FIX] Inisialisasi string kosong
+            childrenPlans: [{ childName: "", childDob: "", stages: [] }],
+            inflationRate: 10,
+            returnRate: 12,
+            ...initialData,
         },
         mode: "onChange"
     });
 
-    // [FIX] useEffect untuk re-hydrate form saat initialData berubah (dari Import / Back)
+    // --- LOGIC: RE-HYDRATION ---
     useEffect(() => {
         if (initialData) {
-            // Kita reset form dengan menggabungkan value saat ini dengan data baru
-            // Agar field yang tidak ada di initialData tidak hilang
-            form.reset((formValues) => ({
-                ...formValues,
+            console.log("Hydrating Children Form:", initialData);
+
+            form.reset({
+                ...form.getValues(),
                 ...initialData,
                 childrenPlans: initialData.childrenPlans?.length
                     ? initialData.childrenPlans
-                    : formValues.childrenPlans
-            }));
+                    : [{ childName: "", childDob: "", stages: [] }]
+            });
         }
     }, [initialData, form]);
 
-    // 2. FIELD ARRAY
     const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "childrenPlans",
@@ -105,7 +96,8 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
     };
 
     const onSubmit = (data: EducationSimulationForm) => {
-        const hasEmptyStages = data.childrenPlans.some(c => c.stages.length === 0);
+        const hasEmptyStages = data.childrenPlans.some(c => (c.stages?.length || 0) === 0);
+
         if (hasEmptyStages) {
             form.setError("childrenPlans", {
                 type: "manual",
@@ -113,6 +105,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
             });
             return;
         }
+
         onNext(data);
     };
 
@@ -122,7 +115,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                    {/* --- GLOBAL ASSUMPTIONS CARD (BLUE THEME) --- */}
+                    {/* --- GLOBAL ASSUMPTIONS CARD --- */}
                     <Card className="border-blue-100 bg-linear-to-br from-blue-50/80 to-white shadow-sm overflow-hidden">
                         <CardHeader className="pb-2 border-b border-blue-100/50">
                             <div className="flex items-center gap-2 text-blue-700">
@@ -149,8 +142,8 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                 <Input
                                                     {...field}
                                                     type="number"
+                                                    onChange={e => field.onChange(Number(e.target.value))}
                                                     className="h-8 pr-6 text-right font-bold text-slate-700 border-blue-200 focus:ring-blue-200"
-                                                    onChange={e => field.onChange(parseFloat(e.target.value))}
                                                 />
                                                 <Percent className="w-3 h-3 absolute right-2 top-2.5 text-slate-400" />
                                             </div>
@@ -158,13 +151,13 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                         <FormControl>
                                             <Slider
                                                 min={0} max={20} step={0.5}
-                                                value={field.value}
+                                                value={field.value as any}
                                                 onChange={(vals) => field.onChange(vals)}
                                                 className="py-2"
                                             />
                                         </FormControl>
                                         <p className="text-[10px] text-slate-500 text-right">
-                                            *Rata-rata inflasi pendidikan di Indonesia 10-15% per tahun.
+                                            *Rata-rata inflasi pendidikan: 10-15% per tahun.
                                         </p>
                                     </FormItem>
                                 )}
@@ -187,8 +180,8 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                 <Input
                                                     {...field}
                                                     type="number"
+                                                    onChange={e => field.onChange(Number(e.target.value))}
                                                     className="h-8 pr-6 text-right font-bold text-slate-700 border-blue-200 focus:ring-blue-200"
-                                                    onChange={e => field.onChange(parseFloat(e.target.value))}
                                                 />
                                                 <Percent className="w-3 h-3 absolute right-2 top-2.5 text-slate-400" />
                                             </div>
@@ -196,13 +189,13 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                         <FormControl>
                                             <Slider
                                                 min={0} max={30} step={0.5}
-                                                value={field.value}
+                                                value={field.value as any}
                                                 onChange={(vals) => field.onChange(vals)}
                                                 className="py-2"
                                             />
                                         </FormControl>
                                         <p className="text-[10px] text-slate-500 text-right">
-                                            *Return Reksadana Saham/Campuran agresif berkisar 10-14%.
+                                            *Return Saham/Campuran agresif: 10-14%.
                                         </p>
                                     </FormItem>
                                 )}
@@ -236,7 +229,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                             "data-[state=inactive]:bg-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-blue-100"
                                         )}
                                     >
-                                        <ChildNameTabWatcher control={form.control} index={index} />
+                                        <ChildNameTabWatcher control={form.control as any} index={index} />
                                     </TabsTrigger>
                                 ))}
 
@@ -278,6 +271,8 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                         </FormItem>
                                                     )}
                                                 />
+
+                                                {/* --- [FIX IS HERE] --- */}
                                                 <FormField
                                                     control={form.control}
                                                     name={`childrenPlans.${index}.childDob`}
@@ -285,12 +280,25 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                                         <FormItem>
                                                             <FormLabel className="text-slate-700">Tanggal Lahir</FormLabel>
                                                             <FormControl>
-                                                                <Input type="date" {...field} className="bg-white border-blue-100 focus:border-blue-400" disabled={isLoading} />
+                                                                <Input
+                                                                    type="date"
+                                                                    {...field}
+                                                                    // 1. Pastikan value selalu string valid, kalau null/undefined kasih ""
+                                                                    value={field.value ? String(field.value).split('T')[0] : ''}
+
+                                                                    // 2. [CRITICAL] onChange JANGAN kirim undefined. Kirim e.target.value (string) mentah-mentah.
+                                                                    onChange={field.onChange}
+
+                                                                    className="bg-white border-blue-100 focus:border-blue-400"
+                                                                    disabled={isLoading}
+                                                                />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
                                                 />
+                                                {/* --------------------- */}
+
                                             </div>
 
                                             {fields.length > 1 && (
@@ -318,7 +326,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                                             </div>
 
                                             <ChildStageManager
-                                                control={form.control}
+                                                control={form.control as any}
                                                 childIndex={index}
                                                 isLoading={isLoading}
                                             />
@@ -331,12 +339,14 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                     </Tabs>
 
                     {form.formState.errors.childrenPlans?.root && (
-                        <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm font-medium text-center animate-pulse">
-                            {form.formState.errors.childrenPlans.root.message}
-                        </div>
+                        <Alert variant="destructive" className="bg-red-50 border-red-200">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                                {form.formState.errors.childrenPlans.root.message}
+                            </AlertDescription>
+                        </Alert>
                     )}
 
-                    {/* FOOTER ACTIONS */}
                     <div className="flex items-center justify-between gap-4 pt-6 border-t border-slate-200">
                         <Button
                             type="button"
@@ -354,7 +364,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
                             className="px-8 shadow-xl shadow-blue-500/20 min-w-48 font-bold bg-blue-600 hover:bg-blue-700 transition-all hover:scale-105"
                             disabled={form.formState.isSubmitting || isLoading}
                         >
-                            {isLoading ? (
+                            {isLoading || form.formState.isSubmitting ? (
                                 <>
                                     <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menghitung...
                                 </>
@@ -375,7 +385,7 @@ export function ChildrenFormStep({ initialData, onNext, onBack, isLoading = fals
 // HELPER COMPONENTS
 // ============================================================================
 
-function ChildNameTabWatcher({ control, index }: { control: Control<EducationSimulationForm>, index: number }) {
+function ChildNameTabWatcher({ control, index }: { control: any, index: number }) {
     const name = useWatch({
         control,
         name: `childrenPlans.${index}.childName`,
@@ -389,7 +399,7 @@ function ChildNameTabWatcher({ control, index }: { control: Control<EducationSim
 }
 
 interface ChildStageManagerProps {
-    control: Control<EducationSimulationForm>;
+    control: any;
     childIndex: number;
     isLoading: boolean;
 }
@@ -410,21 +420,31 @@ function ChildStageManager({ control, childIndex, isLoading }: ChildStageManager
         name: `childrenPlans.${childIndex}.stages`,
     });
 
-    const selectedLevels = currentStages?.map(s => s.level) || [];
+    const selectedLevels = currentStages?.map((s: any) => s.level) || [];
 
     const handleStagesChange = (newLevels: SchoolLevelType[]) => {
         const currentYear = new Date().getFullYear();
-        const birthYear = childDob ? new Date(childDob).getFullYear() : currentYear;
+        const dobDate = childDob ? new Date(childDob) : new Date();
+        const birthYear = dobDate.getFullYear();
 
         const calculateStartYear = (level: SchoolLevelType) => {
             const entryOffsets: Record<SchoolLevelType, number> = {
-                TK: 4, SD: 6, SMP: 12, SMA: 15, S1: 18, S2: 23
+                TK: 4,  // Usia 4 tahun
+                SD: 6,  // Usia 6 tahun
+                SMP: 12, // Usia 12 tahun
+                SMA: 15, // Usia 15 tahun
+                S1: 18, // Usia 18 tahun
+                S2: 22  // Usia 22 tahun (Lulus S1 4 tahun)
             };
+
+            if (isNaN(birthYear)) return currentYear + 1;
+
             return birthYear + entryOffsets[level];
         };
 
         const newStagesData = newLevels.map(level => {
-            const existing = currentStages?.find(s => s.level === level);
+            const existing = currentStages?.find((s: any) => s.level === level);
+
             if (existing) return existing;
 
             return {
@@ -434,9 +454,14 @@ function ChildStageManager({ control, childIndex, isLoading }: ChildStageManager
                 costEntry: 0,
                 costMonthly: 0,
                 costSemester: 0,
-                costFull: 0
+                costFull: 0,
+                calculatedFutureValue: 0,
+                calculatedMonthlySaving: 0
             };
         });
+
+        const levelOrder = ["TK", "SD", "SMP", "SMA", "S1", "S2"];
+        newStagesData.sort((a, b) => levelOrder.indexOf(a.level) - levelOrder.indexOf(b.level));
 
         replace(newStagesData);
     };
@@ -446,16 +471,16 @@ function ChildStageManager({ control, childIndex, isLoading }: ChildStageManager
             <StageSelector
                 value={selectedLevels}
                 onChange={handleStagesChange}
-                disabled={!childDob || isLoading}
+                disabled={isLoading}
             />
 
-            {!childDob && (
+            {!childDob && fields.length === 0 && (
                 <div className="flex items-center gap-3 text-xs text-blue-700 bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <div className="p-1 bg-white rounded-full shadow-sm">
                         <span className="text-lg">💡</span>
                     </div>
                     <p className="leading-relaxed">
-                        Masukkan <strong>Tanggal Lahir</strong> anak terlebih dahulu agar sistem dapat menghitung otomatis kapan mereka masuk sekolah.
+                        Tips: Masukkan <strong>Tanggal Lahir</strong> anak terlebih dahulu agar sistem dapat otomatis menghitung tahun masuk sekolah.
                     </p>
                 </div>
             )}
@@ -475,9 +500,9 @@ function ChildStageManager({ control, childIndex, isLoading }: ChildStageManager
                                 key={field.id}
                                 childIndex={childIndex}
                                 stageIndex={k}
-                                level={field.level}
+                                level={(field as any).level}
                                 onRemove={() => {
-                                    const newLevels = selectedLevels.filter(l => l !== field.level);
+                                    const newLevels = selectedLevels.filter((l: any) => l !== (field as any).level);
                                     handleStagesChange(newLevels);
                                 }}
                             />
@@ -489,7 +514,7 @@ function ChildStageManager({ control, childIndex, isLoading }: ChildStageManager
             {fields.length === 0 && childDob && (
                 <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
                     <p className="font-medium">Belum ada jenjang sekolah yang dipilih.</p>
-                    <p className="text-xs mt-1">Klik opsi di atas (TK, SD, SMP...) untuk mulai merencanakan.</p>
+                    <p className="text-xs mt-1">Klik opsi jenjang di atas (TK, SD, SMP...) untuk mulai mengisi biaya.</p>
                 </div>
             )}
         </div>
