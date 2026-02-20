@@ -25,7 +25,6 @@ import FeatureShowcase from '@/components/features/marketing/feature-showcase';
 import PartnershipSection from "@/components/features/marketing/partnership-section";
 import SupportSection from "@/components/features/marketing/support-section";
 import HeroSection from "@/components/features/marketing/hero-section";
-import ValuePropositionSection from "@/components/features/marketing/value-proposition-section";
 
 export default function LandingPage() {
   return (
@@ -102,17 +101,14 @@ export default function LandingPage() {
         {/* HERO SECTION */}
         <HeroSection />
 
-        {/* VALUE PROPOSITION */}
-        <ValuePropositionSection />
-
-        {/* FEATURES SECTION */}
-        <FeatureShowcase />
-
         {/* TESTIMONIAL SECTION */}
         <TestimonialsCarouselSection />
 
         {/* PRICING SECTION */}
         <PricingSection />
+
+        {/* FEATURES SECTION */}
+        <FeatureShowcase />
 
         {/* PARTNERSHIP SECTION */}
         <PartnershipSection />
