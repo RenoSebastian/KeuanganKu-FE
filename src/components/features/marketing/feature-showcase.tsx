@@ -7,7 +7,8 @@ import {
     Smartphone, CheckCircle2, LucideIcon,
     LineChart,
     TrendingUp,
-    Activity
+    Activity,
+    Sparkles
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -107,18 +108,27 @@ const FeatureShowcase = () => {
     }, []);
 
     return (
-        // Dihapus bg-slate-50 agar transparan dan membaur dengan ambient background dari page.tsx
-        <section className="py-12 relative z-10" id="features">
+        <section className="py-20 relative z-10 overflow-hidden" id="features">
             <div className="container mx-auto px-4">
+
+                {/* HEADER DI-BOOST: Tipografi diselaraskan dengan identitas Landing Page */}
                 <div className="text-center mb-16 relative z-10">
-                    <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">
-                        7 Senjata Utama <span className="text-blue-600">Agen Pro</span>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600/10 backdrop-blur-md border border-blue-400/30 mb-6 shadow-sm">
+                        <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+                        <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-700">Core Features</span>
+                    </div>
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-[1000] text-slate-900 mb-4 tracking-tighter leading-[1.1]">
+                        7 Senjata Utama <br className="md:hidden" />
+                        <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600 drop-shadow-sm">
+                            Agen Pro
+                        </span>
                     </h2>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-12 items-start relative z-20">
-                    {/* NAVIGATION TABS */}
-                    <div className="w-full lg:w-1/3 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 no-scrollbar">
+                <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start relative z-20">
+
+                    {/* NAVIGATION TABS: Disempurnakan dengan Material Glass */}
+                    <div className="w-full lg:w-1/3 flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-6 lg:pb-0 no-scrollbar snap-x">
                         {features.map((f, index) => {
                             const IconComponent = f.icon;
                             return (
@@ -126,25 +136,25 @@ const FeatureShowcase = () => {
                                     key={f.id}
                                     onClick={() => setActiveTab(index)}
                                     className={cn(
-                                        "flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 text-left min-w-50 lg:min-w-full border",
+                                        "flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-500 text-left min-w-60 lg:min-w-full border-2 snap-center group",
                                         activeTab === index
-                                            // Glassmorphism untuk tab yang aktif
-                                            ? "bg-white/80 backdrop-blur-md border-blue-400 shadow-[0_8px_30px_rgb(0,0,0,0.06)] translate-x-2"
-                                            // Glassmorphism halus untuk tab yang tidak aktif
-                                            : "bg-white/30 backdrop-blur-sm border-transparent text-slate-500 hover:bg-white/50"
+                                            // ACTIVE STATE: Thick Frosted Glass yang menonjol
+                                            ? "bg-white/80 backdrop-blur-2xl border-white shadow-[0_15px_30px_rgba(0,0,0,0.08)] lg:translate-x-3 scale-105 lg:scale-100"
+                                            // INACTIVE STATE: Smoked/Dimmed Glass agar tenggelam ke belakang
+                                            : "bg-slate-300/20 backdrop-blur-md border-slate-300/40 text-slate-500 hover:bg-white/40 hover:border-white/50"
                                     )}
                                 >
                                     <div className={cn(
-                                        "p-2 rounded-lg transition-colors duration-300",
+                                        "p-2.5 rounded-xl transition-all duration-500 shadow-sm",
                                         activeTab === index
-                                            ? f.bgColor + " " + f.color
-                                            : "bg-white/60 text-slate-500 shadow-sm" // Diperhalus agar tidak terlalu pekat
+                                            ? f.bgColor + " " + f.color + " scale-110 shadow-md"
+                                            : "bg-white/50 text-slate-400 group-hover:bg-white/80 group-hover:text-slate-600"
                                     )}>
-                                        <IconComponent size={20} />
+                                        <IconComponent size={22} strokeWidth={activeTab === index ? 2.5 : 2} />
                                     </div>
                                     <span className={cn(
                                         "font-bold tracking-tight transition-colors duration-300",
-                                        activeTab === index ? "text-slate-900" : "text-slate-500 group-hover:text-slate-700"
+                                        activeTab === index ? "text-slate-900 text-lg" : "text-slate-500 group-hover:text-slate-700"
                                     )}>
                                         {f.title}
                                     </span>
@@ -153,40 +163,46 @@ const FeatureShowcase = () => {
                         })}
                     </div>
 
-                    {/* DISPLAY CONTENT */}
-                    <div className="flex-1 w-full min-h-125 relative perspective-1000">
+                    {/* DISPLAY CONTENT: Kartu Kaca Tebal (Thick Glassmorphism) */}
+                    <div className="flex-1 w-full min-h-128 relative perspective-1000">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeTab}
-                                // Animasi Y (Atas-Bawah) lebih elegan untuk tema Glassmorphism daripada X (Kiri-Kanan)
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -15 }}
-                                transition={{ duration: 0.5, ease: "easeOut" }}
-                                // Terapkan efek Kaca (Glass) pada card utama
-                                className="bg-white/60 backdrop-blur-2xl rounded-[3rem] p-8 lg:p-12 shadow-[0_20px_50px_rgb(0,0,0,0.04)] border border-white/60 flex flex-col gap-8 h-full"
+                                initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                                transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }} // Custom easing untuk feel lebih smooth
+                                // CARD UTAMA: Diselaraskan dengan Pricing (Thick Frosted Glass)
+                                className="bg-white/50 backdrop-blur-3xl rounded-[3rem] p-8 lg:p-12 border-2 border-white/70 shadow-[0_30px_60px_rgba(0,0,0,0.1)] flex flex-col gap-8 h-full relative overflow-hidden"
                             >
-                                <div>
-                                    <h3 className={cn("text-lg font-black uppercase tracking-widest mb-2", features[activeTab].color)}>
-                                        Feature 0{features[activeTab].id}
-                                    </h3>
-                                    <h2 className="text-3xl lg:text-4xl font-black text-slate-900 mb-4 tracking-tight">
+                                {/* Aksen kilauan cahaya halus di dalam card */}
+                                <div className="absolute top-[-20%] right-[-10%] w-96 h-96 bg-white/40 blur-[80px] rounded-full pointer-events-none" />
+
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest", features[activeTab].bgColor, features[activeTab].color)}>
+                                            Modul 0{features[activeTab].id}
+                                        </div>
+                                    </div>
+
+                                    <h2 className="text-3xl lg:text-4xl font-[1000] text-slate-900 mb-5 tracking-tight leading-[1.1]">
                                         {features[activeTab].heading}
                                     </h2>
-                                    <p className="text-lg text-slate-700 leading-relaxed font-medium">
+                                    <p className="text-lg text-slate-600 leading-relaxed font-medium max-w-2xl">
                                         {features[activeTab].desc}
                                     </p>
                                 </div>
 
-                                <div className="relative mt-auto">
-                                    <img
-                                        src={features[activeTab].image}
-                                        alt={features[activeTab].title}
-                                        // Ganti border pekat dengan border yang lebih soft/glassy
-                                        className="w-full h-75 lg:h-100 object-cover rounded-2xl shadow-lg shadow-slate-900/5 border-2 border-white/70"
-                                    />
-                                    {/* Efek overlay gradient pada gambar agar menyatu dengan card glass */}
-                                    <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/5 pointer-events-none" />
+                                <div className="relative mt-auto pt-4 z-10">
+                                    {/* Frame gambar dibuat lebih tebal seakan-akan layar tertanam di dalam kaca */}
+                                    <div className="relative rounded-[2rem] overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.15)] border-4 border-white/80 group/img">
+                                        <img
+                                            src={features[activeTab].image}
+                                            alt={features[activeTab].title}
+                                            className="w-full h-64 lg:h-96 object-cover transform transition-transform duration-700 group-hover/img:scale-105"
+                                        />
+                                        <div className="absolute inset-0 ring-1 ring-inset ring-black/5 pointer-events-none rounded-[2rem]" />
+                                    </div>
                                 </div>
                             </motion.div>
                         </AnimatePresence>

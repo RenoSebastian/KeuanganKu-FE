@@ -31,11 +31,34 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-slate-50 relative overflow-hidden">
 
-      {/* GLOBAL AMBIENT BACKGROUND */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex justify-center items-center">
-        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-400/20 blur-[120px] mix-blend-multiply" />
-        <div className="absolute top-[30%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-300/20 blur-[120px] mix-blend-multiply" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[45vw] h-[45vw] rounded-full bg-indigo-400/20 blur-[120px] mix-blend-multiply" />
+      {/* GLOBAL AMBIENT BACKGROUND - RANDOMIZED SOFT DOTS
+          Diperbanyak dan disebar acak dengan ukuran & tingkat blur yang bervariasi
+          untuk menciptakan ilusi "Depth of Field" (kedalaman optik).
+      */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* 1. Titik Biru Besar (Kiri Atas - Jauh) */}
+        <div className="absolute top-[-5%] left-[-5%] w-[45vw] h-[45vw] rounded-full bg-blue-500/20 blur-[150px]" />
+
+        {/* 2. Titik Jingga Medium (Kanan Atas - Agak Dekat) */}
+        <div className="absolute top-[5%] right-[5%] w-[25vw] h-[25vw] rounded-full bg-orange-400/20 blur-[100px]" />
+
+        {/* 3. Titik Jingga Kecil (Kiri Tengah - Sangat Soft) */}
+        <div className="absolute top-[35%] left-[15%] w-[20vw] h-[20vw] rounded-full bg-orange-500/15 blur-[80px]" />
+
+        {/* 4. Titik Biru Medium (Kanan Tengah - Dekat) */}
+        <div className="absolute top-[45%] right-[10%] w-[35vw] h-[35vw] rounded-full bg-blue-600/15 blur-[120px]" />
+
+        {/* 5. Titik Indigo Halus (Tengah Layar - Nyaru) */}
+        <div className="absolute top-[50%] left-[40%] w-[30vw] h-[30vw] rounded-full bg-indigo-400/10 blur-[100px]" />
+
+        {/* 6. Titik Biru Kecil (Kiri Bawah - Agak Tajam Blurnya) */}
+        <div className="absolute bottom-[15%] left-[5%] w-[25vw] h-[25vw] rounded-full bg-blue-400/20 blur-[90px]" />
+
+        {/* 7. Titik Jingga Besar (Kanan Bawah - Jauh) */}
+        <div className="absolute bottom-[-5%] right-[-5%] w-[40vw] h-[40vw] rounded-full bg-orange-500/20 blur-[150px]" />
+
+        {/* 8. Titik Cyan/Biru Muda Kecil (Tengah Bawah) */}
+        <div className="absolute bottom-[5%] left-[50%] w-[20vw] h-[20vw] rounded-full bg-cyan-400/15 blur-[80px]" />
       </div>
 
       {/* NAVBAR */}
@@ -76,18 +99,20 @@ export default function LandingPage() {
       </nav>
 
       <div className="relative z-10 flex flex-col pt-0">
-
         {/* HERO SECTION */}
         <HeroSection />
+
+        {/* VALUE PROPOSITION */}
+        <ValuePropositionSection />
+
+        {/* FEATURES SECTION */}
+        <FeatureShowcase />
 
         {/* TESTIMONIAL SECTION */}
         <TestimonialsCarouselSection />
 
         {/* PRICING SECTION */}
         <PricingSection />
-
-        {/* FEATURES SECTION */}
-        <FeatureShowcase />
 
         {/* PARTNERSHIP SECTION */}
         <PartnershipSection />

@@ -2,8 +2,9 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Star, ChevronLeft, ChevronRight, Quote } from 'lucide-react';
+import { Star, ChevronLeft, ChevronRight, Quote, Hand } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const testimonials = [
     {
@@ -76,12 +77,15 @@ const TestimonialsCarouselSection = () => {
         loop: true,
         align: 'center',
         breakpoints: {
-            '(min-width: 768px)': { align: 'start' }
+            // Pada mode loop, lebih stabil menggunakan 'center' untuk semua breakpoint 
+            // agar jarak kloningan Embla tidak asimetris di ujung layar.
+            '(min-width: 768px)': { align: 'center' }
         }
     });
 
     const [prevBtnEnabled, setPrevBtnEnabled] = useState(false);
     const [nextBtnEnabled, setNextBtnEnabled] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
 
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
@@ -99,68 +103,101 @@ const TestimonialsCarouselSection = () => {
     }, [emblaApi, onSelect]);
 
     return (
-        <section id="testimonials-carousel" className="py-12 relative z-10 overflow-hidden">
+        <section id="testimonials-carousel" className="py-20 relative z-10 overflow-hidden">
 
-            {/* BAGIAN 1: HEADER (Terbatas di max-w-7xl agar rapi di tengah) */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 mb-12">
-                <div className="text-center">
-                    <Badge
-                        variant="outline"
-                        className="mb-6 border-blue-400/30 text-blue-600 bg-blue-500/10 px-4 py-1.5 uppercase tracking-[0.3em] text-[10px] font-black backdrop-blur-md shadow-sm"
-                    >
-                        Hall of Fame
-                    </Badge>
+            {/* BAGIAN 1: HEADER */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 mb-12 lg:mb-16">
+                <div className="text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <Badge
+                            variant="outline"
+                            className="mb-4 border-blue-400/30 text-blue-600 bg-blue-500/10 px-4 py-1.5 uppercase tracking-[0.3em] text-[10px] font-black backdrop-blur-md shadow-sm"
+                        >
+                            Hall of Fame
+                        </Badge>
+                        <h2 className="text-4xl lg:text-5xl font-[1000] text-slate-900 tracking-tighter leading-[1.1]">
+                            Kisah Sukses <br className="hidden md:block" />
+                            <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600">
+                                Para Profesional
+                            </span>
+                        </h2>
+                    </div>
 
-                    <h2 className="text-4xl font-black text-slate-900 sm:text-5xl tracking-tighter leading-[1.1]">
-                        Apa Kata Mereka <br />
-                        <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600">
-                            Tentang Aplikasi Kami
-                        </span>
-                    </h2>
+                    <div className="md:hidden flex items-center justify-center gap-2 text-slate-500 mt-2 bg-slate-200/50 px-4 py-2 rounded-full border border-slate-300">
+                        <Hand size={14} className="animate-bounce text-blue-600" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Geser untuk melihat</span>
+                    </div>
                 </div>
             </div>
 
-            {/* BAGIAN 2: CAROUSEL (Dikeluarkan dari max-w-7xl agar lebarnya 100vw / edge-to-edge) */}
-            <div className="relative group w-full">
+            {/* BAGIAN 2: CAROUSEL WRAPPER WITH FLOATING NAVIGATION */}
+            <div
+                className="relative w-full max-w-[100vw]"
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
+                {/* Navigasi Kiri */}
+                <button
+                    onClick={scrollPrev}
+                    disabled={!prevBtnEnabled}
+                    className={cn(
+                        "absolute left-4 md:left-8 lg:left-[calc((100vw-1280px)/2+2rem)] top-1/2 -translate-y-1/2 z-20",
+                        "flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full",
+                        "bg-white/80 backdrop-blur-xl border-2 border-white shadow-[0_10px_30px_rgba(0,0,0,0.15)]",
+                        "text-blue-700 hover:bg-blue-600 hover:text-white hover:border-blue-500 hover:scale-110",
+                        "disabled:opacity-30 disabled:scale-100",
+                        "transition-all duration-300",
+                        "md:opacity-0 md:-translate-x-4",
+                        isHovered && "md:opacity-100 md:translate-x-0"
+                    )}
+                >
+                    <ChevronLeft size={28} strokeWidth={3} className="ml-0.5 md:ml-1" />
+                </button>
+
                 <div className="embla overflow-hidden" ref={emblaRef}>
-                    {/* Padding dikembalikan ke container embla agar card pertama sejajar dengan text, tapi efek scrollnya tidak terpotong di tepi */}
-                    <div className="embla__container flex touch-pan-y gap-4 px-4 md:px-8 lg:px-12 xl:px-[calc((100vw-1280px)/2+2rem)] ml-0">
+                    {/* PERBAIKAN GAP ASIMETRIS: 
+                        1. Hapus px dinamis (px-4 md:px-8 dst) dari container ini yang merusak sambungan loop.
+                        2. Biarkan container membentang penuh tanpa margin aneh.
+                        3. Jarak antar kartu dikendalikan murni oleh `pl-4 md:pl-6` di dalam setiap slide.
+                    */}
+                    <div className="embla__container flex touch-pan-y py-4">
                         {testimonials.map((t, i) => (
-                            // Penyesuaian lebar card agar lebih proporsional saat di-scroll
-                            <div key={i} className="embla__slide flex-[0_0_85%] sm:flex-[0_0_60%] md:flex-[0_0_45%] lg:flex-[0_0_30%] min-w-0 relative">
+                            // Jarak gap sekarang diletakkan sebagai padding left (pl) pada setiap slide.
+                            // Ini adalah trik Embla standar untuk memastikan loop yang mulus tanpa patah.
+                            <div key={i} className="embla__slide pl-4 md:pl-6 flex-[0_0_85%] sm:flex-[0_0_45%] lg:flex-[0_0_30%] min-w-0 relative">
 
                                 {/* CARD UTAMA */}
-                                <div className="relative h-137.5 w-full rounded-2xl overflow-hidden group/card cursor-grab active:cursor-grabbing shadow-[0_20px_50px_rgb(0,0,0,0.1)] hover:shadow-[0_20px_60px_rgb(37,99,235,0.2)] border border-white/30 transition-all duration-500 hover:-translate-y-2">
+                                <div className="relative h-104 md:h-128 w-full rounded-3xl overflow-hidden group/card cursor-grab active:cursor-grabbing shadow-[0_15px_40px_rgb(0,0,0,0.1)] hover:shadow-[0_20px_50px_rgb(37,99,235,0.2)] border border-white/60 transition-all duration-500 hover:-translate-y-2">
 
                                     <div className="absolute inset-0 w-full h-full">
                                         <img
                                             src={t.avatar}
                                             alt={t.name}
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 filter brightness-[0.80] group-hover/card:brightness-90 pointer-events-none"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 filter brightness-[0.75] group-hover/card:brightness-[0.85] pointer-events-none"
                                         />
                                     </div>
 
-                                    <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/60 to-transparent opacity-90 transition-opacity duration-500 pointer-events-none" />
+                                    <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/70 to-transparent opacity-95 pointer-events-none" />
 
-                                    <div className="absolute inset-0 p-6 flex flex-col justify-end pointer-events-none">
-                                        <div className="absolute top-5 right-5 text-white/10 group-hover/card:text-blue-400/20 transition-colors duration-500">
+                                    <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end pointer-events-none">
+                                        <div className="absolute top-6 right-6 text-white/10 group-hover/card:text-blue-400/30 transition-colors duration-500 transform group-hover/card:rotate-12">
                                             <Quote size={64} fill="currentColor" />
                                         </div>
 
-                                        <div className="relative z-10 translate-y-3 transition-transform duration-500 group-hover/card:translate-y-0">
-                                            <div className="flex gap-1 mb-3">
+                                        <div className="relative z-10 translate-y-4 transition-transform duration-500 group-hover/card:translate-y-0">
+                                            <div className="flex gap-1 mb-4">
                                                 {[...Array(5)].map((_, index) => (
                                                     <Star
                                                         key={index}
                                                         size={14}
                                                         fill={index < t.rating ? "#fbbf24" : "transparent"}
-                                                        className={index < t.rating ? "text-amber-400" : "text-slate-600/50"}
+                                                        className={index < t.rating ? "text-amber-400 drop-shadow-sm" : "text-slate-600/50"}
                                                     />
                                                 ))}
                                             </div>
 
-                                            <div className="mb-6 border-l-4 border-blue-500 pl-4">
-                                                <p className="text-base text-slate-100 font-medium leading-relaxed italic drop-shadow-md">
+                                            <div className="mb-6 border-l-[3px] border-blue-500 pl-4">
+                                                <p className="text-[15px] md:text-base text-slate-200 font-medium leading-relaxed italic drop-shadow-md line-clamp-4">
                                                     "{t.content}"
                                                 </p>
                                             </div>
@@ -168,10 +205,10 @@ const TestimonialsCarouselSection = () => {
                                             <div className="h-px w-full bg-linear-to-r from-white/30 to-transparent mb-5" />
 
                                             <div>
-                                                <h4 className="text-xl font-black text-white uppercase tracking-wide">
+                                                <h4 className="text-lg md:text-xl font-black text-white uppercase tracking-wide truncate">
                                                     {t.name}
                                                 </h4>
-                                                <p className="text-xs font-bold text-blue-400 tracking-[0.2em] mt-1 uppercase drop-shadow-sm">
+                                                <p className="text-[10px] md:text-xs font-black text-blue-400 tracking-[0.2em] mt-1.5 uppercase drop-shadow-sm truncate">
                                                     {t.role}
                                                 </p>
                                             </div>
@@ -182,26 +219,31 @@ const TestimonialsCarouselSection = () => {
                         ))}
                     </div>
                 </div>
+
+                {/* Navigasi Kanan */}
+                <button
+                    onClick={scrollNext}
+                    disabled={!nextBtnEnabled}
+                    className={cn(
+                        "absolute right-4 md:right-8 lg:right-[calc((100vw-1280px)/2+2rem)] top-1/2 -translate-y-1/2 z-20",
+                        "flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full",
+                        "bg-white/80 backdrop-blur-xl border-2 border-white shadow-[0_10px_30px_rgba(0,0,0,0.15)]",
+                        "text-blue-700 hover:bg-blue-600 hover:text-white hover:border-blue-500 hover:scale-110",
+                        "disabled:opacity-30 disabled:scale-100",
+                        "transition-all duration-300",
+                        "md:opacity-0 md:translate-x-4",
+                        isHovered && "md:opacity-100 md:translate-x-0"
+                    )}
+                >
+                    <ChevronRight size={28} strokeWidth={3} className="-mr-0.5 md:mr-1" />
+                </button>
             </div>
 
-            {/* BAGIAN 3: NAVIGASI BUTTON (Dimasukkan kembali ke container max-w-7xl agar tombol sejajar dengan batas pinggir layar) */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                <div className="hidden md:flex items-center justify-end gap-3 mt-8">
-                    <button
-                        onClick={scrollPrev}
-                        disabled={!prevBtnEnabled}
-                        className="p-3 rounded-full border border-slate-200 bg-white/60 backdrop-blur-md text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 disabled:opacity-30 disabled:hover:bg-white/60 disabled:hover:text-slate-700 shadow-sm transition-all duration-300"
-                    >
-                        <ChevronLeft size={20} strokeWidth={3} />
-                    </button>
-                    <button
-                        onClick={scrollNext}
-                        disabled={!nextBtnEnabled}
-                        className="p-3 rounded-full border border-slate-200 bg-white/60 backdrop-blur-md text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 disabled:opacity-30 disabled:hover:bg-white/60 disabled:hover:text-slate-700 shadow-sm transition-all duration-300"
-                    >
-                        <ChevronRight size={20} strokeWidth={3} />
-                    </button>
-                </div>
+            {/* Mobile Progress Bar (Opsional tapi sangat Best Practice) */}
+            <div className="flex md:hidden items-center justify-center gap-2 mt-6">
+                {[0, 1, 2].map((_, i) => (
+                    <div key={i} className={cn("h-1.5 rounded-full transition-all duration-300", i === 0 ? "w-6 bg-blue-600" : "w-1.5 bg-slate-300")} />
+                ))}
             </div>
 
         </section>
