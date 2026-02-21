@@ -117,33 +117,34 @@ export function Sidebar() {
           <div>
             <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Menu Utama</p>
             <div className="space-y-0.5">
-              {NAVIGATION_CONFIG.main.map((item) => <NavLink key={item.href} item={item} />)}
+              {NAVIGATION_CONFIG.main.map((item: any) => <NavLink key={item.href} item={item} />)}
             </div>
           </div>
         )}
 
         {/* GROUP: EXECUTIVE MENU (Director Only) */}
-        {isDirector && (
+        {/* [FIX TS & LOGIC]: Pastikan panjang array > 0 agar label "Executive" tidak muncul saat menu kosong */}
+        {isDirector && NAVIGATION_CONFIG.director.length > 0 && (
           <div>
             <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-800"></span>
               Executive
             </p>
             <div className="space-y-0.5">
-              {NAVIGATION_CONFIG.director.map((item) => <NavLink key={item.href} item={item} variant="exec" />)}
+              {NAVIGATION_CONFIG.director.map((item: any) => <NavLink key={item.href} item={item} variant="exec" />)}
             </div>
           </div>
         )}
 
         {/* GROUP: ADMINISTRATOR (Admin Only) */}
-        {isAdmin && (
+        {isAdmin && NAVIGATION_CONFIG.admin.length > 0 && (
           <div>
             <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
               Administrator
             </p>
             <div className="space-y-0.5">
-              {NAVIGATION_CONFIG.admin.map((item) => <NavLink key={item.href} item={item} variant="admin" />)}
+              {NAVIGATION_CONFIG.admin.map((item: any) => <NavLink key={item.href} item={item} variant="admin" />)}
             </div>
           </div>
         )}

@@ -80,7 +80,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {icon && (
             <div
               className={cn(
-                "absolute left-3 top-1/2 -translate-y-1/2 transition-colors pointer-events-none",
+                "absolute left-4 top-1/2 -translate-y-1/2 transition-colors pointer-events-none",
                 error
                   ? "text-rose-400"
                   : "text-slate-400 group-focus-within:text-brand-500"
@@ -98,7 +98,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             onChange={handleChange}
             onWheel={handleWheel}
             className={cn(
-              "flex w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 transition-all placeholder:text-slate-400",
+              // [FIX PWA & UX]
+              // 1. h-12 md:h-11 -> Lebih gendut di HP (48px) agar gampang di-tap jempol
+              // 2. text-base md:text-sm -> Teks 16px di HP mencegah Safari iOS auto-zoom yang merusak layout
+              "flex w-full rounded-xl border border-slate-200 bg-slate-50 px-4 h-12 md:h-11 text-base md:text-sm font-medium text-slate-800 transition-all placeholder:text-slate-400",
 
               // Focus
               "focus:bg-white focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10",
@@ -107,7 +110,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               "disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-slate-100",
 
               // Icon padding
-              icon ? "pl-10" : "",
+              icon ? "pl-11" : "",
 
               // Error state
               error

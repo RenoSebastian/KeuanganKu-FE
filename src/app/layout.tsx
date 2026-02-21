@@ -8,24 +8,25 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "KeuanganKu - MAXIPRO",
   description: "Aplikasi Perencanaan Keuangan Karyawan",
-  manifest: "/manifest.json", // [FIX] Memastikan file manifest dikenali oleh App Wrapper/Browser
+  // [FIX]: Hapus baris 'manifest: "/manifest.json"' dari sini. 
+  // Next.js App Router secara otomatis membaca file 'src/app/manifest.ts' Anda dan menyuntikkannya dengan benar.
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "KeuanganKu",
   },
   formatDetection: {
-    telephone: false, // [FIX] Mencegah deretan angka dikira nomor telepon & diblok biru oleh iOS
+    telephone: false,
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#082f49", // Disamakan dengan warna brand (brand-950) agar serasi dengan status bar HP
+  themeColor: "#082f49",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // [FIX] Kunci utama pencegah Zoom-in liar di iOS
+  maximumScale: 1,
   userScalable: false,
-  viewportFit: "cover", // [FIX] Memastikan aplikasi merambah hingga ke area Poni (Notch)
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -35,12 +36,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      {/* REVISI PWA NATIVE FEEL:
-        1. 'min-h-screen' -> Memastikan tinggi body penuh
-        2. 'overscroll-none' -> Mencegah pull-to-refresh (karet gelang) bawaan browser
-        3. 'select-none' -> Mencegah teks terblok biru saat user menekan layar agak lama
-      */}
-      <body
+      <body 
         className={`${inter.className} bg-slate-50 text-slate-900 antialiased min-h-screen overscroll-none select-none`}
       >
         {children}

@@ -1,5 +1,5 @@
 import React from "react";
-import { BottomNav } from "@/components/shared/bottom-nav";
+import BottomNav from "@/components/shared/bottom-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 
 /**
