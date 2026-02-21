@@ -4,6 +4,47 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* =========================================
+   [NEW] PWA NATIVE FEEL CONFIGURATION
+   ================================********* */
+@layer base {
+
+  /* 1. Matikan kotak abu-abu yang muncul saat tombol di-tap di HP Android */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 2. Matikan efek 'karet gelang' (Overscroll/Pull-to-refresh) di browser HP */
+  html,
+  body {
+    overscroll-behavior-y: none;
+
+    /* 3. Mencegah user ngeblok teks jadi biru (Copy/Paste) secara gak sengaja */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* 4. TAPI, form input tetap HARUS bisa diketik dan diblok teksnya */
+  input,
+  textarea {
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
+
+  /* 5. VAKSIN ANTI-ZOOM iOS: 
+     iPhone memaksa layar nge-zoom masuk jika font di dalam input < 16px.
+     Kita paksa semua elemen form minimal 16px di mobile. */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* src/app/globals.css */
 
 .embla {

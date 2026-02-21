@@ -3,6 +3,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// =========================================================================
+// [FEATURE FLAG]: GEMBOK FITUR DIREKTUR
+// Ubah menjadi 'true' jika fitur direktur sudah siap rilis ke tahap produksi.
+// =========================================================================
+const IS_DIRECTOR_FEATURE_ENABLED = false;
+
 // [FIX 1] Tambahkan '/auth' ke sini agar dianggap rute publik
 const PUBLIC_ROUTES = [
   '/login',
@@ -15,6 +21,13 @@ const PUBLIC_ROUTES = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // --- 🔒 LAPISAN KEAMANAN PERTAMA: BLOKIR ROUTE DIRECTOR ---
+  // Jika ada yang mencoba mengakses /director padahal fitur ini sedang dimatikan
+  if (pathname.startsWith('/director') && !IS_DIRECTOR_FEATURE_ENABLED) {
+    // Tendang kembali ke dashboard. (Jika belum login, rule di bawah otomatis akan lempar dia ke /login)
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
 
   // 1. Ambil Token dari Cookies
   const token = request.cookies.get('token')?.value || request.cookies.get('accessToken')?.value;
@@ -53,9 +66,15 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
       }
 
-      let targetDashboard = '/dashboard'; // Default User
-      if (userRole === 'ADMIN') targetDashboard = '/admin/dashboard';
-      if (userRole === 'DIRECTOR') targetDashboard = '/director/dashboard';
+      let targetDashboard = '/dashboard'; // Default User (Agen)
+
+      if (userRole === 'ADMIN') {
+        targetDashboard = '/admin/dashboard';
+      }
+      // Jika role-nya DIRECTOR tapi fiturnya belum rilis, lempar dia ke dashboard umum dulu
+      else if (userRole === 'DIRECTOR') {
+        targetDashboard = IS_DIRECTOR_FEATURE_ENABLED ? '/director/dashboard' : '/dashboard';
+      }
 
       return NextResponse.redirect(new URL(targetDashboard, request.url));
     }
@@ -72,12 +91,12 @@ export function middleware(request: NextRequest) {
     // 3. Proteksi Area ADMIN (General)
     if (isAdminArea) {
       if (userRole !== 'ADMIN') {
-        const fallback = userRole === 'DIRECTOR' ? '/director/dashboard' : '/dashboard';
+        const fallback = (userRole === 'DIRECTOR' && IS_DIRECTOR_FEATURE_ENABLED) ? '/director/dashboard' : '/dashboard';
         return NextResponse.redirect(new URL(fallback, request.url));
       }
     }
 
-    // 4. Proteksi Area DIRECTOR
+    // 4. Proteksi Area DIRECTOR (Hanya tereksekusi jika IS_DIRECTOR_FEATURE_ENABLED = true)
     if (isDirectorArea) {
       if (userRole !== 'DIRECTOR') {
         const fallback = userRole === 'ADMIN' ? '/admin/dashboard' : '/dashboard';

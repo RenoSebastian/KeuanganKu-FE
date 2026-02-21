@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutGrid, ClipboardCheck, User, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function BottomNav() {
+export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -27,7 +27,7 @@ export function BottomNav() {
       label: "Checkup",
       icon: ClipboardCheck,
       href: "/finance/checkup",
-      isPrimary: false
+      isPrimary: true // Diubah ke true agar ter-render sebagai tombol tengah yang menonjol
     },
     {
       label: "Profil",
@@ -38,17 +38,20 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+    // 1. md:hidden agar hilang di PC/Tablet
+    // 2. Select-none agar teks tidak terblok biru saat ditekan lama
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-100 select-none">
 
-      {/* Container Background dengan efek Glassmorphism & Shadow halus */}
-      <div className="bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-        <div className="flex justify-between items-end h-16 max-w-md mx-auto px-6 relative">
+      {/* Container Background dengan efek Glassmorphism & Shadow halus.
+        [FIX] pb-[env(safe-area-inset-bottom)] digunakan sebagai penyelamat Poni / Home Indicator iOS 
+      */}
+      <div className="bg-white/90 backdrop-blur-2xl border-t border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2">
+        <div className="flex justify-around items-end h-14 max-w-md mx-auto px-4 relative">
 
           {menuItems.map((item) => {
             const Icon = item.icon;
 
             // Logic Active State yang Strict
-            // Mencegah '/finance' menyala saat kita berada di '/finance/checkup'
             let isActive = false;
             if (item.href === "/finance") {
               isActive = pathname.startsWith("/finance") && !pathname.startsWith("/finance/checkup");
@@ -56,23 +59,24 @@ export function BottomNav() {
               isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             }
 
-            // RENDER: Primary Button (Tengah / Checkup)
+            // RENDER: Primary Button (Tengah / Checkup Floating)
             if (item.isPrimary) {
               return (
-                <div key={item.href} className="relative -top-5 group">
+                <div key={item.href} className="relative -top-6 group">
                   <button
                     onClick={() => router.push(item.href)}
                     className={cn(
                       "flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all duration-300",
+                      // Perbaiki bg-linear-to-* menjadi bg-gradient-to-* (Standar Tailwind)
                       "bg-linear-to-tr from-blue-600 to-indigo-600 text-white border-4 border-slate-50",
-                      isActive ? "shadow-blue-500/40 translate-y-0 scale-110" : "shadow-slate-400/20 hover:scale-105"
+                      isActive ? "shadow-blue-500/40 translate-y-0 scale-110" : "shadow-slate-400/20 hover:scale-105 active:scale-95"
                     )}
                   >
                     <Icon className="w-6 h-6" strokeWidth={2.5} />
                   </button>
                   <span className={cn(
-                    "absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold tracking-wide transition-colors",
-                    isActive ? "text-indigo-600" : "text-slate-400"
+                    "absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-bold tracking-wide transition-colors whitespace-nowrap",
+                    isActive ? "text-indigo-700" : "text-slate-500"
                   )}>
                     {item.label}
                   </span>
@@ -85,16 +89,17 @@ export function BottomNav() {
               <button
                 key={item.href}
                 onClick={() => router.push(item.href)}
-                className="group flex flex-col items-center justify-center w-12 h-full pb-2 relative outline-none"
+                // Tambahkan active:scale-95 agar terasa "membal" saat di-tap seperti App Native
+                className="group flex flex-col items-center justify-center w-16 h-full pb-1 relative outline-none transition-transform active:scale-90"
               >
                 {/* Icon Wrapper */}
                 <div className={cn(
-                  "p-1.5 rounded-xl transition-all duration-300 mb-1",
+                  "p-1.5 rounded-2xl transition-all duration-300 mb-1",
                   isActive ? "bg-blue-50 text-blue-600" : "text-slate-400 group-hover:text-slate-600"
                 )}>
                   <Icon
                     className={cn(
-                      "w-6 h-6 transition-all duration-300",
+                      "w-5.5[22px] transition-all duration-300",
                       isActive && "fill-blue-200/50"
                     )}
                     strokeWidth={isActive ? 2.5 : 2}
@@ -111,7 +116,7 @@ export function BottomNav() {
 
                 {/* Active Indicator Dot */}
                 {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 bg-blue-600 rounded-full animate-in zoom-in" />
+                  <span className="absolute bottom-0 w-1 h-1 bg-blue-600 rounded-full animate-in zoom-in" />
                 )}
               </button>
             );

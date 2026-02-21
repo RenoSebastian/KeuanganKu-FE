@@ -21,9 +21,6 @@ export const NAVIGATION_CONFIG = {
   // Menu Umum (Pegawai/User Biasa)
   main: [
     { label: "Dashboard", icon: Home, href: "/dashboard" },
-
-
-
     { label: "Financial Checkup", icon: Calculator, href: "/calculator/checkup" },
     { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
     { label: "Profil Risiko", icon: Activity, href: "/risk-profile" },
@@ -42,8 +39,9 @@ export const NAVIGATION_CONFIG = {
     { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },
   ],
 
-  // Menu Khusus Direksi
+  // Menu Khusus Direksi (Disembunyikan sementara untuk rilis Fase 1)
   director: [
+    /* --- TODO: UNCOMMENT KODE DI BAWAH INI JIKA FITUR DIRECTOR SIAP DIRILIS ---
     {
       label: "Executive Summary",
       icon: BarChart3,
@@ -59,5 +57,6 @@ export const NAVIGATION_CONFIG = {
       icon: Trophy,
       href: "/director/unit-rankings"
     },
+    ------------------------------------------------------------------------- */
   ]
 };
