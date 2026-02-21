@@ -7,106 +7,129 @@ import { ShieldCheck, ArrowUpRight, Sparkles } from 'lucide-react';
 
 const PartnershipSection = () => {
     return (
-        <section className="relative py-16 lg:py-24 z-10" id="partnership">
+        <section className="relative py-16 lg:py-24 z-10 overflow-hidden" id="partnership">
             <div className="container mx-auto px-4 relative z-10">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
 
-                    {/* SISI KIRI: THE LOGO DISPLAY (Thick Frosted Glassmorphism) */}
+                    {/* SISI KIRI: THE LOGO DISPLAY (Heavy Sandblasted Frosted Glass dengan Border Tegas) */}
                     <motion.div
                         initial={{ opacity: 0, x: -30 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8 }}
-                        className="relative perspective-1000"
+                        className="relative"
                     >
-                        {/* THE GLASS CARD: Ketebalan maksimal dengan inset shadow dan border-2 */}
-                        <div className="relative bg-white/50 backdrop-blur-3xl rounded-[3rem] p-12 border-2 border-white/70 shadow-[0_30px_60px_rgba(0,0,0,0.08)] overflow-hidden group">
+                        {/* THE SECRET SAUCE: Siluet warna di belakang kaca */}
+                        <div className="absolute top-[20%] left-[10%] w-[60%] h-[60%] bg-blue-500/30 rounded-full blur-[60px] pointer-events-none -z-10" />
+                        <div className="absolute bottom-[10%] right-[10%] w-[50%] h-[50%] bg-indigo-400/20 rounded-full blur-[50px] pointer-events-none -z-10" />
 
-                            {/* Pendar cahaya internal agar kaca terasa tebal dan bereaksi terhadap cahaya */}
-                            <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-white/60 blur-[60px] rounded-full pointer-events-none" />
+                        {/* PERBAIKAN BORDER: 
+                           1. border-2 (Dipertebal)
+                           2. border-slate-400/60 (Warnanya digelapkan menjadi abu-abu silver agar batas card terlihat jelas)
+                           3. Shadow luar dinaikkan intensitasnya agar card lebih "mengambang"
+                        */}
+                        <div className="relative bg-white/20 backdrop-blur-3xl rounded-[3.5rem] p-12 lg:p-16 border-2 border-slate-400/60 shadow-[0_30px_60px_rgba(0,0,0,0.15)] overflow-hidden group">
 
-                            {/* Grainy Texture Overlay untuk material feel yang realistis */}
-                            <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+                            {/* Efek Cahaya Internal */}
+                            <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-white/40 blur-[70px] rounded-full pointer-events-none" />
 
-                            <div className="flex flex-col items-center gap-12 relative z-10">
-                                {/* Badge Kaca Tipis */}
-                                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.3em] text-blue-700 bg-white/60 backdrop-blur-md border border-white/80 px-5 py-2.5 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.05)]">
-                                    <Sparkles size={12} className="text-blue-500 animate-pulse" />
+                            {/* Grainy Texture */}
+                            <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+
+                            <div className="flex flex-col items-center gap-14 relative z-10">
+                                {/* Badge Kaca Tipis dengan border yang juga disesuaikan */}
+                                <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-blue-800 bg-white/60 backdrop-blur-md border border-slate-300/80 px-6 py-3 rounded-full shadow-sm">
+                                    <Sparkles size={12} className="text-blue-600 animate-pulse" />
                                     Verified Ecosystem
                                 </span>
 
                                 <div className="flex flex-col md:flex-row items-center justify-center gap-12 w-full">
-                                    {/* LOGO 1: Tanpa Grayscale, langsung berwarna */}
                                     <div className="group/logo relative">
                                         <Image
                                             src="/images/maxipro.webp"
                                             alt="Maxipro"
-                                            width={160}
-                                            height={80}
+                                            width={150}
+                                            height={75}
                                             className="object-contain transition-transform duration-500 group-hover/logo:scale-110 drop-shadow-md"
                                         />
                                     </div>
 
-                                    {/* Separator Line: Dibuat seperti ukiran di dalam kaca */}
-                                    <div className="h-px w-20 md:w-px md:h-20 bg-slate-300/60 shadow-[1px_1px_0_rgba(255,255,255,0.8)]" />
+                                    {/* Separator */}
+                                    <div className="h-px w-24 md:w-px md:h-20 bg-slate-300 shadow-[1px_1px_0_rgba(255,255,255,0.8)]" />
 
-                                    {/* LOGO 2: Tanpa Grayscale, langsung berwarna */}
                                     <div className="group/logo relative">
                                         <Image
                                             src="/images/logogeocitra.png"
                                             alt="Geocitra"
-                                            width={180}
-                                            height={180}
+                                            width={170}
+                                            height={170}
                                             className="object-contain transition-transform duration-500 group-hover/logo:scale-110 drop-shadow-lg"
                                         />
                                     </div>
                                 </div>
 
-                                <p className="text-slate-600 text-sm font-bold italic text-center drop-shadow-sm">
-                                    Bersama membangun standar baru industri asuransi
-                                </p>
+                                <div className="space-y-2">
+                                    <p className="text-slate-800 text-sm font-black italic text-center tracking-tight drop-shadow-sm">
+                                        "Bersama membangun standar baru industri asuransi"
+                                    </p>
+                                    <div className="h-1.5 w-12 bg-blue-600/30 mx-auto rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Floating "Security" Badge: Border digelapkan dikit */}
+                        <div className="absolute -bottom-6 -right-6 bg-white/70 backdrop-blur-2xl p-5 rounded-[2rem] shadow-2xl border-2 border-slate-300/80 flex items-center gap-4 animate-float">
+                            <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/40">
+                                <ShieldCheck size={20} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Enterprise</p>
+                                <p className="text-sm font-black text-slate-900 leading-none">Secure Data</p>
                             </div>
                         </div>
                     </motion.div>
 
-                    {/* SISI KANAN: TEXT (Typography Focus) */}
+                    {/* SISI KANAN: TEXT */}
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8, delay: 0.2 }}
+                        className="relative"
                     >
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold mb-8 uppercase tracking-widest shadow-lg shadow-slate-900/10">
-                            <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black mb-8 uppercase tracking-[0.3em] shadow-xl">
+                            <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_8px_#60a5fa]" />
                             Strategic Partnership
                         </div>
 
-                        <h2 className="text-4xl md:text-6xl font-[1000] text-slate-900 mb-8 leading-[1.1] tracking-tighter">
-                            Membangun Kepercayaan Klien <br />
-                            <span className="relative inline-block mt-2">
-                                {/* Diperbaiki: bg-linear-to-* menjadi bg-gradient-to-* */}
+                        <h2 className="text-4xl md:text-6xl font-[1000] text-slate-900 mb-8 leading-[1.05] tracking-tighter">
+                            Membangun Kepercayaan <br />
+                            <span className="relative inline-block mt-3">
                                 <span className="relative z-10 text-transparent bg-clip-text bg-linear-to-r from-blue-700 via-blue-600 to-cyan-500 drop-shadow-sm">
-                                    Melalui Pendekatan Berbasis Data
+                                    Berbasis Data Akurat
                                 </span>
-                                <svg className="absolute -bottom-2 left-0 w-full h-3 text-blue-200/60 -z-10" viewBox="0 0 100 10" preserveAspectRatio="none">
+                                <svg className="absolute -bottom-2 left-0 w-full h-3 text-blue-200/80 -z-10" viewBox="0 0 100 10" preserveAspectRatio="none">
                                     <path d="M0 5 Q 25 0 50 5 T 100 5" stroke="currentColor" strokeWidth="8" fill="transparent" />
                                 </svg>
                             </span>
                         </h2>
 
-                        <div className="space-y-8">
-                            <p className="text-xl text-slate-700 leading-relaxed font-medium">
-                                <strong className="text-blue-700 font-black">KeuanganKu</strong> adalah alat bantu konsultasi yang dirancang khusus untuk agen asuransi profesional lintas perusahaan.
+                        <div className="space-y-10 relative">
+                            <p className="text-xl text-slate-600 leading-relaxed font-medium">
+                                <strong className="text-blue-700 font-black">KeuanganKu</strong> adalah ekosistem konsultasi digital yang dirancang untuk mendukung profesionalisme agen asuransi.
                             </p>
 
-                            {/* THE QUOTE BOX: Diselaraskan menjadi Thick Frosted Glass */}
-                            <div className="relative bg-white/60 backdrop-blur-2xl p-8 rounded-[2rem] border-2 border-white/80 shadow-[0_20px_40px_rgba(0,0,0,0.05)] overflow-hidden">
-                                {/* Aksen gradient sangat halus di pojok quote */}
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/50 blur-2xl rounded-full pointer-events-none" />
+                            {/* THE QUOTE BOX: Border juga diselaraskan menjadi slate-400/60 */}
+                            <div className="relative">
+                                {/* Siluet belakang quote box */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-cyan-300/20 rounded-full blur-2xl pointer-events-none -z-10" />
 
-                                <p className="relative z-10 text-lg text-slate-700 leading-relaxed font-medium italic">
-                                    "Aplikasi ini membantu Anda beralih dari <strong className="text-slate-900 font-black uppercase tracking-tight">selling</strong> ke <strong className="text-blue-700 font-black uppercase tracking-tight">consulting</strong>, membuat diskusi asuransi menjadi kebutuhan logis bagi klien."
-                                </p>
+                                {/* Kaca Quote Box */}
+                                <div className="relative bg-white/20 backdrop-blur-3xl p-8 rounded-[2.5rem] border-2 border-slate-400/60 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)]">
+                                    <p className="text-lg text-slate-800 leading-relaxed font-bold italic drop-shadow-sm">
+                                        "Aplikasi ini membantu Anda beralih dari <span className="text-slate-900 font-black uppercase tracking-tighter underline decoration-blue-300 decoration-4">selling</span> ke <span className="text-blue-700 font-black uppercase tracking-tighter underline decoration-blue-200 decoration-4">consulting</span>."
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </motion.div>

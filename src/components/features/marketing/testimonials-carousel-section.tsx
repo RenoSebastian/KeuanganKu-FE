@@ -107,23 +107,23 @@ const TestimonialsCarouselSection = () => {
 
             {/* BAGIAN 1: HEADER */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 mb-12 lg:mb-16">
-                <div className="text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div>
-                        <Badge
-                            variant="outline"
-                            className="mb-4 border-blue-400/30 text-blue-600 bg-blue-500/10 px-4 py-1.5 uppercase tracking-[0.3em] text-[10px] font-black backdrop-blur-md shadow-sm"
-                        >
-                            Hall of Fame
-                        </Badge>
-                        <h2 className="text-4xl lg:text-5xl font-[1000] text-slate-900 tracking-tighter leading-[1.1]">
-                            Kisah Sukses <br className="hidden md:block" />
-                            <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600">
-                                Para Profesional
-                            </span>
-                        </h2>
-                    </div>
+                <div className="flex flex-col items-center justify-center text-center gap-4">
+                    <Badge
+                        variant="outline"
+                        className="mb-2 border-blue-400/30 text-blue-600 bg-blue-500/10 px-4 py-1.5 uppercase tracking-[0.3em] text-[10px] font-black backdrop-blur-md shadow-sm"
+                    >
+                        Ulasan
+                    </Badge>
 
-                    <div className="md:hidden flex items-center justify-center gap-2 text-slate-500 mt-2 bg-slate-200/50 px-4 py-2 rounded-full border border-slate-300">
+                    <h2 className="text-4xl lg:text-5xl font-[1000] text-slate-900 tracking-tighter leading-[1.1]">
+                        Apa Kata Mereka <br className="hidden md:block" />
+                        <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600">
+                            Tentang Aplikasi Kami
+                        </span>
+                    </h2>
+
+                    {/* Instruksi Geser untuk Mobile */}
+                    <div className="md:hidden flex items-center justify-center gap-2 text-slate-500 mt-2 bg-slate-200/50 px-4 py-2 rounded-full border border-slate-300 shadow-sm">
                         <Hand size={14} className="animate-bounce text-blue-600" />
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Geser untuk melihat</span>
                     </div>
