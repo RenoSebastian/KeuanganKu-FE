@@ -43,7 +43,7 @@ export default function BottomNav() {
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-100 select-none">
 
       {/* Container Background dengan efek Glassmorphism & Shadow halus.
-        [FIX] pb-[env(safe-area-inset-bottom)] digunakan sebagai penyelamat Poni / Home Indicator iOS 
+        [FIX] pb-[calc(env(safe-area-inset-bottom)+8px)] digunakan sebagai penyelamat Poni / Home Indicator iOS 
       */}
       <div className="bg-white/90 backdrop-blur-2xl border-t border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2">
         <div className="flex justify-around items-end h-14 max-w-md mx-auto px-4 relative">
@@ -67,7 +67,7 @@ export default function BottomNav() {
                     onClick={() => router.push(item.href)}
                     className={cn(
                       "flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all duration-300",
-                      // Perbaiki bg-linear-to-* menjadi bg-gradient-to-* (Standar Tailwind)
+                      // [KOREKSI 1]: Menggunakan syntax gradient standar Tailwind
                       "bg-linear-to-tr from-blue-600 to-indigo-600 text-white border-4 border-slate-50",
                       isActive ? "shadow-blue-500/40 translate-y-0 scale-110" : "shadow-slate-400/20 hover:scale-105 active:scale-95"
                     )}
@@ -89,7 +89,7 @@ export default function BottomNav() {
               <button
                 key={item.href}
                 onClick={() => router.push(item.href)}
-                // Tambahkan active:scale-95 agar terasa "membal" saat di-tap seperti App Native
+                // Tambahkan active:scale-90 agar terasa "membal" saat di-tap seperti App Native
                 className="group flex flex-col items-center justify-center w-16 h-full pb-1 relative outline-none transition-transform active:scale-90"
               >
                 {/* Icon Wrapper */}
@@ -99,7 +99,8 @@ export default function BottomNav() {
                 )}>
                   <Icon
                     className={cn(
-                      "w-5.5[22px] transition-all duration-300",
+                      // [KOREKSI 2]: Memperbaiki penulisan arbitrary width yang error
+                      "w-5.5 transition-all duration-300",
                       isActive && "fill-blue-200/50"
                     )}
                     strokeWidth={isActive ? 2.5 : 2}
