@@ -2,16 +2,18 @@
 
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
-    ClipboardList,
+    User,
     FileText,
     ShieldCheck,
     Loader2,
     RefreshCcw,
     History,
     Upload,
-    FileSearch
+    FileSearch,
+    CheckCircle2,
+    Sparkles
 } from "lucide-react";
 
 // Components
@@ -23,7 +25,7 @@ import { Button } from "@/components/ui/button";
 
 // Types & Services
 import {
-    CreateRiskProfileSimulationDto as RiskProfilePayload, // [FIX] Import Alias agar sesuai Type Def
+    CreateRiskProfileSimulationDto as RiskProfilePayload,
     RiskProfileSimulationResult,
     RiskProfileAnswerItem
 } from "@/lib/types/risk-profile";
@@ -31,14 +33,21 @@ import { riskProfileService } from "@/services/risk-profile.service";
 
 // Hooks
 import { useSimulationPersistence, SIMULATION_STORAGE_KEYS } from "@/hooks/use-simulation-persistence";
+import { cn } from "@/lib/utils";
 
 // Definisi Step Flow
 type WizardStep = "IDENTITY" | "QUIZ" | "RESULT";
 
-// Interface State Data untuk Persistence
+// Pemetaan Step untuk UI Logic (Dynamic Island Stepper)
+const STEP_MAP: Record<WizardStep, { id: number, label: string, icon: any }> = {
+    IDENTITY: { id: 1, label: "Identitas", icon: User },
+    QUIZ: { id: 2, label: "Kuesioner", icon: FileText },
+    RESULT: { id: 3, label: "Analisa", icon: ShieldCheck }
+};
+
 interface ClientIdentity {
     name: string;
-    dob: string; // YYYY-MM-DD
+    dob: string;
     phone?: string;
     job?: string;
     city?: string;
@@ -51,7 +60,7 @@ export function RiskProfileWizard() {
     const [isDownloading, setIsDownloading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Data Input (Lifted State)
+    // Data Input
     const [clientData, setClientData] = useState<ClientIdentity | null>(null);
     const [answers, setAnswers] = useState<RiskProfileAnswerItem[]>([]);
 
@@ -60,13 +69,13 @@ export function RiskProfileWizard() {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
-    // --- PERSISTENCE HOOK (SAFETY NET) ---
+    // --- PERSISTENCE HOOK ---
     const stepIndex = currentStep === "IDENTITY" ? 0 : currentStep === "QUIZ" ? 1 : 2;
 
     const {
         draftAvailable,
         restoreDraft,
-        clearStorage, // [FIX] Gunakan nama asli dari hook (clearStorage)
+        clearStorage,
         ignoreDraft,
         draftData
     } = useSimulationPersistence<ClientIdentity, RiskProfileAnswerItem[]>(
@@ -74,17 +83,15 @@ export function RiskProfileWizard() {
         clientData,
         answers,
         stepIndex,
-        simulationResult, // State Hasil
-        pdfUrl,           // State PDF
-        mgcToken          // State Token
+        simulationResult,
+        pdfUrl,
+        mgcToken
     );
 
-    // [FIX] Helper alias agar kode di bawah tetap bersih & Safe Access untuk draftData
     const clearDraft = clearStorage;
     const savedDraftName = (draftData as any)?.clientData?.name || "Klien";
 
     // --- HANDLERS: IMPORT .MGC ---
-
     const handleImportClick = () => {
         fileInputRef.current?.click();
     };
@@ -93,14 +100,13 @@ export function RiskProfileWizard() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Kontrol ekstensi file
         if (!file.name.endsWith(".mgc")) {
             toast.error("Format file tidak valid. Gunakan file .mgc");
             return;
         }
 
         setIsLoading(true);
-        const toastId = toast.loading("Membaca file simulasi...");
+        const toastId = toast.loading("Membaca file simulasi...", { description: "Mengekstrak token MGC..." });
 
         try {
             const reader = new FileReader();
@@ -108,35 +114,30 @@ export function RiskProfileWizard() {
                 const tokenString = event.target?.result as string;
 
                 try {
-                    // 1. Decode token via service
                     const decoded = await riskProfileService.decodeSimulationToken(tokenString);
 
-                    // [FIX] Normalisasi Answers: Backend mungkin kirim Object, Frontend butuh Array
                     let normalizedAnswers: RiskProfileAnswerItem[] = [];
                     const rawAnswers = decoded.financial.answers;
 
                     if (Array.isArray(rawAnswers)) {
                         normalizedAnswers = rawAnswers as RiskProfileAnswerItem[];
                     } else if (typeof rawAnswers === 'object' && rawAnswers !== null) {
-                        // Konversi dari Record<string, string> ke Array
                         normalizedAnswers = Object.entries(rawAnswers).map(([key, val]) => ({
                             questionId: key,
-                            value: Number(val) // Pastikan jadi number
+                            value: Number(val)
                         }));
                     }
 
-                    // 2. Hydrate State dengan data yang sudah dinormalisasi
                     setClientData(decoded.client);
                     setAnswers(normalizedAnswers);
                     setSimulationResult(decoded);
                     setMgcToken(tokenString);
-                    setPdfUrl(null); // Reset PDF URL karena hasil import belum punya blob PDF
+                    setPdfUrl(null);
 
-                    // 3. Langsung ke step RESULT
                     setCurrentStep("RESULT");
-                    toast.success("Data simulasi berhasil di-import.", { id: toastId });
+                    toast.success("Import Berhasil!", { id: toastId, description: "Data simulasi klien berhasil dimuat ulang." });
                 } catch (err: any) {
-                    toast.error(err.message || "Gagal men-decode file.", { id: toastId });
+                    toast.error(err.message || "Gagal mendekripsi file MGC.", { id: toastId });
                 } finally {
                     setIsLoading(false);
                 }
@@ -144,34 +145,29 @@ export function RiskProfileWizard() {
             reader.readAsText(file);
         } catch (error) {
             setIsLoading(false);
-            toast.error("Gagal membaca file.");
+            toast.error("Gagal membaca file fisik.");
         }
 
-        // Reset input file agar bisa upload file yang sama lagi jika perlu
         if (e.target) e.target.value = "";
     };
 
     // --- HANDLERS: RESTORE & FLOW ---
-
     const handleRestoreSession = () => {
-        // [FIX] Type Casting 'any' untuk mengakses properti payload storage dengan aman
         const draft = restoreDraft() as any;
 
         if (draft) {
             if (draft.clientData) setClientData(draft.clientData);
             if (draft.inputData) setAnswers(draft.inputData);
 
-            // [FIX] Restore Result State juga
             if (draft.result) setSimulationResult(draft.result);
             if (draft.pdfUrl) setPdfUrl(draft.pdfUrl);
             if (draft.mgcToken) setMgcToken(draft.mgcToken);
 
-            // Smart Step Restoration
             if (draft.step === 2 || draft.result) setCurrentStep("RESULT");
             else if (draft.step === 1) setCurrentStep("QUIZ");
             else setCurrentStep("IDENTITY");
 
-            toast.success("Sesi sebelumnya berhasil dipulihkan.");
+            toast.success("Sesi Berhasil Dipulihkan", { description: "Anda melanjutkan dari titik terakhir yang belum tersimpan." });
         }
     };
 
@@ -183,14 +179,14 @@ export function RiskProfileWizard() {
 
     const handleQuizFinish = async (submittedAnswers: RiskProfileAnswerItem[]) => {
         if (!clientData) {
-            toast.error("Data identitas klien hilang. Silakan mulai dari awal.");
+            toast.error("Integritas Data Hilang", { description: "Data profil klien tidak ditemukan. Silakan mulai dari awal." });
             setCurrentStep("IDENTITY");
             return;
         }
 
         setAnswers(submittedAnswers);
         setIsLoading(true);
-        const toastId = toast.loading("Menganalisis profil risiko klien...");
+        const toastId = toast.loading("Menganalisis Profil...", { description: "Memproses matriks toleransi risiko..." });
 
         const payload: RiskProfilePayload = {
             clientName: clientData.name,
@@ -208,16 +204,15 @@ export function RiskProfileWizard() {
             setMgcToken(response.token);
 
             setCurrentStep("RESULT");
-            toast.success("Analisis selesai!", { id: toastId });
+            toast.success("Analisis Selesai", { id: toastId, description: "Laporan kesimpulan profil risiko siap dibaca." });
         } catch (error: any) {
-            toast.error(error.message || "Gagal memproses simulasi.", { id: toastId });
+            toast.error(error.message || "Gagal memproses simulasi kalkulasi.", { id: toastId });
         } finally {
             setIsLoading(false);
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
 
-    // [SMART LOGIC] Handle Download Action (Lazy Generation)
     const handleDownloadAction = async () => {
         if (!clientData || answers.length === 0) {
             toast.error("Data simulasi tidak lengkap.");
@@ -230,10 +225,7 @@ export function RiskProfileWizard() {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
-            // KONDISI IMPORT: Jika PDF belum ada di memori, generate ulang sekarang
             if (!targetPdfUrl) {
-                // toast.info("Menyiapkan dokumen PDF..."); // Opsional: Beri feedback user
-
                 const payload: RiskProfilePayload = {
                     clientName: clientData.name,
                     clientDob: clientData.dob,
@@ -243,17 +235,14 @@ export function RiskProfileWizard() {
                     answers: answers,
                 };
 
-                // Re-call endpoint simulasi untuk dapat PDF Stream
                 const response = await riskProfileService.simulateRiskProfile(payload);
                 targetPdfUrl = response.pdfUrl;
-                targetToken = response.token; // Update token juga untuk memastikan sinkron
+                targetToken = response.token;
 
-                // Simpan ke state agar klik berikutnya instan
                 setPdfUrl(targetPdfUrl);
                 setMgcToken(targetToken);
             }
 
-            // Proses Download Aktual
             if (targetPdfUrl) {
                 const link = document.createElement('a');
                 link.href = targetPdfUrl;
@@ -273,15 +262,15 @@ export function RiskProfileWizard() {
                     document.body.appendChild(linkMgc);
                     linkMgc.click();
                     linkMgc.remove();
-                    toast.success("Dokumen dan backup berhasil diunduh.");
+                    toast.success("Dokumen PDF dan File Backup berhasil diunduh.");
                 }
 
-                clearDraft(); // Menggunakan alias clearStorage
+                clearDraft();
             } else {
-                toast.error("Gagal membuat dokumen PDF.");
+                toast.error("Sistem gagal menghasilkan dokumen PDF.");
             }
         } catch (error: any) {
-            toast.error("Terjadi kesalahan saat memproses dokumen.");
+            toast.error("Terjadi kesalahan teknis saat merender dokumen.");
             console.error(error);
         } finally {
             setIsDownloading(false);
@@ -294,44 +283,97 @@ export function RiskProfileWizard() {
     };
 
     const handleResetFull = () => {
-        if (confirm("Mulai sesi baru? Data saat ini akan dihapus.")) {
+        if (confirm("Apakah Anda yakin ingin memulai sesi baru? Semua input saat ini akan dihapus permanen.")) {
             setClientData(null);
             setAnswers([]);
             setSimulationResult(null);
             setPdfUrl(null);
             setMgcToken(null);
-            clearDraft(); // Menggunakan alias clearStorage
+            clearDraft();
             setCurrentStep("IDENTITY");
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
 
-    return (
-        <div className="w-full py-4">
-            {/* Hidden File Input */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".mgc"
-                className="hidden"
-            />
+    // --- ANIMATION VARIANTS (PWA Fluidity) ---
+    const pageVariants: Variants = {
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1, transition: { stiffness: 300, damping: 25 } },
+        exit: { opacity: 0, y: -20, scale: 0.95, transition: { duration: 0.2 } }
+    };
 
-            {/* 1. SAFETY NET BANNER */}
+    // [FIX] Helper function untuk mengatasi TS Error 2367 (Narrowing Issue)
+    const getPillLeftPosition = (step: WizardStep) => {
+        switch (step) {
+            case "IDENTITY": return '4px';
+            case "QUIZ": return 'calc(33.33% + 2px)';
+            case "RESULT": return 'calc(66.66% - 2px)';
+            default: return '4px';
+        }
+    };
+
+    return (
+        <div className="w-full flex flex-col gap-6 md:gap-8 pb-10">
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".mgc" className="hidden" />
+
+            {/* ========================================================
+                1. FLOATING DYNAMIC ISLAND STEPPER
+                ======================================================== */}
+            {/* Sembunyikan stepper di mode QUIZ karena Quiz punya tracker sendiri yang lebih akurat */}
+            {currentStep !== "QUIZ" && (
+                <div className="sticky top-16 md:top-20 z-30 mx-auto w-full max-w-sm animate-in fade-in slide-in-from-top-4">
+                    <div className="bg-white/80 backdrop-blur-2xl rounded-full p-1.5 shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] border border-white/40 flex items-center justify-between relative overflow-hidden">
+
+                        {/* Animated Active Background Pill */}
+                        <div
+                            className="absolute top-1.5 bottom-1.5 rounded-full bg-slate-900 transition-all duration-500"
+                            style={{
+                                width: 'calc(33.33% - 4px)',
+                                left: getPillLeftPosition(currentStep) // [FIX] Gunakan helper function di sini
+                            }}
+                        />
+
+                        {/* Step Items */}
+                        {(Object.keys(STEP_MAP) as WizardStep[]).map((stepKey) => {
+                            const step = STEP_MAP[stepKey];
+                            const isActive = currentStep === stepKey;
+                            const isDone = STEP_MAP[currentStep].id > step.id;
+                            const Icon = step.icon;
+
+                            return (
+                                <div key={stepKey} className="relative z-10 flex-1 flex items-center justify-center py-2.5">
+                                    <div className={cn(
+                                        "flex items-center gap-2 transition-colors duration-300",
+                                        isActive ? "text-white" : isDone ? "text-emerald-500" : "text-slate-400"
+                                    )}>
+                                        {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                                        <span className="text-[11px] font-black uppercase tracking-wider hidden md:block">
+                                            {step.label}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================
+                2. SAFETY NET BANNER (DRAFT RESTORE)
+                ======================================================== */}
             {draftAvailable && currentStep === "IDENTITY" && (
-                <Alert className="mb-8 bg-blue-50 border-blue-200 text-blue-800 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-                    <History className="h-4 w-4 text-blue-600" />
-                    <AlertTitle className="font-bold text-blue-700">Sesi Belum Selesai Ditemukan</AlertTitle>
-                    <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
-                        <div className="text-xs">
-                            {/* [FIX] Gunakan safe variable savedDraftName untuk menghindari error TS */}
+                <Alert className="max-w-xl mx-auto bg-blue-50 border-blue-200 text-blue-800 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 rounded-2xl">
+                    <History className="h-5 w-5 text-blue-600" />
+                    <AlertTitle className="font-bold text-blue-700 ml-2">Sesi Belum Selesai</AlertTitle>
+                    <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2 ml-2">
+                        <div className="text-xs leading-relaxed">
                             Ditemukan data klien <strong>{savedDraftName}</strong> yang belum selesai diproses.
                         </div>
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" className="h-8 text-xs hover:bg-blue-100" onClick={ignoreDraft}>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <Button size="sm" variant="ghost" className="flex-1 sm:flex-none h-9 text-xs hover:bg-blue-100 font-bold" onClick={ignoreDraft}>
                                 Abaikan
                             </Button>
-                            <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={handleRestoreSession}>
+                            <Button size="sm" className="xa sm:flex-none h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md shadow-blue-500/20" onClick={handleRestoreSession}>
                                 Lanjutkan Sesi
                             </Button>
                         </div>
@@ -339,62 +381,61 @@ export function RiskProfileWizard() {
                 </Alert>
             )}
 
-            {/* 2. STEPPER VISUAL */}
-            <div className="max-w-md mx-auto mb-12">
-                <div className="flex items-center justify-between relative">
-                    <StepItem active={currentStep === "IDENTITY"} done={currentStep !== "IDENTITY"} icon={<ClipboardList size={20} />} label="Data Klien" />
-                    <div className={`flex-1 h-0.5 mx-4 transition-colors duration-500 ${currentStep !== "IDENTITY" ? "bg-blue-600" : "bg-slate-200"}`} />
-                    <StepItem active={currentStep === "QUIZ"} done={currentStep === "RESULT"} icon={<FileText size={20} />} label="Kuesioner" />
-                    <div className={`flex-1 h-0.5 mx-4 transition-colors duration-500 ${currentStep === "RESULT" ? "bg-blue-600" : "bg-slate-200"}`} />
-                    <StepItem active={currentStep === "RESULT"} done={false} icon={<ShieldCheck size={20} />} label="Hasil Analisa" />
-                </div>
-            </div>
-
-            {/* 3. MAIN CONTENT */}
-            <div className="min-h-125 relative">
+            {/* ========================================================
+                3. MAIN CONTENT AREA (Framer Motion Wrapper)
+                ======================================================== */}
+            <div className="w-full relative min-h-[60vh]">
                 <AnimatePresence mode="wait">
+
+                    {/* STEP 1: IDENTITY & IMPORT */}
                     {currentStep === "IDENTITY" && (
-                        <motion.div key="identity" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
-                            {/* Import Action Box */}
-                            <div className="max-w-lg mx-auto mb-6 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-slate-100 p-2 rounded-xl text-slate-400">
-                                        <FileSearch className="w-5 h-5" />
+                        <motion.div key="identity" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col gap-6 w-full max-w-xl mx-auto">
+
+                            {/* Glassmorphism Pro Tool Import Banner */}
+                            <div className="group relative overflow-hidden bg-linear-to-br from-indigo-600 via-blue-600 to-indigo-800 rounded-[1.5rem] p-5 shadow-xl shadow-indigo-900/20 border border-indigo-400/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/20 blur-3xl rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-700" />
+
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/20 shadow-inner">
+                                        <FileSearch className="w-6 h-6 text-cyan-300" />
                                     </div>
-                                    <div className="space-y-0.5">
-                                        <p className="text-xs font-bold text-slate-700">Punya file simulasi?</p>
-                                        <p className="text-[10px] text-slate-400 uppercase font-black">Import file .mgc untuk memuat data</p>
+                                    <div>
+                                        <h4 className="text-white font-bold text-sm flex items-center gap-2">
+                                            Restore Sesi Klien <Sparkles className="w-3 h-3 text-yellow-300" />
+                                        </h4>
+                                        <p className="text-indigo-100/80 text-[11px] font-medium mt-0.5">
+                                            Lanjutkan simulasi dari file <code className="bg-indigo-900/50 px-1 py-0.5 rounded text-cyan-200">.mgc</code>
+                                        </p>
                                     </div>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={handleImportClick} className="h-9 px-4 rounded-xl border-blue-100 text-blue-600 hover:bg-blue-50 font-bold text-xs transition-all">
-                                    <Upload className="w-3.5 h-3.5 mr-2" /> Import .MGC
+
+                                <Button
+                                    onClick={handleImportClick}
+                                    className="w-full md:w-auto relative z-10 bg-white text-indigo-700 hover:bg-indigo-50 hover:scale-[1.02] active:scale-95 transition-all rounded-xl h-11 px-5 shadow-lg font-black tracking-wide text-xs"
+                                >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Import File
                                 </Button>
                             </div>
 
+                            {/* Form Render */}
                             <IdentityForm initialData={clientData || undefined} onSubmit={handleIdentitySubmit} />
                         </motion.div>
                     )}
 
+                    {/* STEP 2: QUIZ SECTION */}
                     {currentStep === "QUIZ" && (
-                        <motion.div key="quiz" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }}>
-                            <div className="mb-6 flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                <div className="text-sm">
-                                    <span className="text-slate-500 mr-2">Klien:</span>
-                                    <span className="font-bold text-slate-700">{clientData?.name}</span>
-                                </div>
-                                <Button variant="ghost" size="sm" onClick={() => setCurrentStep("IDENTITY")} className="h-6 text-xs text-slate-400 hover:text-slate-600">
-                                    Edit Data
-                                </Button>
-                            </div>
+                        <motion.div key="quiz" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <QuizSection initialAnswers={answers} onFinish={handleQuizFinish} isLoading={isLoading} />
                         </motion.div>
                     )}
 
+                    {/* STEP 3: RESULT DASHBOARD */}
                     {currentStep === "RESULT" && simulationResult && (
-                        <motion.div key="result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}>
+                        <motion.div key="result" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <AnalysisResult
                                 data={simulationResult}
-                                userAnswers={answers} // [NEW] Passing props jawaban untuk review UI
+                                userAnswers={answers}
                                 onDownloadPdf={handleDownloadAction}
                                 onRetake={handleRetake}
                                 onReset={handleResetFull}
@@ -402,39 +443,29 @@ export function RiskProfileWizard() {
                             />
                         </motion.div>
                     )}
+
                 </AnimatePresence>
             </div>
 
-            {/* 4. LOADING OVERLAY */}
+            {/* ========================================================
+                4. OVERLAY LOADING (Kalkulasi Server)
+                ======================================================== */}
             {isLoading && (
-                <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-3xl shadow-2xl border border-slate-100">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-100 flex items-center justify-center animate-in fade-in duration-300">
+                    <div className="flex flex-col items-center gap-5 p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 max-w-sm w-full mx-4">
                         <div className="relative">
-                            <div className="w-16 h-16 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
-                            <div className="absolute inset-0 flex items-center justify-center text-blue-600">
-                                <ShieldCheck className="w-6 h-6" />
+                            <div className="w-20 h-20 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center text-indigo-600">
+                                <ShieldCheck className="w-8 h-8" />
                             </div>
                         </div>
-                        <div className="text-center">
-                            <h3 className="font-bold text-slate-800 text-lg tracking-tight">Memproses Data</h3>
-                            <p className="text-slate-500 text-sm">Sedang melakukan kalkulasi profil...</p>
+                        <div className="text-center space-y-1">
+                            <h3 className="font-black text-slate-800 text-xl tracking-tight">Kalkulasi Sistem</h3>
+                            <p className="text-slate-500 text-sm font-medium">Menganalisis matriks profil risiko klien...</p>
                         </div>
                     </div>
                 </div>
             )}
-        </div>
-    );
-}
-
-function StepItem({ active, done, icon, label }: { active: boolean; done: boolean; icon: any; label: string }) {
-    return (
-        <div className="flex flex-col items-center gap-3 relative z-10">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm ${active ? "bg-blue-600 text-white shadow-blue-200 scale-110 ring-4 ring-blue-50" : done ? "bg-emerald-500 text-white shadow-emerald-200" : "bg-white text-slate-300 border border-slate-200"}`}>
-                {done ? <ShieldCheck size={20} /> : icon}
-            </div>
-            <span className={`text-[10px] font-black uppercase tracking-widest text-center min-w-20 transition-colors duration-300 ${active ? "text-blue-700" : done ? "text-emerald-600" : "text-slate-400"}`}>
-                {label}
-            </span>
         </div>
     );
 }
