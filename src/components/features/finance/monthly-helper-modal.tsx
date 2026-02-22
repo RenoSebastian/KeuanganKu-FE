@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calculator, X, ArrowRight, CalendarDays, Banknote } from "lucide-react";
+import { Calculator, X, CalendarDays, Banknote, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion"; // Fix: Integrasi penuh Framer Motion
 
 interface MonthlyHelperModalProps {
   isOpen: boolean;
   onClose: () => void;
   onApply: (annualValue: number) => void;
-  title?: string; // Opsional: Untuk judul spesifik, misal "Hitung Gaji"
+  title?: string;
 }
 
 export function MonthlyHelperModal({
@@ -20,26 +21,13 @@ export function MonthlyHelperModal({
   title = "Asisten Hitung Tahunan",
 }: MonthlyHelperModalProps) {
   const [monthlyValue, setMonthlyValue] = useState("");
-  const [isAnimating, setIsAnimating] = useState(false);
 
-  // Efek animasi masuk/keluar
-  useEffect(() => {
-    if (isOpen) {
-      setIsAnimating(true);
-    } else {
-      const timer = setTimeout(() => setIsAnimating(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  // Reset state saat modal dibuka kembali
+  // Reset state saat modal dibuka
   useEffect(() => {
     if (isOpen) {
       setMonthlyValue("");
     }
   }, [isOpen]);
-
-  if (!isOpen && !isAnimating) return null;
 
   // Logic Kalkulasi
   const rawValue = parseInt(monthlyValue.replace(/\D/g, "")) || 0;
@@ -51,7 +39,6 @@ export function MonthlyHelperModal({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Format input tampilan (ribuan separator)
     const raw = e.target.value.replace(/\D/g, "");
     if (!raw) {
       setMonthlyValue("");
@@ -70,110 +57,126 @@ export function MonthlyHelperModal({
   };
 
   return (
-    <div className={cn(
-      "fixed inset-0 z-999 flex items-center justify-center p-4 sm:p-6 transition-opacity duration-300",
-      isOpen ? "opacity-100" : "opacity-0"
-    )}>
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
-        onClick={onClose}
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-100 flex items-end md:items-center justify-center p-0 md:p-6">
 
-      {/* Modal Content */}
-      <div className={cn(
-        "relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden transform transition-all duration-300",
-        isOpen ? "scale-100 translate-y-0" : "scale-95 translate-y-4"
-      )}>
-        
-        {/* Header */}
-        <div className="bg-brand-50/50 p-6 border-b border-brand-100 flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-brand-600 shadow-sm ring-1 ring-brand-100">
-              <Calculator className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-black text-slate-800 text-lg tracking-tight">{title}</h3>
-              <p className="text-xs text-slate-500 font-medium">Konversi Bulanan ke Tahunan (x12)</p>
-            </div>
-          </div>
-          <button 
+          {/* BACKDROP (Tembus pandang & Gelap) */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          />
 
-        {/* Body */}
-        <div className="p-6 space-y-6">
-          
-          {/* Input Section */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-              Nominal Per Bulan
-            </label>
-            <div className="relative group">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-500 transition-colors">
-                <CalendarDays className="w-4 h-4" />
+          {/* MODAL / BOTTOM SHEET PANEL */}
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="relative w-full md:max-w-md bg-white rounded-t-[2rem] md:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            {/* PWA Drag Handle (Visual Only for iOS vibe) */}
+            <div className="w-full flex justify-center pt-3 pb-1 md:hidden absolute top-0 left-0 z-20">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+            </div>
+
+            {/* HEADER */}
+            <div className="relative pt-8 pb-5 px-6 md:pt-6 bg-linear-to-b from-indigo-50/50 to-white flex items-start justify-between border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                  <Calculator className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 text-lg md:text-xl tracking-tight">{title}</h3>
+                  <p className="text-[11px] md:text-xs text-slate-500 font-medium">Bantu konversi bulanan ke tahunan (x12)</p>
+                </div>
               </div>
-              <div className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-200 font-light text-xl">|</div>
-              <div className="absolute left-14 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">Rp</div>
-              <Input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                value={monthlyValue}
-                onChange={handleInputChange}
-                className="pl-20 h-14 bg-slate-50 border-slate-200 focus:border-brand-500 focus:bg-white font-bold text-lg text-slate-800 rounded-xl transition-all shadow-sm"
-                placeholder="0"
-              />
+              <button
+                onClick={onClose}
+                className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-all active:scale-95"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </div>
 
-          {/* Visual Calculation */}
-          <div className="flex items-center justify-center gap-4 text-slate-300">
-            <div className="h-px bg-slate-200 flex-1" />
-            <span className="text-xs font-bold uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full text-slate-500">
-              Dikali 12 Bulan
-            </span>
-            <div className="h-px bg-slate-200 flex-1" />
-          </div>
+            {/* BODY CONTENT */}
+            <div className="p-6 space-y-6 overflow-y-auto">
 
-          {/* Result Preview */}
-          <div className="bg-linear-to-br from-brand-600 to-brand-700 p-5 rounded-2xl text-white shadow-lg shadow-brand-600/20 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-white/20 transition-all duration-700" />
-            
-            <div className="relative z-10 flex flex-col items-center text-center space-y-1">
-              <p className="text-brand-100 text-xs font-medium uppercase tracking-wide">Estimasi Per Tahun</p>
-              <p className="text-2xl sm:text-3xl font-black tracking-tight">
-                {formatRupiah(annualValue)}
-              </p>
+              {/* Input Nominal Bulanan */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Nominal Per Bulan
+                </label>
+                <div className="relative group transition-all duration-300 transform focus-within:scale-[1.02]">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                    <CalendarDays className="w-5 h-5" />
+                  </div>
+                  <div className="absolute left-12 top-1/2 -translate-y-1/2 text-slate-200 font-light text-2xl">|</div>
+                  <div className="absolute left-16 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">Rp</div>
+                  <Input
+                    autoFocus
+                    type="text"
+                    inputMode="numeric"
+                    value={monthlyValue}
+                    onChange={handleInputChange}
+                    className="pl-24 h-16 bg-slate-50/50 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white font-black text-xl text-slate-800 rounded-2xl transition-all shadow-sm"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Separator / Visual Math */}
+              <div className="flex items-center justify-center gap-4">
+                <div className="h-px bg-slate-100 flex-1" />
+                <span className="text-[10px] font-black uppercase tracking-widest bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full text-indigo-500 flex items-center gap-1.5">
+                  <X className="w-3 h-3" /> 12 Bulan
+                </span>
+                <div className="h-px bg-slate-100 flex-1" />
+              </div>
+
+              {/* Result Output Card (Glassmorphism Holographic) */}
+              <div className="relative bg-linear-to-br from-indigo-600 via-blue-600 to-indigo-800 p-6 rounded-[1.5rem] text-white shadow-xl shadow-indigo-900/20 overflow-hidden group">
+                {/* Ambient Light Effect */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/20 blur-3xl rounded-full pointer-events-none transition-transform duration-700 group-hover:scale-150" />
+                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-cyan-400/20 blur-2xl rounded-full pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col items-center text-center space-y-1">
+                  <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                    <Sparkles className="w-3 h-3 text-yellow-300" /> Hasil Estimasi Tahunan
+                  </p>
+                  <p className="text-3xl sm:text-4xl font-black tracking-tighter truncate w-full px-2">
+                    {formatRupiah(annualValue)}
+                  </p>
+                </div>
+              </div>
+
             </div>
-          </div>
 
+            {/* FOOTER ACTIONS (PWA Safe Area) */}
+            <div className="p-6 pt-2 pb-[calc(env(safe-area-inset-bottom)+24px)] md:pb-6 flex gap-3 border-t border-slate-50 bg-white">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="flex-1 h-14 rounded-2xl font-bold text-slate-500 border-slate-200 hover:bg-slate-50 active:scale-95 transition-all"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleApply}
+                disabled={annualValue <= 0}
+                className="flex-2 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-lg shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
+              >
+                <Banknote className="w-5 h-5 mr-2" />
+                Terapkan Nilai
+              </Button>
+            </div>
+          </motion.div>
         </div>
-
-        {/* Footer */}
-        <div className="p-6 pt-2 flex gap-3">
-          <Button 
-            variant="ghost" 
-            onClick={onClose}
-            className="flex-1 h-12 rounded-xl font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-          >
-            Batal
-          </Button>
-          <Button 
-            onClick={handleApply}
-            disabled={annualValue <= 0}
-            className="flex-2 h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold shadow-lg shadow-brand-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
-          >
-            <Banknote className="w-4 h-4 mr-2" />
-            Gunakan Angka Ini
-          </Button>
-        </div>
-
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }

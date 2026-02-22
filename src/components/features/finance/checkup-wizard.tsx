@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion"; // Tambahkan import Variants
 import {
     CheckCircle2,
     User, Wallet, Activity, FileSearch, Upload, Sparkles
@@ -56,19 +56,26 @@ const STEP_MAP: Record<WizardStep, { id: number, label: string, icon: any }> = {
 // MAIN SMART CONTROLLER (WIZARD)
 // ============================================================================
 
-interface CheckupWizardProps {
+// [FIX 1] DEFINISI PROPS YANG KONSISTEN DENGAN PAGE.TSX
+export interface CheckupWizardProps {
+    onComplete?: (data: any) => Promise<void> | void; // Dibuat opsional agar kompatibel dengan pemanggilan manapun
     onBack?: () => void;
+    isLoading?: boolean;
 }
 
-export function CheckupWizard({ onBack }: CheckupWizardProps) {
+export function CheckupWizard({ onComplete, onBack, isLoading = false }: CheckupWizardProps) {
     // --- STATE MANAGEMENT ---
     const [currentStep, setCurrentStep] = useState<WizardStep>("IDENTITY");
-    const [isLoading, setIsLoading] = useState(false);
+    // Internal Loading State untuk proses yang tidak melibatkan parent (seperti import file)
+    const [internalLoading, setInternalLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [clientData, setClientData] = useState<any | null>(null);
     const [financialRecord, setFinancialRecord] = useState<FinancialFormState>(INITIAL_FINANCIAL_STATE);
     const [simulationData, setSimulationData] = useState<CheckupSimulationResponse | null>(null);
+
+    // Boolean komposit untuk status loading (menggabungkan parent dan internal)
+    const isProcessing = isLoading || internalLoading;
 
     // --- FULL PERSISTENCE INTEGRATION ---
     const { isHydrated, clearStorage } = useSimulationPersistence<
@@ -111,7 +118,7 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
         }
 
         clearStorage();
-        setIsLoading(true);
+        setInternalLoading(true); // Gunakan internal loading
         const toastId = toast.loading("Dekripsi Token MGC...", { description: "Mengekstrak profil klien..." });
 
         try {
@@ -137,12 +144,12 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
                 } catch (err: any) {
                     toast.error("Dekripsi Gagal", { id: toastId, description: "Token MGC rusak atau tidak valid." });
                 } finally {
-                    setIsLoading(false);
+                    setInternalLoading(false);
                 }
             };
             reader.readAsText(file);
         } catch (error) {
-            setIsLoading(false);
+            setInternalLoading(false);
             toast.error("Sistem gagal membaca file fisik.");
         }
         if (e.target) e.target.value = "";
@@ -165,6 +172,7 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
+    // [FIX] Mengintegrasikan properti onComplete dari Parent (page.tsx)
     const onFinancialSubmit = async () => {
         if (!clientData) {
             toast.error("Integritas Data Hilang", { description: "Profil klien tidak ditemukan. Harap isi identitas." });
@@ -172,11 +180,20 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
             return;
         }
 
-        setIsLoading(true);
+        const payload = { ...financialRecord, ...clientData };
+
+        // Prioritaskan onComplete dari parent (legacy support/controller terpisah)
+        if (onComplete) {
+            await onComplete(payload);
+            // Catatan: Transisi ke RESULT dan penyimpanan data hasil ditangani oleh parent
+            return;
+        }
+
+        // --- Logika Fallback Jika Tidak Ada Controller Parent ---
+        setInternalLoading(true);
         const toastId = toast.loading("Memproses Kalkulasi...", { description: "Menganalisis matriks kesehatan finansial..." });
 
         try {
-            const payload = { ...financialRecord, ...clientData };
             const response = await financialService.simulateAgentCheckup(payload);
 
             setSimulationData(response);
@@ -186,7 +203,7 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
             const message = error.response?.data?.message || "Gagal memproses kalkulasi mesin.";
             toast.error(Array.isArray(message) ? message[0] : message, { id: toastId });
         } finally {
-            setIsLoading(false);
+            setInternalLoading(false);
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
@@ -196,10 +213,11 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
         return clientData.client ? { ...clientData.client, spouse: clientData.spouse } : clientData;
     };
 
-    // --- ANIMATION VARIANTS (PWA Fluidity) ---
-    const pageVariants = {
+    // [FIX 2] MENGGUNAKAN TIPE VARIANTS DARI FRAMER MOTION
+    const pageVariants: Variants = {
         initial: { opacity: 0, y: 20, scale: 0.98 },
-        animate: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 25 } },
+        // Menghapus asersi string untuk type: "spring" yang menyebabkan bentrok tipe
+        animate: { opacity: 1, y: 0, scale: 1, transition: { stiffness: 300, damping: 25 } },
         exit: { opacity: 0, y: -20, scale: 0.95, transition: { duration: 0.2 } }
     };
 
@@ -215,7 +233,7 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
 
                     {/* Animated Active Background Pill */}
                     <div
-                        className="absolute top-1.5 bottom-1.5 rounded-full bg-slate-900 transition-all duration-500 ease-spring"
+                        className="absolute top-1.5 bottom-1.5 rounded-full bg-slate-900 transition-all duration-500"
                         style={{
                             width: 'calc(33.33% - 4px)',
                             left: currentStep === "IDENTITY" ? '4px' : currentStep === "FINANCIAL" ? 'calc(33.33% + 2px)' : 'calc(66.66%)'
@@ -257,8 +275,8 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
                         <motion.div key="identity" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col gap-6">
 
                             {/* Glassmorphism Pro Tool Import Banner */}
-                            <div className="group relative overflow-hidden bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-800 rounded-[1.5rem] p-5 shadow-xl shadow-indigo-900/20 border border-indigo-400/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                                {/* Ambient Light in Banner */}
+                            {/* [FIX 3] Mengganti bg-gradient-to-br menjadi bg-linear-to-br sesuai rekomendasi linter */}
+                            <div className="group relative overflow-hidden bg-linear-to-br from-indigo-600 via-blue-600 to-indigo-800 rounded-[1.5rem] p-5 shadow-xl shadow-indigo-900/20 border border-indigo-400/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                 <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/20 blur-3xl rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-700" />
 
                                 <div className="flex items-center gap-4 relative z-10">
@@ -277,6 +295,7 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
 
                                 <Button
                                     onClick={handleImportClick}
+                                    disabled={isProcessing}
                                     className="w-full md:w-auto relative z-10 bg-white text-indigo-700 hover:bg-indigo-50 hover:scale-[1.02] active:scale-95 transition-all rounded-xl h-11 px-5 shadow-lg font-black tracking-wide text-xs"
                                 >
                                     <Upload className="w-4 h-4 mr-2" />
@@ -303,14 +322,14 @@ export function CheckupWizard({ onBack }: CheckupWizardProps) {
                                     onUpdate={handleFinancialUpdate}
                                     onComplete={onFinancialSubmit}
                                     onBack={() => setCurrentStep("IDENTITY")}
-                                    isLoading={isLoading}
+                                    isLoading={isProcessing} // Menyampaikan status loading ke form anak
                                 />
                             </div>
                         </motion.div>
                     )}
 
-                    {/* STEP 3: RESULT DASHBOARD */}
-                    {currentStep === "RESULT" && simulationData && (
+                    {/* STEP 3: RESULT DASHBOARD (Jika tidak ditangani parent) */}
+                    {currentStep === "RESULT" && simulationData && !onComplete && (
                         <motion.div key="result" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <div className="bg-white rounded-[2rem] shadow-2xl shadow-indigo-900/5 border border-slate-100 overflow-hidden">
                                 <CheckupResult
