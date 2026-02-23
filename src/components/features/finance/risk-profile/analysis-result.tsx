@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Download, RefreshCw, AlertCircle, ShieldCheck, Presentation, RotateCcw, FileText, CheckCircle2 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Sector, Legend } from "recharts";
+import { motion, Variants } from "framer-motion";
+import { Download, RefreshCw, AlertCircle, ShieldCheck, RotateCcw, FileText, CheckCircle2, Target, Zap } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,30 +12,29 @@ import { Badge } from "@/components/ui/badge";
 import { RiskProfileSimulationResult, RiskProfileCategory, RiskProfileAnswerItem } from "@/lib/types/risk-profile";
 import { RISK_PROFILE_QUESTIONS } from "@/lib/data/risk-profile-questions";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { cn } from "@/lib/utils";
 
 interface AnalysisResultProps {
-    // Data hasil decode token dari Wizard
     data: RiskProfileSimulationResult;
-    // [NEW] Prop untuk menerima jawaban mentah user (untuk display review)
     userAnswers?: RiskProfileAnswerItem[];
     onDownloadPdf: () => Promise<void> | void;
-    onRetake: () => void; // Kembali ke Quiz (Edit jawaban)
-    onReset: () => void;  // Hapus data (Mulai baru)
+    onRetake: () => void;
+    onReset: () => void;
     isDownloading?: boolean;
 }
 
-// --- RECHARTS CUSTOM SHAPE ---
+// --- RECHARTS CUSTOM SHAPE (Modern Donut Shape) ---
 const renderActiveShape = (props: any) => {
     const RADIAN = Math.PI / 180;
     const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent } = props;
     const sin = Math.sin(-RADIAN * midAngle);
     const cos = Math.cos(-RADIAN * midAngle);
 
-    const sx = cx + (outerRadius + 6) * cos;
-    const sy = cy + (outerRadius + 6) * sin;
-    const mx = cx + (outerRadius + 18) * cos;
-    const my = cy + (outerRadius + 18) * sin;
-    const ex = mx + (cos >= 0 ? 1 : -1) * 12;
+    const sx = cx + (outerRadius + 8) * cos;
+    const sy = cy + (outerRadius + 8) * sin;
+    const mx = cx + (outerRadius + 24) * cos;
+    const my = cy + (outerRadius + 24) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 16;
     const ey = my;
     const textAnchor = cos >= 0 ? 'start' : 'end';
 
@@ -43,34 +43,35 @@ const renderActiveShape = (props: any) => {
             <Sector
                 cx={cx}
                 cy={cy}
-                innerRadius={innerRadius}
-                outerRadius={outerRadius + 6}
+                innerRadius={innerRadius - 4}
+                outerRadius={outerRadius + 8}
                 startAngle={startAngle}
                 endAngle={endAngle}
                 fill={fill}
                 stroke="#ffffff"
-                strokeWidth={2}
+                strokeWidth={3}
+                className="drop-shadow-md transition-all duration-300"
             />
-            <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={1} />
-            <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
+            <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={2} className="opacity-50" />
+            <circle cx={ex} cy={ey} r={3} fill={fill} stroke="none" />
             <text
-                x={ex + (cos >= 0 ? 1 : -1) * 6}
+                x={ex + (cos >= 0 ? 1 : -1) * 8}
                 y={ey}
                 textAnchor={textAnchor}
                 fill="#1e293b"
-                style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}
+                style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', fontFamily: 'inherit' }}
             >
                 {payload.name}
             </text>
             <text
-                x={ex + (cos >= 0 ? 1 : -1) * 6}
+                x={ex + (cos >= 0 ? 1 : -1) * 8}
                 y={ey}
-                dy={14}
+                dy={16}
                 textAnchor={textAnchor}
-                fill="#64748b"
-                style={{ fontSize: '10px', fontWeight: '600' }}
+                fill={fill}
+                style={{ fontSize: '14px', fontWeight: '900', fontFamily: 'inherit' }}
             >
-                {`${(percent * 100).toFixed(0)}% Porsi`}
+                {`${(percent * 100).toFixed(0)}%`}
             </text>
         </g>
     );
@@ -84,23 +85,21 @@ export function AnalysisResult({
     onReset,
     isDownloading = false
 }: AnalysisResultProps) {
-    const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
+    const [activeIndex, setActiveIndex] = useState<number>(0);
     const [showPdfModal, setShowPdfModal] = useState(false);
 
-    // Destructure data dari Token Result
     const { result, meta, financial } = data;
 
-    // [SAFETY CHECK] Guard Clause untuk mencegah crash jika result null/undefined
     if (!result) {
         return (
             <div className="w-full py-12 flex flex-col items-center justify-center p-8 text-center space-y-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl animate-in fade-in zoom-in-95 duration-500">
-                <div className="bg-red-50 p-6 rounded-3xl">
-                    <AlertCircle className="w-10 h-10 text-red-500" />
+                <div className="bg-rose-50 p-6 rounded-[2rem]">
+                    <AlertCircle className="w-10 h-10 text-rose-500" />
                 </div>
                 <div className="space-y-2">
-                    <h3 className="text-xl font-black text-slate-900">Data Analisis Tidak Ditemukan</h3>
+                    <h3 className="text-xl font-black text-slate-900">Data Analisis Tidak Valid</h3>
                     <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-                        Terjadi kesalahan saat membaca hasil simulasi. Format data mungkin tidak valid atau rusak.
+                        Terjadi kesalahan saat memproses data simulasi. Silakan ulangi pengisian kuesioner.
                     </p>
                 </div>
                 <Button onClick={onReset} variant="outline" className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-12 px-6">
@@ -112,20 +111,14 @@ export function AnalysisResult({
 
     const { allocation, profile, description, totalScore } = result;
 
-    // [LOGIC MAPPING JAWABAN]
-    // Menggabungkan ID jawaban dengan teks pertanyaan asli dari source code
     const reviewData = useMemo(() => {
-        // Prioritaskan prop 'userAnswers' (Live State), fallback ke 'data.financial.answers' (Saved Token)
         const answersSource = userAnswers || financial?.answers || [];
-
-        // [FIX] Type Casting Explicit untuk mengatasi error implicit 'any'
         return (answersSource as RiskProfileAnswerItem[]).map((ans: RiskProfileAnswerItem) => {
             const questionRef = RISK_PROFILE_QUESTIONS.find((q) => q.id === ans.questionId);
             const optionRef = questionRef?.options.find((opt) => opt.value === ans.value);
-
             return {
                 id: ans.questionId,
-                question: questionRef?.text || "Pertanyaan tidak ditemukan dalam database.",
+                question: questionRef?.text || "Pertanyaan tidak ditemukan.",
                 answer: optionRef?.label || "Jawaban tidak valid.",
                 score: ans.value
             };
@@ -146,160 +139,196 @@ export function AnalysisResult({
     };
 
     const chartData = [
-        { name: "Cash Fund (Pasar Uang)", value: allocation.lowRisk, color: "#10b981" },
-        { name: "Fix Income (Obligasi)", value: allocation.mediumRisk, color: "#facc15" },
-        { name: "Equity Fund (Saham)", value: allocation.highRisk, color: "#ef4444" },
+        { name: "Cash Fund", fullName: "Pasar Uang", value: allocation.lowRisk, color: "#10b981" },
+        { name: "Fix Income", fullName: "Obligasi", value: allocation.mediumRisk, color: "#f59e0b" },
+        { name: "Equity Fund", fullName: "Saham", value: allocation.highRisk, color: "#f43f5e" },
     ].filter(item => item.value > 0);
 
-    const getThemeColor = (profileType: RiskProfileCategory) => {
+    // --- THEME ENGINE ---
+    const getThemeConfig = (profileType: RiskProfileCategory) => {
         switch (profileType) {
             case RiskProfileCategory.KONSERVATIF:
-                return "bg-emerald-50 text-emerald-700 border-emerald-200";
+                return {
+                    bg: "bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-700",
+                    glow: "bg-emerald-400/30",
+                    badge: "bg-emerald-900/40 text-emerald-100 border-emerald-400/30",
+                    icon: ShieldCheck,
+                    textColor: "text-emerald-50"
+                };
             case RiskProfileCategory.AGRESIF:
-                return "bg-red-50 text-red-700 border-red-200";
-            default:
-                return "bg-yellow-50 text-yellow-700 border-yellow-200";
+                return {
+                    bg: "bg-gradient-to-br from-rose-500 via-red-500 to-rose-800",
+                    glow: "bg-rose-400/30",
+                    badge: "bg-rose-900/40 text-rose-100 border-rose-400/30",
+                    icon: Zap,
+                    textColor: "text-rose-50"
+                };
+            default: // MODERAT
+                return {
+                    bg: "bg-gradient-to-br from-amber-500 via-orange-500 to-amber-700",
+                    glow: "bg-amber-400/30",
+                    badge: "bg-amber-900/40 text-amber-100 border-amber-400/30",
+                    icon: Target,
+                    textColor: "text-amber-50"
+                };
         }
     };
 
-    const themeClass = getThemeColor(profile);
+    const theme = getThemeConfig(profile);
+    const ProfileIcon = theme.icon;
+
+    const containerVariants: Variants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+    };
+
+    const itemVariants: Variants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0, transition: { stiffness: 300, damping: 24 } }
+    };
 
     return (
-        <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
+        <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="w-full max-w-5xl mx-auto space-y-6 md:space-y-8 pb-10"
+        >
             <PdfLoadingModal isOpen={showPdfModal || isDownloading} />
 
-            {/* Header Section */}
-            <div className="text-center space-y-3">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100">
-                    <Presentation className="w-3 h-3" /> Professional Result
-                </div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Kesimpulan Profil Risiko Klien</h2>
-                <p className="text-slate-500 text-sm italic">
-                    Diproses secara logis berdasarkan data kuesioner pada {new Date(meta.generatedAt).toLocaleDateString("id-ID", {
-                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                    })}
-                </p>
-            </div>
+            {/* =========================================
+                1. EXECUTIVE SUMMARY HERO
+                ========================================= */}
+            <motion.div variants={itemVariants} className="grid md:grid-cols-12 gap-6 items-stretch">
 
-            <div className="grid md:grid-cols-2 gap-8 relative z-0 items-stretch">
+                {/* Hero Card (Kiri/Atas) */}
+                <Card className={cn(
+                    "md:col-span-7 border-0 shadow-2xl rounded-[2rem] md:rounded-[2.5rem] overflow-hidden relative flex flex-col",
+                    theme.bg
+                )}>
+                    <div className="absolute inset-0 mix-blend-overlay opacity-20 pointer-events-none" style={{ backgroundImage: 'url("/images/noise.png")' }} />
+                    <div className={cn("absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3", theme.glow)} />
 
-                {/* Kolom Kiri: Profil & Strategi */}
-                <Card className="border-0 shadow-2xl rounded-[2rem] overflow-hidden order-2 md:order-1 relative z-0 flex flex-col bg-white">
-                    <div className={`p-10 text-center border-b ${themeClass}`}>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-70">Rekomendasi Strategi</p>
-                        <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tighter">{profile}</h1>
-                        <div className="inline-flex items-center px-4 py-1.5 bg-white/80 rounded-xl text-sm font-bold backdrop-blur-sm shadow-sm border border-white/50">
-                            Skor Agresivitas: {totalScore}
+                    <CardContent className="p-8 md:p-10 relative z-10 flex-1 flex flex-col">
+                        <div className="flex items-start justify-between mb-8">
+                            <div className={cn("px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border backdrop-blur-md shadow-sm", theme.badge)}>
+                                Profil Investor
+                            </div>
+                            <div className="bg-black/20 p-3 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
+                                <ProfileIcon className="w-8 h-8 text-white" />
+                            </div>
                         </div>
-                    </div>
-                    <CardContent className="p-8 flex-1 flex flex-col">
-                        <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <ShieldCheck className="w-5 h-5 text-blue-600" />
-                            Karakteristik & Profil Risiko
-                        </h3>
-                        <p className="text-slate-600 text-sm leading-relaxed text-justify mb-8">
-                            {description}
-                        </p>
 
-                        <div className="mt-auto p-5 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Agent Advisory Point:</p>
-                            <p className="text-xs text-slate-500 italic leading-relaxed font-medium">
-                                "Tingkat risiko <strong>{profile}</strong> ini menunjukkan bahwa klien memerlukan bauran aset yang seimbang untuk menjaga daya beli masa depan tanpa mengabaikan faktor keamanan."
-                            </p>
+                        <div className="mb-8">
+                            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter mb-2 drop-shadow-sm">
+                                {profile}
+                            </h1>
+                            <div className="flex items-center gap-3">
+                                <span className={cn("font-medium", theme.textColor)}>Skor Toleransi Risiko:</span>
+                                <span className="bg-white text-slate-900 font-black text-lg px-3 py-1 rounded-lg shadow-sm">
+                                    {totalScore} <span className="text-xs text-slate-500 font-bold uppercase">Poin</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="mt-auto">
+                            <div className="bg-black/20 backdrop-blur-md border border-white/10 p-5 md:p-6 rounded-2xl">
+                                <h3 className="text-white font-bold mb-2 flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-white/70" /> Karakteristik
+                                </h3>
+                                <p className={cn("text-sm md:text-base leading-relaxed font-medium", theme.textColor)}>
+                                    {description}
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Kolom Kanan: Chart Alokasi */}
-                <Card className="border-slate-100 shadow-xl rounded-[2rem] flex flex-col order-1 md:order-2 relative z-20 overflow-visible bg-white">
-                    <CardContent className="p-8 overflow-visible h-full flex flex-col">
-                        <div className="mb-6">
-                            <h3 className="font-bold text-slate-900 text-center">Visualisasi Alokasi Aset</h3>
-                            <p className="text-[11px] text-slate-400 text-center mt-1 font-medium">
-                                Rasio ideal untuk memitigasi risiko sesuai profil klien.
-                            </p>
+                {/* Donut Chart (Kanan/Bawah) */}
+                <Card className="md:col-span-5 border border-slate-100 shadow-xl rounded-[2rem] md:rounded-[2.5rem] bg-white relative overflow-hidden flex flex-col">
+                    <CardContent className="p-8 h-full flex flex-col relative z-10">
+                        <div className="mb-2 text-center">
+                            <h3 className="font-black text-slate-800 text-lg">Alokasi Aset Ideal</h3>
+                            <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest mt-1">Berdasarkan Profil Anda</p>
                         </div>
 
-                        <div className="h-80 w-full relative font-sans overflow-visible">
+                        <div className="h-64 md:h-80 w-full relative font-sans flex-1 mt-4 overflow-visible">
                             <ResponsiveContainer width="100%" height="100%" className="overflow-visible">
                                 <PieChart style={{ overflow: "visible" }}>
+                                    {/* FIX TypeScript Error: Wrap Pie props dengan as any */}
                                     <Pie
-                                        {...{
+                                        {...({
                                             activeIndex: activeIndex,
                                             activeShape: renderActiveShape,
                                             data: chartData,
                                             cx: "50%",
                                             cy: "50%",
-                                            innerRadius: "60%",
-                                            outerRadius: "80%",
+                                            innerRadius: "50%",
+                                            outerRadius: "75%",
                                             dataKey: "value",
                                             stroke: "#ffffff",
                                             strokeWidth: 4,
-                                            paddingAngle: 4,
+                                            paddingAngle: 5,
                                             onMouseEnter: onPieEnter
-                                        } as any}
+                                        } as any)}
                                     >
-                                        {/* [FIX] Tambahkan type index number agar tidak implicit any */}
                                         {chartData.map((entry, index: number) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
-                                    <Legend
-                                        verticalAlign="bottom"
-                                        iconType="circle"
-                                        wrapperStyle={{
-                                            paddingTop: '24px',
-                                            fontSize: '11px',
-                                            fontWeight: '600',
-                                            textTransform: 'uppercase',
-                                            fontFamily: 'inherit'
-                                        }}
-                                    />
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
+
+                        {/* Custom Mini Legend untuk Desktop */}
+                        <div className="grid grid-cols-3 gap-2 mt-4">
+                            {chartData.map((item, idx) => (
+                                <div key={idx} className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50">
+                                    <div className="w-3 h-3 rounded-full mb-1" style={{ backgroundColor: item.color }} />
+                                    <span className="text-[10px] font-black text-slate-600 uppercase text-center leading-tight">{item.name}</span>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
-            </div>
+            </motion.div>
 
-            {/* [NEW SECTION] Review Jawaban Kuesioner (Accordion) */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            {/* =========================================
+                2. REVIEW JAWABAN (Accordion PWA-Ready)
+                ========================================= */}
+            <motion.div variants={itemVariants} className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="review-answers" className="border-none">
-                        <AccordionTrigger className="px-8 py-6 hover:no-underline hover:bg-slate-50 transition-colors group">
+                        <AccordionTrigger className="px-6 md:px-10 py-6 hover:no-underline hover:bg-slate-50 transition-colors group">
                             <div className="flex items-center gap-4 text-left w-full">
-                                <div className="bg-blue-50 p-2.5 rounded-xl text-blue-600 group-hover:bg-blue-100 transition-colors">
-                                    <FileText className="w-5 h-5" />
+                                <div className="bg-indigo-50 p-3 rounded-2xl text-indigo-600 group-hover:bg-indigo-100 transition-colors shadow-inner border border-indigo-100/50">
+                                    <FileText className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h4 className="text-slate-900 font-bold text-lg">Review Jawaban Kuesioner</h4>
-                                    <p className="text-slate-500 text-xs font-medium">Lihat detail respon klien terhadap 10 pertanyaan risiko.</p>
+                                    <h4 className="text-slate-900 font-black text-lg tracking-tight">Review Rekam Jawaban</h4>
+                                    <p className="text-slate-500 text-xs font-medium mt-0.5">Lihat kembali rincian tanggapan klien pada kuesioner.</p>
                                 </div>
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="px-0 pb-0">
-                            <div className="border-t border-slate-100 divide-y divide-slate-100">
+                            <div className="border-t border-slate-100 divide-y divide-slate-50">
                                 {reviewData.map((item, index) => (
-                                    <div key={item.id} className="p-6 md:px-8 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row gap-4 md:items-start">
-                                        <div className="flex-1 space-y-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                                    Soal {index + 1}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm font-medium text-slate-900 leading-relaxed">
+                                    <div key={item.id} className="p-6 md:px-10 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row gap-4 md:items-start group">
+                                        <div className="flex-1 space-y-2">
+                                            <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md uppercase tracking-widest group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                Pertanyaan {index + 1}
+                                            </span>
+                                            <p className="text-sm font-bold text-slate-800 leading-relaxed pr-4">
                                                 {item.question}
                                             </p>
                                         </div>
-                                        <div className="flex-1 md:max-w-md bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex items-start gap-3">
-                                            <CheckCircle2 className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                                        <div className="flex-1 md:max-w-sm bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-3 mt-2 md:mt-0">
+                                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-bold text-slate-800">{item.answer}</p>
-                                                <div className="flex items-center gap-1 mt-1">
-                                                    <span className="text-[10px] text-slate-400 font-medium">Bobot Nilai:</span>
-                                                    <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-black bg-white border-slate-200 text-slate-600">
-                                                        {item.score} Poin
+                                                <p className="text-sm font-bold text-slate-700 leading-snug">{item.answer}</p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <Badge variant="secondary" className="h-5 px-2 text-[10px] font-black bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                                                        Skor: {item.score}
                                                     </Badge>
                                                 </div>
                                             </div>
@@ -310,59 +339,56 @@ export function AnalysisResult({
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
-            </div>
+            </motion.div>
 
-            {/* Action Bar */}
-            <Card className="bg-slate-900 border-none rounded-[2rem] relative z-0 overflow-hidden text-white shadow-2xl">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full blur-[100px] pointer-events-none" />
-                <CardContent className="p-8 flex flex-col md:flex-row gap-6 items-center justify-between relative z-10">
-                    <div className="flex items-start gap-4">
-                        <div className="bg-blue-600/20 p-3 rounded-2xl">
-                            <AlertCircle className="w-6 h-6 text-blue-400 shrink-0" />
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-base font-bold">Langkah Selanjutnya (Next Step)</p>
-                            <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-                                Gunakan data ini untuk menyusun proposal asuransi yang relevan dengan toleransi risiko klien Anda.
-                            </p>
-                        </div>
+            {/* =========================================
+                3. ACTION FOOTER BAR (Solid & Grounded)
+                ========================================= */}
+            <motion.div variants={itemVariants} className="mt-8 pt-6 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-6">
+
+                {/* Info Advisory */}
+                <div className="flex items-start md:items-center gap-3 text-slate-500 max-w-md">
+                    <div className="p-2 bg-indigo-50 rounded-xl shrink-0 border border-indigo-100">
+                        <AlertCircle className="w-5 h-5 text-indigo-600" />
                     </div>
+                    <p className="text-xs leading-relaxed font-medium">
+                        Cetak laporan PDF untuk diberikan kepada klien sebagai referensi. Jika ada perubahan profil, gunakan fitur Edit Jawaban.
+                    </p>
+                </div>
 
-                    <div className="flex flex-wrap gap-3 w-full md:w-auto justify-end">
-                        <Button
-                            variant="ghost"
-                            onClick={onReset}
-                            className="text-slate-400 hover:text-white hover:bg-white/10 font-bold h-12 rounded-xl"
-                        >
-                            <RotateCcw className="w-4 h-4 mr-2" /> Mulai Baru
-                        </Button>
+                {/* Buttons Action Group */}
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+                    <Button
+                        variant="outline"
+                        onClick={onReset}
+                        disabled={isDownloading}
+                        className="w-full sm:w-auto h-12 rounded-xl border-slate-300 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all px-6"
+                    >
+                        <RotateCcw className="w-4 h-4 mr-2" /> Mulai Baru
+                    </Button>
 
-                        <Button
-                            variant="secondary"
-                            onClick={onRetake}
-                            className="bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 font-bold h-12 rounded-xl"
-                        >
-                            <RefreshCw className="w-4 h-4 mr-2" /> Edit Jawaban
-                        </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={onRetake}
+                        disabled={isDownloading}
+                        className="w-full sm:w-auto h-12 rounded-xl bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 font-bold active:scale-95 transition-all px-6"
+                    >
+                        <RefreshCw className="w-4 h-4 mr-2" /> Edit Jawaban
+                    </Button>
 
-                        <Button
-                            onClick={handleDownloadClick}
-                            disabled={showPdfModal || isDownloading}
-                            className="bg-blue-600 hover:bg-blue-500 text-white font-black shadow-lg shadow-blue-900/50 px-8 h-12 rounded-xl transition-all active:scale-95"
-                        >
-                            {(showPdfModal || isDownloading) ? (
-                                <span className="flex items-center gap-2">
-                                    <RefreshCw className="w-4 h-4 animate-spin" /> Memproses...
-                                </span>
-                            ) : (
-                                <span className="flex items-center gap-2">
-                                    <Download className="w-4 h-4" /> Download File
-                                </span>
-                            )}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                    <Button
+                        onClick={handleDownloadClick}
+                        disabled={showPdfModal || isDownloading}
+                        className="w-full sm:w-auto h-12 rounded-xl font-black shadow-lg shadow-indigo-600/30 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white px-8"
+                    >
+                        {(showPdfModal || isDownloading) ? (
+                            <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Memproses...</>
+                        ) : (
+                            <><Download className="w-5 h-5 mr-2" /> Unduh Laporan PDF</>
+                        )}
+                    </Button>
+                </div>
+            </motion.div>
+        </motion.div>
     );
 }

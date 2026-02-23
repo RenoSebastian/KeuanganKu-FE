@@ -2,23 +2,25 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * TABLE COMPONENT
+ * TABLE COMPONENT (PWA OPTIMIZED)
  * ------------------------------------------------------------------
  * Komponen dasar untuk menampilkan data tabular.
- * * [PHASE 5 UPDATE]:
- * - Padding ditingkatkan (p-4) untuk touch-target yang lebih baik di mobile.
- * - Wrapper menggunakan overflow-x-auto untuk scroll horizontal yang mulus.
+ * Terdapat proteksi layout untuk layar mobile (Horizontal Swipe).
  */
 
 const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  // [RESPONSIVE]: w-full dan overflow-x-auto menangani scroll horizontal otomatis
-  <div className="relative w-full overflow-x-auto">
+  // [FIX PWA & UX]: 
+  // 1. overflow-x-auto: Membuka kunci swipe horizontal.
+  // 2. [scrollbar-width:none] & [&::-webkit-scrollbar]:hidden : Menyembunyikan visual scrollbar di semua browser (Chrome, Firefox, Safari) agar terlihat seperti native app.
+  // 3. [-webkit-overflow-scrolling:touch] : Memberikan efek fisika "membal" saat di-scroll mentok di iOS.
+  <div className="relative w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]">
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-sm", className)}
+      // min-w-full memastikan tabel tidak akan pernah menyusut lebih kecil dari ukuran asli kontennya
+      className={cn("w-full min-w-full caption-bottom text-sm", className)}
       {...props}
     />
   </div>
@@ -52,7 +54,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+      "border-t bg-slate-50/50 font-medium [&>tr]:last:border-b-0",
       className
     )}
     {...props}
@@ -67,7 +69,7 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      "border-b border-slate-100 transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-50",
       className
     )}
     {...props}
@@ -82,8 +84,10 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      // [HARDENING]: Height h-12 (48px) dan px-4 agar header jelas dan mudah dibaca
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      // [FIX PWA & UX]: 
+      // h-12 px-4 memberikan Touch-Target yang lega.
+      // whitespace-nowrap mengunci teks (misal: "Tanggal Simulasi") agar tidak pernah patah menjadi 2 baris ke bawah saat dilayar sempit.
+      "h-12 px-4 text-left align-middle font-semibold text-slate-500 tracking-wide whitespace-nowrap [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
@@ -98,8 +102,10 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      // [HARDENING]: Update ke p-4 (sebelumnya p-2) untuk 'breathing room' yang lebih baik
-      "p-4 align-middle [&:has([role=checkbox])]:pr-0",
+      // [FIX PWA & UX]: 
+      // p-4 untuk 'breathing room'.
+      // whitespace-nowrap ditambahkan agar isi data tidak tumpah/hancur berantakan ke bawah. Data akan tetap lurus menyamping seiring di-scroll.
+      "p-4 align-middle whitespace-nowrap text-slate-700 [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
@@ -113,7 +119,7 @@ const TableCaption = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    className={cn("mt-4 text-sm font-medium text-slate-500", className)}
     {...props}
   />
 ))

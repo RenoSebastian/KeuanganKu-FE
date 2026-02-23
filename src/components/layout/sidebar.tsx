@@ -1,26 +1,42 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { NAVIGATION_CONFIG } from "@/config/navigation";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-export function Sidebar() {
+interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void; // Diteruskan dari layout.tsx
+}
+
+export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // State untuk Role Management
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDirector, setIsDirector] = useState(false);
-  // Tambahan info user untuk ditampilkan di sidebar bawah
   const [userInitials, setUserInitials] = useState("U");
   const [userRoleLabel, setUserRoleLabel] = useState("User");
 
+  // State lokal untuk memantau kolaps
+  const [internalCollapse, setInternalCollapse] = useState(isCollapsed);
+
+  // Sinkronisasi state lokal dengan prop dari atas
   useEffect(() => {
-    // --- LOGIKA CEK ROLE (Client Side Hydration) ---
+    setInternalCollapse(isCollapsed);
+  }, [isCollapsed]);
+
+  useEffect(() => {
     const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
 
     if (storedUser) {
@@ -30,7 +46,6 @@ export function Sidebar() {
         setIsDirector(user.role === 'DIRECTOR');
         setUserRoleLabel(user.role || "User");
 
-        // Generate inisial nama
         if (user.fullName) {
           const names = user.fullName.split(' ');
           const initials = names[0].charAt(0) + (names.length > 1 ? names[names.length - 1].charAt(0) : "");
@@ -51,127 +66,241 @@ export function Sidebar() {
     router.push("/login");
   };
 
-  // Helper Component untuk render link
+  const toggleSidebar = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse(); // Beritahu Layout.tsx untuk mengecilkan ukuran div container-nya
+    } else {
+      setInternalCollapse(!internalCollapse);
+    }
+  };
+
+  // NavLink dengan Arsitektur Animasi Layer Independen (FIXED: Flex Alignment)
   const NavLink = ({ item, variant = "default" }: { item: any, variant?: "default" | "admin" | "exec" }) => {
-    const isActive = variant !== "default"
-      ? pathname.startsWith(item.href)
-      : pathname === item.href;
 
-    let activeClass = "bg-brand-700 text-white shadow-lg shadow-brand-700/20";
-    let iconActiveColor = "text-white";
-
-    if (variant === "exec") {
-      activeClass = "bg-slate-800 text-white shadow-md shadow-slate-900/20";
-    } else if (variant === "admin") {
-      activeClass = "bg-teal-700 text-white shadow-md shadow-teal-700/20";
+    // Strict Active Logic
+    let isActive = false;
+    if (item.href === "/finance") {
+      isActive = pathname === "/finance" || (pathname.startsWith("/finance/") && !pathname.startsWith("/finance/checkup"));
+    } else if (item.href === "/dashboard") {
+      isActive = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+    } else {
+      isActive = pathname.startsWith(item.href);
     }
 
-    return (
+    const themeGradients: Record<string, string> = {
+      default: "from-blue-600 to-indigo-600 shadow-blue-500/30",
+      exec: "from-slate-800 to-slate-900 shadow-slate-800/30",
+      admin: "from-teal-600 to-teal-700 shadow-teal-500/30"
+    };
+
+    const gradientClass = themeGradients[variant];
+
+    const LinkContent = (
       <Link
         href={item.href}
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 mx-2 text-sm font-medium rounded-xl transition-all duration-300 group relative overflow-hidden",
-          isActive
-            ? activeClass
-            : "text-slate-500 hover:bg-brand-50 hover:text-brand-700"
+          "group relative flex items-center transition-all duration-500 ease-out outline-none",
+          internalCollapse ? "justify-center w-12 h-12 mx-auto" : "px-3 py-3 mx-4",
+          "rounded-xl" // Container utama tidak memiliki background
         )}
       >
-        <item.icon className={cn(
-          "w-5 h-5 transition-colors duration-300",
-          isActive ? iconActiveColor : "text-slate-400 group-hover:text-brand-600"
-        )} />
-        <span className="relative z-10">{item.label}</span>
-        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-white/20" />}
+        {/* 1. BACKGROUND LAYER (Absolute & Z-0) */}
+        <div
+          className={cn(
+            "absolute inset-0 rounded-xl transition-all duration-500 ease-out z-0",
+            isActive
+              ? `bg-linear-to-tr ${gradientClass} opacity-100 scale-100 shadow-lg`
+              : "bg-slate-100/50 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"
+          )}
+        />
+
+        {/* 2. INNER INDICATOR LINE (Garis Samping) */}
+        <div
+          className={cn(
+            "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-500 ease-in-out z-10",
+            isActive
+              ? "w-1 h-8 bg-white/40 opacity-100"
+              : "w-0.5 h-0 bg-slate-300 opacity-0 group-hover:h-5 group-hover:opacity-100"
+          )}
+        />
+
+        {/* 3. CONTENT WRAPPER (Z-10 agar di atas background) */}
+        <div className={cn(
+          "relative z-10 flex items-center w-full transition-transform duration-500 ease-out",
+          internalCollapse ? "justify-center" : (isActive ? "translate-x-1" : "translate-x-0")
+        )}>
+          {/* Ikon dengan penempatan paksa terpusat */}
+          <div className={cn("flex items-center justify-center shrink-0", internalCollapse ? "w-6 h-6" : "w-5 h-5 mr-3")}>
+            <item.icon className={cn(
+              "transition-all duration-500 ease-out w-full h-full",
+              isActive ? "text-white scale-110 drop-shadow-sm" : "text-slate-400 group-hover:text-slate-700 group-hover:scale-110"
+            )} />
+          </div>
+
+          {/* Label Teks */}
+          {!internalCollapse && (
+            <span className={cn(
+              "text-sm transition-all duration-500 whitespace-nowrap overflow-hidden",
+              isActive ? "font-bold text-white tracking-wide" : "font-medium text-slate-500 group-hover:text-slate-800"
+            )}>
+              {item.label}
+            </span>
+          )}
+        </div>
       </Link>
     );
+
+    if (internalCollapse) {
+      return (
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {LinkContent}
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10} className="font-semibold z-50">
+              {item.label}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return LinkContent;
   };
 
   return (
-    <aside className="hidden md:flex flex-col w-64 h-screen border-r border-slate-200 bg-white sticky top-0 left-0 z-40 shadow-xl shadow-slate-200/50">
+    <aside className={cn(
+      "relative flex flex-col h-full bg-white overflow-visible pb-4 transition-all duration-300 z-50 shadow-sm",
+      internalCollapse ? "w-20" : "w-64" // Lebar Sidebar transisi halus
+    )}>
 
-      {/* 1. Header Logo - Centered, Larger, and Compact */}
-      <div className="py-3 flex flex-col items-center justify-center border-slate-100 bg-linear-to-b from-white to-slate-50/50">
-        <div className="relative w-24 h-24 drop-shadow-md">
-          <Image
-            src="/images/logokeuanganku.png"
-            alt="Logo KeuanganKu"
-            fill
-            className="object-contain"
-            priority
-          />
-        </div>
-        {/* Menggunakan mt-1 untuk kontrol jarak yang sangat presisi */}
-        <div className="text-center px-4 -mt-7">
-          <p className="text-[9px] font-bold text-brand-600 uppercase tracking-[0.2em] leading-tight mt-0.5">
-            financial conversation tools
-          </p>
-        </div>
+      {/* TOMBOL COLLAPSE MANUAL (Interactive Toggle) 
+          Selalu terlihat di layar md ke atas, berada persis di garis batas (border)
+      */}
+      <div className="absolute top-8 -right-3.5 z-50 hidden md:block">
+        <button
+          onClick={toggleSidebar}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-md transition-all hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 hover:scale-110"
+          aria-label={internalCollapse ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          {internalCollapse ? <ChevronRight className="h-4 w-4 ml-0.5" /> : <ChevronLeft className="h-4 w-4 mr-0.5" />}
+        </button>
       </div>
 
-      {/* 2. Navigation Links */}
-      <nav className="flex-1 py-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
+      {/* HEADER LOGO */}
+      <div className={cn(
+        "py-4 flex flex-col items-center justify-center border-b border-slate-100 bg-linear-to-b from-white to-slate-50/50 transition-all duration-300",
+        internalCollapse ? "min-h-20" : "min-h-25"
+      )}>
+        {!internalCollapse ? (
+          <>
+            <div className="relative w-24 h-24 drop-shadow-md">
+              <Image src="/images/logokeuanganku.png" alt="Logo KeuanganKu" fill className="object-contain" priority />
+            </div>
+            <div className="text-center px-4 -mt-7">
+              <p className="text-[9px] font-bold text-blue-600 uppercase tracking-[0.2em] leading-tight mt-0.5 whitespace-nowrap">
+                financial conversation tools
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="relative w-10 h-10 drop-shadow-sm transition-transform duration-500 hover:scale-110 mt-2">
+            <Image src="/images/logokeuanganku.png" alt="Logo" fill className="object-contain" priority />
+          </div>
+        )}
+      </div>
 
-        {/* GROUP: MENU UTAMA (User Biasa & Director) */}
-        {/* [LOGIC CHANGE] Admin TIDAK BOLEH melihat menu ini karena dilarang input keuangan */}
+      {/* NAVIGATION MENU */}
+      <nav className="flex-1 py-6 space-y-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
         {!isAdmin && (
           <div>
-            <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Menu Utama</p>
-            <div className="space-y-0.5">
-              {NAVIGATION_CONFIG.main.map((item) => <NavLink key={item.href} item={item} />)}
+            {!internalCollapse ? (
+              <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 whitespace-nowrap">Menu Utama</p>
+            ) : (
+              <div className="w-full flex justify-center mb-3"><div className="w-6 h-0.5 rounded-full bg-slate-200"></div></div>
+            )}
+            <div className="space-y-1.5 flex flex-col">
+              {NAVIGATION_CONFIG.main.map((item: any) => <NavLink key={item.href} item={item} />)}
             </div>
           </div>
         )}
 
-        {/* GROUP: EXECUTIVE MENU (Director Only) */}
-        {isDirector && (
+        {isDirector && NAVIGATION_CONFIG.director.length > 0 && (
           <div>
-            <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-800"></span>
-              Executive
-            </p>
-            <div className="space-y-0.5">
-              {NAVIGATION_CONFIG.director.map((item) => <NavLink key={item.href} item={item} variant="exec" />)}
+            {!internalCollapse ? (
+              <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-800 shrink-0"></span> Executive
+              </p>
+            ) : (
+              <div className="w-full flex justify-center mb-3 mt-6"><div className="w-2 h-2 rounded-full bg-slate-800"></div></div>
+            )}
+            <div className="space-y-1.5 flex flex-col">
+              {NAVIGATION_CONFIG.director.map((item: any) => <NavLink key={item.href} item={item} variant="exec" />)}
             </div>
           </div>
         )}
 
-        {/* GROUP: ADMINISTRATOR (Admin Only) */}
-        {isAdmin && (
+        {isAdmin && NAVIGATION_CONFIG.admin.length > 0 && (
           <div>
-            <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
-              Administrator
-            </p>
-            <div className="space-y-0.5">
-              {NAVIGATION_CONFIG.admin.map((item) => <NavLink key={item.href} item={item} variant="admin" />)}
+            {!internalCollapse ? (
+              <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span> Administrator
+              </p>
+            ) : (
+              <div className="w-full flex justify-center mb-3 mt-6"><div className="w-2 h-2 rounded-full bg-teal-500"></div></div>
+            )}
+            <div className="space-y-1.5 flex flex-col">
+              {NAVIGATION_CONFIG.admin.map((item: any) => <NavLink key={item.href} item={item} variant="admin" />)}
             </div>
           </div>
         )}
-
       </nav>
 
-      {/* 3. Footer / User Profile Snippet */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-        <button
-          onClick={handleLogout}
-          className="group flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all duration-300 shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
-              isAdmin ? "bg-teal-100 text-teal-700" :
-                isDirector ? "bg-slate-200 text-slate-700" :
-                  "bg-brand-100 text-brand-700"
-            )}>
-              {userInitials}
+      {/* FOOTER LOGOUT */}
+      <div className="px-4 pt-2">
+        {internalCollapse ? (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleLogout}
+                  className="group relative overflow-hidden flex items-center justify-center p-0 w-12 h-12 mx-auto text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-2xl hover:border-red-200 hover:shadow-md transition-all duration-500 outline-none"
+                >
+                  <div className="absolute inset-0 bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0" />
+                  <LogOut className="relative z-10 w-5 h-5 text-slate-400 group-hover:text-red-500 transition-all duration-500 group-hover:-translate-x-0.5 group-hover:scale-110" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10} className="font-semibold text-red-600 bg-red-50 border-red-100 z-50">
+                Keluar
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <button
+            onClick={handleLogout}
+            className="group relative overflow-hidden flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-red-200 hover:shadow-md transition-all duration-500 outline-none"
+          >
+            {/* Background Hover Transisi Halus */}
+            <div className="absolute inset-0 bg-red-50/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0" />
+
+            <div className="relative z-10 flex items-center gap-3 overflow-hidden">
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shrink-0",
+                isAdmin ? "bg-teal-100 text-teal-700" : isDirector ? "bg-slate-200 text-slate-700" : "bg-blue-100 text-blue-700",
+                "group-hover:bg-white group-hover:shadow-sm"
+              )}>
+                {userInitials}
+              </div>
+              <div className="flex flex-col items-start truncate text-left transition-transform duration-500 group-hover:translate-x-1">
+                <span className="leading-none group-hover:text-red-600 font-bold transition-colors duration-500">Keluar</span>
+                <span className="text-[10px] text-slate-400 font-medium mt-0.5 uppercase truncate">
+                  {userRoleLabel}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col items-start">
-              <span className="leading-none group-hover:text-red-600 transition-colors">Keluar</span>
-              <span className="text-[10px] text-slate-400 font-normal mt-0.5 uppercase">{userRoleLabel}</span>
-            </div>
-          </div>
-          <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
-        </button>
+            <LogOut className="relative z-10 w-4 h-4 text-slate-400 group-hover:text-red-500 shrink-0 transition-transform duration-500 group-hover:-translate-x-1 group-hover:scale-110" />
+          </button>
+        )}
       </div>
     </aside>
   );

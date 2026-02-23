@@ -8,6 +8,8 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "KeuanganKu - MAXIPRO",
   description: "Aplikasi Perencanaan Keuangan Karyawan",
+  // [FIX]: Hapus baris 'manifest: "/manifest.json"' dari sini. 
+  // Next.js App Router secara otomatis membaca file 'src/app/manifest.ts' Anda dan menyuntikkannya dengan benar.
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -19,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0056b3",
+  themeColor: "#082f49",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -34,12 +36,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      {/* REVISI: 
-          1. Hapus 'overflow-hidden' agar bisa scroll lagi.
-          2. Hapus 'h-[100dvh]' ganti jadi 'min-h-screen' (standar web).
-          3. Hapus 'w-screen' (biarkan default width auto).
-      */}
-      <body className={`${inter.className} bg-slate-50 text-slate-900 antialiased min-h-screen overscroll-none`}>
+      <body 
+        className={`${inter.className} bg-slate-50 text-slate-900 antialiased min-h-screen overscroll-none select-none`}
+      >
         {children}
         <Toaster richColors position="top-right" />
       </body>

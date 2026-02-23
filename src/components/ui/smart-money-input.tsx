@@ -91,12 +91,12 @@ const SmartMoneyInput = forwardRef<HTMLInputElement, SmartMoneyInputProps>(
         };
 
         return (
-            <div className={cn("relative group", className)}>
-                {/* Visual Prefix "Rp" */}
+            <div className={cn("relative w-full group", className)}>
+                {/* Visual Prefix "Rp" dibuat lebih tebal dan solid letaknya */}
                 <div className={cn(
-                    "absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm transition-colors",
-                    isFocused ? "text-primary" : "",
-                    error ? "text-destructive" : ""
+                    "absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold tracking-wide transition-colors pointer-events-none z-10",
+                    isFocused ? "text-blue-600" : "",
+                    error ? "text-rose-500" : ""
                 )}>
                     {currencyPrefix}
                 </div>
@@ -104,18 +104,26 @@ const SmartMoneyInput = forwardRef<HTMLInputElement, SmartMoneyInputProps>(
                 {/* The Actual Input */}
                 <Input
                     ref={ref}
-                    type="text"
-                    inputMode="numeric" // Membuka keyboard angka di HP
+                    // [FIX PWA] type="tel" adalah trik magis terbaik untuk memaksa iPhone dan Android 
+                    // memunculkan keyboard Numpad besar (yang ada tombol bintang/pagar),
+                    // karena "numeric" kadang masih memunculkan QWERTY dengan baris angka di atas.
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*" // Fallback strict untuk iOS lama
                     value={displayValue}
                     onChange={handleChange}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     placeholder={placeholder || "0"}
                     className={cn(
-                        "pl-10 text-right font-mono text-base tracking-wide transition-all shadow-sm", // Padding kiri untuk Rp, text rata kanan
-                        "focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary", // Custom focus ring
-                        error && "border-destructive focus-visible:ring-destructive/20",
-                        displayValue === "" && "text-muted-foreground" // Placeholder look jika kosong
+                        // [FIX UX] Teks digedekan (text-lg) agar terasa "Financial App" banget.
+                        // Font diganti ke font-sans dengan font-black agar angka tebal dan mudah dibaca klien dari jauh.
+                        "pl-12 text-left font-sans text-base md:text-lg font-black tracking-tight transition-all shadow-sm bg-slate-50",
+
+                        // State Handling
+                        "focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 hover:bg-white",
+                        error && "border-rose-300 bg-rose-50/20 text-rose-900 focus:border-rose-500 focus:ring-rose-500/10",
+                        displayValue === "" && "text-slate-400"
                     )}
                     {...props}
                 />
