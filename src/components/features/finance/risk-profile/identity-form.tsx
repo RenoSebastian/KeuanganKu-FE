@@ -16,19 +16,24 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 // --- VALIDATION SCHEMA ---
+// --- VALIDATION SCHEMA ---
 const identitySchema = z.object({
     name: z.string().min(2, "Nama wajib diisi"),
     dob: z.string().min(1, "Tanggal lahir wajib diisi"),
-    gender: z.enum(["L", "P"]),
-    city: z.string().min(2, "Kota wajib diisi"),
-    address: z.string().min(5, "Alamat lengkap wajib diisi"),
-    phone: z.string().min(10, "Nomor HP minimal 10 digit"),
-    email: z.union([z.literal(""), z.string().email("Email tidak valid")]),
-    occupation: z.string().min(2, "Pekerjaan wajib diisi"),
+    gender: z.enum(["L", "P"]).optional(),
+
+    // Hapus validasi .min() dan jadikan opsional agar sejalan dengan label UI
+    city: z.string().optional(),
+    address: z.string().optional(), // Tidak ada di UI, wajib dibuat opsional agar tidak memblokir submit
+    phone: z.string().optional(),
+    email: z.union([z.literal(""), z.string().email("Email tidak valid")]).optional(),
+    occupation: z.string().optional(),
+
+    // Field legacy/bawaan dari form lain kita amankan
     religion: z.string().optional(),
-    maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED"]),
-    childrenCount: z.number().min(0),
-    dependentParents: z.number().min(0),
+    maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED"]).optional(),
+    childrenCount: z.number().min(0).optional(),
+    dependentParents: z.number().min(0).optional(),
     spouseName: z.string().optional(),
     spouseDob: z.string().optional(),
     spouseOccupation: z.string().optional(),
@@ -94,19 +99,19 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
             form.reset({
                 name: initialData.name || "",
                 dob: initialData.dob || "",
-                gender: initialData.gender || "L",
+                gender: "L", // Berikan default value karena tidak ada di interface ClientIdentity
                 city: initialData.city || "",
-                address: initialData.address || "",
+                address: "",
                 phone: initialData.phone || "",
-                email: initialData.email || "",
-                occupation: initialData.occupation || "",
-                religion: initialData.religion || "Islam",
-                maritalStatus: initialData.maritalStatus || "SINGLE",
-                childrenCount: initialData.childrenCount ?? 0,
-                dependentParents: initialData.dependentParents ?? 0,
-                spouseName: initialData.spouse?.name || "",
-                spouseDob: initialData.spouse?.dob || "",
-                spouseOccupation: initialData.spouse?.occupation || "",
+                email: "",
+                occupation: initialData.job || "", // Ambil dari key 'job' bukan 'occupation'
+                religion: "Islam",
+                maritalStatus: "SINGLE", // Default aman
+                childrenCount: 0,
+                dependentParents: 0,
+                spouseName: "",
+                spouseDob: "",
+                spouseOccupation: "",
             });
         }
     }, [initialData, form]);
@@ -135,29 +140,17 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
 
         setError(null);
 
-        const structuredData = {
-            client: {
-                name: values.name,
-                dob: values.dob,
-                gender: values.gender,
-                city: values.city,
-                address: values.address,
-                phone: values.phone,
-                email: values.email || undefined,
-                occupation: values.occupation,
-                religion: values.religion,
-                maritalStatus: values.maritalStatus,
-                childrenCount: values.childrenCount,
-                dependentParents: values.dependentParents,
-            },
-            spouse: values.maritalStatus === "MARRIED" ? {
-                name: values.spouseName || "Pasangan",
-                dob: values.spouseDob,
-                occupation: values.spouseOccupation
-            } : undefined
+        // --- ADAPTER MAPPING ---
+        // Format ulang menjadi objek flat sesuai interface ClientIdentity di Wizard
+        const flatIdentityData = {
+            name: values.name,
+            dob: values.dob,
+            phone: values.phone,
+            job: values.occupation, // Mapping dari 'occupation' form ke 'job' wizard
+            city: values.city
         };
 
-        onSubmit(structuredData);
+        onSubmit(flatIdentityData);
     };
 
     // FIX 2: Terapkan antarmuka Variants dan buang tipe string eksplisit (type: "spring")
