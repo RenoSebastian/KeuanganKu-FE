@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { motion, AnimatePresence, Variants } from "framer-motion"; // Tambahkan import Variants
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
     CheckCircle2,
     User, Wallet, Activity, FileSearch, Upload, Sparkles
@@ -56,9 +56,8 @@ const STEP_MAP: Record<WizardStep, { id: number, label: string, icon: any }> = {
 // MAIN SMART CONTROLLER (WIZARD)
 // ============================================================================
 
-// [FIX 1] DEFINISI PROPS YANG KONSISTEN DENGAN PAGE.TSX
 export interface CheckupWizardProps {
-    onComplete?: (data: any) => Promise<void> | void; // Dibuat opsional agar kompatibel dengan pemanggilan manapun
+    onComplete?: (data: any) => Promise<void> | void;
     onBack?: () => void;
     isLoading?: boolean;
 }
@@ -118,7 +117,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         }
 
         clearStorage();
-        setInternalLoading(true); // Gunakan internal loading
+        setInternalLoading(true);
         const toastId = toast.loading("Dekripsi Token MGC...", { description: "Mengekstrak profil klien..." });
 
         try {
@@ -172,7 +171,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // [FIX] Mengintegrasikan properti onComplete dari Parent (page.tsx)
     const onFinancialSubmit = async () => {
         if (!clientData) {
             toast.error("Integritas Data Hilang", { description: "Profil klien tidak ditemukan. Harap isi identitas." });
@@ -185,7 +183,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         // Prioritaskan onComplete dari parent (legacy support/controller terpisah)
         if (onComplete) {
             await onComplete(payload);
-            // Catatan: Transisi ke RESULT dan penyimpanan data hasil ditangani oleh parent
             return;
         }
 
@@ -213,10 +210,8 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         return clientData.client ? { ...clientData.client, spouse: clientData.spouse } : clientData;
     };
 
-    // [FIX 2] MENGGUNAKAN TIPE VARIANTS DARI FRAMER MOTION
     const pageVariants: Variants = {
         initial: { opacity: 0, y: 20, scale: 0.98 },
-        // Menghapus asersi string untuk type: "spring" yang menyebabkan bentrok tipe
         animate: { opacity: 1, y: 0, scale: 1, transition: { stiffness: 300, damping: 25 } },
         exit: { opacity: 0, y: -20, scale: 0.95, transition: { duration: 0.2 } }
     };
@@ -274,8 +269,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                     {currentStep === "IDENTITY" && (
                         <motion.div key="identity" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col gap-6">
 
-                            {/* Glassmorphism Pro Tool Import Banner */}
-                            {/* [FIX 3] Mengganti bg-gradient-to-br menjadi bg-linear-to-br sesuai rekomendasi linter */}
                             <div className="group relative overflow-hidden bg-linear-to-br from-indigo-600 via-blue-600 to-indigo-800 rounded-[1.5rem] p-5 shadow-xl shadow-indigo-900/20 border border-indigo-400/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                 <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/20 blur-3xl rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-700" />
 
@@ -322,13 +315,13 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                     onUpdate={handleFinancialUpdate}
                                     onComplete={onFinancialSubmit}
                                     onBack={() => setCurrentStep("IDENTITY")}
-                                    isLoading={isProcessing} // Menyampaikan status loading ke form anak
+                                    isLoading={isProcessing}
                                 />
                             </div>
                         </motion.div>
                     )}
 
-                    {/* STEP 3: RESULT DASHBOARD (Jika tidak ditangani parent) */}
+                    {/* STEP 3: RESULT DASHBOARD */}
                     {currentStep === "RESULT" && simulationData && !onComplete && (
                         <motion.div key="result" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <div className="bg-white rounded-[2rem] shadow-2xl shadow-indigo-900/5 border border-slate-100 overflow-hidden">
@@ -336,6 +329,10 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                     data={simulationData}
                                     mode="AGENT_SIMULATION"
                                     onReset={handleReset}
+                                    onEditData={() => {
+                                        setCurrentStep("FINANCIAL");
+                                        window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }}
                                 />
                             </div>
                         </motion.div>

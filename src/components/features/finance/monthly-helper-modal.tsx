@@ -5,7 +5,7 @@ import { Calculator, X, CalendarDays, Banknote, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion"; // Fix: Integrasi penuh Framer Motion
+import { motion, AnimatePresence } from "framer-motion";
 
 interface MonthlyHelperModalProps {
   isOpen: boolean;
@@ -59,9 +59,9 @@ export function MonthlyHelperModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-100 flex items-end md:items-center justify-center p-0 md:p-6">
+        <div className="fixed inset-0 z-999 flex items-center justify-center p-4 sm:p-6">
 
-          {/* BACKDROP (Tembus pandang & Gelap) */}
+          {/* BACKDROP */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -71,28 +71,23 @@ export function MonthlyHelperModal({
             onClick={onClose}
           />
 
-          {/* MODAL / BOTTOM SHEET PANEL */}
+          {/* MODAL CENTER PANEL */}
           <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="relative w-full md:max-w-md bg-white rounded-t-[2rem] md:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="relative w-full md:max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
-            {/* PWA Drag Handle (Visual Only for iOS vibe) */}
-            <div className="w-full flex justify-center pt-3 pb-1 md:hidden absolute top-0 left-0 z-20">
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
-            </div>
-
             {/* HEADER */}
-            <div className="relative pt-8 pb-5 px-6 md:pt-6 bg-linear-to-b from-indigo-50/50 to-white flex items-start justify-between border-b border-slate-100">
+            <div className="relative pt-6 pb-5 px-6 bg-linear-to-b from-indigo-50/50 to-white flex items-start justify-between border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
                   <Calculator className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="font-black text-slate-800 text-lg md:text-xl tracking-tight">{title}</h3>
-                  <p className="text-[11px] md:text-xs text-slate-500 font-medium">Bantu konversi bulanan ke tahunan (x12)</p>
+                  <p className="text-[11px] md:text-xs text-slate-500 font-medium">Bantu konversi bulanan ke tahunan</p>
                 </div>
               </div>
               <button
@@ -105,7 +100,6 @@ export function MonthlyHelperModal({
 
             {/* BODY CONTENT */}
             <div className="p-6 space-y-6 overflow-y-auto">
-
               {/* Input Nominal Bulanan */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -138,9 +132,8 @@ export function MonthlyHelperModal({
                 <div className="h-px bg-slate-100 flex-1" />
               </div>
 
-              {/* Result Output Card (Glassmorphism Holographic) */}
+              {/* Result Output Card */}
               <div className="relative bg-linear-to-br from-indigo-600 via-blue-600 to-indigo-800 p-6 rounded-[1.5rem] text-white shadow-xl shadow-indigo-900/20 overflow-hidden group">
-                {/* Ambient Light Effect */}
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/20 blur-3xl rounded-full pointer-events-none transition-transform duration-700 group-hover:scale-150" />
                 <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-cyan-400/20 blur-2xl rounded-full pointer-events-none" />
 
@@ -153,11 +146,10 @@ export function MonthlyHelperModal({
                   </p>
                 </div>
               </div>
-
             </div>
 
-            {/* FOOTER ACTIONS (PWA Safe Area) */}
-            <div className="p-6 pt-2 pb-[calc(env(safe-area-inset-bottom)+24px)] md:pb-6 flex gap-3 border-t border-slate-50 bg-white">
+            {/* FOOTER ACTIONS */}
+            <div className="p-6 pt-2 pb-6 flex gap-3 border-t border-slate-50 bg-white">
               <Button
                 variant="outline"
                 onClick={onClose}

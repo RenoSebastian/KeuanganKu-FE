@@ -418,8 +418,10 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         {[
                                             { k: 'insuranceLife', l: 'Asuransi Jiwa', i: <Umbrella className="w-4 h-4" /> },
                                             { k: 'insuranceHealth', l: 'Asuransi Kesehatan', i: <Activity className="w-4 h-4" /> },
+                                            { k: 'insuranceHome', l: 'Asuransi Rumah', i: <Home className="w-4 h-4" /> },
                                             { k: 'insuranceVehicle', l: 'Asuransi Kendaraan', i: <Car className="w-4 h-4" /> },
-                                            { k: 'insuranceBPJS', l: 'BPJS Kes / TK', i: <ShieldCheck className="w-4 h-4" /> }
+                                            { k: 'insuranceBPJS', l: 'BPJS Kes / TK', i: <ShieldCheck className="w-4 h-4" /> },
+                                            { k: 'insuranceOther', l: 'Asuransi Lainnya', i: <Briefcase className="w-4 h-4" /> }
                                         ].map((item) => (
                                             <InputGroup
                                                 key={item.k} label={item.l} value={num(data[item.k as keyof FinancialAnnualState])}
@@ -436,8 +438,11 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         {[
                                             { k: 'savingEducation', l: 'Dana Pendidikan', i: <PiggyBank className="w-4 h-4" /> },
-                                            { k: 'savingRetirement', l: 'Dana Pensiun', i: <TrendingUp className="w-4 h-4" /> },
-                                            { k: 'savingEmergency', l: 'Dana Darurat', i: <ShieldCheck className="w-4 h-4" /> }
+                                            { k: 'savingRetirement', l: 'Dana Hari Tua / Pensiun', i: <TrendingUp className="w-4 h-4" /> },
+                                            { k: 'savingPilgrimage', l: 'Dana Ibadah', i: <Sparkles className="w-4 h-4" /> },
+                                            { k: 'savingHoliday', l: 'Dana Liburan', i: <Plane className="w-4 h-4" /> },
+                                            { k: 'savingEmergency', l: 'Dana Darurat', i: <ShieldCheck className="w-4 h-4" /> },
+                                            { k: 'savingOther', l: 'Dana Lainnya', i: <Wallet className="w-4 h-4" /> }
                                         ].map((item) => (
                                             <InputGroup
                                                 key={item.k} label={item.l} value={num(data[item.k as keyof FinancialAnnualState])}
@@ -457,8 +462,9 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                             { k: 'expenseSchool', l: 'Uang Sekolah Anak', i: <User className="w-4 h-4" /> },
                                             { k: 'expenseTransport', l: 'Transportasi', i: <Car className="w-4 h-4" /> },
                                             { k: 'expenseCommunication', l: 'Listrik & Internet', i: <Phone className="w-4 h-4" /> },
+                                            { k: 'expenseHelpers', l: 'Asisten RT / Driver', i: <Users className="w-4 h-4" /> },
                                             { k: 'expenseTax', l: 'Pajak & Retribusi', i: <Landmark className="w-4 h-4" /> },
-                                            { k: 'expenseLifestyle', l: 'Gaya Hidup (Nongkrong)', i: <ShoppingBag className="w-4 h-4" /> }
+                                            { k: 'expenseLifestyle', l: 'Gaya Hidup & Lainnya', i: <ShoppingBag className="w-4 h-4" /> }
                                         ].map((item) => (
                                             <InputGroup
                                                 key={item.k} label={item.l} value={num(data[item.k as keyof FinancialAnnualState])}
@@ -473,7 +479,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         )}
 
                         {/* ==================================================
-                            STEP 2: REVIEW REKAPITULASI 
+                            STEP 2: REVIEW REKAPITULASI (SIMETRIS & SEJAJAR)
                             ================================================== */}
                         {step === 2 && (
                             <motion.div key="step-2" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">
@@ -483,46 +489,123 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                     </div>
                                     <h3 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Verifikasi Akhir</h3>
                                     <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed">
-                                        Pastikan total kalkulasi sistem di bawah ini sudah merepresentasikan realitas kondisi keuangan klien Anda.
+                                        Pastikan rincian kalkulasi sistem di bawah ini sudah merepresentasikan realitas kondisi keuangan klien Anda.
                                     </p>
                                 </div>
 
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    {/* CARD 1: NERACA */}
-                                    <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-xl shadow-slate-200/50">
-                                        <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-4">
-                                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600"><Wallet className="w-5 h-5" /></div>
+                                <div className="flex flex-col gap-6">
+
+                                    {/* CARD 1: NERACA (POSTUR KEKAYAAN) */}
+                                    <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl shadow-xl shadow-slate-200/50">
+                                        <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-6">
+                                            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600"><Wallet className="w-6 h-6" /></div>
                                             <div>
-                                                <h4 className="font-bold text-slate-800 tracking-tight">Postur Neraca</h4>
-                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">Total Harta & Utang</p>
+                                                <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Postur Neraca</h4>
+                                                <p className="text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Harta & Beban Utang</p>
                                             </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <ReviewRow label="Total Aset Pribadi" value={totalAssets} color="emerald" />
-                                            <ReviewRow label="Total Utang Berjalan" value={totalDebt} color="rose" />
-                                            <div className="border-t-2 border-dashed border-slate-200 pt-3 mt-3 bg-slate-50/50 rounded-xl p-3 -mx-3">
-                                                <ReviewRow label="Kekayaan Bersih" value={netWorth} isTotal />
+
+                                        {/* Rincian Items (Bisa tidak seimbang tingginya) */}
+                                        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-4">
+                                            {/* Kiri: ASET */}
+                                            <div className="space-y-2">
+                                                <h5 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                    <TrendingUp className="w-4 h-4" /> Distribusi Aset
+                                                </h5>
+                                                <ReviewRow label="Aset Likuid" value={num(data.assetCash)} />
+                                                <ReviewRow label="Aset Personal" value={num(data.assetHome) + num(data.assetVehicle) + num(data.assetJewelry) + num(data.assetAntique) + num(data.assetPersonalOther)} />
+                                                <ReviewRow label="Aset Investasi" value={totalAssets - num(data.assetCash) - (num(data.assetHome) + num(data.assetVehicle) + num(data.assetJewelry) + num(data.assetAntique) + num(data.assetPersonalOther))} />
                                             </div>
+
+                                            {/* Kanan: UTANG */}
+                                            <div className="space-y-2">
+                                                <h5 className="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                    <CreditCard className="w-4 h-4" /> Distribusi Utang
+                                                </h5>
+                                                <ReviewRow label="Utang Konsumtif" value={num(data.debtKPR) + num(data.debtKPM) + num(data.debtCC) + num(data.debtCoop) + num(data.debtConsumptiveOther)} />
+                                                <ReviewRow label="Utang Usaha" value={num(data.debtBusiness)} />
+                                            </div>
+                                        </div>
+
+                                        {/* Total Section (Dikunci Simetris Sejajar) */}
+                                        <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 border-t border-slate-200 pt-5 mb-6">
+                                            <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50 shadow-sm">
+                                                <ReviewRow label="Total Aset" value={totalAssets} color="emerald" isTotal />
+                                            </div>
+                                            <div className="bg-rose-50/50 p-3 rounded-xl border border-rose-100/50 shadow-sm">
+                                                <ReviewRow label="Total Utang" value={totalDebt} color="rose" isTotal />
+                                            </div>
+                                        </div>
+
+                                        {/* Result Bottom Indicator */}
+                                        <div className="border-t-2 border-dashed border-indigo-100 bg-indigo-50/50 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                                            <div>
+                                                <p className="text-xs font-black text-indigo-500 uppercase tracking-widest">Kekayaan Bersih (Net Worth)</p>
+                                                <p className="text-[10px] text-indigo-600/70 font-bold mt-0.5">(Total Aset - Total Utang)</p>
+                                            </div>
+                                            <span className={cn("text-2xl md:text-3xl font-black", netWorth >= 0 ? "text-indigo-700" : "text-rose-600")}>
+                                                {formatRupiah(netWorth)}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    {/* CARD 2: ARUS KAS */}
-                                    <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-xl shadow-slate-200/50">
-                                        <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-4">
-                                            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600"><Banknote className="w-5 h-5" /></div>
+                                    {/* CARD 2: ARUS KAS (POSTUR CASHFLOW) */}
+                                    <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl shadow-xl shadow-slate-200/50">
+                                        <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-6">
+                                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600"><Banknote className="w-6 h-6" /></div>
                                             <div>
-                                                <h4 className="font-bold text-slate-800 tracking-tight">Postur Arus Kas</h4>
-                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">Tahunan (Annual)</p>
+                                                <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Postur Arus Kas</h4>
+                                                <p className="text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Pemasukan & Pengeluaran Tahunan</p>
                                             </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <ReviewRow label="Total Pemasukan" value={totalIncomeAnnual} color="emerald" />
-                                            <ReviewRow label="Total Pengeluaran" value={totalExpenseAnnual} color="rose" />
-                                            <div className="border-t-2 border-dashed border-slate-200 pt-3 mt-3 bg-slate-50/50 rounded-xl p-3 -mx-3">
-                                                <ReviewRow label="Surplus / Defisit" value={surplusDeficitAnnual} isTotal />
+
+                                        {/* Rincian Items */}
+                                        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-4">
+                                            {/* Kiri: PEMASUKAN */}
+                                            <div className="space-y-2">
+                                                <h5 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                    <DollarSign className="w-4 h-4" /> Sumber Pemasukan
+                                                </h5>
+                                                <ReviewRow label="Pendapatan Tetap" value={num(data.incomeFixed)} />
+                                                <ReviewRow label="Pendapatan Variabel" value={num(data.incomeVariable)} />
                                             </div>
+
+                                            {/* Kanan: PENGELUARAN */}
+                                            <div className="space-y-2">
+                                                <h5 className="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                    <ShoppingBag className="w-4 h-4" /> Pos Pengeluaran
+                                                </h5>
+                                                <ReviewRow label="Cicilan Utang" value={totalInstallmentsAnnual} />
+                                                <ReviewRow label="Premi Asuransi" value={totalInsuranceAnnual} />
+                                                <ReviewRow label="Tabungan & Investasi" value={totalSavingsAnnual} />
+                                                <ReviewRow label="Biaya Hidup (Konsumsi)" value={totalLivingExpenseAnnual} />
+                                            </div>
+                                        </div>
+
+                                        {/* Total Section (Dikunci Simetris Sejajar) */}
+                                        <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 border-t border-slate-200 pt-5 mb-6">
+                                            <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50 shadow-sm">
+                                                <ReviewRow label="Total Pemasukan" value={totalIncomeAnnual} color="emerald" isTotal />
+                                            </div>
+                                            <div className="bg-rose-50/50 p-3 rounded-xl border border-rose-100/50 shadow-sm">
+                                                <ReviewRow label="Total Pengeluaran" value={totalExpenseAnnual} color="rose" isTotal />
+                                            </div>
+                                        </div>
+
+                                        {/* Result Bottom Indicator */}
+                                        <div className={cn("border-t-2 border-dashed rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3", surplusDeficitAnnual >= 0 ? "border-emerald-100 bg-emerald-50/50" : "border-rose-100 bg-rose-50/50")}>
+                                            <div>
+                                                <p className={cn("text-xs font-black uppercase tracking-widest", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>Surplus / Defisit</p>
+                                                <p className={cn("text-[10px] font-bold mt-0.5", surplusDeficitAnnual >= 0 ? "text-emerald-600/70" : "text-rose-600/70")}>
+                                                    (Total Pemasukan - Total Pengeluaran)
+                                                </p>
+                                            </div>
+                                            <span className={cn("text-2xl md:text-3xl font-black", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                                                {formatRupiah(surplusDeficitAnnual)}
+                                            </span>
                                         </div>
                                     </div>
+
                                 </div>
                             </motion.div>
                         )}
@@ -577,20 +660,40 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                 onApply={(val) => applyMonthlyToAnnual(val)}
                 title="Kalkulator Auto-Tahunan"
             />
-
             {showDebtModal.show && (
-                <div className="fixed inset-0 z-100 flex items-end md:items-center justify-center p-4 sm:p-5">
+                <div className="fixed inset-0 z-999 flex items-center justify-center p-4 sm:p-6">
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDebtModal({ show: false, target: null })} />
-                    <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", damping: 25 }} className="relative bg-white w-full max-w-md rounded-3xl p-6 md:p-8 shadow-2xl">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="relative bg-white w-full max-w-md rounded-[2rem] p-6 md:p-8 shadow-2xl"
+                    >
                         <div className="flex items-center gap-4 mb-6">
-                            <div className="w-12 h-12 bg-rose-50 rounded-3xl flex items-center justify-center text-rose-600 shadow-inner border border-rose-100">
+                            <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 shadow-sm border border-rose-100">
                                 <Calculator className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Hitung Sisa Utang</h3>
-                                <p className="text-xs text-slate-500 font-medium">Hitung otomatis dari cicilan x tenor.</p>
+                                {/* MODIFIKASI DIMULAI DI SINI */}
+                                <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">
+                                    Hitung Sisa {
+                                        showDebtModal.target === 'debtKPR' ? 'KPR' :
+                                            showDebtModal.target === 'debtKPM' ? 'KPM' :
+                                                'Utang'
+                                    }
+                                </h3>
+                                <p className="text-xs text-slate-500 font-medium">
+                                    Hitung otomatis sisa pokok {
+                                        showDebtModal.target === 'debtKPR' ? 'KPR (Rumah)' :
+                                            showDebtModal.target === 'debtKPM' ? 'KPM (Kendaraan)' :
+                                                'utang'
+                                    } dari cicilan x tenor.
+                                </p>
+                                {/* MODIFIKASI BERAKHIR DI SINI */}
                             </div>
                         </div>
+                        {/* SISA KODE FORM UTANG TETAP SAMA */}
                         <div className="space-y-5">
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cicilan Per Bulan</label>
@@ -613,11 +716,17 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
             )}
 
             {showGoldModal && (
-                <div className="fixed inset-0 z-100 flex items-end md:items-center justify-center p-4 sm:p-5">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowGoldModal(false)} />
-                    <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", damping: 25 }} className="relative bg-white w-full max-w-md rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100">
+                <div className="fixed inset-0 z-999 flex items-center justify-center p-4 sm:p-6">
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowGoldModal(false)} />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="relative bg-white w-full max-w-md rounded-[2rem] p-6 md:p-8 shadow-2xl border border-slate-100"
+                    >
                         <div className="flex items-center gap-4 mb-6">
-                            <div className="w-12 h-12 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100">
+                            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100">
                                 <Sparkles className="w-6 h-6" />
                             </div>
                             <div>
@@ -625,6 +734,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                 <p className="text-xs text-slate-500 font-medium">Konversi otomatis gram ke rupiah.</p>
                             </div>
                         </div>
+                        {/* SISA KODE FORM EMAS SAMA SEPERTI SEBELUMNYA */}
                         <div className="space-y-5">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
                                 <div>
