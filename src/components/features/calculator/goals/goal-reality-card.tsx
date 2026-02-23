@@ -22,6 +22,9 @@ export function GoalRealityCard({
     const priceIncrease = futureTargetAmount - targetAmount;
     const multiplier = (futureTargetAmount / (targetAmount || 1)).toFixed(1);
 
+    // Konversi Tahun ke Bulan (Dibulatkan ke atas agar aman)
+    const estimatedMonths = Math.ceil(yearsDuration * 12);
+
     return (
         <Card className="p-6 md:p-8 bg-white/95 backdrop-blur-xl border border-rose-100 rounded-[2rem] shadow-xl shadow-rose-500/5 overflow-hidden relative group">
             {/* Background decoration */}
@@ -35,8 +38,9 @@ export function GoalRealityCard({
                     </div>
                     <div>
                         <h3 className="text-lg font-black text-slate-800 tracking-tight">Realita Inflasi</h3>
+                        {/* Diubah formatnya menjadi Bulan dengan narasi ajakan/persuasif */}
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                            Dalam {yearsDuration} Tahun ke Depan
+                            Estimasi Waktu: ~ {estimatedMonths} Bulan
                         </p>
                     </div>
                 </div>
@@ -46,45 +50,51 @@ export function GoalRealityCard({
                 </div>
             </div>
 
-            {/* Visual Comparison Bento */}
-            <div className="flex flex-col md:flex-row gap-4 items-stretch relative z-10">
+            {/* Visual Comparison Bento (FIXED: 100% Vertical Stack di Semua Layar) */}
+            <div className="flex flex-col gap-3 items-stretch relative z-10">
 
-                {/* LEFT: HARGA SEKARANG */}
-                <div className="flex-1 bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100 flex flex-col justify-center transition-colors hover:border-slate-300">
+                {/* TOP: HARGA SEKARANG */}
+                <div className="w-full bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100 flex flex-col justify-center transition-colors hover:border-slate-300">
                     <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2 flex items-center gap-1.5">
                         <Info className="w-3 h-3" /> Harga Saat Ini
                     </p>
                     <div className="w-full">
-                        <p className="text-2xl md:text-3xl font-black text-slate-700 tracking-tighter break-all leading-none">
+                        <p className="text-3xl md:text-4xl font-black text-slate-700 tracking-tighter break-all leading-none">
                             {formatRupiah(targetAmount)}
                         </p>
                     </div>
                     <p className="text-[10px] text-slate-400 mt-3 font-medium">Present Value (PV)</p>
                 </div>
 
-                {/* MIDDLE: ARROW INDICATOR (Animated) */}
-                <div className="flex flex-col items-center justify-center py-2 md:py-0 px-2 gap-2">
+                {/* MIDDLE: ARROW INDICATOR (Animated Vertical) */}
+                <div className="flex flex-col items-center justify-center py-2 px-1 gap-2 shrink-0">
                     <motion.div
-                        animate={{ x: [0, 5, 0], opacity: [0.5, 1, 0.5] }}
+                        animate={{
+                            y: [0, 5, 0], // Murni animasi naik turun (vertikal)
+                            opacity: [0.5, 1, 0.5]
+                        }}
                         transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                        className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 shadow-sm md:flex"
+                        className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 shadow-sm"
                     >
-                        <ArrowRight className="w-5 h-5" />
+                        {/* Panah paten ke bawah */}
+                        <ArrowRight className="w-5 h-5 rotate-90" />
                     </motion.div>
-                    <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200">
-                        +{inflationRate}% / thn
+
+                    <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200">
+                        Inflasi: +{inflationRate}% / thn
                     </span>
                 </div>
 
-                {/* RIGHT: HARGA NANTI (Highlighted) */}
-                <div className="flex-1 bg-linear-to-br from-rose-50 to-red-50 p-5 md:p-6 rounded-[1.5rem] border border-rose-200 flex flex-col justify-center relative overflow-hidden group/card hover:shadow-lg hover:shadow-rose-500/10 transition-all duration-500">
+                {/* BOTTOM: HARGA NANTI (Highlighted) */}
+                <div className="w-full bg-linear-to-br from-rose-50 to-red-50 p-5 md:p-6 rounded-[1.5rem] border border-rose-200 flex flex-col justify-center relative overflow-hidden group/card hover:shadow-lg hover:shadow-rose-500/10 transition-all duration-500">
                     <div className="absolute inset-0 bg-white/40 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500" />
 
                     <p className="text-[10px] uppercase font-black text-rose-600 tracking-widest mb-2 relative z-10 flex items-center gap-1.5">
                         <TrendingUp className="w-3 h-3" /> Harga Masa Depan
                     </p>
                     <div className="w-full relative z-10">
-                        <p className="text-3xl md:text-4xl font-black text-rose-700 tracking-tighter break-all leading-none drop-shadow-sm">
+                        {/* Angka Future Value dibesarkan agar dramatis karena sudah vertikal penuh */}
+                        <p className="text-4xl md:text-5xl font-black text-rose-700 tracking-tighter break-all leading-none drop-shadow-sm">
                             {formatRupiah(futureTargetAmount)}
                         </p>
                     </div>
@@ -99,7 +109,7 @@ export function GoalRealityCard({
                     <AlertTriangle className="w-4 h-4 text-amber-600" />
                 </div>
                 <p className="text-[11px] md:text-xs leading-relaxed font-medium">
-                    Klien harus mengumpulkan selisih sebesar <strong className="font-black text-amber-700 bg-amber-100/50 px-1 rounded">{formatRupiah(priceIncrease)}</strong> tambahan <span className="underline decoration-amber-300 underline-offset-2">hanya untuk mengejar laju inflasi</span>, di luar dari harga asli barang.
+                    Jika ditunda, klien harus mencari uang tambahan sebesar <strong className="font-black text-amber-700 bg-amber-100/50 px-1 rounded">{formatRupiah(priceIncrease)}</strong> <span className="underline decoration-amber-300 underline-offset-2">hanya untuk mengejar laju inflasi</span>, di luar dari harga asli barang tersebut saat ini.
                 </p>
             </div>
         </Card>

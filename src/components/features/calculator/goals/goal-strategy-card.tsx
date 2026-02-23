@@ -74,11 +74,11 @@ export function GoalStrategyCard({
                 </div>
             </div>
 
-            {/* LEGEND / DETAILS (Bento Style) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+            {/* LEGEND / DETAILS (Bento Style) - FIXED: h-full flex-col justify-between */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10 items-stretch">
 
                 {/* Box A: Passive Growth */}
-                <div className="bg-emerald-50/80 p-5 rounded-[1.5rem] border border-emerald-100 hover:shadow-md transition-all">
+                <div className="bg-emerald-50/80 p-5 rounded-[1.5rem] border border-emerald-100 hover:shadow-md transition-all h-full flex flex-col justify-between">
                     <div className="flex flex-col gap-2">
                         <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1">
                             <Zap className="w-4 h-4" />
@@ -87,14 +87,15 @@ export function GoalStrategyCard({
                         <div className="w-full">
                             <p className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter break-all leading-none">{formatRupiah(futureExistingFund)}</p>
                         </div>
-                        <p className="text-[11px] text-slate-500 leading-relaxed mt-1 font-medium">
-                            Hasil akhir dari modal awal klien yang didiamkan dan bertumbuh <strong className="text-slate-700">{returnRate}%</strong> per tahun.
-                        </p>
                     </div>
+                    {/* Teks ditempatkan di bawah agar rata */}
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-4 font-medium">
+                        Hasil akhir dari modal awal klien yang didiamkan dan bertumbuh <strong className="text-slate-700">{returnRate}%</strong> per tahun.
+                    </p>
                 </div>
 
                 {/* Box B: Active Target */}
-                <div className={cn("p-5 rounded-[1.5rem] border hover:shadow-md transition-all", isSurplus ? "bg-emerald-50/80 border-emerald-100" : "bg-amber-50/80 border-amber-100")}>
+                <div className={cn("p-5 rounded-[1.5rem] border hover:shadow-md transition-all h-full flex flex-col justify-between", isSurplus ? "bg-emerald-50/80 border-emerald-100" : "bg-amber-50/80 border-amber-100")}>
                     <div className="flex flex-col gap-2">
                         <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mb-1", isSurplus ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600")}>
                             <Target className="w-4 h-4" />
@@ -107,13 +108,14 @@ export function GoalStrategyCard({
                                 {isSurplus ? formatRupiah(futureExistingFund - futureTargetAmount) : formatRupiah(netTarget)}
                             </p>
                         </div>
-                        <p className="text-[11px] text-slate-500 leading-relaxed mt-1 font-medium">
-                            {isSurplus
-                                ? "Modal awal klien sudah sangat kuat, tidak perlu tambahan investasi rutin untuk tujuan ini."
-                                : "Jumlah nominal yang masih kurang dan wajib dikejar klien melalui rutinitas menabung."
-                            }
-                        </p>
                     </div>
+                    {/* Teks ditempatkan di bawah agar rata */}
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-4 font-medium">
+                        {isSurplus
+                            ? "Modal awal klien sudah sangat kuat, tidak perlu tambahan investasi rutin untuk tujuan ini."
+                            : "Jumlah nominal yang masih kurang dan wajib dikejar klien melalui rutinitas menabung."
+                        }
+                    </p>
                 </div>
 
             </div>
