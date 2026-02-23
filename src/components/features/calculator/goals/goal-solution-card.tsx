@@ -1,9 +1,9 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { formatRupiah } from "@/lib/financial-math";
-import { CheckCircle2, TrendingUp, PiggyBank, CalendarClock } from "lucide-react";
+import { CheckCircle2, TrendingUp, PiggyBank, CalendarClock, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
+import { motion } from "framer-motion";
 
 interface GoalSolutionProps {
     monthlySaving: number;
@@ -23,93 +23,99 @@ export function GoalSolutionCard({
 
     return (
         <Card className={cn(
-            "relative overflow-hidden rounded-3xl border-0 shadow-xl transition-all duration-500 group",
+            "relative overflow-hidden rounded-[2.5rem] border-0 shadow-2xl transition-all duration-700",
             isSurplus
-                ? "bg-linear-to-br from-teal-600 to-emerald-800 text-white" // Green Theme
-                : "bg-linear-to-br from-violet-600 to-indigo-900 text-white" // Violet Theme
+                ? "bg-linear-to-br from-emerald-600 via-teal-700 to-emerald-900 text-white"
+                : "bg-linear-to-br from-indigo-600 via-violet-700 to-indigo-950 text-white"
         )}>
+            {/* Animated Abstract Shapes */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/20 rounded-full blur-[60px] translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
-            {/* Background Abstract Shapes */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+            {/* Shimmer Line */}
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent -skew-x-12 translate-x-[-150%] animate-[shimmer_3s_infinite]" />
 
-            <div className="p-6 md:p-8 relative z-10">
+            <div className="p-8 md:p-10 relative z-10 flex flex-col h-full">
 
                 {/* HEADER SECTION */}
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner border border-white/10">
-                        {isSurplus ? (
-                            <CheckCircle2 className="w-8 h-8 text-emerald-100" />
-                        ) : (
-                            <PiggyBank className="w-8 h-8 text-violet-100" />
+                <div className="flex items-center gap-5 mb-10">
+                    <motion.div
+                        initial={{ scale: 0.8, rotate: -10 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                        className={cn(
+                            "p-4 backdrop-blur-xl rounded-[1.5rem] shadow-2xl border",
+                            isSurplus ? "bg-emerald-500/20 border-emerald-400/30" : "bg-indigo-500/20 border-indigo-400/30"
                         )}
-                    </div>
+                    >
+                        {isSurplus ? <CheckCircle2 className="w-8 h-8 text-emerald-100" /> : <Target className="w-8 h-8 text-indigo-100" />}
+                    </motion.div>
                     <div>
-                        <h3 className="text-xl font-bold text-white tracking-wide">
-                            {isSurplus ? "Tujuan Tercapai!" : "Rekomendasi Investasi"}
+                        <h3 className="text-2xl font-black text-white tracking-tight drop-shadow-sm">
+                            {isSurplus ? "Tujuan Tercapai!" : "Rekomendasi Aksi"}
                         </h3>
-                        <p className="text-sm text-white/80 font-medium">
+                        <p className="text-xs md:text-sm text-white/80 font-medium mt-1">
                             {isSurplus
-                                ? "Modal awal Anda diproyeksikan cukup."
-                                : "Langkah konkret yang harus dilakukan."}
+                                ? "Modal awal klien diproyeksikan sudah melebihi target."
+                                : "Langkah konkret menabung rutin yang harus dilakukan klien."}
                         </p>
                     </div>
                 </div>
 
                 {/* HERO AMOUNT */}
-                <div className="text-center md:text-left mb-8">
-                    <p className="text-[11px] uppercase font-bold tracking-widest text-white/60 mb-2">
-                        {isSurplus ? "Estimasi Kelebihan Dana" : "Sisihkan Rutin Per Bulan"}
+                <div className="mb-10 w-full">
+                    <p className="text-[11px] uppercase font-black tracking-[0.2em] text-white/60 mb-3 flex items-center gap-2">
+                        {isSurplus ? "Estimasi Kelebihan Dana (Surplus)" : "Sisihkan Rutin Per Bulan"}
                     </p>
 
-                    <div className="flex items-baseline gap-2 justify-center md:justify-start">
-                        <span className="text-4xl md:text-6xl font-black tracking-tighter text-white drop-shadow-lg">
+                    <div className="w-full overflow-hidden">
+                        <h2 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter text-white drop-shadow-xl leading-none wrap-break-word w-full">
                             {formatRupiah(monthlySaving)}
-                        </span>
-                        {isSurplus && <span className="text-lg font-medium text-emerald-200">(Surplus)</span>}
+                        </h2>
                     </div>
 
                     {!isSurplus && (
-                        <div className="mt-4 inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full border border-white/10 backdrop-blur-sm shadow-sm">
-                            <TrendingUp className="w-3.5 h-3.5 text-emerald-300" />
-                            <span className="text-xs font-semibold text-white/90">
-                                Instrumen investasi return {returnRate}% p.a
+                        <div className="mt-6 inline-flex items-center gap-2.5 px-4 py-2 bg-black/20 rounded-xl border border-white/10 backdrop-blur-md shadow-inner">
+                            <TrendingUp className="w-4 h-4 text-emerald-300" />
+                            <span className="text-xs font-bold text-white/90 tracking-wide">
+                                Asumsi instrumen dengan return <span className="text-emerald-300 font-black">{returnRate}% p.a</span>
                             </span>
                         </div>
                     )}
                 </div>
 
                 {/* SUMMARY BOX */}
-                <div className="bg-black/20 backdrop-blur-md rounded-2xl p-5 border border-white/5 shadow-inner">
-                    <div className="flex justify-between items-center text-sm mb-3">
-                        <span className="text-white/70 flex items-center gap-2 font-medium">
-                            <CheckCircle2 className="w-4 h-4 opacity-70" />
-                            Target Akhir (FV)
-                        </span>
-                        <span className="font-bold text-white text-base tracking-tight">
-                            {formatRupiah(totalTarget)}
-                        </span>
+                <div className="mt-auto">
+                    <div className="bg-black/20 backdrop-blur-xl rounded-[1.5rem] p-5 border border-white/10 shadow-inner flex flex-col md:flex-row justify-between gap-4">
+                        <div className="flex-1">
+                            <span className="text-white/60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                                <CheckCircle2 className="w-3 h-3" /> Target Akhir (FV)
+                            </span>
+                            <span className="font-black text-white text-xl tracking-tight break-all">
+                                {formatRupiah(totalTarget)}
+                            </span>
+                        </div>
+
+                        <div className="hidden md:block w-px bg-white/10" />
+                        <div className="block md:hidden w-full h-px bg-white/10" />
+
+                        <div className="flex-1 md:text-right">
+                            <span className="text-white/60 text-[10px] font-black uppercase tracking-widest flex items-center md:justify-end gap-1.5 mb-1">
+                                <CalendarClock className="w-3 h-3" /> Durasi Waktu
+                            </span>
+                            <span className="font-black text-white text-xl">
+                                {yearsDuration} Tahun
+                            </span>
+                        </div>
                     </div>
 
-                    <Separator className="bg-white/10 mb-3" />
-
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-white/70 flex items-center gap-2 font-medium">
-                            <CalendarClock className="w-4 h-4 opacity-70" />
-                            Durasi Menabung
-                        </span>
-                        <span className="font-bold text-white text-base">
-                            {yearsDuration} Tahun
-                        </span>
-                    </div>
+                    {/* FOOTER DISCLAIMER */}
+                    {!isSurplus && (
+                        <p className="text-[10px] text-white/40 mt-6 text-center italic font-medium">
+                            *Disiplin adalah kunci. Menunda investasi akan memaksa klien menyisihkan nominal bulanan yang jauh lebih besar akibat hilangnya efek bunga majemuk (compounding interest).
+                        </p>
+                    )}
                 </div>
-
-                {/* FOOTER DISCLAIMER */}
-                {!isSurplus && (
-                    <p className="text-[10px] text-white/40 mt-6 text-center italic max-w-md mx-auto">
-                        *Pastikan disiplin menabung setiap bulan. Keterlambatan memulai akan meningkatkan nominal bulanan secara signifikan karena berkurangnya efek bunga majemuk.
-                    </p>
-                )}
 
             </div>
         </Card>
