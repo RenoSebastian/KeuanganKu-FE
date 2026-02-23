@@ -20,22 +20,35 @@ export default function FinancialCheckupPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   // --- LOGIKA BISNIS (CONTROLLER) ---
+  // --- LOGIKA BISNIS (CONTROLLER) ---
   const handleLegacyComplete = async (data: any) => {
     setIsLoading(true);
 
-    // Tampilkan toast loading agar user tidak kebingungan saat menunggu API
     const loadingToastId = toast.loading("Memproses data finansial Anda...", {
       description: "Menganalisa rasio kesehatan keuangan..."
     });
 
     try {
-      // 1. Data Cleaning (Hapus spouse jika single) - Menjaga integritas data
+      // 1. Data Cloning & ADAPTER PATTERN (Mapping Interface)
+      // Menerjemahkan kontrak dari Wizard (client/spouse) ke kontrak API (userProfile/spouseProfile)
       const payload: any = { ...data };
+
+      if (payload.client) {
+        payload.userProfile = payload.client;
+        delete payload.client;
+      }
+
+      if (payload.spouse) {
+        payload.spouseProfile = payload.spouse;
+        delete payload.spouse;
+      }
+
+      // 2. Data Cleaning (Menjaga Integritas Relasional Database)
       if (payload.userProfile?.maritalStatus !== "MARRIED") {
         delete payload.spouseProfile;
       }
 
-      // 2. Call API (Save to DB)
+      // 3. Call API (Save to DB)
       const analysis = await financialService.createCheckup(payload);
 
       setRawData(payload);
@@ -46,7 +59,6 @@ export default function FinancialCheckupPage() {
         description: "Laporan kesehatan finansial Anda telah siap."
       });
 
-      // Gulir ke atas secara halus saat melihat hasil
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (error: any) {
@@ -59,7 +71,7 @@ export default function FinancialCheckupPage() {
       setIsLoading(false);
     }
   };
-
+  
   const handleBack = () => {
     router.push("/finance");
   };
