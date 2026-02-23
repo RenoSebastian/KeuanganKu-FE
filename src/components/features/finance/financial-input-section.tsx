@@ -45,9 +45,10 @@ function SectionHeader({ title, desc, icon: Icon, color = "indigo" }: { title: s
         emerald: "text-emerald-600 bg-emerald-50 border-emerald-100",
         rose: "text-rose-600 bg-rose-50 border-rose-100",
         amber: "text-amber-600 bg-amber-50 border-amber-100",
+        slate: "text-slate-600 bg-slate-50 border-slate-200",
     };
 
-    const selectedStyle = colorStyles[color];
+    const selectedStyle = colorStyles[color] || colorStyles.indigo;
 
     return (
         <div className="flex items-center gap-3 mb-5 mt-2">
@@ -65,12 +66,28 @@ function SectionHeader({ title, desc, icon: Icon, color = "indigo" }: { title: s
 }
 
 function ReviewRow({ label, value, isTotal, color }: { label: string, value: number, isTotal?: boolean, color?: string }) {
+    // LOGIKA ELASTISITAS PWA & RESPONSIVE BREAKPOINT
+    if (isTotal) {
+        return (
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center py-3 px-2 gap-1.5 md:gap-4 transition-all hover:bg-slate-50/50 rounded-lg -mx-2">
+                <span className="text-xs md:text-sm text-slate-800 uppercase tracking-widest md:tracking-wide font-black shrink-0">
+                    {label}
+                </span>
+                <span className={cn(
+                    "font-mono font-black text-2xl md:text-xl tracking-tighter md:tracking-normal truncate",
+                    color === "emerald" ? "text-emerald-600" : color === "rose" ? "text-rose-600" : "text-slate-800"
+                )}>
+                    {formatRupiah(value)}
+                </span>
+            </div>
+        );
+    }
+
     return (
-        <div className={cn("flex justify-between items-center py-2 transition-all hover:bg-slate-50/50 px-2 rounded-lg -mx-2", isTotal && "py-3 font-bold")}>
-            <span className={cn("text-sm", isTotal ? "text-slate-800 uppercase tracking-wide font-black" : "text-slate-500 font-medium")}>{label}</span>
+        <div className="flex justify-between items-center py-2.5 transition-all hover:bg-slate-50/50 px-2 rounded-lg -mx-2 gap-3">
+            <span className="text-xs md:text-sm text-slate-500 font-medium leading-tight">{label}</span>
             <span className={cn(
-                "font-mono font-bold text-slate-700 text-right",
-                isTotal && "text-xl font-black",
+                "font-mono font-bold text-slate-700 text-right text-sm md:text-base shrink-0",
                 color === "emerald" && "text-emerald-600",
                 color === "rose" && "text-rose-600"
             )}>
@@ -126,7 +143,8 @@ function InputGroup({ icon, label, desc, value, onChange, helpContent, onMonthly
                     inputMode="numeric"
                     value={safeValue === 0 ? "" : safeValue.toLocaleString("id-ID")}
                     onChange={(e) => onChange(e.target.value)}
-                    className="pl-20 h-12 md:h-14 bg-slate-50/70 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white font-black text-slate-800 text-sm md:text-base shadow-sm rounded-xl transition-all"
+                    // PREVENT iOS ZOOM: Diubah menjadi text-base minimum
+                    className="pl-20 h-12 md:h-14 bg-slate-50/70 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white font-black text-slate-800 text-base shadow-sm rounded-xl transition-all"
                     placeholder="0"
                 />
             </div>
@@ -148,7 +166,8 @@ function InputGroupNoLabel({ icon, value, onChange, autoFocus }: { icon: React.R
                 inputMode="numeric"
                 value={safeValue === 0 ? "" : safeValue.toLocaleString("id-ID")}
                 onChange={(e) => onChange(e.target.value)}
-                className="pl-20 h-14 bg-slate-50 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white font-black text-lg text-slate-800 rounded-xl transition-all shadow-sm"
+                // PREVENT iOS ZOOM: Diubah menjadi text-base
+                className="pl-20 h-14 bg-slate-50 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white font-black text-base md:text-lg text-slate-800 rounded-xl transition-all shadow-sm"
                 placeholder="0"
             />
         </div>
@@ -244,7 +263,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
     return (
         <div className="w-full flex flex-col h-full">
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden pb-[calc(env(safe-area-inset-bottom)+1rem)]">
 
                 {/* 1. COMPACT HEADER */}
                 <div className="bg-slate-50/80 p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 rounded-t-3xl">
@@ -278,7 +297,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                             <motion.div key="step-0" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-10">
 
                                 {/* A. DAFTAR ASET (Bento Container) */}
-                                <div className="bg-slate-50/40 p-5 md:p-6 rounded-3xl border border-slate-100 space-y-6">
+                                <div className="bg-slate-50/40 p-5 md:p-6 rounded-3xl border border-slate-100 space-y-6 overflow-hidden">
                                     <SectionHeader icon={Wallet} color="indigo" title="Aset Likuid (Kas & Setara Kas)" desc="Harta yang sangat mudah dicairkan saat darurat." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         <InputGroup label="Kas / Tabungan / Deposito" value={num(data.assetCash)} onChange={(v) => handleLocalChange("assetCash", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetCash} />
@@ -324,7 +343,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                 </div>
 
                                 {/* B. DAFTAR UTANG */}
-                                <div className="bg-rose-50/30 p-5 md:p-6 rounded-3xl border border-rose-100 space-y-6">
+                                <div className="bg-rose-50/30 p-5 md:p-6 rounded-3xl border border-rose-100 space-y-6 overflow-hidden">
                                     <SectionHeader icon={CreditCard} color="rose" title="Utang Konsumtif" desc="Sisa pokok utang berjalan (bukan cicilan bulanannya)." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
 
@@ -374,7 +393,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         {step === 1 && (
                             <motion.div key="step-1" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-10">
 
-                                <div className="bg-linear-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-4 md:p-5 rounded-2xl flex items-start gap-4">
+                                <div className="bg-linear-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-4 md:p-5 rounded-2xl flex items-start gap-4 shadow-sm">
                                     <div className="bg-white p-2 rounded-xl shadow-sm text-emerald-600 shrink-0"><AlertCircle className="w-6 h-6" /></div>
                                     <div>
                                         <h4 className="font-black text-emerald-800 tracking-tight text-sm md:text-base">MENGGUNAKAN MODE TAHUNAN</h4>
@@ -385,7 +404,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                     </div>
                                 </div>
 
-                                <div className="bg-slate-50/40 p-5 md:p-6 rounded-3xl border border-slate-100 space-y-6">
+                                <div className="bg-slate-50/40 p-5 md:p-6 rounded-3xl border border-slate-100 space-y-6 overflow-hidden">
                                     <SectionHeader icon={DollarSign} color="emerald" title="I. Total Pemasukan" desc="Pendapatan bruto klien selama setahun terakhir." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         <InputGroup label="1. Pendapatan Tetap" value={num(data.incomeFixed)} onChange={(v) => handleLocalChange("incomeFixed", v)} icon={<DollarSign className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeFixed} onMonthlyClick={() => setMonthlyHelperTarget("incomeFixed")} showCalculator />
@@ -488,7 +507,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <Activity className="w-10 h-10" />
                                     </div>
                                     <h3 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Verifikasi Akhir</h3>
-                                    <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed">
+                                    <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed px-4">
                                         Pastikan rincian kalkulasi sistem di bawah ini sudah merepresentasikan realitas kondisi keuangan klien Anda.
                                     </p>
                                 </div>
@@ -496,16 +515,16 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                 <div className="flex flex-col gap-6">
 
                                     {/* CARD 1: NERACA (POSTUR KEKAYAAN) */}
-                                    <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl shadow-xl shadow-slate-200/50">
+                                    <div className="bg-white border border-slate-200 p-5 md:p-8 rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden">
                                         <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-6">
-                                            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600"><Wallet className="w-6 h-6" /></div>
+                                            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0"><Wallet className="w-6 h-6" /></div>
                                             <div>
                                                 <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Postur Neraca</h4>
-                                                <p className="text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Harta & Beban Utang</p>
+                                                <p className="text-[10px] md:text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Harta & Beban Utang</p>
                                             </div>
                                         </div>
 
-                                        {/* Rincian Items (Bisa tidak seimbang tingginya) */}
+                                        {/* Rincian Items */}
                                         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-4">
                                             {/* Kiri: ASET */}
                                             <div className="space-y-2">
@@ -527,35 +546,35 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                             </div>
                                         </div>
 
-                                        {/* Total Section (Dikunci Simetris Sejajar) */}
-                                        <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 border-t border-slate-200 pt-5 mb-6">
-                                            <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50 shadow-sm">
+                                        {/* Total Section - Dikunci Susun Kolom di HP, Berjajar di Tablet */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 border-t border-slate-200 pt-5 mb-6">
+                                            <div className="bg-emerald-50/50 p-2 md:p-3 rounded-xl border border-emerald-100/50 shadow-sm">
                                                 <ReviewRow label="Total Aset" value={totalAssets} color="emerald" isTotal />
                                             </div>
-                                            <div className="bg-rose-50/50 p-3 rounded-xl border border-rose-100/50 shadow-sm">
+                                            <div className="bg-rose-50/50 p-2 md:p-3 rounded-xl border border-rose-100/50 shadow-sm">
                                                 <ReviewRow label="Total Utang" value={totalDebt} color="rose" isTotal />
                                             </div>
                                         </div>
 
                                         {/* Result Bottom Indicator */}
                                         <div className="border-t-2 border-dashed border-indigo-100 bg-indigo-50/50 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                                            <div>
-                                                <p className="text-xs font-black text-indigo-500 uppercase tracking-widest">Kekayaan Bersih (Net Worth)</p>
-                                                <p className="text-[10px] text-indigo-600/70 font-bold mt-0.5">(Total Aset - Total Utang)</p>
+                                            <div className="shrink-0">
+                                                <p className="text-xs md:text-sm font-black text-indigo-500 uppercase tracking-widest">Kekayaan Bersih</p>
+                                                <p className="text-[10px] md:text-xs text-indigo-600/70 font-bold mt-0.5">(Total Aset - Total Utang)</p>
                                             </div>
-                                            <span className={cn("text-2xl md:text-3xl font-black", netWorth >= 0 ? "text-indigo-700" : "text-rose-600")}>
+                                            <span className={cn("text-2xl sm:text-3xl md:text-4xl font-black wrap-break-word w-full sm:w-auto sm:text-right leading-none", netWorth >= 0 ? "text-indigo-700" : "text-rose-600")}>
                                                 {formatRupiah(netWorth)}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* CARD 2: ARUS KAS (POSTUR CASHFLOW) */}
-                                    <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl shadow-xl shadow-slate-200/50">
+                                    <div className="bg-white border border-slate-200 p-5 md:p-8 rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden">
                                         <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-6">
-                                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600"><Banknote className="w-6 h-6" /></div>
+                                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0"><Banknote className="w-6 h-6" /></div>
                                             <div>
                                                 <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Postur Arus Kas</h4>
-                                                <p className="text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Pemasukan & Pengeluaran Tahunan</p>
+                                                <p className="text-[10px] md:text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Pemasukan & Pengeluaran</p>
                                             </div>
                                         </div>
 
@@ -582,25 +601,25 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                             </div>
                                         </div>
 
-                                        {/* Total Section (Dikunci Simetris Sejajar) */}
-                                        <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 border-t border-slate-200 pt-5 mb-6">
-                                            <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50 shadow-sm">
+                                        {/* Total Section - Dikunci Susun Kolom di HP, Berjajar di Tablet */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 border-t border-slate-200 pt-5 mb-6">
+                                            <div className="bg-emerald-50/50 p-2 md:p-3 rounded-xl border border-emerald-100/50 shadow-sm">
                                                 <ReviewRow label="Total Pemasukan" value={totalIncomeAnnual} color="emerald" isTotal />
                                             </div>
-                                            <div className="bg-rose-50/50 p-3 rounded-xl border border-rose-100/50 shadow-sm">
+                                            <div className="bg-rose-50/50 p-2 md:p-3 rounded-xl border border-rose-100/50 shadow-sm">
                                                 <ReviewRow label="Total Pengeluaran" value={totalExpenseAnnual} color="rose" isTotal />
                                             </div>
                                         </div>
 
                                         {/* Result Bottom Indicator */}
                                         <div className={cn("border-t-2 border-dashed rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3", surplusDeficitAnnual >= 0 ? "border-emerald-100 bg-emerald-50/50" : "border-rose-100 bg-rose-50/50")}>
-                                            <div>
-                                                <p className={cn("text-xs font-black uppercase tracking-widest", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>Surplus / Defisit</p>
-                                                <p className={cn("text-[10px] font-bold mt-0.5", surplusDeficitAnnual >= 0 ? "text-emerald-600/70" : "text-rose-600/70")}>
+                                            <div className="shrink-0">
+                                                <p className={cn("text-xs md:text-sm font-black uppercase tracking-widest", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>Surplus / Defisit</p>
+                                                <p className={cn("text-[10px] md:text-xs font-bold mt-0.5", surplusDeficitAnnual >= 0 ? "text-emerald-600/70" : "text-rose-600/70")}>
                                                     (Total Pemasukan - Total Pengeluaran)
                                                 </p>
                                             </div>
-                                            <span className={cn("text-2xl md:text-3xl font-black", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                                            <span className={cn("text-2xl sm:text-3xl md:text-4xl font-black wrap-break-word w-full sm:w-auto sm:text-right leading-none", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>
                                                 {formatRupiah(surplusDeficitAnnual)}
                                             </span>
                                         </div>
@@ -668,14 +687,13 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="relative bg-white w-full max-w-md rounded-[2rem] p-6 md:p-8 shadow-2xl"
+                        className="relative bg-white w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[2rem] p-6 md:p-8 shadow-2xl"
                     >
                         <div className="flex items-center gap-4 mb-6">
                             <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 shadow-sm border border-rose-100">
                                 <Calculator className="w-6 h-6" />
                             </div>
                             <div>
-                                {/* MODIFIKASI DIMULAI DI SINI */}
                                 <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">
                                     Hitung Sisa {
                                         showDebtModal.target === 'debtKPR' ? 'KPR' :
@@ -690,10 +708,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                                 'utang'
                                     } dari cicilan x tenor.
                                 </p>
-                                {/* MODIFIKASI BERAKHIR DI SINI */}
                             </div>
                         </div>
-                        {/* SISA KODE FORM UTANG TETAP SAMA */}
                         <div className="space-y-5">
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cicilan Per Bulan</label>
@@ -702,7 +718,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sisa Tenor (Bulan)</label>
                                 <div className="relative">
-                                    <Input type="number" inputMode="numeric" value={tempTenor} onChange={(e) => setTempTenor(e.target.value)} className="h-14 pl-4 rounded-xl font-black text-lg bg-slate-50 border-slate-200 focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 focus:bg-white pr-16 transition-all" placeholder="Contoh: 12" />
+                                    <Input type="number" inputMode="numeric" value={tempTenor} onChange={(e) => setTempTenor(e.target.value)} className="h-14 pl-4 rounded-xl font-black text-base md:text-lg bg-slate-50 border-slate-200 focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 focus:bg-white pr-16 transition-all" placeholder="Contoh: 12" />
                                     <span className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 uppercase">Bulan</span>
                                 </div>
                             </div>
@@ -723,7 +739,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="relative bg-white w-full max-w-md rounded-[2rem] p-6 md:p-8 shadow-2xl border border-slate-100"
+                        className="relative bg-white w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[2rem] p-6 md:p-8 shadow-2xl border border-slate-100"
                     >
                         <div className="flex items-center gap-4 mb-6">
                             <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100">
@@ -734,7 +750,6 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                 <p className="text-xs text-slate-500 font-medium">Konversi otomatis gram ke rupiah.</p>
                             </div>
                         </div>
-                        {/* SISA KODE FORM EMAS SAMA SEPERTI SEBELUMNYA */}
                         <div className="space-y-5">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
                                 <div>
@@ -749,7 +764,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Jumlah Emas Anda</label>
                                 <div className="relative group">
-                                    <Input autoFocus type="text" inputMode="decimal" value={goldWeight} onChange={(e) => setGoldWeight(e.target.value)} className="h-14 pl-4 rounded-xl font-black text-lg bg-white border-slate-200 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 pr-14 transition-all shadow-sm" placeholder="Misal: 5.5" />
+                                    <Input autoFocus type="text" inputMode="decimal" value={goldWeight} onChange={(e) => setGoldWeight(e.target.value)} className="h-14 pl-4 rounded-xl font-black text-base md:text-lg bg-white border-slate-200 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 pr-14 transition-all shadow-sm" placeholder="Misal: 5.5" />
                                     <span className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-amber-600">GR</span>
                                 </div>
                             </div>
