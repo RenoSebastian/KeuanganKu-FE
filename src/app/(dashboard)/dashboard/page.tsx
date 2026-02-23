@@ -57,15 +57,14 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    // [FIX]: Dihapus `min-h-screen`, `overflow-x-hidden`, dan padding berlebih.
-    // Didelegasikan sepenuhnya ke `layout.tsx` agar scroll tidak bertabrakan.
-    <div className="relative w-full selection:bg-indigo-100 selection:text-indigo-900 font-sans">
+    // Container terluar tetap edge-to-edge agar background bisa menembus full layar
+    <div className="relative w-full min-h-screen selection:bg-indigo-100 selection:text-indigo-900 font-sans">
 
       {/* =========================================
           GLOBAL AMBIENT BACKGROUND IDENTITY
-          (Dibatasi dengan absolute inset agar tidak memicu scroll)
+          (Diperbaiki: menggunakan inset-0 agar pas di layar, tanpa memicu scroll horizontal)
           ========================================= */}
-      <div className="absolute -inset-4 md:-inset-8 overflow-hidden pointer-events-none z-0 rounded-[3rem]">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         {/* Layer 1: Dot Grid Pattern */}
         <div
           className="absolute inset-0 opacity-[0.4] mix-blend-multiply"
@@ -81,19 +80,21 @@ export default function DashboardPage() {
       </div>
 
       {/* =========================================
-          MAIN CONTENT WRAPPER
+          MAIN CONTENT WRAPPER (THE FIX)
+          Di sinilah kita mendefinisikan lebar maksimal dan padding khusus halaman ini!
           ========================================= */}
-      <div className="relative z-10 w-full transition-all duration-300">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-8 transition-all duration-300 flex flex-col space-y-6 md:space-y-8">
+
         <DashboardHeader
           userData={userData}
           currentDate={currentDate}
           onAddClient={() => router.push('/finance/checkup')}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 mt-4 md:mt-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
 
           {/* KIRI */}
-          <div className="lg:col-span-8 flex flex-col gap-8 md:gap-10">
+          <div className="lg:col-span-8 flex flex-col gap-6 md:gap-8">
             <AgentHeroCard
               userData={userData}
               loadingUser={loadingUser}

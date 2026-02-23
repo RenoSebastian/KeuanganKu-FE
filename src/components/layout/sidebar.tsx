@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -16,9 +16,10 @@ import {
 
 interface SidebarProps {
   isCollapsed?: boolean;
+  onToggleCollapse?: () => void; // Diteruskan dari layout.tsx
 }
 
-export function Sidebar({ isCollapsed = false }: SidebarProps) {
+export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -26,6 +27,14 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const [isDirector, setIsDirector] = useState(false);
   const [userInitials, setUserInitials] = useState("U");
   const [userRoleLabel, setUserRoleLabel] = useState("User");
+
+  // State lokal untuk memantau kolaps
+  const [internalCollapse, setInternalCollapse] = useState(isCollapsed);
+
+  // Sinkronisasi state lokal dengan prop dari atas
+  useEffect(() => {
+    setInternalCollapse(isCollapsed);
+  }, [isCollapsed]);
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
@@ -57,7 +66,15 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
     router.push("/login");
   };
 
-  // NavLink dengan Arsitektur Animasi Layer Independen
+  const toggleSidebar = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse(); // Beritahu Layout.tsx untuk mengecilkan ukuran div container-nya
+    } else {
+      setInternalCollapse(!internalCollapse);
+    }
+  };
+
+  // NavLink dengan Arsitektur Animasi Layer Independen (FIXED: Flex Alignment)
   const NavLink = ({ item, variant = "default" }: { item: any, variant?: "default" | "admin" | "exec" }) => {
 
     // Strict Active Logic
@@ -83,13 +100,11 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
         href={item.href}
         className={cn(
           "group relative flex items-center transition-all duration-500 ease-out outline-none",
-          isCollapsed ? "justify-center w-12 h-12 mx-auto" : "px-3 py-3 mx-4",
+          internalCollapse ? "justify-center w-12 h-12 mx-auto" : "px-3 py-3 mx-4",
           "rounded-xl" // Container utama tidak memiliki background
         )}
       >
-        {/* 1. BACKGROUND LAYER (Absolute & Z-0)
-            Pisahkan layer ini agar transisi scale tidak merusak flexbox konten di dalamnya.
-        */}
+        {/* 1. BACKGROUND LAYER (Absolute & Z-0) */}
         <div
           className={cn(
             "absolute inset-0 rounded-xl transition-all duration-500 ease-out z-0",
@@ -99,9 +114,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
           )}
         />
 
-        {/* 2. INNER INDICATOR LINE (Garis Samping)
-            Animasi memanjang dan menebal dari tengah sumbu Y.
-        */}
+        {/* 2. INNER INDICATOR LINE (Garis Samping) */}
         <div
           className={cn(
             "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-500 ease-in-out z-10",
@@ -114,19 +127,20 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
         {/* 3. CONTENT WRAPPER (Z-10 agar di atas background) */}
         <div className={cn(
           "relative z-10 flex items-center w-full transition-transform duration-500 ease-out",
-          !isCollapsed && isActive ? "translate-x-1" : "translate-x-0"
+          internalCollapse ? "justify-center" : (isActive ? "translate-x-1" : "translate-x-0")
         )}>
-          {/* Ikon */}
-          <item.icon className={cn(
-            "transition-all duration-500 ease-out shrink-0",
-            isCollapsed ? "w-6 h-6" : "w-5 h-5 mr-3",
-            isActive ? "text-white scale-110 drop-shadow-sm" : "text-slate-400 group-hover:text-slate-700 group-hover:scale-110"
-          )} />
+          {/* Ikon dengan penempatan paksa terpusat */}
+          <div className={cn("flex items-center justify-center shrink-0", internalCollapse ? "w-6 h-6" : "w-5 h-5 mr-3")}>
+            <item.icon className={cn(
+              "transition-all duration-500 ease-out w-full h-full",
+              isActive ? "text-white scale-110 drop-shadow-sm" : "text-slate-400 group-hover:text-slate-700 group-hover:scale-110"
+            )} />
+          </div>
 
           {/* Label Teks */}
-          {!isCollapsed && (
+          {!internalCollapse && (
             <span className={cn(
-              "text-sm transition-all duration-500 whitespace-nowrap",
+              "text-sm transition-all duration-500 whitespace-nowrap overflow-hidden",
               isActive ? "font-bold text-white tracking-wide" : "font-medium text-slate-500 group-hover:text-slate-800"
             )}>
               {item.label}
@@ -136,7 +150,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
       </Link>
     );
 
-    if (isCollapsed) {
+    if (internalCollapse) {
       return (
         <TooltipProvider delayDuration={0}>
           <Tooltip>
@@ -155,13 +169,30 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
   };
 
   return (
-    <aside className="flex flex-col w-full h-full bg-white overflow-hidden pb-4">
+    <aside className={cn(
+      "relative flex flex-col h-full bg-white overflow-visible pb-4 transition-all duration-300 z-50 shadow-sm",
+      internalCollapse ? "w-20" : "w-64" // Lebar Sidebar transisi halus
+    )}>
+
+      {/* TOMBOL COLLAPSE MANUAL (Interactive Toggle) 
+          Selalu terlihat di layar md ke atas, berada persis di garis batas (border)
+      */}
+      <div className="absolute top-8 -right-3.5 z-50 hidden md:block">
+        <button
+          onClick={toggleSidebar}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-md transition-all hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 hover:scale-110"
+          aria-label={internalCollapse ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          {internalCollapse ? <ChevronRight className="h-4 w-4 ml-0.5" /> : <ChevronLeft className="h-4 w-4 mr-0.5" />}
+        </button>
+      </div>
+
       {/* HEADER LOGO */}
       <div className={cn(
-        "py-4 flex flex-col items-center justify-center border-b border-slate-100 bg-linear-to-brom-white to-slate-50/50 transition-all duration-300",
-        isCollapsed ? "min-h-18" : ""
+        "py-4 flex flex-col items-center justify-center border-b border-slate-100 bg-linear-to-b from-white to-slate-50/50 transition-all duration-300",
+        internalCollapse ? "min-h-20" : "min-h-25"
       )}>
-        {!isCollapsed ? (
+        {!internalCollapse ? (
           <>
             <div className="relative w-24 h-24 drop-shadow-md">
               <Image src="/images/logokeuanganku.png" alt="Logo KeuanganKu" fill className="object-contain" priority />
@@ -173,17 +204,17 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
             </div>
           </>
         ) : (
-          <div className="relative w-10 h-10 drop-shadow-sm transition-transform duration-500 hover:scale-110">
+          <div className="relative w-10 h-10 drop-shadow-sm transition-transform duration-500 hover:scale-110 mt-2">
             <Image src="/images/logokeuanganku.png" alt="Logo" fill className="object-contain" priority />
           </div>
         )}
       </div>
 
       {/* NAVIGATION MENU */}
-      <nav className="flex-1 py-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
+      <nav className="flex-1 py-6 space-y-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
         {!isAdmin && (
           <div>
-            {!isCollapsed ? (
+            {!internalCollapse ? (
               <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 whitespace-nowrap">Menu Utama</p>
             ) : (
               <div className="w-full flex justify-center mb-3"><div className="w-6 h-0.5 rounded-full bg-slate-200"></div></div>
@@ -196,7 +227,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
 
         {isDirector && NAVIGATION_CONFIG.director.length > 0 && (
           <div>
-            {!isCollapsed ? (
+            {!internalCollapse ? (
               <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2 whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-800 shrink-0"></span> Executive
               </p>
@@ -211,7 +242,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
 
         {isAdmin && NAVIGATION_CONFIG.admin.length > 0 && (
           <div>
-            {!isCollapsed ? (
+            {!internalCollapse ? (
               <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2 whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span> Administrator
               </p>
@@ -227,7 +258,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
 
       {/* FOOTER LOGOUT */}
       <div className="px-4 pt-2">
-        {isCollapsed ? (
+        {internalCollapse ? (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
