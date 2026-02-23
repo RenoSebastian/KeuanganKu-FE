@@ -12,7 +12,7 @@ export default function BottomNav() {
   const menuItems = [
     { label: "Dashboard", icon: LayoutGrid, href: "/dashboard" },
     { label: "Keuangan", icon: Wallet, href: "/finance" },
-    { label: "Checkup", icon: ClipboardCheck, href: "/finance/checkup" },
+    { label: "Checkup", icon: ClipboardCheck, href: "/calculator/checkup" },
     { label: "Profil", icon: User, href: "/profile" }
   ];
 
@@ -27,8 +27,8 @@ export default function BottomNav() {
 
             // Logic Active State yang Akurat & Dinamis
             let isActive = false;
-            if (item.href === "/finance") {
-              isActive = pathname === "/finance" || (pathname.startsWith("/finance/") && !pathname.startsWith("/finance/checkup"));
+            if (item.href === "/calculator") {
+              isActive = pathname === "/calculator" || (pathname.startsWith("/calculator/") && !pathname.startsWith("/calculator/checkup"));
             } else if (item.href === "/dashboard") {
               isActive = pathname.startsWith("/dashboard");
             } else {
