@@ -105,22 +105,22 @@ const SmartMoneyInput = forwardRef<HTMLInputElement, SmartMoneyInputProps>(
                 <Input
                     ref={ref}
                     // [FIX PWA] type="tel" adalah trik magis terbaik untuk memaksa iPhone dan Android 
-                    // memunculkan keyboard Numpad besar (yang ada tombol bintang/pagar),
-                    // karena "numeric" kadang masih memunculkan QWERTY dengan baris angka di atas.
+                    // memunculkan keyboard Numpad besar
                     type="tel"
                     inputMode="numeric"
-                    pattern="[0-9]*" // Fallback strict untuk iOS lama
+
+                    // [FIX NATIVE VALIDATION] 
+                    // Ubah regex pattern agar mengizinkan titik (.) dan koma (,) dari hasil formatter.
+                    // Jika tetap [0-9]*, browser akan menolak string "1.000.000" saat form di-submit.
+                    pattern="[0-9.,]*"
+
                     value={displayValue}
                     onChange={handleChange}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     placeholder={placeholder || "0"}
                     className={cn(
-                        // [FIX UX] Teks digedekan (text-lg) agar terasa "Financial App" banget.
-                        // Font diganti ke font-sans dengan font-black agar angka tebal dan mudah dibaca klien dari jauh.
                         "pl-12 text-left font-sans text-base md:text-lg font-black tracking-tight transition-all shadow-sm bg-slate-50",
-
-                        // State Handling
                         "focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 hover:bg-white",
                         error && "border-rose-300 bg-rose-50/20 text-rose-900 focus:border-rose-500 focus:ring-rose-500/10",
                         displayValue === "" && "text-slate-400"
