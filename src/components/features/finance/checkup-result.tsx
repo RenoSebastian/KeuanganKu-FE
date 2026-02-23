@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
     CheckCircle2, AlertTriangle, XCircle,
-    RefreshCcw, FileText, ChevronDown, ChevronUp,
+    RefreshCcw, FileText, ChevronDown, ChevronUp, ArrowLeft,
     TrendingUp, Activity, Download,
     Lock, Sparkles, Scale, Wallet, Target, Info, FileArchive
 } from "lucide-react";
@@ -20,6 +20,7 @@ interface CheckupResultProps {
     data: any;
     rawData?: FinancialRecord;
     onReset?: () => void;
+    onEditData?: () => void;
     onDownloadPdf?: () => void;
     mode?: ViewMode;
     isDownloading?: boolean;
@@ -85,6 +86,7 @@ export function CheckupResult({
     rawData,
     onReset,
     onDownloadPdf,
+    onEditData,
     mode = "USER_VIEW",
     isDownloading = false
 }: CheckupResultProps) {
@@ -493,6 +495,19 @@ export function CheckupResult({
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-wrap justify-end">
+
+                        {onEditData && (
+                            <Button
+                                variant="outline"
+                                onClick={onEditData}
+                                disabled={isDownloading || localPdfLoading}
+                                className="w-full sm:w-auto h-12 rounded-xl border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-50 active:scale-95 transition-all px-6"
+                            >
+                                <ArrowLeft className="w-4 h-4 mr-2" />
+                                Revisi Input
+                            </Button>
+                        )}
+                        
                         <Button
                             variant="outline"
                             onClick={onReset}

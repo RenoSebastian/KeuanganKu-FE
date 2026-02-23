@@ -379,31 +379,6 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 mt-6">
                                 <FormField
                                     control={form.control}
-                                    name="maritalStatus"
-                                    render={({ field }) => (
-                                        <FormItem className="group">
-                                            <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-brand-600 transition-colors">Status Pernikahan</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <FormControl>
-                                                    <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
-                                                        <SelectTrigger className="h-12 md:h-14 rounded-xl bg-slate-50 border-slate-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 focus:bg-white font-bold text-slate-800 transition-all shadow-sm">
-                                                            <SelectValue placeholder="Pilih Status" />
-                                                        </SelectTrigger>
-                                                    </div>
-                                                </FormControl>
-                                                <SelectContent className="rounded-xl border-slate-100 shadow-xl">
-                                                    <SelectItem value="SINGLE" className="font-bold cursor-pointer">Lajang</SelectItem>
-                                                    <SelectItem value="MARRIED" className="font-bold cursor-pointer">Menikah</SelectItem>
-                                                    <SelectItem value="DIVORCED" className="font-bold cursor-pointer">Cerai (Hidup/Mati)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage className="text-[10px]" />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
                                     name="childrenCount"
                                     render={({ field }) => (
                                         <FormItem className="group">
@@ -411,14 +386,24 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                             <FormControl>
                                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                     <Input
-                                                        type="number"
+                                                        type="text"
                                                         inputMode="numeric"
-                                                        min={0}
                                                         className="h-12 md:h-14 rounded-xl bg-slate-50 border-slate-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 focus:bg-white font-black text-xl text-slate-800 transition-all shadow-sm text-center md:text-left md:pl-6"
+                                                        placeholder="0"
                                                         {...field}
+                                                        value={field.value === 0 ? "" : field.value}
                                                         onChange={(e) => {
-                                                            const val = e.target.valueAsNumber;
-                                                            field.onChange(isNaN(val) ? 0 : val);
+                                                            // 1. Sanitasi: Hapus SEMUA karakter yang bukan angka 0-9 (termasuk minus)
+                                                            let rawValue = e.target.value.replace(/\D/g, "");
+
+                                                            // 2. Cegah "02" menjadi "2" (hapus leading zeros jika ada lebih dari 1 digit)
+                                                            if (rawValue.length > 1 && rawValue.startsWith("0")) {
+                                                                rawValue = rawValue.replace(/^0+/, "");
+                                                            }
+
+                                                            // 3. Konversi kembali ke number, jika kosong kembalikan ke 0
+                                                            const parsedValue = parseInt(rawValue, 10);
+                                                            field.onChange(isNaN(parsedValue) ? 0 : parsedValue);
                                                         }}
                                                     />
                                                 </div>
@@ -437,14 +422,24 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                             <FormControl>
                                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                     <Input
-                                                        type="number"
+                                                        type="text"
                                                         inputMode="numeric"
-                                                        min={0}
                                                         className="h-12 md:h-14 rounded-xl bg-slate-50 border-slate-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 focus:bg-white font-black text-xl text-slate-800 transition-all shadow-sm text-center md:text-left md:pl-6"
+                                                        placeholder="0"
                                                         {...field}
+                                                        value={field.value === 0 ? "" : field.value}
                                                         onChange={(e) => {
-                                                            const val = e.target.valueAsNumber;
-                                                            field.onChange(isNaN(val) ? 0 : val);
+                                                            // 1. Sanitasi: Hapus SEMUA karakter yang bukan angka 0-9 (termasuk minus)
+                                                            let rawValue = e.target.value.replace(/\D/g, "");
+
+                                                            // 2. Cegah "02" menjadi "2" (hapus leading zeros jika ada lebih dari 1 digit)
+                                                            if (rawValue.length > 1 && rawValue.startsWith("0")) {
+                                                                rawValue = rawValue.replace(/^0+/, "");
+                                                            }
+
+                                                            // 3. Konversi kembali ke number, jika kosong kembalikan ke 0
+                                                            const parsedValue = parseInt(rawValue, 10);
+                                                            field.onChange(isNaN(parsedValue) ? 0 : parsedValue);
                                                         }}
                                                     />
                                                 </div>
