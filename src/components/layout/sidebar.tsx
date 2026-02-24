@@ -49,17 +49,15 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   }, [isCollapsed]);
 
   // [NEW] REALTIME LISTENER
-  // Sidebar akan mendengarkan sinyal 'refresh_user_data' dari komponen lain (misal: Calculator)
+  // Sidebar akan mendengarkan sinyal 'refresh_user_data' dari komponen lain (misal: Payment Modal)
   useEffect(() => {
     const handleGlobalRefresh = () => {
-      console.log("🔄 Sidebar: Mendeteksi perubahan data user, refreshing...");
       refreshUser();
     };
 
     // Pasang telinga (Listener)
     window.addEventListener('refresh_user_data', handleGlobalRefresh);
 
-    // Bersihkan saat component unmount
     return () => {
       window.removeEventListener('refresh_user_data', handleGlobalRefresh);
     };
@@ -84,6 +82,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   // --- COMPONENT: NAV LINK ---
   const NavLink = ({ item, variant = "default" }: { item: any, variant?: "default" | "admin" | "exec" }) => {
     let isActive = false;
+    // Logic active state yang support nested routes
     if (item.href === "/finance") {
       isActive = pathname === "/finance" || (pathname.startsWith("/finance/") && !pathname.startsWith("/finance/checkup"));
     } else if (item.href === "/dashboard") {
@@ -154,7 +153,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
             <TooltipTrigger asChild>
               {LinkContent}
             </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={10} className="font-semibold z-50">
+            <TooltipContent side="right" sideOffset={10} className="font-semibold z-50 bg-slate-900 text-white border-slate-800">
               {item.label}
             </TooltipContent>
           </Tooltip>
@@ -170,29 +169,34 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
     if (isAdmin || isDirector) return null;
 
     // Hitung persentase kuota (asumsi max 3 token untuk FREE)
-    const maxQuota = 10;
+    const maxQuota = 3;
     const percentage = Math.min((quota / maxQuota) * 100, 100);
 
     if (internalCollapse) {
       return (
         <div className="mx-auto mb-4 w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 relative group transition-transform duration-300 hover:scale-110">
           {isPro ? (
-            <Crown className="w-5 h-5 text-amber-500 drop-shadow-sm" />
+            <Crown className="w-5 h-5 text-amber-500 drop-shadow-sm fill-amber-500/20" />
           ) : (
             <>
               <Zap className={cn("w-5 h-5 transition-colors duration-300", quota > 0 ? "text-blue-500" : "text-red-400")} />
               {quota <= 0 && <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-bounce" />}
             </>
           )}
-          <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-            {isPro ? "PRO Plan" : `Sisa Kuota: ${quota}`}
+          <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity shadow-lg">
+            {isPro ? "PRO Active" : `Sisa Kuota: ${quota}`}
           </div>
         </div>
       );
     }
 
     return (
-      <div className="mx-4 mb-4 p-3 rounded-xl border border-slate-100 bg-linear-to-b from-slate-50/50 to-white shadow-xs relative overflow-hidden group transition-all duration-300 hover:shadow-md">
+      <div className={cn(
+        "mx-4 mb-4 p-3 rounded-xl border shadow-sm relative overflow-hidden group transition-all duration-300 hover:shadow-md",
+        isPro
+          ? "bg-linear-to-br from-amber-50 to-white border-amber-100/50"
+          : "bg-linear-to-b from-slate-50/50 to-white border-slate-100"
+      )}>
         {/* Decorative Background */}
         <div className={cn(
           "absolute -right-6 -top-6 w-20 h-20 rounded-full blur-2xl opacity-20 transition-colors duration-500",
@@ -201,12 +205,12 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
 
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className={cn("text-[10px] font-bold uppercase tracking-wider", isPro ? "text-amber-600/80" : "text-slate-400")}>
               {isPro ? "Membership" : "Kuota Simulasi"}
             </span>
             {isPro ? (
-              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-100 shadow-sm">
-                <Crown className="w-3 h-3" /> PRO
+              <span className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-white/80 px-2 py-0.5 rounded-full border border-amber-100 shadow-sm backdrop-blur-sm">
+                <Crown className="w-3 h-3 fill-amber-500" /> PRO
               </span>
             ) : (
               <span className={cn(
@@ -219,8 +223,9 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
           </div>
 
           {isPro ? (
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-medium text-slate-600">Akses Tanpa Batas</p>
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-bold text-slate-700">Unlimited Access</p>
+              <p className="text-[10px] text-slate-500 leading-tight">Bebas akses semua fitur tanpa batas kuota.</p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -233,7 +238,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={cn(
-                    "h-full rounded-full transition-all duration-700 ease-out", // Durasi animasi smooth
+                    "h-full rounded-full transition-all duration-700 ease-out",
                     quota > 1 ? "bg-blue-500" : quota === 1 ? "bg-amber-500" : "bg-red-500"
                   )}
                   style={{ width: `${percentage}%` }}
@@ -250,7 +255,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
 
           {!isPro && (
             <Link
-              href="/pricing"
+              href="/subscription"
               className="mt-3 block w-full py-1.5 text-center text-[10px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-700 transition-all shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95"
             >
               UPGRADE SEKARANG
@@ -263,14 +268,14 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
 
   return (
     <aside className={cn(
-      "relative flex flex-col h-full bg-white overflow-visible pb-4 transition-all duration-300 z-50 shadow-sm",
+      "relative flex flex-col h-full bg-white overflow-visible pb-4 transition-all duration-300 z-50 shadow-sm border-r border-slate-100",
       internalCollapse ? "w-20" : "w-64"
     )}>
       {/* TOGGLE BUTTON */}
       <div className="absolute top-8 -right-3.5 z-50 hidden md:block">
         <button
           onClick={toggleSidebar}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-md transition-all hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 hover:scale-110"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-md transition-all hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-indigo-100"
         >
           {internalCollapse ? <ChevronRight className="h-4 w-4 ml-0.5" /> : <ChevronLeft className="h-4 w-4 mr-0.5" />}
         </button>
@@ -278,17 +283,17 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
 
       {/* HEADER LOGO */}
       <div className={cn(
-        "py-4 flex flex-col items-center justify-center border-b border-slate-100 bg-linear-to-b from-white to-slate-50/50 transition-all duration-300",
-        internalCollapse ? "min-h-20" : "min-h-25"
+        "py-4 flex flex-col items-center justify-center border-b border-slate-50 bg-linear-to-b from-white to-slate-50/30 transition-all duration-300",
+        internalCollapse ? "min-h-20" : "min-h-24"
       )}>
         {!internalCollapse ? (
           <>
-            <div className="relative w-24 h-24 drop-shadow-md">
+            <div className="relative w-24 h-24 drop-shadow-sm hover:scale-105 transition-transform duration-500">
               <Image src="/images/logokeuanganku.png" alt="Logo KeuanganKu" fill className="object-contain" priority />
             </div>
             <div className="text-center px-4 -mt-7">
-              <p className="text-[9px] font-bold text-blue-600 uppercase tracking-[0.2em] leading-tight mt-0.5 whitespace-nowrap">
-                financial conversation tools
+              <p className="text-[9px] font-bold text-blue-600 uppercase tracking-[0.2em] leading-tight mt-0.5 whitespace-nowrap opacity-80">
+                financial tools
               </p>
             </div>
           </>
@@ -306,7 +311,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
             {!internalCollapse ? (
               <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 whitespace-nowrap">Menu Utama</p>
             ) : (
-              <div className="w-full flex justify-center mb-3"><div className="w-6 h-0.5 rounded-full bg-slate-200"></div></div>
+              <div className="w-full flex justify-center mb-3"><div className="w-6 h-0.5 rounded-full bg-slate-100"></div></div>
             )}
             <div className="space-y-1.5 flex flex-col">
               {NAVIGATION_CONFIG.main.map((item: any) => <NavLink key={item.href} item={item} />)}
@@ -363,7 +368,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={10} className="font-semibold text-red-600 bg-red-50 border-red-100 z-50">
-                Keluar
+                Keluar Aplikasi
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -374,18 +379,27 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
           >
             <div className="absolute inset-0 bg-red-50/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0" />
             <div className="relative z-10 flex items-center gap-3 overflow-hidden">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shrink-0",
-                isAdmin ? "bg-teal-100 text-teal-700" : isDirector ? "bg-slate-200 text-slate-700" : "bg-blue-100 text-blue-700",
-                "group-hover:bg-white group-hover:shadow-sm"
-              )}>
-                {isLoading ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : userInitials}
+              <div className="relative">
+                <div className={cn(
+                  "w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shrink-0 border-2 border-white shadow-sm",
+                  isAdmin ? "bg-teal-100 text-teal-700" : isDirector ? "bg-slate-200 text-slate-700" : isPro ? "bg-linear-to-tr from-amber-100 to-amber-50 text-amber-700" : "bg-blue-100 text-blue-700",
+                  "group-hover:bg-white group-hover:shadow-sm"
+                )}>
+                  {isLoading ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : userInitials}
+                </div>
+                {/* PRO Badge Indicator */}
+                {isPro && (
+                  <div className="absolute -bottom-1 -right-1 bg-amber-500 text-[8px] font-black text-white px-1 rounded-sm shadow-sm border border-white">
+                    PRO
+                  </div>
+                )}
               </div>
+
               <div className="flex flex-col items-start truncate text-left transition-transform duration-500 group-hover:translate-x-1">
-                <span className="leading-none group-hover:text-red-600 font-bold transition-colors duration-500">
-                  {isLoading ? "Loading..." : "Keluar"}
+                <span className="leading-none group-hover:text-red-600 font-bold transition-colors duration-500 truncate w-full text-sm">
+                  {isLoading ? "Loading..." : user?.fullName || "User"}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium mt-0.5 uppercase truncate max-w-25">
+                <span className="text-[10px] text-slate-400 font-medium mt-0.5 uppercase truncate max-w-28 flex items-center gap-1">
                   {userRoleLabel}
                 </span>
               </div>

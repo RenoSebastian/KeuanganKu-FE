@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
     CreditCard, XCircle, Building2, Copy, Upload,
-    ShieldCheck, Zap, Image as ImageIcon,
+    ShieldCheck, Zap,
     Loader2, ArrowRight, Wallet, Check, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,19 +14,37 @@ import { toast } from "sonner";
 import { subscriptionService, SubscriptionPlan } from "@/services/subscription.service";
 
 interface PaymentModalProps {
-    plan: SubscriptionPlan;
+    plan: SubscriptionPlan | null; // Allow null to handle initial state gracefully
     onClose: () => void;
     onSuccess: () => void;
 }
 
 export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
     const [image, setImage] = useState<string | null>(null);
+    const [fileObj, setFileObj] = useState<File | null>(null); // Simpan object File asli
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Jika plan null, jangan render apapun (Safety Guard)
+    if (!plan) return null;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) return toast.error("Ukuran file maksimal 2MB");
+            // 1. Validasi Ukuran
+            if (file.size > 2 * 1024 * 1024) {
+                toast.error("File terlalu besar", { description: "Maksimal ukuran file adalah 2MB." });
+                return;
+            }
+
+            // 2. Validasi Tipe File (Client Side)
+            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+                toast.error("Format tidak didukung", { description: "Harap unggah gambar (JPG/PNG) atau PDF." });
+                return;
+            }
+
+            setFileObj(file); // Simpan file asli untuk dikirim ke backend
+
+            // Preview Image
             const reader = new FileReader();
             reader.onloadend = () => setImage(reader.result as string);
             reader.readAsDataURL(file);
@@ -35,18 +53,27 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
-        toast.success("Nomor rekening berhasil disalin");
+        toast.success("Nomor rekening disalin!");
     };
 
     const handleSubmit = async () => {
-        if (!image) return toast.error("Mohon lampirkan bukti transfer");
+        if (!fileObj) return toast.error("Mohon lampirkan bukti transfer");
+
         setIsSubmitting(true);
         try {
-            await subscriptionService.createOrder(plan.id, image);
-            toast.success("Bukti transfer terkirim. Mohon tunggu verifikasi.");
-            onSuccess();
-        } catch (error) {
-            toast.error("Terjadi kendala saat mengirim data");
+            // Panggil Service untuk Upload & Create Order
+            await subscriptionService.createOrder(plan.id, fileObj);
+
+            toast.success("Bukti transfer terkirim!", {
+                description: "Status akun Anda akan segera aktif setelah verifikasi otomatis."
+            });
+
+            onSuccess(); // Refresh parent & tutup modal
+        } catch (error: any) {
+            console.error(error);
+            toast.error("Gagal mengirim data", {
+                description: error.response?.data?.message || "Terjadi kesalahan jaringan."
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -55,7 +82,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
     return (
         <div className="fixed inset-0 z-999 flex items-center justify-center p-4 sm:p-6">
 
-            {/* BACKDROP - Efek blur konsisten dengan modul helper lainnya */}
+            {/* BACKDROP */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -65,7 +92,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                 onClick={!isSubmitting ? onClose : undefined}
             />
 
-            {/* MODAL PANEL - Centered Floating Layout */}
+            {/* MODAL PANEL */}
             <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -74,7 +101,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                 className="relative w-full md:max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
 
-                {/* HEADER SECTION - DNA: Sticky & Glassmorphism Header */}
+                {/* HEADER */}
                 <div className="relative pt-7 pb-5 px-8 bg-linear-to-b from-indigo-50/50 to-white flex items-start justify-between border-b border-slate-100 shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100 shrink-0">
@@ -83,7 +110,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                         <div>
                             <h3 className="font-black text-slate-800 text-lg md:text-xl tracking-tight leading-tight">Konfirmasi Upgrade</h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 px-2 py-0 font-black text-[9px] uppercase tracking-widest">
+                                <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 px-2 py-0 font-black text-[9px] uppercase tracking-widest hover:bg-indigo-100">
                                     Step 2: Payment
                                 </Badge>
                                 <span className="flex items-center gap-1 text-emerald-600 text-[9px] font-black uppercase tracking-widest">
@@ -101,7 +128,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                     </button>
                 </div>
 
-                {/* SCROLLABLE BODY CONTENT */}
+                {/* SCROLLABLE BODY */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
 
                     {/* INVOICE MINI CARD */}
@@ -123,7 +150,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
 
                     {/* BANK DETAILS CARD */}
                     <div className="bg-slate-900 p-6 rounded-[2.2rem] text-white relative overflow-hidden group shadow-xl">
-                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform pointer-events-none">
                             <Building2 size={80} />
                         </div>
                         <div className="relative z-10">
@@ -131,10 +158,11 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                                 <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" /> Rekening Tujuan
                             </p>
                             <div className="flex items-center justify-between mb-1">
-                                <p className="text-3xl font-black tracking-widest font-mono">1234567890</p>
+                                <p className="text-3xl font-black tracking-widest font-mono select-all">1234567890</p>
                                 <button
                                     onClick={() => handleCopy("1234567890")}
                                     className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all active:scale-95 border border-white/5"
+                                    title="Salin Nomor Rekening"
                                 >
                                     <Copy size={18} />
                                 </button>
@@ -142,7 +170,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-tight mb-4">Bank BCA • A/N KeuanganKu Digital</p>
                             <div className="h-px bg-white/10 w-full mb-4" />
                             <p className="text-[10px] text-slate-500 italic leading-relaxed">
-                                *Gunakan berita acara: <span className="font-bold text-slate-300">UPGRADE_{plan.name.replace(/\s+/g, '_').toUpperCase()}</span>
+                                *Gunakan berita acara: <span className="font-bold text-slate-300 select-all">UPGRADE_{plan.name.replace(/\s+/g, '_').toUpperCase()}</span>
                             </p>
                         </div>
                     </div>
@@ -153,18 +181,22 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                         <div
                             onClick={() => document.getElementById('proof-upload')?.click()}
                             className={cn(
-                                "group relative border-2 border-dashed rounded-[2.2rem] p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-500 overflow-hidden",
+                                "group relative border-2 border-dashed rounded-[2.2rem] p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-500 overflow-hidden min-h-50",
                                 image ? "border-emerald-500 bg-emerald-50/10" : "border-slate-200 bg-slate-50/50 hover:bg-white hover:border-indigo-400 shadow-sm"
                             )}
                         >
                             {image ? (
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white">
+                                <div className="relative w-full h-full min-h-45 rounded-2xl overflow-hidden shadow-lg border border-white/50">
                                     <img src={image} className="w-full h-full object-cover" alt="Proof" />
-                                    <div className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+
+                                    {/* Hover Overlay */}
+                                    <div className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
                                         <RefreshCw className="text-white mb-2" size={24} />
                                         <p className="text-white text-[10px] font-black uppercase tracking-widest">Ganti Bukti</p>
                                     </div>
-                                    <div className="absolute top-3 right-3 bg-emerald-500 text-white p-1.5 rounded-full shadow-lg border-2 border-white">
+
+                                    {/* Success Indicator */}
+                                    <div className="absolute top-3 right-3 bg-emerald-500 text-white p-1.5 rounded-full shadow-lg border-2 border-white animate-in zoom-in duration-300">
                                         <Check size={14} strokeWidth={4} />
                                     </div>
                                 </div>
@@ -177,19 +209,25 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                                     <p className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-tighter">Tap untuk pilih file (Maks. 2MB)</p>
                                 </div>
                             )}
-                            <input id="proof-upload" type="file" hidden accept="image/*" onChange={handleFileChange} />
+                            <input
+                                id="proof-upload"
+                                type="file"
+                                hidden
+                                accept="image/jpeg,image/png,application/pdf"
+                                onChange={handleFileChange}
+                            />
                         </div>
                     </div>
                 </div>
 
-                {/* ACTIONS SECTION - DNA: Persistent Bottom Actions */}
+                {/* BOTTOM ACTIONS */}
                 <div className="p-6 md:p-8 bg-white border-t border-slate-50 shrink-0">
                     <Button
                         disabled={isSubmitting || !image}
                         onClick={handleSubmit}
                         className={cn(
                             "w-full h-16 rounded-2xl text-white font-black uppercase tracking-widest shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3",
-                            !image ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
+                            !image ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
                         )}
                     >
                         {isSubmitting ? (
@@ -199,10 +237,10 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                         )}
                     </Button>
                     <div className="mt-4 flex items-center justify-center gap-6 opacity-40">
-                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest">
+                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
                             <ShieldCheck size={12} className="text-emerald-600" /> Manual Verify
                         </div>
-                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest">
+                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
                             <Wallet size={12} className="text-blue-600" /> Safe Transfer
                         </div>
                     </div>

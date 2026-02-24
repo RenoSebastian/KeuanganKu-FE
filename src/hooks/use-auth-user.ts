@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import api from '@/lib/axios'; // Pastikan import ini sesuai dengan export default di lib/axios.ts Anda
+import api from '@/lib/axios';
 
 // =================================================================
 // TYPE DEFINITIONS (Matching Backend Response)
@@ -8,10 +8,11 @@ import api from '@/lib/axios'; // Pastikan import ini sesuai dengan export defau
 
 export interface UserSubscription {
     id: string;
-    status: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'CANCELLED';
+    status: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'REVOKED' | 'CANCELLED';
     startDate: string;
     endDate: string;
     plan?: {
+        id: string;
         name: string;
         price: number;
     };
@@ -27,14 +28,15 @@ export interface UserProfile {
     email: string;
     fullName: string;
     role: string;
+    avatar?: string | null;
     unitKerja?: {
         id: string;
         namaUnit: string;
         kodeUnit: string;
     };
     // Data Penting untuk Logic Frontend
-    usage?: UserUsage;
-    subscription?: UserSubscription;
+    usage?: UserUsage | null;
+    subscription?: UserSubscription | null;
 }
 
 // Interface Payload Token (Minimal Data)
@@ -84,8 +86,9 @@ export function useAuthUser() {
         } catch (error) {
             console.error("Gagal mengambil profil user:", error);
             // Opsional: Jika 401, bisa trigger logout atau clear local storage
-            // localStorage.removeItem('token');
-            // setUser(null);
+            if (typeof window !== 'undefined') {
+                // localStorage.removeItem('token');
+            }
         } finally {
             setIsLoading(false);
         }

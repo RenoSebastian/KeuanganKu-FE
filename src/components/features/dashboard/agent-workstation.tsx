@@ -43,7 +43,7 @@ export function AgentWorkstation() {
             label: "Dana Hari Tua",
             sub: "Pensiun Sejahtera",
             emoji: "🛡️",
-            href: "/calculator/insurance",
+            href: "/calculator/pension",
             theme: {
                 blob: "bg-rose-400/20 group-hover:bg-rose-400/40",
                 iconBg: "bg-rose-50 border-rose-100/50 text-rose-600"
@@ -53,7 +53,7 @@ export function AgentWorkstation() {
             label: "Rancang Proteksi",
             sub: "Asuransi Jiwa",
             emoji: "☂️",
-            href: "/calculator/pension",
+            href: "/calculator/insurance",
             theme: {
                 blob: "bg-purple-400/20 group-hover:bg-purple-400/40",
                 iconBg: "bg-purple-50 border-purple-100/50 text-purple-600"

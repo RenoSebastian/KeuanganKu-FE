@@ -1,6 +1,6 @@
-// File: src/services/subscription.service.ts
 import api from "@/lib/axios";
 
+// Sesuaikan dengan Model Prisma Backend
 export interface SubscriptionPlan {
     id: string;
     code: string;
@@ -8,12 +8,15 @@ export interface SubscriptionPlan {
     description: string;
     durationMonths: number;
     price: number;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface SubscriptionOrder {
     id: string;
     plan: SubscriptionPlan;
-    proofImageUrl: string;
+    proofImageUrl?: string; // Optional karena bisa nullable di DB
     verificationStatus: 'PENDING' | 'VALID' | 'INVALID';
     snapshotPrice: number;
     adminNotes?: string;
@@ -27,11 +30,17 @@ export const subscriptionService = {
         return response.data;
     },
 
-    // Kirim bukti pembayaran (Create Order)
-    createOrder: async (planId: string, proofImage: string) => {
-        const response = await api.post("/subscription/orders", {
-            planId,
-            proofImageUrl: proofImage
+    // Kirim bukti pembayaran (Create Order & Upload)
+    // Menggunakan FormData karena Backend mengharapkan Multipart File
+    createOrder: async (planId: string, file: File) => {
+        const formData = new FormData();
+        formData.append('planId', planId);
+        formData.append('proofFile', file); // Key harus sesuai dengan @UseInterceptors(FileInterceptor('proofFile')) di Backend
+
+        const response = await api.post("/subscription/buy", formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
         });
         return response.data;
     },
