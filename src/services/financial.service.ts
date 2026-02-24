@@ -49,6 +49,7 @@ import {
 /**
  * Mengonversi Annual State (UI) -> Monthly Payload (API)
  * Memisahkan data finansial dari data klien, mengonversi angka, lalu menggabungkan kembali.
+ * [UPDATED] Menambahkan dukungan untuk sessionId agar tidak hilang saat konversi.
  */
 function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: any, sessionId: string }): any {
   // 1. Konversi Angka Finansial (Annual -> Monthly)
@@ -59,12 +60,12 @@ function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: 
   const { client, spouse, sessionId, ...rest } = data as any;
 
   // 3. Gabungkan kembali (Flat Object untuk dikirim ke Backend)
-  // Backend menerima object flat yang berisi field finansial + field client
+  // Backend menerima object flat yang berisi field finansial + field client + sessionId
   return {
     ...monthlyFinancial,
     client,
     spouse,
-    sessionId,
+    sessionId, // [CRITICAL] Wajib ada untuk sistem kuota BE
   };
 }
 
@@ -314,6 +315,7 @@ export const financialService = {
 
   // ===========================================================================
   // 8. AGENT SIMULATION (STATELESS / OFFLINE-FIRST)
+  // [UPDATED] Added sessionId support for Quota & Idempotency
   // ===========================================================================
 
   simulateAgentBudget: async (data: CreateBudgetSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
@@ -346,14 +348,20 @@ export const financialService = {
     });
   },
 
-  // Checkup (Sudah menggunakan helper toMonthlyPayload yang baru)
+  // [UPDATED] Checkup Simulation using new Adapter Logic
   simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<CheckupSimulationResponse> => {
     const apiPayload = toMonthlyPayload(data);
     const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup", apiPayload);
     return response.data;
   },
 
-  // Education (Scenario B)
+  /**
+   * [SCENARIO B] simulateAgentEducation
+   * ----------------------------------------
+   * 1. Request Kalkulasi (JSON)
+   * Mengirim payload ke Backend untuk dihitung dan LOG disimpan ke DB.
+   * Return: JSON berisi Data Angka + ID Simulasi (bukan file PDF).
+   */
   simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
     const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
     return response.data;
