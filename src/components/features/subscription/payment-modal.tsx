@@ -53,7 +53,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-999 flex items-center justify-center p-4 sm:p-6">
 
             {/* BACKDROP - Efek blur konsisten dengan modul helper lainnya */}
             <motion.div
@@ -131,7 +131,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                                 <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" /> Rekening Tujuan
                             </p>
                             <div className="flex items-center justify-between mb-1">
-                                <p className="text-3xl font-black tracking-[0.1em] font-mono">1234567890</p>
+                                <p className="text-3xl font-black tracking-widest font-mono">1234567890</p>
                                 <button
                                     onClick={() => handleCopy("1234567890")}
                                     className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all active:scale-95 border border-white/5"

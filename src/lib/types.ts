@@ -636,6 +636,25 @@ export interface RegisterDto {
   unitKerja?: string;
 }
 
+// [NEW] SUBSCRIPTION & USAGE CONTRACTS
+// Interface ini memetakan data dari table UserSubscription & UserUsage di BE
+export interface UserSubscription {
+  id: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'CANCELLED';
+  startDate: string;
+  endDate: string;
+  plan?: {
+    name: string;
+    price: number;
+    durationInMonths?: number;
+  };
+}
+
+export interface UserUsage {
+  simulationQuota: number; // Sisa Token (Credit)
+  totalUsed: number;       // Total simulasi yang pernah dibuat
+}
+
 // [UPDATED] USER INTERFACE SINKRON DENGAN BACKEND PRISMA SCHEMA
 export interface User {
   id: string;
@@ -657,6 +676,11 @@ export interface User {
   goals?: string;
   // ----------------------------------------
 
+  // [INTEGRATION] SUBSCRIPTION & QUOTA
+  // Field ini optional (?) karena mungkin null jika user baru belum sync / error
+  subscription?: UserSubscription;
+  usage?: UserUsage;
+
   unitKerja?: UnitKerja;
   createdAt?: string;
   updatedAt?: string;
@@ -673,8 +697,6 @@ export interface AuthResponse {
   access_token: string;
   user: User;
 }
-
-
 
 // ============================================================================
 // 9. HYBRID SEARCH TYPES (NEW INTEGRAION)

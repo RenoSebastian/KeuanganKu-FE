@@ -1,14 +1,20 @@
-import { Metadata } from "next";
+"use client";
+
+// [NOTE] Import Hook Auth
+import { useAuthUser } from "@/hooks/use-auth-user";
+import Link from "next/link";
+
 import { RiskProfileWizard } from "@/components/features/finance/risk-profile/risk-profile-wizard";
 import { Separator } from "@/components/ui/separator";
-import { Info, Sparkles, UserCheck, ShieldCheck } from "lucide-react";
-
-export const metadata: Metadata = {
-    title: "Analisis Profil Risiko | KeuanganKu Pro",
-    description: "Kenali gaya investasi klien untuk strategi proteksi yang logis.",
-};
+import { Info, Sparkles, UserCheck, ShieldCheck, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export default function RiskProfilePage() {
+    // [NEW] Logic Access Control
+    const { isPro, quota, isLoading } = useAuthUser();
+    const hasAccess = isPro || quota > 0;
+
     return (
         // 1. DYNAMIC THEMATIC BACKGROUND
         <div className="min-h-screen bg-slate-50 relative overflow-hidden font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-20">
@@ -60,28 +66,53 @@ export default function RiskProfilePage() {
                     </div>
                 </div>
 
-                {/* --- INSTRUKSI AGEN --- */}
-                <div className="animate-in fade-in duration-700 delay-150 flex items-start md:items-center gap-3 px-5 py-3 bg-slate-800 rounded-2xl text-[11px] md:text-xs text-slate-300 font-medium shadow-md max-w-4xl mx-auto">
-                    <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
-                    <p className="leading-relaxed">
-                        <span className="font-bold text-white uppercase tracking-wider mr-1">Instruksi Agen:</span>
-                        Berikan perangkat ini kepada klien untuk pengisian mandiri, atau pandu secara lisan untuk membangun keakraban (*engagement*).
-                    </p>
-                </div>
-
-                <Separator className="bg-slate-200/60 my-2 max-w-4xl mx-auto" />
-
-                {/* --- WIZARD CONTAINER (Kini berukuran Edge-to-Edge) --- */}
-                <div className="mt-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 relative w-full">
-
-                    {/* WIZARD RENDERER */}
-                    <div className="bg-white/80 backdrop-blur-md rounded-[2rem] md:rounded-[2.5rem] border border-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] overflow-visible relative z-10 w-full p-4 md:p-6">
-                        <div className="absolute inset-0 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100/50 pointer-events-none" />
-
-                        {/* Komponen Wizard Inti (Kini bisa bernapas lega di max-w-6xl) */}
-                        <RiskProfileWizard />
+                {/* --- QUOTA CHECK ALERT --- */}
+                {!isLoading && !hasAccess ? (
+                    <div className="max-w-4xl mx-auto animate-in fade-in zoom-in-95 duration-500">
+                        <Card className="p-8 rounded-[2rem] bg-red-50 border-red-200 text-center shadow-lg">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2 animate-pulse">
+                                    <Lock className="w-8 h-8 text-red-600" />
+                                </div>
+                                <h3 className="text-2xl font-black text-red-800">Akses Dibatasi</h3>
+                                <p className="text-red-700 max-w-md mx-auto text-sm font-medium leading-relaxed">
+                                    Mohon maaf, kuota simulasi gratis Anda telah habis. Fitur Analisis Profil Risiko membutuhkan 1 Token Simulasi atau Paket PRO.
+                                </p>
+                                <div className="pt-4 w-full max-w-xs">
+                                    <Link href="/pricing">
+                                        <Button className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-500/20 transition-all active:scale-95">
+                                            Upgrade Sekarang
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        </Card>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        {/* --- INSTRUKSI AGEN --- */}
+                        <div className="animate-in fade-in duration-700 delay-150 flex items-start md:items-center gap-3 px-5 py-3 bg-slate-800 rounded-2xl text-[11px] md:text-xs text-slate-300 font-medium shadow-md max-w-4xl mx-auto">
+                            <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
+                            <p className="leading-relaxed">
+                                <span className="font-bold text-white uppercase tracking-wider mr-1">Instruksi Agen:</span>
+                                Berikan perangkat ini kepada klien untuk pengisian mandiri, atau pandu secara lisan untuk membangun keakraban (*engagement*).
+                            </p>
+                        </div>
+
+                        <Separator className="bg-slate-200/60 my-2 max-w-4xl mx-auto" />
+
+                        {/* --- WIZARD CONTAINER --- */}
+                        <div className="mt-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 relative w-full">
+                            {/* WIZARD RENDERER */}
+                            <div className="bg-white/80 backdrop-blur-md rounded-[2rem] md:rounded-[2.5rem] border border-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] overflow-visible relative z-10 w-full p-4 md:p-6">
+                                <div className="absolute inset-0 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100/50 pointer-events-none" />
+
+                                {/* Komponen Wizard Inti */}
+                                <RiskProfileWizard />
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 {/* --- FOOTER --- */}
                 <div className="text-center space-y-3 pt-12 pb-6 opacity-60 hover:opacity-100 transition-opacity duration-300">

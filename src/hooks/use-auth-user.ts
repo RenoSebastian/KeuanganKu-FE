@@ -1,46 +1,130 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import api from '@/lib/axios'; // Pastikan import ini sesuai dengan export default di lib/axios.ts Anda
 
-export interface UserPayload {
+// =================================================================
+// TYPE DEFINITIONS (Matching Backend Response)
+// =================================================================
+
+export interface UserSubscription {
+    id: string;
+    status: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'CANCELLED';
+    startDate: string;
+    endDate: string;
+    plan?: {
+        name: string;
+        price: number;
+    };
+}
+
+export interface UserUsage {
+    simulationQuota: number; // Sisa Kuota (Token)
+    totalUsed: number;
+}
+
+export interface UserProfile {
     id: string;
     email: string;
+    fullName: string;
     role: string;
-    unitKerja?: string;
+    unitKerja?: {
+        id: string;
+        namaUnit: string;
+        kodeUnit: string;
+    };
+    // Data Penting untuk Logic Frontend
+    usage?: UserUsage;
+    subscription?: UserSubscription;
+}
+
+// Interface Payload Token (Minimal Data)
+export interface UserTokenPayload {
+    sub: string;
+    email: string;
+    role: string;
     iat: number;
     exp: number;
 }
 
-export function useAuthUser() {
-    const [user, setUser] = useState<UserPayload | null>(null);
-    const [isLoaded, setIsLoaded] = useState(false);
+// =================================================================
+// HOOK IMPLEMENTATION
+// =================================================================
 
+export function useAuthUser() {
+    const [user, setUser] = useState<UserProfile | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPro, setIsPro] = useState(false);
+    const [quota, setQuota] = useState(0);
+
+    // 1. Fungsi Fetch Data Terbaru dari Server
+    const fetchUserProfile = useCallback(async () => {
+        try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+            if (!token) {
+                setUser(null);
+                setIsLoading(false);
+                return;
+            }
+
+            // [CRITICAL] Panggil endpoint /me yang sudah kita update di Backend
+            // Response harus mengandung object `usage` dan `subscription`
+            const response = await api.get('/users/me');
+            const userData: UserProfile = response.data;
+
+            setUser(userData);
+
+            // Update Derived State
+            const activeSub = userData.subscription?.status === 'ACTIVE';
+            const userQuota = userData.usage?.simulationQuota ?? 0;
+
+            setIsPro(activeSub);
+            setQuota(userQuota);
+
+        } catch (error) {
+            console.error("Gagal mengambil profil user:", error);
+            // Opsional: Jika 401, bisa trigger logout atau clear local storage
+            // localStorage.removeItem('token');
+            // setUser(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    // 2. Initial Load Logic
     useEffect(() => {
-        // 1. Ambil token dari LocalStorage (sesuai konfigurasi axios.ts)
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
         if (token) {
             try {
-                // 2. Decode Token untuk mendapatkan User ID
-                const decoded = jwtDecode<UserPayload>(token);
+                // [OPTIMIZATION] Decode token dulu untuk render UI dasar (Nama/Role) secepat kilat
+                const decoded = jwtDecode<UserTokenPayload>(token);
 
-                // 3. Cek Expiry (Optional Client-side Guard)
-                const currentTime = Date.now() / 1000;
-                if (decoded.exp < currentTime) {
-                    console.warn("Token expired in client-side check");
-                    setUser(null);
-                } else {
-                    setUser(decoded);
-                }
-            } catch (error) {
-                console.error("Failed to decode token:", error);
+                // Set initial state dari token (tanpa quota/sub dulu)
+                setUser((prev) => prev || {
+                    id: decoded.sub,
+                    email: decoded.email,
+                    fullName: 'Loading...', // Placeholder
+                    role: decoded.role,
+                });
+
+                // Lalu fetch data lengkap (background sync)
+                fetchUserProfile();
+            } catch (e) {
+                console.error("Token invalid:", e);
                 setUser(null);
+                setIsLoading(false);
             }
         } else {
-            setUser(null);
+            setIsLoading(false);
         }
+    }, [fetchUserProfile]);
 
-        setIsLoaded(true);
-    }, []);
-
-    return { user, isLoaded };
+    return {
+        user,           // Object User Lengkap
+        isLoading,      // Status loading fetch API
+        isPro,          // Boolean helper: Apakah user PRO?
+        quota,          // Number helper: Sisa kuota user
+        refreshUser: fetchUserProfile, // Fungsi untuk memaksa update data (misal setelah bayar/simulasi)
+    };
 }

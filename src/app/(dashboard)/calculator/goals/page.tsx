@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plane, Heart, Star, Target } from "lucide-react";
+import { Plane, Heart, Star, Target, Lock } from "lucide-react";
+import { v4 as uuidv4 } from 'uuid'; // [NEW] Import UUID
+import Link from "next/link"; // [NEW] Untuk link ke pricing
+
 import { GoalSimulationResult, CreateGoalSimulationDto } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
+import { useAuthUser } from "@/hooks/use-auth-user"; // [NEW] Auth Hook
+
+// UI Components
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 // Import Micro-Components
@@ -21,7 +29,13 @@ const GOAL_OPTIONS = [
 ];
 
 export default function GoalsPage() {
+    // [NEW] Auth & Quota Logic
+    const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
+    const hasAccess = isPro || quota > 0;
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // [NEW] Idempotency Key untuk mencegah pemotongan kuota ganda saat edit
+    const sessionId = useRef(uuidv4());
 
     const [clientData, setClientData] = useState({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
     const [selectedGoal, setSelectedGoal] = useState<string>("LAINNYA");
@@ -62,7 +76,15 @@ export default function GoalsPage() {
 
     const parseMoney = (val: string) => parseInt(val.replace(/\./g, "")) || 0;
 
+    // --- CORE LOGIC: SIMULASI ---
     const handleSimulate = async () => {
+        // 1. Cek Kuota
+        if (!hasAccess) {
+            toast.error("Kuota Habis", { description: "Silakan upgrade ke PRO untuk melakukan simulasi lagi." });
+            return;
+        }
+
+        // 2. Validasi Input
         if (!clientData.clientName || !clientData.clientDob || !clientData.clientCity || !targetAmount || !targetDate) {
             toast.error("Data Belum Lengkap", { description: "Nama, Tanggal Lahir, Kota, dan Target wajib diisi." });
             return;
@@ -80,17 +102,28 @@ export default function GoalsPage() {
             const activeOption = GOAL_OPTIONS.find(g => g.id === selectedGoal) || GOAL_OPTIONS[3];
             const finalGoalName = selectedGoal === "LAINNYA" && goalNameCustom ? goalNameCustom : activeOption.label;
 
-            const payload: CreateGoalSimulationDto = {
+            const payload: CreateGoalSimulationDto & { sessionId: string } = {
                 ...clientData,
                 goalName: finalGoalName,
                 targetAmount: parseMoney(targetAmount),
                 targetDate: targetDate,
                 currentSaving: parseMoney(currentSaving),
                 inflationRate: inflation,
-                returnRate: returnRate
+                returnRate: returnRate,
+                sessionId: sessionId.current // [NEW] Kirim Session ID
             };
 
             const response = await financialService.simulateAgentGoal(payload);
+
+            // [UPDATE: REALTIME SYNC]
+            // 1. Update state di hook halaman ini
+            await refreshUser();
+
+            // 2. Kirim sinyal ke Sidebar agar progress bar kuota berkurang otomatis
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('refresh_user_data'));
+            }
+
             const token = response.headers['x-mgc-token'];
             if (!token) throw new Error("Token data tidak ditemukan.");
 
@@ -111,9 +144,17 @@ export default function GoalsPage() {
             });
 
             toast.success("Analisa Selesai", { description: "Sistem telah menemukan strategi terbaik untuk klien Anda." });
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error("Gagal Simulasi", { description: "Terjadi kesalahan pada server kalkulasi." });
+            if (error.response?.status === 403) {
+                toast.error("Akses Ditolak", { description: "Kuota simulasi Anda telah habis. Mohon upgrade akun." });
+                await refreshUser();
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('refresh_user_data'));
+                }
+            } else {
+                toast.error("Gagal Simulasi", { description: "Terjadi kesalahan pada server kalkulasi." });
+            }
         } finally {
             setIsLoading(false);
             setShowPdfModal(false);
@@ -178,6 +219,7 @@ export default function GoalsPage() {
                 setInflation(Number(financial.inflationRate) || 5);
                 setReturnRate(Number(financial.returnRate) || 6);
 
+                sessionId.current = uuidv4(); // Reset session ID saat import
                 toast.success("Restore Berhasil", { description: "Data simulasi telah dimuat kembali." });
                 setResult(null); setGeneratedFiles(null);
             } catch (error: any) {
@@ -195,6 +237,7 @@ export default function GoalsPage() {
             setClientData({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
             setTargetAmount(""); setTargetDate(""); setCurrentSaving("");
             setResult(null); setGeneratedFiles(null);
+            sessionId.current = uuidv4(); // Reset session ID
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
@@ -213,23 +256,45 @@ export default function GoalsPage() {
 
             <div className="relative z-20 max-w-6xl mx-auto px-4 md:px-6 -mt-24">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-                    <GoalInputForm
-                        clientData={clientData} handleClientChange={handleClientChange}
-                        goalOptions={GOAL_OPTIONS} selectedGoal={selectedGoal} setSelectedGoal={setSelectedGoal}
-                        goalNameCustom={goalNameCustom} setGoalNameCustom={setGoalNameCustom}
-                        targetAmount={targetAmount} setTargetAmount={setTargetAmount} handleMoneyInput={handleMoneyInput}
-                        targetDate={targetDate} setTargetDate={setTargetDate} resetResult={() => setResult(null)}
-                        currentSaving={currentSaving} setCurrentSaving={setCurrentSaving}
-                        inflation={inflation} setInflation={setInflation}
-                        returnRate={returnRate} setReturnRate={setReturnRate}
-                        handleReset={handleReset} handleSimulate={handleSimulate} isLoading={isLoading}
-                    />
-                    <GoalResults
-                        result={result}
-                        targetAmount={parseMoney(targetAmount)}
-                        inflation={inflation} returnRate={returnRate}
-                        generatedFiles={generatedFiles} handleDownloadFile={handleDownloadFile}
-                    />
+                    {/* WRAPPER KIRI (FORM) */}
+                    <div className="lg:col-span-5 space-y-6">
+
+                        {/* [NEW] Quota Alert Card */}
+                        {!hasAccess && !isAuthLoading && (
+                            <Card className="p-5 rounded-2xl bg-red-50 border border-red-200 shadow-sm animate-pulse">
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2 bg-red-100 rounded-xl text-red-600"><Lock className="w-6 h-6" /></div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-red-800">Kuota Habis</h3>
+                                        <p className="text-xs text-red-600 mt-1">Upgrade ke PRO untuk akses tanpa batas.</p>
+                                        <Link href="/pricing"><Button size="sm" className="mt-3 bg-red-600 w-full rounded-xl">Upgrade</Button></Link>
+                                    </div>
+                                </div>
+                            </Card>
+                        )}
+
+                        <GoalInputForm
+                            clientData={clientData} handleClientChange={handleClientChange}
+                            goalOptions={GOAL_OPTIONS} selectedGoal={selectedGoal} setSelectedGoal={setSelectedGoal}
+                            goalNameCustom={goalNameCustom} setGoalNameCustom={setGoalNameCustom}
+                            targetAmount={targetAmount} setTargetAmount={setTargetAmount} handleMoneyInput={handleMoneyInput}
+                            targetDate={targetDate} setTargetDate={setTargetDate} resetResult={() => setResult(null)}
+                            currentSaving={currentSaving} setCurrentSaving={setCurrentSaving}
+                            inflation={inflation} setInflation={setInflation}
+                            returnRate={returnRate} setReturnRate={setReturnRate}
+                            handleReset={handleReset} handleSimulate={handleSimulate} isLoading={isLoading}
+                        />
+                    </div>
+
+                    {/* WRAPPER KANAN (HASIL) */}
+                    <div className="lg:col-span-7">
+                        <GoalResults
+                            result={result}
+                            targetAmount={parseMoney(targetAmount)}
+                            inflation={inflation} returnRate={returnRate}
+                            generatedFiles={generatedFiles} handleDownloadFile={handleDownloadFile}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

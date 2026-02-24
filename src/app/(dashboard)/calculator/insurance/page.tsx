@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { v4 as uuidv4 } from 'uuid'; // [NEW] Import UUID
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import {
   ShieldCheck, HeartPulse, BadgeDollarSign,
   RefreshCcw, Download, Landmark, Wallet,
-  CheckCircle2, Loader2,
+  CheckCircle2, Loader2, Lock,
   Calculator, User, MapPin, Briefcase, Calendar, Upload, FileJson,
   Play
 } from "lucide-react";
@@ -20,13 +22,20 @@ import { financialService } from "@/services/financial.service";
 import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 import { toast } from "sonner";
+import { useAuthUser } from "@/hooks/use-auth-user"; // [NEW] Auth Hook
 
 // Import Visual Components
 import { GapAnalysisGauge } from "@/components/features/calculator/insurance/gap-analysis-gauge";
 import { InsuranceResultCard } from "@/components/features/calculator/insurance/insurance-result-card";
 
 export default function InsurancePage() {
+  // [NEW] Auth & Quota Logic
+  const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
+  const hasAccess = isPro || quota > 0;
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // [NEW] Idempotency Key untuk mencegah pemotongan kuota ganda
+  const sessionId = useRef(uuidv4());
 
   // --- STATE: CLIENT IDENTITY ---
   const [clientData, setClientData] = useState({
@@ -58,7 +67,7 @@ export default function InsurancePage() {
   // --- STATE: RESULT & UI ---
   const [result, setResult] = useState<InsuranceSimulationResult | null>(null);
 
-  // State untuk menampung file di memori (Blob URL) agar tidak auto-download
+  // State untuk menampung file di memori
   const [generatedFiles, setGeneratedFiles] = useState<{
     pdfUrl: string | null;
     mgcToken: string | null;
@@ -68,7 +77,7 @@ export default function InsurancePage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [showPdfModal, setShowPdfModal] = useState(false); // Indikator loading PDF generation
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   // Helper Calculator State
   const [showKprModal, setShowKprModal] = useState(false);
@@ -101,7 +110,6 @@ export default function InsurancePage() {
     if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
     setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 
-    // Reset result jika input berubah
     if (result) {
       setResult(null);
       setGeneratedFiles(null);
@@ -114,18 +122,21 @@ export default function InsurancePage() {
   // 1. CORE LOGIC: PREVIEW / HITUNG (TANPA DOWNLOAD)
   // ===========================================================================
   const handleCalculateOnly = async () => {
-    // 1. Validasi Input Dasar
+    // [NEW] Cek Kuota
+    if (!hasAccess) {
+      toast.error("Kuota Habis", { description: "Silakan upgrade ke PRO untuk melakukan simulasi lagi." });
+      return;
+    }
+
     if (!clientData.clientName || !annualIncome) {
       toast.error("Data Belum Lengkap", { description: "Nama Klien dan Gaji wajib diisi untuk menghitung." });
       return;
     }
 
     setIsLoading(true);
-    setShowPdfModal(true); // Tampilkan loading visual
+    setShowPdfModal(true);
 
     try {
-      // 2. Prepare Payload
-      // Gaji Tahunan (UI) -> Gaji Bulanan (Backend)
       const monthlyExpense = parseMoney(annualIncome) / 12;
 
       const totalDebt =
@@ -135,40 +146,45 @@ export default function InsurancePage() {
         parseMoney(debtConsumptive) +
         parseMoney(debtOther);
 
-      const payload: CreateInsuranceSimulationDto = {
+      // [FIX] Masukkan sessionId ke payload
+      const payload: CreateInsuranceSimulationDto & { sessionId: string } = {
         ...clientData,
         type: 'LIFE',
         dependentCount: 2,
-        monthlyExpense, // Dikirim sebagai bulanan
+        monthlyExpense,
         existingDebt: totalDebt,
         existingCoverage: parseMoney(existingInsurance),
         protectionDuration: parseInt(protectionDuration) || 10,
         finalExpense: parseMoney(finalExpense),
         inflationRate: inflation,
-        returnRate: returnRate
+        returnRate: returnRate,
+        sessionId: sessionId.current // [NEW] Kirim ID Sesi
       };
 
-      // 3. Call API (Stateless Stream)
       const response = await financialService.simulateAgentInsurance(payload);
 
-      // --- STEP A: HANDLE TOKEN (UNTUK UI) ---
+      // [UPDATE: REALTIME SYNC]
+      // 1. Update state di hook halaman ini
+      await refreshUser();
+
+      // 2. Kirim sinyal ke Sidebar agar progress bar kuota berkurang otomatis
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('refresh_user_data'));
+      }
+
       const token = response.headers['x-mgc-token'];
       if (!token) throw new Error("Token data tidak ditemukan dalam response.");
 
-      // Decode Token untuk UI Preview
       const payloadBase64 = token.split('.')[0];
       const jsonString = atob(payloadBase64);
       const decodedData = JSON.parse(jsonString);
 
-      // Update UI Result
       setResult(decodedData.result);
 
-      // --- STEP B: HANDLE PDF BLOB (UNTUK DOWNLOAD NANTI) ---
       const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
       const pdfUrl = window.URL.createObjectURL(pdfBlob);
       const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Klien';
 
-      // Simpan URL dan Token ke State (Pending Download)
       setGeneratedFiles({
         pdfUrl,
         mgcToken: token,
@@ -180,18 +196,24 @@ export default function InsurancePage() {
         description: "Hasil perhitungan telah diperbarui. Silakan cek panel kanan."
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Simulation Error:", error);
-      toast.error("Gagal Menghitung", { description: "Terjadi kesalahan sistem saat memproses data." });
+      // [NEW] Handle Quota Error
+      if (error.response?.status === 403) {
+        toast.error("Akses Ditolak", { description: "Kuota simulasi habis." });
+        await refreshUser();
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('refresh_user_data'));
+      } else {
+        toast.error("Gagal Menghitung", { description: "Terjadi kesalahan sistem saat memproses data." });
+      }
     } finally {
       setIsLoading(false);
       setShowPdfModal(false);
     }
   };
 
-  // ===========================================================================
-  // 2. CORE LOGIC: DOWNLOAD MANUAL (DARI MEMORY)
-  // ===========================================================================
+  // ... (Sisa fungsi download & import tetap sama, namun reset session ID) ...
+
   const handleDownloadFile = (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) {
       toast.error("Belum Ada Data", { description: "Silakan lakukan simulasi terlebih dahulu." });
@@ -202,9 +224,7 @@ export default function InsurancePage() {
       const link = document.createElement('a');
       link.href = generatedFiles.pdfUrl;
       link.setAttribute('download', generatedFiles.filenamePdf || "Laporan.pdf");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      document.body.appendChild(link); link.click(); link.remove();
       toast.success("Download File", { description: "Laporan resmi berhasil diunduh." });
     }
     else if (type === 'MGC' && generatedFiles.mgcToken) {
@@ -213,20 +233,14 @@ export default function InsurancePage() {
       const a = document.createElement('a');
       a.href = url;
       a.download = generatedFiles.filenameMgc || "Backup.mgc";
-      a.click();
-      window.URL.revokeObjectURL(url);
+      a.click(); window.URL.revokeObjectURL(url);
       toast.info("Download Backup", { description: "File data (.mgc) berhasil disimpan." });
     }
   };
 
-  // ===========================================================================
-  // 3. CORE LOGIC: IMPORT .MGC (DIPERBAIKI)
-  // ===========================================================================
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Reset value agar input bisa mendeteksi file yang sama
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     setIsImporting(true);
@@ -235,46 +249,27 @@ export default function InsurancePage() {
     reader.onload = async (event) => {
       try {
         const rawContent = event.target?.result as string;
-
-        // [FIX] Sanitasi Input: Hapus spasi/newline agar signature match
         const tokenContent = rawContent ? rawContent.trim() : "";
-
         if (!tokenContent) throw new Error("File kosong");
 
         const response = await financialService.decodeSimulationToken(tokenContent);
-
-        // [FIX] Handling Struktur Data (Safe Unwrapping)
         const rootData = response.data || response;
 
-        // Validasi Module
         if (rootData.meta?.module && rootData.meta.module !== 'INSURANCE') {
           toast.error("Format Salah", { description: `File ini adalah data ${rootData.meta.module}, bukan Asuransi.` });
           return;
         }
 
         const { client, financial } = rootData;
-
-        if (!client || !financial) throw new Error("Struktur data tidak valid.");
-
-        // Populate Form
         setClientData({
-          clientName: client.name || "",
-          clientDob: client.dob || "",
-          clientCity: client.city || "",
-          clientJob: client.job || "",
-          clientPhone: client.phone || ""
+          clientName: client.name || "", clientDob: client.dob || "",
+          clientCity: client.city || "", clientJob: client.job || "", clientPhone: client.phone || ""
         });
 
         const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
-
-        // Reset breakdown debts (Backend hanya menyimpan total sum 'existingDebt')
-        // Kita masukkan total ke 'debtOther' agar kalkulasi tetap benar
         setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive("");
         setDebtOther(fmt(Number(financial.existingDebt) || 0));
 
-        // [FIX KOREKSI] Backend simpan 'monthlyExpense' (Bulanan).
-        // UI Form meminta 'Annual Income' (Tahunan).
-        // Maka saat import, nilai bulanan harus dikali 12.
         const annualIncomeValue = (Number(financial.monthlyExpense) || 0) * 12;
         setAnnualIncome(fmt(annualIncomeValue));
 
@@ -284,17 +279,15 @@ export default function InsurancePage() {
         setFinalExpense(fmt(Number(financial.finalExpense) || 0));
         setExistingInsurance(fmt(Number(financial.existingCoverage) || 0));
 
-        toast.success("Restore Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
+        // [FIX] Reset Session ID saat Import
+        sessionId.current = uuidv4();
 
-        // Reset Result agar user dipaksa klik "Hitung" lagi (memastikan kalkulasi ulang fresh)
-        setResult(null);
-        setGeneratedFiles(null);
+        toast.success("Restore Berhasil", { description: `Data klien ${client.name} berhasil dimuat.` });
+        setResult(null); setGeneratedFiles(null);
 
       } catch (error: any) {
         console.error("Import Error:", error);
-        // Tampilkan pesan error spesifik dari Backend (misal: "Signature Mismatch")
-        const backendMessage = error.response?.data?.message || error.message;
-        toast.error("Gagal Import File", { description: backendMessage });
+        toast.error("Gagal Import File", { description: error.response?.data?.message || error.message });
       } finally {
         setIsImporting(false);
       }
@@ -308,12 +301,13 @@ export default function InsurancePage() {
       setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive(""); setDebtOther("");
       setAnnualIncome(""); setProtectionDuration("10");
       setFinalExpense(""); setExistingInsurance("");
-      setResult(null);
-      setGeneratedFiles(null);
+      setResult(null); setGeneratedFiles(null);
+
+      // [FIX] Reset Session ID for new calculation
+      sessionId.current = uuidv4();
     }
   };
 
-  // Helper Modal Calculator
   const applyCalculation = (type: 'KPR' | 'KPM' | 'INCOME') => {
     const monthly = parseInt(tempMonthly.replace(/\./g, "")) || 0;
     let tenor = type === 'INCOME' ? 12 : parseInt(tempTenor) || 0;
@@ -378,6 +372,22 @@ export default function InsurancePage() {
 
           {/* LEFT: INPUT FORM */}
           <div className="lg:col-span-7 space-y-6">
+
+            {/* [NEW] QUOTA ALERT CARD */}
+            {!hasAccess && !isAuthLoading && (
+              <Card className="p-5 rounded-2xl bg-red-50 border border-red-200 shadow-sm animate-pulse">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-red-100 rounded-xl text-red-600"><Lock className="w-6 h-6" /></div>
+                  <div>
+                    <h3 className="text-sm font-bold text-red-800">Kuota Simulasi Habis</h3>
+                    <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                      Anda telah menggunakan semua token gratis. Silakan upgrade ke paket PRO untuk akses tanpa batas.
+                    </p>
+                    <Link href="/pricing"><Button size="sm" className="mt-3 bg-red-600 hover:bg-red-700 text-white font-bold w-full rounded-xl">Upgrade Sekarang</Button></Link>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* 1. DATA KLIEN */}
             <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
@@ -571,11 +581,14 @@ export default function InsurancePage() {
               </Button>
               <Button
                 onClick={handleCalculateOnly}
-                disabled={isLoading}
-                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all text-white"
+                disabled={isLoading || !hasAccess}
+                className={cn(
+                  "flex-2 h-12 font-bold text-lg shadow-lg rounded-xl transition-all text-white",
+                  hasAccess ? "bg-brand-600 hover:bg-brand-700 shadow-brand-500/20" : "bg-slate-400 cursor-not-allowed"
+                )}
               >
-                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Play className="w-5 h-5 mr-2" />}
-                Lihat Analisa
+                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : hasAccess ? <Play className="w-5 h-5 mr-2" /> : <Lock className="w-5 h-5 mr-2" />}
+                {hasAccess ? "Lihat Analisa" : "Kuota Habis"}
               </Button>
             </div>
 
