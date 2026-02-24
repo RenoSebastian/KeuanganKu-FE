@@ -50,20 +50,21 @@ import {
  * Mengonversi Annual State (UI) -> Monthly Payload (API)
  * Memisahkan data finansial dari data klien, mengonversi angka, lalu menggabungkan kembali.
  */
-function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: any }): any {
+function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: any, sessionId: string }): any {
   // 1. Konversi Angka Finansial (Annual -> Monthly)
   const monthlyFinancial = convertRecordToMonthly(data);
 
   // 2. Pertahankan Data Non-Finansial (Client, Spouse, dll)
   // Kita ambil properti lain yang mungkin ada di object data
-  const { client, spouse, ...rest } = data as any;
+  const { client, spouse, sessionId, ...rest } = data as any;
 
   // 3. Gabungkan kembali (Flat Object untuk dikirim ke Backend)
   // Backend menerima object flat yang berisi field finansial + field client
   return {
     ...monthlyFinancial,
     client,
-    spouse
+    spouse,
+    sessionId,
   };
 }
 
@@ -315,50 +316,45 @@ export const financialService = {
   // 8. AGENT SIMULATION (STATELESS / OFFLINE-FIRST)
   // ===========================================================================
 
-  simulateAgentBudget: async (data: CreateBudgetSimulationDto): Promise<AxiosResponse<Blob>> => {
+  simulateAgentBudget: async (data: CreateBudgetSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/budget", data, {
       responseType: 'blob'
     });
   },
 
-  simulateAgentInsurance: async (data: CreateInsuranceSimulationDto): Promise<AxiosResponse<Blob>> => {
+  simulateAgentInsurance: async (data: CreateInsuranceSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/insurance", data, {
       responseType: 'blob'
     });
   },
 
-  simulateAgentPension: async (data: CreatePensionSimulationDto): Promise<AxiosResponse<Blob>> => {
+  simulateAgentPension: async (data: CreatePensionSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/pension", data, {
       responseType: 'blob'
     });
   },
 
-  simulateAgentGoal: async (data: CreateGoalSimulationDto): Promise<AxiosResponse<Blob>> => {
+  simulateAgentGoal: async (data: CreateGoalSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/goals", data, {
       responseType: 'blob'
     });
   },
 
-  simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto): Promise<AxiosResponse<Blob>> => {
+  simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/risk-profile/simulation", data, {
       responseType: 'arraybuffer'
     });
   },
 
-  simulateAgentCheckup: async (data: FinancialFormState): Promise<CheckupSimulationResponse> => {
+  // Checkup (Sudah menggunakan helper toMonthlyPayload yang baru)
+  simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<CheckupSimulationResponse> => {
     const apiPayload = toMonthlyPayload(data);
     const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup", apiPayload);
     return response.data;
   },
 
-  /**
-   * [SCENARIO B] simulateAgentEducation
-   * ----------------------------------------
-   * 1. Request Kalkulasi (JSON)
-   * Mengirim payload ke Backend untuk dihitung dan LOG disimpan ke DB.
-   * Return: JSON berisi Data Angka + ID Simulasi (bukan file PDF).
-   */
-  simulateAgentEducation: async (data: EducationSimulationPayload): Promise<EducationSimulationResponse> => {
+  // Education (Scenario B)
+  simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
     const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
     return response.data;
   },

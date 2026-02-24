@@ -14,19 +14,20 @@ import {
   Archive,
   BookOpen,
   BookOpenCheck,
-  Activity // [NEW] Icon untuk Risk Profile
+  Activity, // [NEW] Icon untuk Risk Profile
+  WalletCards
 } from "lucide-react";
 
 export const NAVIGATION_CONFIG = {
   // Menu Umum (Pegawai/User Biasa)
   main: [
     { label: "Dashboard", icon: Home, href: "/dashboard" },
-    { label: "Financial Checkup", icon: Calculator, href: "/calculator/checkup" },
     { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
-    { label: "Profil Risiko", icon: Activity, href: "/risk-profile" },
     { label: "Learning Center", icon: BookOpenCheck, href: "/learning" },
+
     // { label: "Riwayat", icon: History, href: "/history" },
     { label: "Profil", icon: User, href: "/profile" },
+    { label: "Subscription", icon: WalletCards, href: "/subscription" },
   ],
 
   // Menu Khusus Admin
