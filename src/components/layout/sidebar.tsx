@@ -169,7 +169,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
     if (isAdmin || isDirector) return null;
 
     // Hitung persentase kuota (asumsi max 3 token untuk FREE)
-    const maxQuota = 3;
+    const maxQuota = 10;
     const percentage = Math.min((quota / maxQuota) * 100, 100);
 
     if (internalCollapse) {
