@@ -11,7 +11,7 @@ export function AgentWorkstation() {
         {
             label: "Checkup",
             emoji: "📝",
-            href: "/finance/checkup",
+            href: "/calculator/checkup",
             theme: "bg-cyan-50 border-cyan-100 text-cyan-600 hover:border-cyan-300"
         },
         {
