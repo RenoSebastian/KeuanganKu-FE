@@ -57,15 +57,10 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    // Container terluar tetap edge-to-edge agar background bisa menembus full layar
-    <div className="relative w-full min-h-screen selection:bg-indigo-100 selection:text-indigo-900 font-sans">
+    <div className="relative w-full min-h-screen selection:bg-indigo-100 selection:text-indigo-900 font-sans pb-10">
 
-      {/* =========================================
-          GLOBAL AMBIENT BACKGROUND IDENTITY
-          (Diperbaiki: menggunakan inset-0 agar pas di layar, tanpa memicu scroll horizontal)
-          ========================================= */}
+      {/* BACKGROUND (AMBIENT) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        {/* Layer 1: Dot Grid Pattern */}
         <div
           className="absolute inset-0 opacity-[0.4] mix-blend-multiply"
           style={{
@@ -73,43 +68,47 @@ export default function DashboardPage() {
             backgroundSize: '24px 24px'
           }}
         />
-        {/* Layer 2: Glowing Orbs */}
-        <div className="absolute -top-[15%] -left-[10%] w-[60%] h-[50%] bg-linear-to-br from-indigo-300/30 via-blue-200/20 to-transparent rounded-full blur-[100px] md:blur-[120px]" />
+        <div className="absolute -top-[15%] -left-[10%] w-[60%] h-[50%] bg-linear-to-br from-indigo-300/30 via-blue-200/20 to-transparent rounded-full blur-[100px]" />
         <div className="absolute top-[30%] -right-[15%] w-[50%] h-[60%] bg-linear-to-tl from-emerald-200/20 via-cyan-100/10 to-transparent rounded-full blur-[100px]" />
-        <div className="absolute -bottom-[10%] left-[20%] w-[60%] h-[40%] bg-linear-to-t from-orange-100/30 to-transparent rounded-full blur-[100px] hidden md:block" />
       </div>
 
-      {/* =========================================
-          MAIN CONTENT WRAPPER (THE FIX)
-          Di sinilah kita mendefinisikan lebar maksimal dan padding khusus halaman ini!
-          ========================================= */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-8 transition-all duration-300 flex flex-col space-y-6 md:space-y-8">
+      {/* MAIN CONTENT */}
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-8 flex flex-col gap-6">
 
+        {/* 1. HEADER SECTION */}
         <DashboardHeader
           userData={userData}
           currentDate={currentDate}
           onAddClient={() => router.push('/finance/checkup')}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+        {/* 2. MAIN GRID LAYOUT */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-          {/* KIRI */}
-          <div className="lg:col-span-8 flex flex-col gap-6 md:gap-8">
+          {/* --- KOLOM KIRI (Dominan) --- */}
+          <div className="lg:col-span-8 flex flex-col gap-6">
+
+            {/* 1. Profile / Hero Card */}
             <AgentHeroCard
               userData={userData}
               loadingUser={loadingUser}
               quote={quote}
             />
-            <div className="relative">
-              <div className="absolute -top-4 left-4 w-20 h-10 bg-blue-400/20 blur-2xl pointer-events-none" />
-              <AgentWorkstation />
-            </div>
+
+            {/* 2. Workstation (Sejajar dengan Tips di Kanan) */}
+            <AgentWorkstation />
+
           </div>
 
-          {/* KANAN */}
-          <div className="lg:col-span-4 flex flex-col gap-6 md:gap-8">
+          {/* --- KOLOM KANAN (Sidebar) --- */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+
+            {/* 1. Performance Card */}
             <AgentPerformanceCard userData={userData} />
+
+            {/* 2. Sales Tips */}
             <SalesTipsWidget />
+
           </div>
 
         </div>
