@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import {
     Star, Zap, Gem, Check, Crown,
-    Sparkles, UserCheck
+    Sparkles, UserCheck, TrendingDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,20 @@ interface PlanCardProps {
 
 export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: PlanCardProps) {
     const isActive = plan.id === currentPlanId;
+
+    // --- LOGIC HARGA & DISKON ---
+
+    // 1. Helper Format Ribuan (Rp 100.000)
+    const formatRibuan = (num: number) => num.toLocaleString('id-ID');
+
+    // 2. Total Payment (Harga DB * Durasi)
+    // Jika durasi 0 (Lifetime), kita anggap harga flat. Jika tidak, dikali durasi.
+    const totalPayment = plan.durationMonths > 0 ? plan.price * plan.durationMonths : plan.price;
+
+    // 3. Deteksi Diskon (Hardcoded Logic sesuai Business Rule)
+    let discountLabel = null;
+    if (plan.durationMonths === 6) discountLabel = "Hemat 20%";
+    if (plan.durationMonths === 12) discountLabel = "Hemat 30%";
 
     // Konfigurasi Tier (4-Tier Matrix)
     const tierConfig = [
@@ -91,9 +105,17 @@ export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: Pla
                     )}
                 </div>
 
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1">
-                    {plan.durationMonths === 0 ? "Lifetime Access" : `${plan.durationMonths} Bulan`}
-                </p>
+                <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">
+                        {plan.durationMonths === 0 ? "Lifetime Access" : `${plan.durationMonths} Bulan`}
+                    </p>
+                    {discountLabel && (
+                        <Badge className="bg-rose-100 text-rose-600 border border-rose-200 text-[9px] font-black px-2 py-0 h-5">
+                            {discountLabel}
+                        </Badge>
+                    )}
+                </div>
+
                 <h4 className="text-2xl font-black text-slate-900 tracking-tight">{plan.name}</h4>
             </div>
 
@@ -119,14 +141,25 @@ export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: Pla
 
             <div className="mt-auto relative z-10">
                 <div className="mb-6">
+                    {/* HARGA UTAMA (TOTAL) - Format Ribuan */}
                     <div className="flex items-baseline gap-1">
                         <p className="text-4xl font-black text-slate-900 tracking-tighter">
-                            {plan.price === 0 ? "Free" : `Rp ${plan.price.toLocaleString('id-ID')}`}
+                            {plan.price === 0 ? "Free" : `Rp ${formatRibuan(totalPayment)}`}
                         </p>
-                        {plan.price > 0 && <span className="text-[10px] font-black text-slate-400 uppercase">/Bulan</span>}
                     </div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 italic">
-                        {plan.price === 0 ? "Selamanya tanpa biaya" : "Nett (Termasuk Biaya Layanan)"}
+
+                    {/* PEMANIS HARGA BULANAN (SWEETENER) - Format Ribuan */}
+                    {plan.durationMonths > 1 && (
+                        <div className="flex items-center gap-1.5 mt-2 bg-emerald-50/50 p-2 rounded-xl w-fit border border-emerald-100">
+                            <TrendingDown size={14} className="text-emerald-600" />
+                            <p className="text-[10px] font-bold text-emerald-700">
+                                Setara <span className="font-black">Rp {formatRibuan(plan.price)}</span> / bulan
+                            </p>
+                        </div>
+                    )}
+
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-3 italic">
+                        {plan.price === 0 ? "Selamanya tanpa biaya" : "Sekali bayar untuk akses penuh"}
                     </p>
                 </div>
 

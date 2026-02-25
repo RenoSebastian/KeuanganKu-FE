@@ -5,7 +5,9 @@ import { motion } from "framer-motion";
 import {
     CreditCard, XCircle, Building2, Copy, Upload,
     ShieldCheck, Zap,
-    Loader2, ArrowRight, Wallet, Check, RefreshCw
+    Loader2, ArrowRight, Wallet, Check, RefreshCw,
+    Sparkles,
+    TrendingDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,46 +16,63 @@ import { toast } from "sonner";
 import { subscriptionService, SubscriptionPlan } from "@/services/subscription.service";
 
 interface PaymentModalProps {
-    plan: SubscriptionPlan | null; // Allow null to handle initial state gracefully
+    plan: SubscriptionPlan | null;
+    uniqueCode: number;
     onClose: () => void;
     onSuccess: () => void;
 }
 
-export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
+export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentModalProps) {
     const [image, setImage] = useState<string | null>(null);
-    const [fileObj, setFileObj] = useState<File | null>(null); // Simpan object File asli
+    const [fileObj, setFileObj] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Jika plan null, jangan render apapun (Safety Guard)
+    // Safety Guard
     if (!plan) return null;
+
+    // --- LOGIC PERHITUNGAN HARGA ---
+    // 1. Base Price (Harga x Durasi)
+    const basePrice = plan.durationMonths > 0 ? plan.price * plan.durationMonths : plan.price;
+
+    // 2. Total Transfer (Base Price + Kode Unik)
+    const totalTransfer = basePrice + uniqueCode;
+
+    // 3. Logic Diskon & Badge (Hardcoded sesuai Business Logic Anda: 6 bln = 20%, 12 bln = 30%)
+    let discountLabel = null;
+    if (plan.durationMonths === 6) discountLabel = "Hemat 20%";
+    if (plan.durationMonths === 12) discountLabel = "Hemat 30%";
+
+    // Formatter Rupiah
+    const formatRupiah = (num: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(num);
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // 1. Validasi Ukuran
             if (file.size > 2 * 1024 * 1024) {
                 toast.error("File terlalu besar", { description: "Maksimal ukuran file adalah 2MB." });
                 return;
             }
-
-            // 2. Validasi Tipe File (Client Side)
             if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
                 toast.error("Format tidak didukung", { description: "Harap unggah gambar (JPG/PNG) atau PDF." });
                 return;
             }
-
-            setFileObj(file); // Simpan file asli untuk dikirim ke backend
-
-            // Preview Image
+            setFileObj(file);
             const reader = new FileReader();
             reader.onloadend = () => setImage(reader.result as string);
             reader.readAsDataURL(file);
         }
     };
 
-    const handleCopy = (text: string) => {
+    const handleCopy = (text: string, label: string = "Teks") => {
         navigator.clipboard.writeText(text);
-        toast.success("Nomor rekening disalin!");
+        toast.success(`${label} disalin!`);
     };
 
     const handleSubmit = async () => {
@@ -61,14 +80,11 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
 
         setIsSubmitting(true);
         try {
-            // Panggil Service untuk Upload & Create Order
             await subscriptionService.createOrder(plan.id, fileObj);
-
             toast.success("Bukti transfer terkirim!", {
                 description: "Status akun Anda akan segera aktif setelah verifikasi otomatis."
             });
-
-            onSuccess(); // Refresh parent & tutup modal
+            onSuccess();
         } catch (error: any) {
             console.error(error);
             toast.error("Gagal mengirim data", {
@@ -80,7 +96,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-999 flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 sm:p-6">
 
             {/* BACKDROP */}
             <motion.div
@@ -131,20 +147,58 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                 {/* SCROLLABLE BODY */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
 
-                    {/* INVOICE MINI CARD */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-5 flex items-center justify-between shadow-inner">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100">
-                                <Zap size={20} fill="currentColor" />
+                    {/* INVOICE SUMMARY CARD (NEW DESIGN) */}
+                    <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm">
+                        {/* Top Section: Plan Info */}
+                        <div className="p-6 bg-slate-50 border-b border-slate-100">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Paket Pilihan</p>
+                                    <h4 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                                        {plan.name}
+                                        {discountLabel && (
+                                            <Badge className="bg-rose-100 text-rose-600 border-rose-200 text-[9px] px-2 h-5">
+                                                {discountLabel}
+                                            </Badge>
+                                        )}
+                                    </h4>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Durasi</p>
+                                    <p className="font-bold text-slate-700">{plan.durationMonths} Bulan</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5 leading-none">Paket</p>
-                                <h4 className="text-sm font-black text-slate-800 tracking-tight">{plan.name}</h4>
-                            </div>
+
+                            {/* Pemanis: Harga Per Bulan */}
+                            {plan.durationMonths > 1 && (
+                                <div className="flex items-center gap-2 text-sm text-slate-500 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                    <TrendingDown size={16} className="text-emerald-500" />
+                                    <span>Setara dengan <b>{formatRupiah(plan.price)}</b> / bulan</span>
+                                </div>
+                            )}
                         </div>
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5 tracking-widest leading-none">Total Bayar</p>
-                            <p className="text-lg font-black text-indigo-600 tracking-tighter">Rp {plan.price.toLocaleString('id-ID')}</p>
+
+                        {/* Bottom Section: Total Calculation */}
+                        <div className="p-6 bg-white space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500 font-medium">Subtotal ({plan.durationMonths} x {formatRupiah(plan.price)})</span>
+                                <span className="font-bold text-slate-700">{formatRupiah(basePrice)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                    <Sparkles size={12} fill="currentColor" /> Kode Unik
+                                </span>
+                                <span className="font-bold text-emerald-600">+ {uniqueCode}</span>
+                            </div>
+
+                            <div className="h-px bg-slate-100 my-2" />
+
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs font-black uppercase tracking-widest text-slate-400">Total Transfer</span>
+                                <span className="text-2xl font-black text-indigo-600 tracking-tighter">
+                                    {formatRupiah(totalTransfer)}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -157,10 +211,26 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" /> Rekening Tujuan
                             </p>
+
+                            {/* Copy Nominal Exact */}
+                            <div className="mb-6 bg-white/5 rounded-xl p-4 border border-white/10 flex items-center justify-between hover:bg-white/10 transition-colors group/copy cursor-pointer"
+                                onClick={() => handleCopy(totalTransfer.toString(), "Nominal")}>
+                                <div>
+                                    <p className="text-[9px] text-slate-400 uppercase mb-1">Nominal Persis (Wajib)</p>
+                                    <p className="text-2xl font-black text-emerald-400 font-mono tracking-wider">
+                                        {totalTransfer.toLocaleString('id-ID')}
+                                    </p>
+                                </div>
+                                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center group-hover/copy:bg-emerald-500 transition-colors">
+                                    <Copy size={14} />
+                                </div>
+                            </div>
+
+                            {/* Copy Rekening */}
                             <div className="flex items-center justify-between mb-1">
                                 <p className="text-3xl font-black tracking-widest font-mono select-all">1234567890</p>
                                 <button
-                                    onClick={() => handleCopy("1234567890")}
+                                    onClick={() => handleCopy("1234567890", "No. Rekening")}
                                     className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all active:scale-95 border border-white/5"
                                     title="Salin Nomor Rekening"
                                 >
@@ -168,6 +238,7 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                                 </button>
                             </div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-tight mb-4">Bank BCA • A/N KeuanganKu Digital</p>
+
                             <div className="h-px bg-white/10 w-full mb-4" />
                             <p className="text-[10px] text-slate-500 italic leading-relaxed">
                                 *Gunakan berita acara: <span className="font-bold text-slate-300 select-all">UPGRADE_{plan.name.replace(/\s+/g, '_').toUpperCase()}</span>
@@ -188,14 +259,10 @@ export function PaymentModal({ plan, onClose, onSuccess }: PaymentModalProps) {
                             {image ? (
                                 <div className="relative w-full h-full min-h-45 rounded-2xl overflow-hidden shadow-lg border border-white/50">
                                     <img src={image} className="w-full h-full object-cover" alt="Proof" />
-
-                                    {/* Hover Overlay */}
                                     <div className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
                                         <RefreshCw className="text-white mb-2" size={24} />
                                         <p className="text-white text-[10px] font-black uppercase tracking-widest">Ganti Bukti</p>
                                     </div>
-
-                                    {/* Success Indicator */}
                                     <div className="absolute top-3 right-3 bg-emerald-500 text-white p-1.5 rounded-full shadow-lg border-2 border-white animate-in zoom-in duration-300">
                                         <Check size={14} strokeWidth={4} />
                                     </div>

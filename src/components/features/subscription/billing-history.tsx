@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import {
     History, CreditCard, Clock, CheckCircle2,
-    XCircle, ChevronRight, ReceiptText, Calendar
+    XCircle, ChevronRight, ReceiptText, Calendar,
+    Wallet
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,18 @@ interface BillingHistoryProps {
 }
 
 export function BillingHistory({ orders, variants }: BillingHistoryProps) {
-    // Helper untuk konfigurasi status agar kode lebih bersih (Clean Code principle)
+
+    // 1. Helper Format Rupiah
+    const formatRupiah = (num: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(num);
+    };
+
+    // 2. Helper Status Config
     const getStatusConfig = (status: string) => {
         switch (status) {
             case 'VALID':
@@ -23,14 +35,14 @@ export function BillingHistory({ orders, variants }: BillingHistoryProps) {
                     color: "text-emerald-600 bg-emerald-50 border-emerald-100",
                     dot: "bg-emerald-500",
                     icon: <CheckCircle2 size={12} />,
-                    label: "Terverifikasi"
+                    label: "Lunas"
                 };
             case 'PENDING':
                 return {
                     color: "text-amber-600 bg-amber-50 border-amber-100",
                     dot: "bg-amber-500",
                     icon: <Clock size={12} />,
-                    label: "Mengecek"
+                    label: "Menunggu"
                 };
             default:
                 return {
@@ -82,6 +94,13 @@ export function BillingHistory({ orders, variants }: BillingHistoryProps) {
                 ) : (
                     orders.map((order, idx) => {
                         const status = getStatusConfig(order.verificationStatus);
+
+                        // LOGIC PERHITUNGAN TOTAL HARGA
+                        // Ambil durasi, default 1 bulan jika tidak ada data
+                        const duration = order.plan?.durationMonths || 1;
+                        // Jika durasi 0 (Lifetime), harga tetap. Jika > 0, dikali durasi.
+                        const totalBill = duration > 0 ? order.snapshotPrice * duration : order.snapshotPrice;
+
                         return (
                             <motion.div
                                 key={order.id}
@@ -104,25 +123,37 @@ export function BillingHistory({ orders, variants }: BillingHistoryProps) {
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
                                                 <Calendar size={10} />
-                                                {new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                                                {new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
                                             </span>
                                             <div className={cn("w-1 h-1 rounded-full", status.dot)} />
                                             <span className={cn("text-[9px] font-black uppercase tracking-tighter", status.color.split(' ')[0])}>
                                                 {status.label}
                                             </span>
                                         </div>
+
                                         <h4 className="text-sm font-black text-slate-800 truncate tracking-tight uppercase">
-                                            {order.plan?.name || "Premium Plan"}
+                                            {order.plan?.name || "Paket Membership"}
                                         </h4>
-                                        <p className="text-xs font-bold text-indigo-600 font-mono mt-0.5">
-                                            Rp {order.snapshotPrice.toLocaleString('id-ID')}
-                                        </p>
+
+                                        {/* PRICE DISPLAY */}
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <div className="bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                <p className="text-xs font-black text-indigo-700 font-mono flex items-center gap-1">
+                                                    {formatRupiah(totalBill)}
+                                                </p>
+                                            </div>
+                                            <span className="text-[9px] font-bold text-slate-400">
+                                                / {duration === 0 ? "Lifetime" : `${duration} Bln`}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Interaction Hint for PWA */}
-                                <div className="ml-4 p-2 bg-slate-50 rounded-xl text-slate-300 group-hover:text-indigo-500 group-hover:bg-indigo-50 transition-colors">
-                                    <ChevronRight size={18} />
+                                {/* Interaction Hint */}
+                                <div className="ml-2 flex flex-col items-end justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                                    <div className="p-2 bg-slate-50 rounded-xl text-slate-300 group-hover:text-indigo-500 group-hover:bg-indigo-50 transition-colors">
+                                        <ChevronRight size={18} />
+                                    </div>
                                 </div>
                             </motion.div>
                         );
@@ -130,13 +161,11 @@ export function BillingHistory({ orders, variants }: BillingHistoryProps) {
                 )}
             </div>
 
-            {/* SAFE AREA FOOTER (Optional/PWA Optimization) */}
+            {/* SAFE AREA FOOTER */}
             <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center shrink-0">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Auto-Refreshed Data</p>
-                <div className="flex gap-1">
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="w-1 h-1 rounded-full bg-slate-200" />
-                    ))}
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Secure History</p>
+                <div className="flex items-center gap-1 text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+                    <Wallet size={10} /> Encrypted
                 </div>
             </div>
         </motion.div>

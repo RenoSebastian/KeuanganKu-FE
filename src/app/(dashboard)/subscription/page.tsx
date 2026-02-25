@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -44,8 +44,19 @@ export default function SubscriptionPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<any>(null);
 
+    /**
+     * LOGIKA KODE UNIK
+     * Digenerate di tingkat Page agar konsisten saat modal dibuka/tutup
+     * jika user belum berpindah halaman.
+     */
+    // Logic:
+    // Math.random() * 199  -> menghasilkan angka 0 s/d 198.xxx
+    // Math.floor(...)      -> membulatkan ke bawah (0 s/d 198)
+    // + 1                  -> menggeser range menjadi (1 s/d 199)
+
+    const uniqueCode = useMemo(() => Math.floor(Math.random() * 199) + 1, []);
+
     // 1. HARDCODED FREE PLAN (Fallback)
-    // Dibuat sesuai interface SubscriptionPlan agar TypeScript tidak error
     const freePlan: SubscriptionPlan = {
         id: "FREE_VERSION_ID",
         code: "FREE",
@@ -60,14 +71,12 @@ export default function SubscriptionPage() {
 
     const fetchData = async () => {
         try {
-            // Parallel Fetching untuk performa lebih cepat
             const [plansData, ordersData, profileData] = await Promise.all([
                 subscriptionService.getPlans(),
                 subscriptionService.getMyOrders(),
                 api.get("/users/me")
             ]);
 
-            // Gabungkan Free Plan dengan plan dari database
             setPlans([freePlan, ...plansData]);
             setOrders(ordersData);
             setCurrentUser(profileData.data);
@@ -85,7 +94,6 @@ export default function SubscriptionPage() {
         fetchData();
     }, []);
 
-    // Loading State UI
     if (isLoading) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
             <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -95,13 +103,8 @@ export default function SubscriptionPage() {
         </div>
     );
 
-    // Cek Status Subscription User
     const isPro = currentUser?.subscription?.status === 'ACTIVE';
-
-    // Tentukan Active Plan ID untuk Highlighting Kartu
-    const activePlanId = isPro
-        ? currentUser.subscription.planId
-        : "FREE_VERSION_ID";
+    const activePlanId = isPro ? currentUser.subscription.planId : "FREE_VERSION_ID";
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans selection:bg-indigo-100">
@@ -109,8 +112,6 @@ export default function SubscriptionPage() {
             {/* HERO SECTION */}
             <div className="bg-slate-950 pt-28 pb-44 px-6 relative overflow-hidden text-center">
                 <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
-
-                {/* Background Blur Effect */}
                 <div className="absolute top-0 right-0 w-125 h-125 bg-indigo-600/20 rounded-full blur-[120px] -mr-48 -mt-48 pointer-events-none" />
 
                 <div className="max-w-5xl mx-auto relative z-10">
@@ -158,7 +159,6 @@ export default function SubscriptionPage() {
                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Temukan paket terbaik untuk Anda</p>
                         </div>
 
-                        {/* Responsive Grid: 1 Col Mobile, 2 Col Tablet+ */}
                         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8 items-stretch">
                             {plans.map((plan, idx) => (
                                 <PlanCard
@@ -175,11 +175,8 @@ export default function SubscriptionPage() {
 
                     {/* 3. BILLING HISTORY & SUPPORT CTA */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-
-                        {/* History Table */}
                         <BillingHistory orders={orders} variants={itemVariants} />
 
-                        {/* Support Card */}
                         <motion.div variants={itemVariants} className="w-full h-full">
                             <div className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden group shadow-2xl shadow-blue-900/20 h-full flex flex-col justify-center border border-white/5">
                                 <div className="absolute -bottom-10 -right-10 opacity-10 group-hover:rotate-12 transition-transform duration-700 pointer-events-none">
@@ -206,7 +203,6 @@ export default function SubscriptionPage() {
                         </motion.div>
                     </div>
 
-                    {/* Footer Brand */}
                     <motion.div variants={itemVariants} className="text-center py-10 opacity-40">
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
                             Secured by KeuanganKu Enterprise Layer
@@ -216,16 +212,19 @@ export default function SubscriptionPage() {
                 </motion.div>
             </div>
 
-            {/* MODAL HANDLER: Payment/Upgrade */}
+            {/* MODAL HANDLER */}
             <AnimatePresence>
                 {selectedPlan && (
                     <PaymentModal
                         plan={selectedPlan}
+                        uniqueCode={uniqueCode} // Teruskan kode unik ke modal
                         onClose={() => setSelectedPlan(null)}
                         onSuccess={() => {
                             setSelectedPlan(null);
-                            fetchData(); // Refresh data setelah sukses
-                            toast.success("Pesanan dibuat!", { description: "Silakan selesaikan pembayaran." });
+                            fetchData();
+                            toast.success("Konfirmasi Terkirim!", {
+                                description: "Tim kami akan memverifikasi pembayaran Anda maksimal dalam 1x24 jam."
+                            });
                         }}
                     />
                 )}
