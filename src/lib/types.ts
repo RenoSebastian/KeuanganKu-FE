@@ -643,10 +643,12 @@ export interface UserSubscription {
   status: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'CANCELLED';
   startDate: string;
   endDate: string;
+  // [UPDATED] Sesuai dengan include: { plan: true } dari Backend
   plan?: {
+    id: string;
     name: string;
-    price: number;
-    durationInMonths?: number;
+    price: number | string; // Handle Decimal/BigInt serialization
+    durationMonths: number;
   };
 }
 
@@ -677,9 +679,14 @@ export interface User {
   // ----------------------------------------
 
   // [INTEGRATION] SUBSCRIPTION & QUOTA
-  // Field ini optional (?) karena mungkin null jika user baru belum sync / error
   subscription?: UserSubscription;
   usage?: UserUsage;
+
+  // [NEW] AGGREGATION DATA (Untuk Dashboard Total Report)
+  // Diisi oleh prisma include: { _count: { select: { simulationLogs: true } } }
+  _count?: {
+    simulationLogs: number;
+  };
 
   unitKerja?: UnitKerja;
   createdAt?: string;
