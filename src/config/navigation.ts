@@ -14,24 +14,26 @@ import {
   Archive,
   BookOpen,
   BookOpenCheck,
-  Activity // [NEW] Icon untuk Risk Profile
+  Activity,
+  WalletCards,
+  FileCheck // [NEW] Icon untuk menu Verifikasi
 } from "lucide-react";
 
 export const NAVIGATION_CONFIG = {
   // Menu Umum (Pegawai/User Biasa)
   main: [
     { label: "Dashboard", icon: Home, href: "/dashboard" },
-    { label: "Financial Checkup", icon: Calculator, href: "/calculator/checkup" },
     { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
-    { label: "Profil Risiko", icon: Activity, href: "/risk-profile" },
     { label: "Learning Center", icon: BookOpenCheck, href: "/learning" },
-    // { label: "Riwayat", icon: History, href: "/history" },
+    // { label: "Riwayat", icon: History, href: "/history" }, // Hidden for Phase 1
     { label: "Profil", icon: User, href: "/profile" },
+    { label: "Subscription", icon: WalletCards, href: "/subscription" },
   ],
 
   // Menu Khusus Admin
   admin: [
     { label: "Dashboard Admin", icon: LayoutDashboard, href: "/admin/dashboard" },
+    { label: "Verifikasi Bayar", icon: FileCheck, href: "/admin/verification" }, // [NEW] Halaman Audit Pembayaran
     { label: "Manajemen User", icon: Users, href: "/admin/users" },
     { label: "Data Master", icon: Database, href: "/admin/master-data" },
     { label: "Modul Edukasi", icon: BookOpen, href: "/admin/education" },

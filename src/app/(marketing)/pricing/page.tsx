@@ -1,194 +1,211 @@
 "use client";
 
 import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { MessageSquare, Download, BarChart3, Users, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
+
+// Components
 import PricingSection from "@/components/features/marketing/pricing-section";
 import TestimonialsCarouselSection from "@/components/features/marketing/testimonials-carousel-section";
-import FAQSection from "@/components/features/marketing/faq-section";
 import ContactSupportModal from "@/components/features/marketing/contact-support-modal";
-import { Button } from "@/components/ui/button";
-import { MessageSquare, Download, BarChart3, Users, Sparkles, ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 export default function PricingPage() {
     const [isContactOpen, setIsContactOpen] = useState(false);
 
     return (
-        <div className="bg-white selection:bg-blue-100">
-            {/* 1. Hero Section dengan Animated Background */}
-            <section className="relative pt-24 pb-20 overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-blue-50 via-white to-white">
-                {/* Dekorasi Abstract - Blobs */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
-                    <div className="absolute top-10 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" />
-                    <div className="absolute top-0 right-10 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" />
-                </div>
+        <div className="bg-white selection:bg-indigo-100 selection:text-indigo-900">
+
+            {/* 1. HERO SECTION (Clean & Impactful) */}
+            <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
+                {/* Background Gradients */}
+                <div className="absolute top-0 inset-x-0 h-full bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-slate-200 to-transparent" />
 
                 <div className="max-w-7xl mx-auto px-4 relative z-10 text-center">
-                    <Badge variant="secondary" className="mb-6 py-1.5 px-4 bg-blue-50 text-blue-600 border-blue-100 animate-fade-in shadow-sm">
-                        <Sparkles size={14} className="mr-2 fill-blue-600" />
-                        Investasi Cerdas untuk Karir Agen Profesional
-                    </Badge>
-                    <h1 className="text-5xl md:text-7xl font-[1000] text-slate-900 mb-8 tracking-tighter leading-[1.1]">
-                        Tingkatkan Closing <br />
-                        <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-600">
-                            Rate Anda Sekarang.
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-bold uppercase tracking-wider mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <Sparkles size={12} />
+                        <span>Upgrade Karir Agen Anda</span>
+                    </div>
+
+                    <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-6 tracking-tight leading-[1.1] animate-in fade-in slide-in-from-bottom-6 duration-1000">
+                        Tingkatkan Closing Rate <br />
+                        <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-600 to-blue-500">
+                            Secara Signifikan.
                         </span>
                     </h1>
-                    <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed font-medium">
-                        Berhenti menebak kebutuhan nasabah. Gunakan tools berbasis data yang dirancang khusus untuk memenangkan kepercayaan klien dalam hitungan menit.
+
+                    <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
+                        Platform all-in-one untuk agen asuransi modern. Buat simulasi keuangan akurat, kelola prospek, dan cetak laporan profesional dalam hitungan detik.
                     </p>
 
-                    <div className="mt-10 flex flex-wrap justify-center gap-4">
-                        <div className="flex -space-x-3 overflow-hidden py-2">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="inline-block h-10 w-10 rounded-full ring-2 ring-white bg-slate-200 overflow-hidden">
-                                    <img src={`https://i.pravatar.cc/150?u=${i + 10}`} alt="user" />
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-sm text-slate-500 self-center font-bold tracking-tight">
-                            Bergabung dengan <span className="text-blue-600">500+ Agen</span> Berhasil
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            {/* 2. Main Pricing Section */}
-            <div className="relative z-10 -mt-10">
-                <PricingSection />
-            </div>
-
-            {/* 3. Why Pro? (Bento Grid Style) */}
-            <section className="py-32 bg-slate-900 text-white overflow-hidden">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
-                        <div className="max-w-xl">
-                            <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-6 leading-tight">
-                                Fitur Pro: Senjata <br />Rahasia Agen Top.
-                            </h2>
-                            <p className="text-slate-400 text-lg leading-relaxed font-medium">
-                                Dirancang berdasarkan masukan dari agen asuransi dengan kualifikasi MDRT untuk memastikan workflow Anda seefisien mungkin.
-                            </p>
-                        </div>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in zoom-in duration-1000 delay-200">
+                        <Button
+                            size="lg"
+                            className="h-14 px-8 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-lg shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1"
+                            onClick={() => document.getElementById('pricing-grid')?.scrollIntoView({ behavior: 'smooth' })}
+                        >
+                            Lihat Paket Harga
+                        </Button>
                         <Button
                             variant="outline"
-                            className="border-slate-700 text-white bg-transparent hover:bg-white hover:text-black rounded-full px-10 py-7 text-lg font-bold transition-all duration-300"
+                            size="lg"
+                            className="h-14 px-8 rounded-full border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-lg"
+                            onClick={() => setIsContactOpen(true)}
                         >
-                            Lihat Demo Fitur <ArrowRight className="ml-2" size={20} />
+                            Hubungi Sales
                         </Button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {/* Card 1 */}
-                        <div className="md:col-span-2 group relative p-10 bg-slate-800/40 border border-slate-700/50 rounded-[3rem] overflow-hidden hover:border-blue-500/50 transition-all duration-500">
-                            <div className="relative z-10">
-                                <div className="p-4 bg-blue-500/10 rounded-2xl w-fit mb-8">
-                                    <Download className="text-blue-500" size={40} />
+                    {/* Social Proof */}
+                    <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col items-center animate-in fade-in duration-1000 delay-300">
+                        <p className="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-widest">
+                            Dipercaya oleh agen dari perusahaan terkemuka
+                        </p>
+                        <div className="flex -space-x-3 overflow-hidden">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="inline-block h-10 w-10 rounded-full ring-2 ring-white bg-slate-100 overflow-hidden shadow-sm">
+                                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="user" className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" />
                                 </div>
-                                <h3 className="text-3xl font-bold mb-4">Laporan PDF Instan & Profesional</h3>
-                                <p className="text-slate-400 text-lg max-w-md leading-relaxed">
-                                    Kirim ringkasan analisis keuangan ke WhatsApp nasabah hanya dengan satu klik. Laporan lengkap dengan visualisasi yang mudah dimengerti.
-                                </p>
-                            </div>
-                            <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-all duration-700" />
-                        </div>
-
-                        {/* Card 2 */}
-                        <div className="p-10 bg-linear-to-br from-blue-600 to-indigo-700 border border-blue-400/30 rounded-[3rem] shadow-2xl shadow-blue-900/40 group hover:scale-[1.02] transition-transform duration-500">
-                            <div className="p-4 bg-white/10 rounded-2xl w-fit mb-8">
-                                <BarChart3 className="text-white" size={40} />
-                            </div>
-                            <h3 className="text-2xl font-bold mb-4 text-white">Analisis Tanpa Batas</h3>
-                            <p className="text-blue-100 text-lg leading-relaxed font-medium">
-                                Bebas lakukan simulasi checkup untuk puluhan prospek setiap harinya. Tanpa limit kuota, tanpa hambatan closing.
-                            </p>
-                        </div>
-
-                        {/* Card 3 */}
-                        <div className="md:col-span-3 p-10 bg-slate-800/40 border border-slate-700/50 rounded-[3rem] flex flex-col lg:flex-row items-center gap-12 hover:border-blue-500/50 transition-all duration-500">
-                            <div className="flex-1">
-                                <div className="p-4 bg-blue-500/10 rounded-2xl w-fit mb-8">
-                                    <Users className="text-blue-500" size={40} />
-                                </div>
-                                <h3 className="text-3xl font-bold mb-4 text-white">Smart Lead Management</h3>
-                                <p className="text-slate-400 text-lg leading-relaxed">
-                                    Kelola database prospek Anda berdasarkan profil risiko dan kebutuhan asuransi mereka. Follow-up jadi lebih personal, sistematis, dan tepat sasaran.
-                                </p>
-                            </div>
-
-                            {/* Visual Representation of Lead Management */}
-                            <div className="flex-1 w-full max-w-md flex flex-col gap-4">
-                                {/* Card Simulasi 1 */}
-                                <div className="bg-slate-800/80 p-6 rounded-3xl border border-blue-500/30 backdrop-blur-md shadow-2xl">
-                                    <div className="flex justify-between items-center mb-5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Potential Closing</span>
-                                        </div>
-                                        <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[10px] py-0 px-2">High Priority</Badge>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <div className="h-3 w-32 bg-slate-100/20 rounded-full" />
-                                            <div className="h-3 w-16 bg-slate-600 rounded-full" />
-                                        </div>
-                                        <div className="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full w-[85%] bg-linear-to-r from-blue-600 to-indigo-400" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Card Simulasi 2 */}
-                                <div className="bg-slate-800/40 p-6 rounded-3xl border border-slate-700 opacity-60 scale-95 origin-top -translate-y-4">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <div className="h-2 w-20 bg-slate-700 rounded-full" />
-                                        <div className="h-4 w-10 bg-slate-700 rounded-full" />
-                                    </div>
-                                    <div className="h-2 w-full bg-slate-700/50 rounded-full" />
-                                </div>
+                            ))}
+                            <div className="flex items-center justify-center h-10 w-10 rounded-full ring-2 ring-white bg-slate-50 text-[10px] font-bold text-slate-500 shadow-sm">
+                                +500
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* 4. Testimonials Section */}
-            <div className="py-20 bg-white">
-                <TestimonialsCarouselSection />
+            {/* 2. PRICING SECTION */}
+            <div id="pricing-grid" className="relative z-10 bg-slate-50/50 pt-20 pb-32">
+                <PricingSection />
             </div>
 
-            {/* 6. Footer CTA - Glassmorphism Style */}
-            <section className="py-32 relative overflow-hidden bg-white">
-                <div className="max-w-6xl mx-auto px-4">
-                    <div className="relative bg-blue-600 rounded-[4rem] p-12 md:p-24 text-center overflow-hidden shadow-[0_40px_100px_-20px_rgba(37,99,235,0.4)]">
-                        {/* Animated Background Ornaments */}
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
-                        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-900/20 rounded-full -ml-32 -mb-32 blur-3xl" />
+            {/* 3. FEATURE HIGHLIGHT (Bento Grid) */}
+            <section className="py-24 bg-slate-900 text-white overflow-hidden relative">
+                {/* Background glow */}
+                <div className="absolute top-0 left-1/4 w-125 h-125 bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none" />
 
-                        <div className="relative z-10">
-                            <h2 className="text-4xl md:text-6xl font-[1000] text-white mb-8 tracking-tighter leading-tight">
-                                Siap Jadi Agen <br />Masa Depan?
+                <div className="max-w-7xl mx-auto px-4 relative z-10">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+                        <div className="max-w-2xl">
+                            <Badge variant="outline" className="mb-4 text-indigo-300 border-indigo-500/30">PRO FEATURES</Badge>
+                            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 leading-tight">
+                                Kenapa Agen Top Memilih <br />Paket <span className="text-indigo-400">Professional?</span>
                             </h2>
-                            <p className="text-blue-100 text-xl mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
-                                Bergabunglah dengan ratusan agen asuransi modern yang telah mendigitalisasi workflow mereka bersama KeuanganKu.
+                            <p className="text-slate-400 text-lg leading-relaxed">
+                                Investasi kecil untuk hasil yang masif. Fitur Pro membuka potensi penuh dari setiap interaksi dengan calon nasabah Anda.
                             </p>
-                            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                                <Button
-                                    size="lg"
-                                    className="bg-white text-blue-600 hover:bg-blue-50 rounded-full px-10 py-8 text-xl font-black shadow-2xl transition-all hover:scale-105 active:scale-95 duration-300"
-                                    onClick={() => setIsContactOpen(true)}
-                                >
-                                    <MessageSquare size={24} className="mr-3" /> Chat Admin Sekarang
-                                </Button>
-                                <button className="text-white/90 font-bold text-lg hover:text-white hover:underline underline-offset-8 decoration-2 transition-all">
-                                    Konsultasi Paket Perusahaan
-                                </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Card 1: PDF Export */}
+                        <div className="md:col-span-2 group relative p-8 md:p-10 bg-slate-800/50 border border-slate-700/50 rounded-[2.5rem] overflow-hidden hover:border-indigo-500/50 transition-all duration-500">
+                            <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start md:items-center">
+                                <div className="flex-1 space-y-4">
+                                    <div className="h-12 w-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-2">
+                                        <Download className="text-indigo-400 w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold">PDF Report Generator</h3>
+                                    <p className="text-slate-400 leading-relaxed">
+                                        Kirim proposal keuangan yang cantik dan mudah dipahami langsung ke WhatsApp nasabah. Tanpa watermark, terlihat profesional.
+                                    </p>
+                                    <ul className="space-y-2 mt-4">
+                                        <li className="flex items-center text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 mr-2 text-indigo-500" /> Branding Personal</li>
+                                        <li className="flex items-center text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 mr-2 text-indigo-500" /> Visualisasi Grafik Premium</li>
+                                    </ul>
+                                </div>
+                                {/* Visual Placeholder */}
+                                <div className="w-full md:w-64 h-40 bg-slate-700/30 rounded-xl border border-slate-600/30 relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                                    <div className="absolute inset-2 bg-slate-800 rounded-lg flex items-center justify-center">
+                                        <span className="text-xs font-mono text-slate-500">PDF PREVIEW</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Card 2: Unlimited */}
+                        <div className="p-8 md:p-10 bg-linear-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] shadow-xl shadow-indigo-900/20 group hover:-translate-y-1 transition-all duration-500 flex flex-col justify-between">
+                            <div>
+                                <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm mb-6">
+                                    <BarChart3 className="text-white w-6 h-6" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-2">Unlimited Access</h3>
+                                <p className="text-indigo-100 text-sm leading-relaxed">
+                                    Lupakan batasan kuota harian. Lakukan simulasi sebanyak apapun yang Anda butuhkan untuk prospek.
+                                </p>
+                            </div>
+                            <div className="mt-8 flex items-center text-xs font-bold tracking-widest text-indigo-200 uppercase">
+                                Best Value <ArrowRight className="ml-2 w-4 h-4" />
+                            </div>
+                        </div>
+
+                        {/* Card 3: Lead Management */}
+                        <div className="md:col-span-3 p-8 md:p-10 bg-slate-800/50 border border-slate-700/50 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-10 hover:border-indigo-500/50 transition-all duration-500">
+                            <div className="flex-1 space-y-4">
+                                <div className="h-12 w-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-2">
+                                    <Users className="text-indigo-400 w-6 h-6" />
+                                </div>
+                                <h3 className="text-2xl font-bold">Smart Lead Database</h3>
+                                <p className="text-slate-400 leading-relaxed max-w-xl">
+                                    Simpan data klien dengan aman. Dapatkan notifikasi kapan waktu terbaik untuk follow-up berdasarkan hasil checkup finansial mereka.
+                                </p>
+                            </div>
+
+                            {/* Abstract UI Representation */}
+                            <div className="flex-1 w-full max-w-sm">
+                                <div className="space-y-3">
+                                    <div className="h-14 w-full bg-slate-700/30 rounded-xl border border-slate-600/30 flex items-center px-4 gap-3">
+                                        <div className="h-8 w-8 rounded-full bg-indigo-500/20" />
+                                        <div className="h-2 w-24 bg-slate-600 rounded-full" />
+                                        <div className="ml-auto h-2 w-12 bg-emerald-500/50 rounded-full" />
+                                    </div>
+                                    <div className="h-14 w-full bg-slate-700/30 rounded-xl border border-slate-600/30 flex items-center px-4 gap-3 opacity-60">
+                                        <div className="h-8 w-8 rounded-full bg-slate-500/20" />
+                                        <div className="h-2 w-20 bg-slate-600 rounded-full" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Contact Support Modal Pop-up */}
+            {/* 4. TESTIMONIALS */}
+            <section className="py-20 bg-slate-50/50">
+                <TestimonialsCarouselSection />
+            </section>
+
+            {/* 5. CTA FOOTER */}
+            <section className="py-24 md:py-32 bg-white relative overflow-hidden">
+                <div className="max-w-5xl mx-auto px-4 relative z-10 text-center">
+                    <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">
+                        Mulai Perjalanan Sukses Anda.
+                    </h2>
+                    <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto">
+                        Jangan biarkan keraguan menghambat potensi closing Anda. Coba sekarang dan rasakan perbedaannya dalam 30 hari.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                        <Button
+                            size="lg"
+                            className="h-14 px-10 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg shadow-indigo-200 transition-all hover:scale-105"
+                            onClick={() => setIsContactOpen(true)}
+                        >
+                            <MessageSquare className="w-5 h-5 mr-2" /> Chat Admin
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="lg"
+                            className="h-14 px-10 rounded-full text-slate-600 hover:bg-slate-50 font-semibold text-lg"
+                        >
+                            Tanya Jawab (FAQ)
+                        </Button>
+                    </div>
+                </div>
+            </section>
+
+            {/* Modals */}
             <ContactSupportModal
                 isOpen={isContactOpen}
                 onClose={() => setIsContactOpen(false)}

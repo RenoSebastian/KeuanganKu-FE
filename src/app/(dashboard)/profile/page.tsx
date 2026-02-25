@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   User, Briefcase, LogOut, Camera, Pencil, ShieldCheck,
-  Building2, BadgeCheck, Sparkles, Phone, Mail
+  Building2, BadgeCheck, Sparkles, Phone, Mail, Calendar,
+  Globe, Zap, CreditCard, Award, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
 import Image from "next/image";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -25,20 +27,14 @@ export default function ProfilePage() {
     email: "",
     role: "",
     unitKerja: "",
-    joinDate: "01 Agustus 2015",
+    joinDate: "",
     avatar: "",
     goals: "",
+    // [NEW FIELD]
+    simulationQuota: 0,
+    tier: "FREE",
+    isPro: false,
   });
-
-  const handleLogout = () => {
-    // Hapus token dari storage (sesuai implementasi lib/axios Anda)
-    localStorage.removeItem('token');
-    // Jika menggunakan cookies, hapus juga di sini
-    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-    // Redirect ke login
-    router.push('/login');
-  };
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -62,15 +58,23 @@ export default function ProfilePage() {
         const response = await api.get("/users/me");
         const user = response.data;
 
+        // [LOGIC] Tentukan status subscription
+        const isPro = user.subscription?.status === 'ACTIVE';
+        const tierName = isPro ? user.subscription?.plan?.name || "PRO ACCOUNT" : "FREE ACCOUNT";
+
         setUserData({
           fullName: user.fullName || "",
           nip: user.nip || "-",
           email: user.email || "",
           role: user.role || "USER",
           unitKerja: user.unitKerja?.namaUnit || "Unit Kerja Tidak Diketahui",
-          joinDate: "01 Agustus 2015",
+          joinDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : "01 Agustus 2015",
           avatar: user.avatar || "",
           goals: user.goals || "",
+          // [MAPPING DATA BARU]
+          simulationQuota: user.usage?.simulationQuota || 0,
+          tier: tierName,
+          isPro: isPro,
         });
 
         const dob = user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "";
@@ -91,13 +95,19 @@ export default function ProfilePage() {
         setPreviewImage(user.avatar || null);
 
       } catch (error) {
-        console.error("Gagal load profil:", error);
+        toast.error("Gagal memuat profil");
       } finally {
         setIsLoading(false);
       }
     };
     fetchProfile();
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    router.push('/login');
+  };
 
   const handleAvatarClick = () => {
     if (isEditing && fileInputRef.current) {
@@ -109,7 +119,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        alert("Ukuran foto terlalu besar (Max 2MB)");
+        toast.error("Ukuran foto terlalu besar (Max 2MB)");
         return;
       }
       const reader = new FileReader();
@@ -133,44 +143,50 @@ export default function ProfilePage() {
         goals: formData.goals
       }));
       setIsEditing(false);
+      toast.success("Profil berhasil diperbarui");
     } catch (error) {
-      alert("Gagal menyimpan perubahan.");
+      toast.error("Gagal menyimpan perubahan");
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-white italic text-blue-400">Menyiapkan Workspace...</div>;
+  if (isLoading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
+      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p className="italic text-slate-500 font-medium">Sinkronisasi Data Profil...</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-20 font-sans">
+    <div className="min-h-screen bg-[#F1F5F9] pb-24 font-sans selection:bg-blue-100">
       <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
-      {/* Header Profile Section - Blue Gradient */}
-      <div className="bg-slate-900 h-80 relative overflow-hidden">
+      {/* Hero Header */}
+      <div className="bg-slate-950 h-72 md:h-80 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-40 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
         <Image
           src="/images/orang2.png"
           alt="Header Background"
           fill
-          className="object-cover object-center opacity-40"
+          className="object-cover object-top opacity-50 transition-opacity duration-700"
           priority
         />
-        <div className="absolute inset-0 bg-linear-to-t from-[#F8FAFC] via-slate-900/60 to-transparent" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-linear-to-t from-[#F1F5F9] via-slate-950/40 to-transparent" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 -mt-32 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="max-w-6xl mx-auto px-4 -mt-36 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
 
-          {/* Left Side: Identity Card */}
+          {/* LEFT COLUMN: IDENTITY & USAGE */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white rounded-3xl shadow-xl shadow-blue-900/5 border border-slate-100 p-8 text-center relative">
+            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 border border-white p-8 text-center relative">
 
               {/* Avatar Section */}
-              <div className="relative inline-block group mb-6 cursor-pointer" onClick={handleAvatarClick}>
+              <div className="relative inline-block mb-6 group" onClick={handleAvatarClick}>
                 <div className={cn(
-                  "w-36 h-36 rounded-2xl overflow-hidden border-4 transition-all duration-500 shadow-2xl relative",
-                  isEditing ? "border-blue-600 rotate-1 scale-105" : "border-white"
+                  "w-40 h-40 rounded-[2.5rem] overflow-hidden border-[6px] transition-all duration-700 shadow-2xl relative z-10",
+                  isEditing ? "border-blue-600 rotate-2 scale-105" : "border-white rotate-0"
                 )}>
                   {previewImage ? (
                     <img src={previewImage} alt="Agent Profile" className="w-full h-full object-cover" />
@@ -180,137 +196,202 @@ export default function ProfilePage() {
                     </div>
                   )}
                   {isEditing && (
-                    <div className="absolute inset-0 bg-blue-700/40 flex items-center justify-center backdrop-blur-[2px]">
-                      <Camera className="text-white" />
+                    <div className="absolute inset-0 bg-blue-900/60 flex flex-col items-center justify-center backdrop-blur-[2px] text-white animate-in fade-in duration-300">
+                      <Camera size={28} className="mb-2" />
+                      <span className="text-[10px] font-black uppercase tracking-tighter">Ubah Foto</span>
                     </div>
                   )}
                 </div>
+                <div className="absolute -inset-2 bg-blue-100 rounded-[2.8rem] blur-xl opacity-50"></div>
                 {!isEditing && (
-                  <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-lg shadow-lg border-2 border-white">
-                    <BadgeCheck size={18} />
+                  <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-2 rounded-2xl shadow-xl border-4 border-white z-20">
+                    <BadgeCheck size={20} />
                   </div>
                 )}
               </div>
 
-              <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{formData.fullName || "Pro Agent"}</h2>
-              <p className="text-blue-600 font-semibold text-xs uppercase tracking-widest mt-1 mb-6">Tier Subscription</p>
-
-              <div className="space-y-3 pt-6 border-t border-slate-50 text-left">
-                <InfoItem icon={<Building2 size={14} />} label="Instansi" value={formData.companyName} />
-                <InfoItem icon={<Briefcase size={14} />} label="Jabatan" value={formData.agentLevel} />
+              <div className="space-y-1">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                  {formData.fullName || "Professional Agent"}
+                </h2>
+                
               </div>
 
-              {/* Ganti Button logout lama di lg:col-span-4 dengan ini */}
-              <div className="mt-8 pt-6 border-t border-slate-50">
-                <button
-                  onClick={handleLogout}
-                  className="group flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all duration-300 shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-colors",
-                      userData.role === "ADMIN" ? "bg-teal-100 text-teal-700" :
-                        userData.role === "DIRECTOR" ? "bg-slate-200 text-slate-700" :
-                          "bg-blue-100 text-blue-700"
-                    )}>
-                      {/* Mengambil inisial nama */}
-                      {userData.fullName?.split(' ').map((n: any) => n[0]).join('').toUpperCase() || "AG"}
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="leading-none group-hover:text-red-600 transition-colors font-bold">Keluar</span>
-                      <span className="text-[9px] text-slate-400 font-normal mt-1 uppercase tracking-tighter">
-                        {userData.role === "ADMIN" ? "Administrator" : userData.role === "DIRECTOR" ? "Director" : "Agent"}
-                      </span>
-                    </div>
+              {/* Company Info */}
+              <div className="grid grid-cols-2 gap-3 mt-8 pt-8 border-t border-slate-50">
+                <div className="bg-slate-50 p-4 rounded-3xl text-left border border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Perusahaan</p>
+                  <p className="text-xs font-bold text-slate-700 truncate">{formData.companyName || "-"}</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-3xl text-left border border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Jabatan</p>
+                  <p className="text-xs font-bold text-slate-700 truncate">{formData.agentLevel || "-"}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* [NEW] SUBSCRIPTION & LIMIT CARD */}
+            <div className={cn(
+              "rounded-[2.5rem] p-8 text-white overflow-hidden relative group shadow-2xl transition-all duration-500",
+              userData.isPro
+                ? "bg-linear-to-br from-purple-700 to-indigo-900 shadow-purple-200"
+                : "bg-linear-to-br from-slate-800 to-slate-950 shadow-slate-200"
+            )}>
+              <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                <Zap size={100} />
+              </div>
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md">
+                    <CreditCard size={20} className="text-white" />
                   </div>
-                  <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500 transition-transform group-hover:translate-x-1" />
-                </button>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 px-3 py-1 rounded-full backdrop-blur-md">
+                    Membership Info
+                  </span>
+                </div>
+
+                <div className="space-y-1 mb-6">
+                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Tipe Akun</p>
+                  <h4 className="text-2xl font-black tracking-tighter flex items-center gap-2">
+                    {userData.tier}
+                    {userData.isPro && <Sparkles size={20} className="text-yellow-400 animate-pulse" />}
+                  </h4>
+                </div>
+
+                <div className="bg-white/10 rounded-3xl p-5 backdrop-blur-xs border border-white/10">
+                  <div className="flex justify-between items-end">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Sisa Kuota Simulasi</p>
+                      <p className="text-3xl font-black tracking-tighter">
+                        {userData.isPro ? "UNLIMITED" : `${userData.simulationQuota} Token`}
+                      </p>
+                    </div>
+                    {!userData.isPro && (
+                      <Button
+                        size="sm"
+                        onClick={() => router.push('/pricing')}
+                        className="bg-white text-slate-900 hover:bg-yellow-400 font-black text-[10px] rounded-xl h-8 px-4"
+                      >
+                        UPGRADE
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Blue Achievement Box */}
-            <div className="bg-blue-600 rounded-3xl p-6 text-white overflow-hidden relative group shadow-lg shadow-blue-200">
-              <Sparkles className="absolute top-4 right-4 text-blue-300 opacity-40" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100 mb-3">Visi Profesional</p>
-              <p className="text-sm leading-relaxed font-medium">
-                "{userData.goals || "Tentukan goals profesional Anda..."}"
-              </p>
+            {/* Vision Statement Box */}
+            <div className="bg-linear-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-blue-200">
+              <div className="relative z-10">
+                <div className="bg-white/20 w-fit p-2 rounded-xl backdrop-blur-md mb-4">
+                  <Globe size={16} className="text-blue-100" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100/80 mb-3">Pesan Visi</p>
+                <p className="text-sm leading-relaxed font-bold tracking-tight italic">
+                  "{userData.goals || "Tentukan goals profesional Anda di menu edit profil..."}"
+                </p>
+              </div>
             </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center justify-between w-full p-4 bg-white border border-slate-200 rounded-[1.8rem] hover:bg-red-50 hover:border-red-100 transition-all duration-300 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                  <LogOut size={18} className="text-slate-400 group-hover:text-red-600" />
+                </div>
+                <span className="text-sm font-black text-slate-700 group-hover:text-red-600 uppercase tracking-tight">Keluar Aplikasi</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-300 group-hover:text-red-400" />
+            </button>
           </div>
 
-          {/* Right Side: Professional Details */}
+          {/* RIGHT COLUMN: PROFESSIONAL DETAILS */}
           <div className="lg:col-span-8 space-y-6">
-            <div className="bg-white rounded-3xl shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden">
-              <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-white sticky top-0 z-20">
+            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 border border-white overflow-hidden">
+              <div className="px-8 md:px-10 py-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/80 backdrop-blur-md sticky top-0 z-20">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Detail Akun</h3>
-                  <p className="text-xs text-slate-400">Kelola informasi kredibilitas profesional Anda.</p>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    Informasi Kredibilitas <ShieldCheck className="text-blue-500 w-5 h-5" />
+                  </h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Data ini akan tampil pada laporan klien</p>
                 </div>
                 {!isEditing ? (
-                  <Button onClick={() => setIsEditing(true)} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 font-bold shadow-md shadow-blue-100">
+                  <Button onClick={() => setIsEditing(true)} className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-6 h-12 font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-95">
                     <Pencil size={14} className="mr-2" /> Edit Profil
                   </Button>
                 ) : (
-                  <div className="flex gap-2">
-                    <Button onClick={() => setIsEditing(false)} variant="outline" className="rounded-xl border-slate-200 text-slate-600">Batal</Button>
-                    <Button onClick={handleSave} disabled={isSaving} className="bg-slate-900 hover:bg-black text-white rounded-xl px-6 font-bold">
-                      {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <Button onClick={() => setIsEditing(false)} variant="outline" className="flex-1 md:flex-none rounded-2xl border-slate-200 text-slate-600 font-bold h-12 transition-all">Batal</Button>
+                    <Button onClick={handleSave} disabled={isSaving} className="flex-1 md:flex-none bg-slate-950 hover:bg-black text-white rounded-2xl px-8 h-12 font-black shadow-xl transition-all">
+                      {isSaving ? "Sinkronisasi..." : "Simpan"}
                     </Button>
                   </div>
                 )}
               </div>
 
-              <div className="p-8 space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <InputGroup label="Nama Lengkap & Gelar" value={formData.fullName} editing={isEditing} onChange={(v) => setFormData({ ...formData, fullName: v })} />
-                  <InputGroup label="Level Keagenan" value={formData.agentLevel} editing={isEditing} onChange={(v) => setFormData({ ...formData, agentLevel: v })} />
-                  <InputGroup label="Perusahaan" value={formData.companyName} editing={isEditing} onChange={(v) => setFormData({ ...formData, companyName: v })} />
-                  <InputGroup label="Kantor Agency" value={formData.agencyName} editing={isEditing} onChange={(v) => setFormData({ ...formData, agencyName: v })} />
+              {/* Form Section */}
+              <div className="p-8 md:p-10 space-y-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <InputGroup label="Nama Lengkap & Gelar" value={formData.fullName} editing={isEditing} icon={<User size={14} />} onChange={(v) => setFormData({ ...formData, fullName: v })} />
+                  <InputGroup label="Level Keagenan" value={formData.agentLevel} editing={isEditing} icon={<Award size={14} />} onChange={(v) => setFormData({ ...formData, agentLevel: v })} />
+                  <InputGroup label="Perusahaan" value={formData.companyName} editing={isEditing} icon={<Building2 size={14} />} onChange={(v) => setFormData({ ...formData, companyName: v })} />
+                  <InputGroup label="Kantor Agency" value={formData.agencyName} editing={isEditing} icon={<Briefcase size={14} />} onChange={(v) => setFormData({ ...formData, agencyName: v })} />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1">
-                      <Phone size={10} className="text-blue-500" /> WhatsApp Bisnis
+                <div className="h-px bg-slate-50 w-full"></div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] flex items-center gap-2">
+                      <Phone size={12} className="text-blue-500" /> WhatsApp Bisnis
                     </label>
                     <input
                       type="tel"
                       disabled={!isEditing}
                       value={formData.noWa}
+                      placeholder="62812..."
                       onChange={(e) => setFormData({ ...formData, noWa: e.target.value })}
                       className={cn(
-                        "w-full px-5 py-3 rounded-xl font-semibold transition-all outline-none border",
-                        isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 shadow-sm" : "bg-slate-50 border-slate-100 text-slate-400"
+                        "w-full px-6 py-4 rounded-[1.2rem] font-bold transition-all outline-none border text-slate-700",
+                        isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 focus:border-blue-500" : "bg-slate-50 border-slate-100"
                       )}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Tanggal Lahir</label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] flex items-center gap-2">
+                      <Calendar size={12} className="text-blue-500" /> Tanggal Lahir
+                    </label>
                     <input
                       type="date"
                       disabled={!isEditing}
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                       className={cn(
-                        "w-full px-5 py-3 rounded-xl font-semibold transition-all outline-none border",
-                        isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 shadow-sm" : "bg-slate-50 border-slate-100 text-slate-400"
+                        "w-full px-6 py-4 rounded-[1.2rem] font-bold transition-all outline-none border text-slate-700",
+                        isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 focus:border-blue-500" : "bg-slate-50 border-slate-100"
                       )}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Statement Goals</label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Pesan Visi Profesional</label>
                   <textarea
                     rows={3}
                     disabled={!isEditing}
                     value={formData.goals}
+                    placeholder="Contoh: Membantu 100 keluarga mencapai kebebasan finansial di tahun 2024."
                     onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
                     className={cn(
-                      "w-full px-5 py-3 rounded-xl font-semibold transition-all outline-none border resize-none leading-relaxed",
-                      isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 shadow-sm" : "bg-slate-50 border-slate-100 text-slate-400"
+                      "w-full px-6 py-4 rounded-[1.5rem] font-bold transition-all outline-none border resize-none leading-relaxed text-slate-700",
+                      isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 focus:border-blue-500" : "bg-slate-50 border-slate-100"
                     )}
                   />
+                  <p className="text-[10px] text-slate-400 font-medium italic">*Visi ini akan muncul sebagai quote pembuka di setiap PDF laporan kesehatan keuangan klien.</p>
                 </div>
               </div>
             </div>
@@ -321,31 +402,21 @@ export default function ProfilePage() {
   );
 }
 
-// Sub-komponen tetap sama secara fungsional, hanya update style
-function InfoItem({ icon, label, value }: { icon: any, label: string, value: string }) {
+// Improved Sub-components
+function InputGroup({ label, value, editing, icon, onChange }: { label: string, value: string, editing: boolean, icon: any, onChange: (v: string) => void }) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl hover:bg-blue-50/50 transition-colors">
-      <div className="flex items-center gap-3 text-slate-400">
-        <span className="text-blue-500">{icon}</span>
-        <span className="text-[11px] font-bold uppercase tracking-tight">{label}</span>
-      </div>
-      <span className="text-xs font-bold text-slate-700">{value || "-"}</span>
-    </div>
-  );
-}
-
-function InputGroup({ label, value, editing, onChange }: { label: string, value: string, editing: boolean, onChange: (v: string) => void }) {
-  return (
-    <div className="space-y-2">
-      <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">{label}</label>
+    <div className="space-y-3">
+      <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] flex items-center gap-2">
+        <span className="text-blue-500">{icon}</span> {label}
+      </label>
       <input
         type="text"
         disabled={!editing}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "w-full px-5 py-3 rounded-xl font-semibold transition-all outline-none border",
-          editing ? "bg-white border-blue-200 ring-4 ring-blue-50 shadow-sm focus:border-blue-500" : "bg-slate-50 border-slate-100 text-slate-400"
+          "w-full px-6 py-4 rounded-[1.2rem] font-bold transition-all outline-none border text-slate-700",
+          editing ? "bg-white border-blue-200 ring-4 ring-blue-50 shadow-sm focus:border-blue-500" : "bg-slate-50 border-slate-100"
         )}
       />
     </div>

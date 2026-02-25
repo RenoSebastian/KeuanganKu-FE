@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { v4 as uuidv4 } from 'uuid'; // [NEW] Import UUID
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,7 @@ import {
   Calculator, User, Briefcase, TrendingUp,
   RefreshCcw, Download, Hourglass, PiggyBank,
   AlertCircle, Loader2, Upload, FileJson,
-  MapPin, Calendar, CheckCircle2, Play
+  MapPin, Calendar, CheckCircle2, Play, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreatePensionSimulationDto, PensionSimulationResult } from "@/lib/types";
@@ -18,6 +20,7 @@ import { financialService } from "@/services/financial.service";
 import { PensionGuide } from "@/components/features/calculator/pension-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 import { toast } from "sonner";
+import { useAuthUser } from "@/hooks/use-auth-user"; // [NEW] Auth Hook
 
 // Import Visual Components
 import { PensionTimelineCard } from "@/components/features/calculator/pension/pension-timeline-card";
@@ -25,7 +28,13 @@ import { PensionRealityCard } from "@/components/features/calculator/pension/pen
 import { PensionSolutionCard } from "@/components/features/calculator/pension/pension-solution-card";
 
 export default function PensionPage() {
+  // [NEW] Auth & Quota Logic
+  const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
+  const hasAccess = isPro || quota > 0;
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // [NEW] Idempotency Key
+  const sessionId = useRef(uuidv4());
 
   // --- STATE: CLIENT IDENTITY ---
   const [clientData, setClientData] = useState({
@@ -50,7 +59,7 @@ export default function PensionPage() {
   // --- STATE: RESULT & FILES ---
   const [result, setResult] = useState<PensionSimulationResult | null>(null);
 
-  // State file di memory (Blob URL)
+  // State file di memory
   const [generatedFiles, setGeneratedFiles] = useState<{
     pdfUrl: string | null;
     mgcToken: string | null;
@@ -89,7 +98,6 @@ export default function PensionPage() {
       setter(num.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
     }
 
-    // Reset result jika input berubah (Force user to re-calculate)
     if (result) {
       setResult(null);
       setGeneratedFiles(null);
@@ -103,7 +111,13 @@ export default function PensionPage() {
   // 1. CORE LOGIC: SIMULATE / PREVIEW
   // ===========================================================================
   const handleSimulate = async () => {
-    // 1. Validasi
+    // 1. Cek Kuota
+    if (!hasAccess) {
+      toast.error("Kuota Habis", { description: "Silakan upgrade ke PRO untuk melakukan simulasi lagi." });
+      return;
+    }
+
+    // 2. Validasi Input
     if (!clientData.clientName || !clientData.clientCity || !currentExpense) {
       toast.error("Data Belum Lengkap", { description: "Nama, Kota, dan Pengeluaran Saat Ini wajib diisi." });
       return;
@@ -121,8 +135,7 @@ export default function PensionPage() {
     setShowPdfModal(true);
 
     try {
-      // 2. Prepare Payload
-      const payload: CreatePensionSimulationDto = {
+      const payload: CreatePensionSimulationDto & { sessionId: string } = {
         ...clientData,
         currentAge: cAge,
         retirementAge: rAge,
@@ -130,13 +143,21 @@ export default function PensionPage() {
         currentExpense: parseMoney(currentExpense),
         currentSaving: parseMoney(currentSaving),
         inflationRate: inflation,
-        returnRate: returnRate
+        returnRate: returnRate,
+        sessionId: sessionId.current // [NEW] Kirim ID Sesi
       };
 
-      // 3. Call API (Stateless)
       const response = await financialService.simulateAgentPension(payload);
 
-      // --- STEP A: HANDLE TOKEN (HEADER) -> UI UPDATE ---
+      // [UPDATE: REALTIME SYNC]
+      // 1. Update state di hook halaman ini
+      await refreshUser();
+
+      // 2. Kirim sinyal ke Sidebar
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('refresh_user_data'));
+      }
+
       const token = response.headers['x-mgc-token'];
       if (!token) throw new Error("Token data tidak ditemukan.");
 
@@ -144,9 +165,8 @@ export default function PensionPage() {
       const jsonString = atob(payloadBase64);
       const decodedData = JSON.parse(jsonString);
 
-      setResult(decodedData.result); // Update UI Kanan
+      setResult(decodedData.result);
 
-      // --- STEP B: HANDLE PDF BLOB -> MEMORY ---
       const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
       const pdfUrl = window.URL.createObjectURL(pdfBlob);
       const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Klien';
@@ -160,18 +180,22 @@ export default function PensionPage() {
 
       toast.success("Analisa Selesai", { description: "Silakan cek hasil perhitungan di panel kanan." });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Simulation error:", error);
-      toast.error("Gagal Simulasi", { description: "Terjadi kesalahan saat memproses data." });
+      // [NEW] Handle Quota Error
+      if (error.response?.status === 403) {
+        toast.error("Akses Ditolak", { description: "Kuota simulasi habis." });
+        await refreshUser();
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('refresh_user_data'));
+      } else {
+        toast.error("Gagal Simulasi", { description: "Terjadi kesalahan saat memproses data." });
+      }
     } finally {
       setIsLoading(false);
       setShowPdfModal(false);
     }
   };
 
-  // ===========================================================================
-  // 2. CORE LOGIC: DOWNLOAD MANUAL
-  // ===========================================================================
   const handleDownloadFile = (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) {
       toast.error("Belum Ada Data", { description: "Silakan lakukan simulasi terlebih dahulu." });
@@ -182,9 +206,7 @@ export default function PensionPage() {
       const link = document.createElement('a');
       link.href = generatedFiles.pdfUrl;
       link.setAttribute('download', generatedFiles.filenamePdf || "Laporan_Pensiun.pdf");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      document.body.appendChild(link); link.click(); link.remove();
       toast.success("Download File", { description: "Laporan resmi berhasil diunduh." });
     }
     else if (type === 'MGC' && generatedFiles.mgcToken) {
@@ -193,20 +215,14 @@ export default function PensionPage() {
       const a = document.createElement('a');
       a.href = url;
       a.download = generatedFiles.filenameMgc || "Backup_Data.mgc";
-      a.click();
-      window.URL.revokeObjectURL(url);
+      a.click(); window.URL.revokeObjectURL(url);
       toast.info("Download Backup", { description: "File data (.mgc) berhasil disimpan." });
     }
   };
 
-  // ===========================================================================
-  // 3. CORE LOGIC: IMPORT .MGC (DIPERBAIKI)
-  // ===========================================================================
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Reset value input agar file yang sama bisa dipilih ulang jika gagal
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     setIsImporting(true);
@@ -215,18 +231,12 @@ export default function PensionPage() {
     reader.onload = async (event) => {
       try {
         const rawContent = event.target?.result as string;
-
-        // [FIX] Sanitasi Input: Hapus spasi/newline agar signature match
         const tokenContent = rawContent ? rawContent.trim() : "";
-
         if (!tokenContent) throw new Error("File kosong");
 
         const response = await financialService.decodeSimulationToken(tokenContent);
-
-        // [FIX] Handling Unwrapping Data
         const rootData = response.data || response;
 
-        // Validasi Module Type
         if (rootData.meta?.module && rootData.meta.module !== 'PENSION') {
           toast.error("Modul Tidak Cocok", {
             description: `File ini adalah data ${rootData.meta.module}, bukan Pensiun.`
@@ -237,11 +247,8 @@ export default function PensionPage() {
         const client = rootData.client;
         const financial = rootData.financial;
 
-        if (!client || !financial) {
-          throw new Error("Struktur data tidak valid.");
-        }
+        if (!client || !financial) throw new Error("Struktur data tidak valid.");
 
-        // Populate Form Identity
         setClientData({
           clientName: client.name || "",
           clientDob: client.dob || "",
@@ -250,32 +257,25 @@ export default function PensionPage() {
           clientPhone: client.phone || ""
         });
 
-        // Numeric Inputs (Konversi ke string agar input field membaca nilai)
         setCurrentAge(String(financial.currentAge || ""));
         setRetirementAge(String(financial.retirementAge || "55"));
         setLifeExpectancy(String(financial.lifeExpectancy || "75"));
 
-        // Financials (Format Rupiah)
-        // Note: Untuk Pensiun, 'currentExpense' adalah BULANAN. Tidak perlu dikali 12.
         const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
         setCurrentExpense(fmt(Number(financial.currentExpense) || 0));
         setCurrentSaving(fmt(Number(financial.currentSaving) || 0));
 
-        // Sliders
         setInflation(Number(financial.inflationRate) || 5);
         setReturnRate(Number(financial.returnRate) || 10);
 
-        toast.success("Import Berhasil", { description: `Data pensiun ${client.name} berhasil dimuat.` });
+        // [FIX] Reset Session ID
+        sessionId.current = uuidv4();
 
-        // Reset result agar user dipaksa klik "Hitung" lagi (memastikan kalkulasi fresh)
-        setResult(null);
-        setGeneratedFiles(null);
+        toast.success("Import Berhasil", { description: `Data pensiun ${client.name} berhasil dimuat.` });
+        setResult(null); setGeneratedFiles(null);
 
       } catch (error: any) {
-        console.error("Import Error:", error);
-        // Tampilkan pesan error spesifik dari backend (misal: "Signature Mismatch")
-        const backendMessage = error.response?.data?.message || error.message;
-        toast.error("Gagal Import File", { description: backendMessage });
+        toast.error("Gagal Import File", { description: error.response?.data?.message || error.message });
       } finally {
         setIsImporting(false);
       }
@@ -288,14 +288,14 @@ export default function PensionPage() {
       setClientData({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
       setCurrentAge(""); setRetirementAge("55"); setLifeExpectancy("75");
       setCurrentExpense(""); setCurrentSaving("");
-      setResult(null);
-      setGeneratedFiles(null);
+      setResult(null); setGeneratedFiles(null);
+      // [FIX] Reset Session
+      sessionId.current = uuidv4();
     }
   };
 
   return (
     <div className="min-h-full w-full pb-24 md:pb-12 bg-slate-50/50">
-
       <PdfLoadingModal isOpen={showPdfModal} />
 
       {/* --- HEADER SECTION --- */}
@@ -325,7 +325,6 @@ export default function PensionPage() {
             </p>
           </div>
 
-          {/* Import Button */}
           <Card className="bg-white/10 backdrop-blur-md border-white/20 p-4 rounded-xl flex items-center gap-4 max-w-sm w-full hover:bg-white/15 transition-colors cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -347,6 +346,22 @@ export default function PensionPage() {
 
           {/* LEFT: INPUT FORM */}
           <div className="lg:col-span-6 space-y-6">
+
+            {/* [NEW] QUOTA ALERT CARD */}
+            {!hasAccess && !isAuthLoading && (
+              <Card className="p-5 rounded-2xl bg-red-50 border border-red-200 shadow-sm animate-pulse">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-red-100 rounded-xl text-red-600"><Lock className="w-6 h-6" /></div>
+                  <div>
+                    <h3 className="text-sm font-bold text-red-800">Kuota Simulasi Habis</h3>
+                    <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                      Anda telah menggunakan semua token gratis. Silakan upgrade ke paket PRO untuk akses tanpa batas.
+                    </p>
+                    <Link href="/pricing"><Button size="sm" className="mt-3 bg-red-600 hover:bg-red-700 text-white font-bold w-full rounded-xl">Upgrade Sekarang</Button></Link>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* 1. DATA KLIEN */}
             <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
@@ -485,11 +500,14 @@ export default function PensionPage() {
               </Button>
               <Button
                 onClick={handleSimulate}
-                disabled={isLoading}
-                className="flex-2 h-12 bg-brand-600 hover:bg-brand-700 font-bold text-lg shadow-lg shadow-brand-500/20 rounded-xl transition-all text-white"
+                disabled={isLoading || !hasAccess}
+                className={cn(
+                  "flex-2 h-12 font-bold text-lg shadow-lg rounded-xl transition-all text-white",
+                  hasAccess ? "bg-brand-600 hover:bg-brand-700 shadow-brand-500/20" : "bg-slate-400 cursor-not-allowed"
+                )}
               >
-                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Play className="w-5 h-5 mr-2" />}
-                Lihat Analisa
+                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : hasAccess ? <Play className="w-5 h-5 mr-2" /> : <Lock className="w-5 h-5 mr-2" />}
+                {hasAccess ? "Lihat Analisa" : "Kuota Habis"}
               </Button>
             </div>
 

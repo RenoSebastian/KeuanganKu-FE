@@ -10,6 +10,7 @@ const ERROR_DICTIONARY: Record<string, string> = {
   P2025: "Data yang ingin Anda ubah tidak ditemukan di sistem.",
 
   // HTTP Status Errors
+  403: "Akses ditolak atau kuota penggunaan Anda telah habis.", // [UPDATED]
   413: "Ukuran file terlalu besar. Mohon unggah file yang lebih kecil.",
   429: "Terlalu banyak permintaan. Mohon tunggu beberapa saat.",
   500: "Terjadi kesalahan pada server. Tim kami sedang memperbaikinya.",
@@ -34,7 +35,6 @@ api.interceptors.request.use(
   (config) => {
     // Cek apakah kode jalan di browser (client-side)
     if (typeof window !== "undefined") {
-      // [CLEANUP] Menggunakan Key Constant untuk mengambil token
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
       // Jika ada token di localStorage, inject sebagai Bearer
@@ -68,11 +68,13 @@ api.interceptors.response.use(
       return Promise.reject(new Error(UI_MESSAGES.ERRORS.NETWORK_OFFLINE));
     }
 
-    // --- B. AUTHENTICATION HANDLING ---
+    // --- B. AUTHENTICATION & QUOTA HANDLING ---
+
+    const status = error.response.status;
 
     // [EXISTING] Handling 401 (Unauthorized) & Auto-Logout
     if (
-      error.response.status === 401 &&
+      status === 401 &&
       typeof window !== "undefined" &&
       !window.location.pathname.includes("/login")
     ) {
@@ -81,9 +83,18 @@ api.interceptors.response.use(
       return Promise.reject(new Error("Sesi Anda telah berakhir. Silakan login kembali."));
     }
 
+    // [NEW - INTEGRATION] Handling 403 (Forbidden / Quota Exceeded)
+    // Jika backend melempar 403 pada saat simulasi, berarti kuota habis atau plan tidak sesuai.
+    // Kita trigger Event Global agar UI (Modal) muncul otomatis di mana saja.
+    if (status === 403) {
+      if (typeof window !== "undefined") {
+        // Dispatch event untuk ditangkap oleh Global Layout / Modal Provider
+        window.dispatchEvent(new Event("QUOTA_EXCEEDED"));
+      }
+    }
+
     // --- C. INTELLIGENT ERROR MAPPING (UX Hardening) ---
 
-    const status = error.response.status;
     const backendMessage = error.response.data?.message;
 
     // Flatten message jika berupa array (validasi NestJS class-validator sering return array)
@@ -95,18 +106,22 @@ api.interceptors.response.use(
 
     // 1. Cek Dictionary berdasarkan HTTP Status
     if (ERROR_DICTIONARY[status]) {
-      userFriendlyMessage = ERROR_DICTIONARY[status];
+      // Prioritaskan pesan backend jika spesifik, jika default error server gunakan dictionary
+      if (status === 500 || status === 503) {
+        userFriendlyMessage = ERROR_DICTIONARY[status];
+      }
     }
 
     // 2. Cek Spesifik Prisma Error (biasanya terselip di dalam pesan error 409 Conflict atau 400)
     // Backend NestJS sering mengembalikan pesan asli Prisma di mode dev, atau custom exception di prod.
-    // Kita scan string message untuk kode "PXXXX".
-    if (rawMessage.includes("P2003") || rawMessage.toLowerCase().includes("foreign key")) {
-      userFriendlyMessage = ERROR_DICTIONARY.P2003;
-    } else if (rawMessage.includes("P2002") || rawMessage.toLowerCase().includes("unique constraint")) {
-      userFriendlyMessage = ERROR_DICTIONARY.P2002;
-    } else if (rawMessage.includes("P2025")) {
-      userFriendlyMessage = ERROR_DICTIONARY.P2025;
+    if (typeof rawMessage === 'string') {
+      if (rawMessage.includes("P2003") || rawMessage.toLowerCase().includes("foreign key")) {
+        userFriendlyMessage = ERROR_DICTIONARY.P2003;
+      } else if (rawMessage.includes("P2002") || rawMessage.toLowerCase().includes("unique constraint")) {
+        userFriendlyMessage = ERROR_DICTIONARY.P2002;
+      } else if (rawMessage.includes("P2025")) {
+        userFriendlyMessage = ERROR_DICTIONARY.P2025;
+      }
     }
 
     // Update pesan error object agar component UI (Toast) menampilkan pesan yang sudah diterjemahkan

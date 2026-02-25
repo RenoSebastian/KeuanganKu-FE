@@ -247,15 +247,19 @@ export function AnalysisResult({
                 {/* Donut Chart (Kanan/Bawah) */}
                 <Card className="md:col-span-5 border border-slate-100 shadow-xl rounded-[2rem] md:rounded-[2.5rem] bg-white relative overflow-hidden flex flex-col">
                     <CardContent className="p-8 h-full flex flex-col relative z-10">
-                        <div className="mb-2 text-center">
+                        {/* Donut Chart (Kanan/Bawah) */}
+                        {/* PENTING: Beri z-10 (rendah) agar bisa tertimpa oleh grafik */}
+                        <div className="mb-2 text-center mt-2 md:mt-0 relative z-10">
                             <h3 className="font-black text-slate-800 text-lg">Alokasi Aset Ideal</h3>
                             <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest mt-1">Berdasarkan Profil Anda</p>
                         </div>
 
-                        <div className="h-64 md:h-80 w-full relative font-sans flex-1 mt-4 overflow-visible">
-                            <ResponsiveContainer width="100%" height="100%" className="overflow-visible">
+                        {/* PENTING: Beri z-20 (tinggi) agar naik ke atas. 'relative' diperlukan agar z-index berfungsi */}
+                        <div className="w-full min-h-70 md:min-h-80 relative z-20 font-sans mt-4 flex items-center justify-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                                {/* PENTING: style={{ overflow: "visible" }} ini KUNCI-nya.
+                                    Ini memerintahkan SVG untuk tidak memotong label yang keluar batas */}
                                 <PieChart style={{ overflow: "visible" }}>
-                                    {/* FIX TypeScript Error: Wrap Pie props dengan as any */}
                                     <Pie
                                         {...({
                                             activeIndex: activeIndex,
@@ -263,8 +267,10 @@ export function AnalysisResult({
                                             data: chartData,
                                             cx: "50%",
                                             cy: "50%",
-                                            innerRadius: "50%",
-                                            outerRadius: "75%",
+                                            // Kita kembalikan radiusnya agak besar agar terlihat gagah di desktop
+                                            // Karena overflow sudah visible, dia tidak akan kepotong di HP.
+                                            innerRadius: "37%",
+                                            outerRadius: "57%",
                                             dataKey: "value",
                                             stroke: "#ffffff",
                                             strokeWidth: 4,
@@ -273,19 +279,20 @@ export function AnalysisResult({
                                         } as any)}
                                     >
                                         {chartData.map((entry, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                            <Cell key={`cell-${index}`} fill={entry.color} style={{ outline: 'none' }} />
                                         ))}
                                     </Pie>
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
 
-                        {/* Custom Mini Legend untuk Desktop */}
-                        <div className="grid grid-cols-3 gap-2 mt-4">
+                        {/* Custom Mini Legend untuk Desktop/Mobile */}
+                        {/* PENTING: Beri z-10 (rendah) juga */}
+                        <div className="grid grid-cols-3 gap-2 mt-auto pt-4 border-t border-slate-100/60 relative z-10">
                             {chartData.map((item, idx) => (
                                 <div key={idx} className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50">
-                                    <div className="w-3 h-3 rounded-full mb-1" style={{ backgroundColor: item.color }} />
-                                    <span className="text-[10px] font-black text-slate-600 uppercase text-center leading-tight">{item.name}</span>
+                                    <div className="w-3 h-3 rounded-full mb-1 shadow-sm" style={{ backgroundColor: item.color }} />
+                                    <span className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase text-center leading-tight">{item.name}</span>
                                 </div>
                             ))}
                         </div>
