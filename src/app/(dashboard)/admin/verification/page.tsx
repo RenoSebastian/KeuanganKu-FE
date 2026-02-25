@@ -15,10 +15,12 @@ import {
 import { toast } from "sonner";
 
 import api from "@/lib/axios";
+// [FIX] Import helper getImageUrl
+import { getImageUrl } from "@/lib/utils";
+
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
@@ -254,16 +256,20 @@ export default function VerificationPage() {
 
                     {selectedOrder && (
                         <div className="grid gap-6 py-4">
-                            {/* Image Preview */}
+                            {/* [FIX] Image Preview dengan Helper URL */}
                             <div className="bg-slate-100 rounded-xl overflow-hidden border border-slate-200 relative group min-h-50 flex items-center justify-center">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                    src={selectedOrder.proofImageUrl}
+                                    src={getImageUrl(selectedOrder.proofImageUrl)}
                                     alt="Bukti Transfer"
                                     className="w-full h-auto max-h-100 object-contain transition-transform group-hover:scale-105"
+                                    onError={(e) => {
+                                        // Fallback ke placeholder jika gambar rusak/404
+                                        (e.target as HTMLImageElement).src = "/images/placeholder.png";
+                                    }}
                                 />
                                 <a
-                                    href={selectedOrder.proofImageUrl}
+                                    href={getImageUrl(selectedOrder.proofImageUrl)}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full hover:bg-black transition-colors"
