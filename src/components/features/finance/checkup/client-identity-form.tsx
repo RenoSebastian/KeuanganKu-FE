@@ -82,7 +82,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
             email: "",
             occupation: "",
             religion: "Islam",
-            maritalStatus: "MARRIED",
+            maritalStatus: "SINGLE", // Default ke Single agar aman
             childrenCount: 0,
             dependentParents: 0,
             spouseName: "",
@@ -165,7 +165,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 md:space-y-8">
 
                     {/* =========================================
-                        SECTION 1: DATA PRIBADI (BENTO CARD)
+                        SECTION 1: DATA PRIBADI
                         ========================================= */}
                     <div className="bg-white rounded-[2rem] p-5 md:p-8 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                         <SectionTitle
@@ -372,11 +372,37 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                             <SectionTitle
                                 icon={Users}
                                 title="Tanggungan Keluarga"
-                                desc="Jumlah orang yang menjadi tanggungan finansial klien."
+                                desc="Informasi status pernikahan dan tanggungan."
                                 colorClass="text-brand-600 bg-brand-50 border-brand-100"
                             />
 
+                            {/* [UPDATE] INPUT STATUS PERNIKAHAN DITAMBAHKAN DI SINI */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 mt-6">
+                                <FormField
+                                    control={form.control}
+                                    name="maritalStatus"
+                                    render={({ field }) => (
+                                        <FormItem className="group">
+                                            <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-brand-600 transition-colors">Status Pernikahan</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
+                                                        <SelectTrigger className="h-12 md:h-14 rounded-xl bg-slate-50 border-slate-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 focus:bg-white font-bold text-slate-800 transition-all shadow-sm">
+                                                            <SelectValue placeholder="Pilih Status" />
+                                                        </SelectTrigger>
+                                                    </div>
+                                                </FormControl>
+                                                <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                                                    <SelectItem value="SINGLE" className="font-bold cursor-pointer">Lajang (Belum Menikah)</SelectItem>
+                                                    <SelectItem value="MARRIED" className="font-bold cursor-pointer">Menikah</SelectItem>
+                                                    <SelectItem value="DIVORCED" className="font-bold cursor-pointer">Pernah Menikah</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage className="text-[10px]" />
+                                        </FormItem>
+                                    )}
+                                />
+
                                 <FormField
                                     control={form.control}
                                     name="childrenCount"
@@ -393,15 +419,10 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                                         {...field}
                                                         value={field.value === 0 ? "" : field.value}
                                                         onChange={(e) => {
-                                                            // 1. Sanitasi: Hapus SEMUA karakter yang bukan angka 0-9 (termasuk minus)
                                                             let rawValue = e.target.value.replace(/\D/g, "");
-
-                                                            // 2. Cegah "02" menjadi "2" (hapus leading zeros jika ada lebih dari 1 digit)
                                                             if (rawValue.length > 1 && rawValue.startsWith("0")) {
                                                                 rawValue = rawValue.replace(/^0+/, "");
                                                             }
-
-                                                            // 3. Konversi kembali ke number, jika kosong kembalikan ke 0
                                                             const parsedValue = parseInt(rawValue, 10);
                                                             field.onChange(isNaN(parsedValue) ? 0 : parsedValue);
                                                         }}
@@ -429,15 +450,10 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                                         {...field}
                                                         value={field.value === 0 ? "" : field.value}
                                                         onChange={(e) => {
-                                                            // 1. Sanitasi: Hapus SEMUA karakter yang bukan angka 0-9 (termasuk minus)
                                                             let rawValue = e.target.value.replace(/\D/g, "");
-
-                                                            // 2. Cegah "02" menjadi "2" (hapus leading zeros jika ada lebih dari 1 digit)
                                                             if (rawValue.length > 1 && rawValue.startsWith("0")) {
                                                                 rawValue = rawValue.replace(/^0+/, "");
                                                             }
-
-                                                            // 3. Konversi kembali ke number, jika kosong kembalikan ke 0
                                                             const parsedValue = parseInt(rawValue, 10);
                                                             field.onChange(isNaN(parsedValue) ? 0 : parsedValue);
                                                         }}

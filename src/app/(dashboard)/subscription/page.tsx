@@ -194,7 +194,7 @@ export default function SubscriptionPage() {
                                     </p>
                                     <Button
                                         className="w-full h-14 rounded-2xl bg-white text-indigo-600 font-black text-xs uppercase tracking-[0.2em] hover:bg-indigo-50 shadow-xl transition-all active:scale-95"
-                                        onClick={() => window.open('https://wa.me/6281234567890', '_blank')}
+                                        onClick={() => window.open('https://wa.me/628122377761', '_blank')}
                                     >
                                         Hubungi WhatsApp Support
                                     </Button>

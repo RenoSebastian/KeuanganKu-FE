@@ -768,7 +768,7 @@ export interface CreateInsuranceSimulationDto {
 
   // Calculation Params
   type: 'LIFE' | 'HEALTH' | 'CRITICAL_ILLNESS';
-  dependentCount: number;
+  dependents: number;
   monthlyExpense: number;
   existingDebt: number;
   existingCoverage: number;
@@ -792,7 +792,14 @@ export interface InsuranceSimulationResult {
   recommendation: string;
 }
 
-// [NEW] PENSION SIMULATION INPUT (STATELESS)
+// ============================================================================
+// PENSION SIMULATION TYPES
+// ============================================================================
+
+/**
+ * [NEW] PENSION SIMULATION INPUT (STATELESS)
+ * Digunakan untuk payload ke API /simulate/pension
+ */
 export interface CreatePensionSimulationDto {
   // Identity
   clientName: string;
@@ -804,24 +811,33 @@ export interface CreatePensionSimulationDto {
   // Financial Params
   currentAge: number;
   retirementAge: number;
-  lifeExpectancy?: number;
-  currentExpense: number;
-  currentSaving?: number;
+  lifeExpectancy?: number; // Default 85 di Backend jika kosong
+  currentExpense: number;  // Biaya hidup bulanan saat ini
+  currentSaving?: number;  // Aset pensiun yang sudah ada (JHT/DPLK/Tabungan)
 
   // Assumptions
-  inflationRate?: number;
-  returnRate?: number;
+  inflationRate?: number;  // Default 5%
+  returnRate?: number;     // Default 6-10% (Tergantung profil)
+
+  // System
+  sessionId?: string;      // UUID v4 untuk tracking kuota/log
 }
 
-// [NEW] PENSION SIMULATION OUTPUT (Decoded from .mgc Token)
+/**
+ * [NEW] PENSION SIMULATION OUTPUT (Decoded from .mgc Token)
+ * Struktur data hasil kalkulasi yang disimpan di token atau return API
+ */
 export interface PensionSimulationResult {
-  yearsToRetire: number;
-  retirementDuration: number;
-  futureMonthlyExpense: number; // Shock Therapy Value
-  totalFundNeeded: number;
-  fvExistingFund: number;
-  shortfall: number;
-  monthlySaving: number; // Solution Value
+  yearsToRetire: number;        // Jarak waktu menabung (n1)
+  retirementDuration: number;   // Masa pensiun (n2)
+
+  futureMonthlyExpense: number; // Biaya hidup nanti (Future Value - Shock Therapy)
+  totalFundNeeded: number;      // Total Dana yang dibutuhkan (Gunung Emas)
+
+  fvExistingFund: number;       // Nilai aset lama di masa depan (Growth @ 5.5%)
+  shortfall: number;            // Kekurangan dana (Gap)
+
+  monthlySaving: number;        // Solusi: Investasi bulanan yang harus dilakukan
 }
 
 export interface SimulationResponse {

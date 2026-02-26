@@ -510,6 +510,7 @@ export default function PensionPage() {
                 {hasAccess ? "Lihat Analisa" : "Kuota Habis"}
               </Button>
             </div>
+            <PensionGuide />
 
           </div>
 
@@ -569,10 +570,9 @@ export default function PensionPage() {
 
                 {/* 4. REALITY CHECK (SHOCK THERAPY) */}
                 <PensionRealityCard
-                  currentMonthlyExpense={parseMoney(currentExpense)}
-                  futureMonthlyExpense={result.futureMonthlyExpense}
-                  inflationRate={inflation}
-                  yearsDuration={result.yearsToRetire}
+                  data={result} // Mengirim objek hasil kalkulasi (termasuk fvExistingFund)
+                  currentMonthlyExpense={parseMoney(currentExpense)} // Input user mentah
+                  currentSaving={parseMoney(currentSaving || "0")} // Input aset existing user
                 />
 
                 {/* 5. NOTES */}
@@ -589,7 +589,6 @@ export default function PensionPage() {
 
               </div>
             )}
-            <PensionGuide />
           </div>
 
         </div>

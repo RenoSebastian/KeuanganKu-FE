@@ -188,7 +188,12 @@ export function RiskProfileWizard() {
         setIsLoading(true);
         const toastId = toast.loading("Menganalisis Profil...", { description: "Memproses matriks toleransi risiko..." });
 
-        const payload: RiskProfilePayload = {
+        // [FIXED] Generate Session ID (UUID v4)
+        const sessionId = crypto.randomUUID();
+
+        // [FIXED] Include sessionId di payload
+        const payload: any = { // Menggunakan 'any' sementara agar kompatibel jika Type Definition belum diupdate
+            sessionId: sessionId,
             clientName: clientData.name,
             clientDob: clientData.dob,
             clientPhone: clientData.phone,
@@ -226,7 +231,11 @@ export function RiskProfileWizard() {
             let targetToken = mgcToken;
 
             if (!targetPdfUrl) {
-                const payload: RiskProfilePayload = {
+                // [FIXED] Generate Session ID baru jika harus request ulang
+                const sessionId = crypto.randomUUID();
+
+                const payload: any = { // Menggunakan 'any' sementara
+                    sessionId: sessionId,
                     clientName: clientData.name,
                     clientDob: clientData.dob,
                     clientPhone: clientData.phone,
@@ -419,7 +428,9 @@ export function RiskProfileWizard() {
                             </div>
 
                             {/* Form Render */}
-                            <IdentityForm initialData={clientData || undefined} onSubmit={handleIdentitySubmit} />
+                            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-1">
+                                <IdentityForm initialData={clientData || undefined} onSubmit={handleIdentitySubmit} />
+                            </div>
                         </motion.div>
                     )}
 

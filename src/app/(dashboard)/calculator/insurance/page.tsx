@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { v4 as uuidv4 } from 'uuid'; // [NEW] Import UUID
+import { v4 as uuidv4 } from 'uuid';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import {
   RefreshCcw, Download, Landmark, Wallet,
   CheckCircle2, Loader2, Lock,
   Calculator, User, MapPin, Briefcase, Calendar, Upload, FileJson,
-  Play
+  Play, Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateInsuranceSimulationDto, InsuranceSimulationResult } from "@/lib/types";
@@ -22,7 +22,7 @@ import { financialService } from "@/services/financial.service";
 import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
 import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
 import { toast } from "sonner";
-import { useAuthUser } from "@/hooks/use-auth-user"; // [NEW] Auth Hook
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 // Import Visual Components
 import { GapAnalysisGauge } from "@/components/features/calculator/insurance/gap-analysis-gauge";
@@ -45,6 +45,9 @@ export default function InsurancePage() {
     clientJob: "",
     clientPhone: ""
   });
+
+  // [NEW] State Jumlah Tanggungan
+  const [dependents, setDependents] = useState(0);
 
   // --- STATE: FINANCIAL PARAMETERS ---
   // Card 1: Utang
@@ -146,11 +149,11 @@ export default function InsurancePage() {
         parseMoney(debtConsumptive) +
         parseMoney(debtOther);
 
-      // [FIX] Masukkan sessionId ke payload
+      // [FIX] Masukkan sessionId dan dependents ke payload
       const payload: CreateInsuranceSimulationDto & { sessionId: string } = {
         ...clientData,
         type: 'LIFE',
-        dependentCount: 2,
+        dependents: Number(dependents), // [NEW] Kirim data tanggungan
         monthlyExpense,
         existingDebt: totalDebt,
         existingCoverage: parseMoney(existingInsurance),
@@ -212,8 +215,6 @@ export default function InsurancePage() {
     }
   };
 
-  // ... (Sisa fungsi download & import tetap sama, namun reset session ID) ...
-
   const handleDownloadFile = (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) {
       toast.error("Belum Ada Data", { description: "Silakan lakukan simulasi terlebih dahulu." });
@@ -266,6 +267,9 @@ export default function InsurancePage() {
           clientCity: client.city || "", clientJob: client.job || "", clientPhone: client.phone || ""
         });
 
+        // [NEW] Set Dependents from imported file
+        setDependents(Number(financial.dependentCount) || Number(financial.dependents) || 0);
+
         const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
         setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive("");
         setDebtOther(fmt(Number(financial.existingDebt) || 0));
@@ -298,6 +302,7 @@ export default function InsurancePage() {
   const handleReset = () => {
     if (confirm("Reset seluruh form ke awal?")) {
       setClientData({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
+      setDependents(0); // Reset dependents
       setDebtKPR(""); setDebtKPM(""); setDebtProductive(""); setDebtConsumptive(""); setDebtOther("");
       setAnnualIncome(""); setProtectionDuration("10");
       setFinalExpense(""); setExistingInsurance("");
@@ -427,6 +432,30 @@ export default function InsurancePage() {
                       <Input name="clientJob" placeholder="PNS" value={clientData.clientJob} onChange={handleClientChange} className="pl-9" />
                     </div>
                   </div>
+                </div>
+
+                {/* [NEW] INPUT JUMLAH TANGGUNGAN */}
+                <div>
+                  <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                    Jumlah Tanggungan
+                    <InfoPopover content={{
+                      title: "Jumlah Tanggungan",
+                      definition: "Orang yang biaya hidupnya bergantung pada penghasilan klien (Istri, Anak, Orang Tua).",
+                      example: "Misal: Istri tidak bekerja + 2 anak = 3 Tanggungan."
+                    }} />
+                  </Label>
+                  <div className="relative mt-1">
+                    <Users className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={dependents || ""}
+                      onChange={(e) => setDependents(Number(e.target.value))}
+                      className="pl-9"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">*Anak, Pasangan, atau Orang Tua yang dibiayai.</p>
                 </div>
               </div>
             </Card>
