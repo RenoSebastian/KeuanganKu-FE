@@ -15,8 +15,8 @@ import { financialService } from "@/services/financial.service";
 import { CreateInsuranceSimulationDto, InsuranceSimulationResult } from "@/lib/types";
 
 // --- SHARED UI COMPONENTS ---
-import { InsuranceGuide } from "@/components/features/calculator/insurance-guide";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { InsuranceGuide } from "@/components/features/calculator/guide/insurance-guide";
+import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
 import { GapAnalysisGauge } from "@/components/features/calculator/insurance/gap-analysis-gauge";
 import { InsuranceResultCard } from "@/components/features/calculator/insurance/insurance-result-card";
 
@@ -180,24 +180,60 @@ export default function InsurancePage() {
     reader.onload = async (event) => {
       try {
         const content = (event.target?.result as string).trim();
-        const { data } = await financialService.decodeSimulationToken(content);
-        if (data.meta?.module !== 'INSURANCE') throw new Error("Format file salah.");
 
-        setClientData({ ...data.client, clientName: data.client.name });
-        setDependents(data.financial.dependents || 0);
-        setDebtData({ debtKPR: "", debtKPM: "", debtProductive: "", debtConsumptive: "", debtOther: new Intl.NumberFormat("id-ID").format(data.financial.existingDebt || 0) });
-        setAnnualIncome(new Intl.NumberFormat("id-ID").format((data.financial.monthlyExpense || 0) * 12));
-        setProtectionDuration(String(data.financial.protectionDuration || 10));
-        setInflation(data.financial.inflationRate || 5);
-        setReturnRate(data.financial.returnRate || 6);
-        setFinalExpense(new Intl.NumberFormat("id-ID").format(data.financial.finalExpense || 0));
-        setExistingInsurance(new Intl.NumberFormat("id-ID").format(data.financial.existingCoverage || 0));
+        // PERBAIKAN: Jangan didestructuring { data } jika service sudah mengembalikan response.data
+        const decodedResponse = await financialService.decodeSimulationToken(content);
 
+        // Cek apakah data dibungkus dalam properti .data (Axios raw) atau sudah bersih (dari service)
+        const importedData = decodedResponse.data || decodedResponse;
+
+        // Validasi modul agar tidak salah file
+        if (importedData.meta?.module !== 'INSURANCE') {
+          throw new Error("File ini bukan untuk simulasi Asuransi.");
+        }
+
+        // Mapping data kembali ke state form
+        setClientData({
+          clientName: importedData.client.name || "",
+          clientDob: importedData.client.dob || "",
+          clientCity: importedData.client.city || "",
+          clientJob: importedData.client.job || "",
+          clientPhone: importedData.client.phone || ""
+        });
+
+        setDependents(importedData.financial.dependents || 0);
+
+        // Format ulang angka ke string bertitik untuk UI
+        const fmt = new Intl.NumberFormat("id-ID");
+
+        setDebtData({
+          debtKPR: "",
+          debtKPM: "",
+          debtProductive: "",
+          debtConsumptive: "",
+          debtOther: fmt.format(importedData.financial.existingDebt || 0)
+        });
+
+        setAnnualIncome(fmt.format((importedData.financial.monthlyExpense || 0) * 12));
+        setProtectionDuration(String(importedData.financial.protectionDuration || 10));
+        setInflation(importedData.financial.inflationRate || 5);
+        setReturnRate(importedData.financial.returnRate || 6);
+        setFinalExpense(fmt.format(importedData.financial.finalExpense || 0));
+        setExistingInsurance(fmt.format(importedData.financial.existingCoverage || 0));
+
+        // Reset hasil kalkulasi lama agar user harus klik hitung ulang (Sync validasi)
         sessionId.current = uuidv4();
-        setResult(null); setGeneratedFiles(null);
-        toast.success("Data Berhasil Dimuat");
-      } catch (err: any) { toast.error("Gagal Import", { description: err.message }); }
-      finally { setIsImporting(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+        setResult(null);
+        setGeneratedFiles(null);
+
+        toast.success("Sesi simulasi berhasil dimuat");
+      } catch (err: any) {
+        console.error("Import Error:", err);
+        toast.error("Gagal Import", { description: err.message || "Pastikan file .mgc valid." });
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
     };
     reader.readAsText(file);
   };

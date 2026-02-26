@@ -19,7 +19,7 @@ import {
 import { financialService } from "@/services/financial.service";
 
 // Imports Sub-Components
-import { ClientIdentityForm } from "./checkup/client-identity-form";
+import { ClientIdentityForm } from "./client-identity-form";
 import { CheckupResult } from "./checkup-result";
 import { FinancialInputSection } from "./financial-input-section";
 

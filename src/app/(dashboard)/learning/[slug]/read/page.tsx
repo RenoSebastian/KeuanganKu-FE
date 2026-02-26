@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, X } from 'lucide-react';
 
-import { MarkdownRenderer } from '@/components/features/education/reader/markdown-renderer';
-import { SectionNavigator } from '@/components/features/education/reader/section-navigator';
+import { MarkdownRenderer } from '@/components/features/learning/reader/markdown-renderer';
+import { SectionNavigator } from '@/components/features/learning/reader/section-navigator';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 

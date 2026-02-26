@@ -4,7 +4,7 @@
 import { useAuthUser } from "@/hooks/use-auth-user";
 import Link from "next/link";
 
-import { RiskProfileWizard } from "@/components/features/finance/risk-profile/risk-profile-wizard";
+import { RiskProfileWizard } from "@/components/features/calculator/risk-profile/risk-profile-wizard";
 import { Separator } from "@/components/ui/separator";
 import { Info, Sparkles, UserCheck, ShieldCheck, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";

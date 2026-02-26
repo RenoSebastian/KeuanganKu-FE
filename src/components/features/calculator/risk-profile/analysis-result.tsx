@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { RiskProfileSimulationResult, RiskProfileCategory, RiskProfileAnswerItem } from "@/lib/types/risk-profile";
 import { RISK_PROFILE_QUESTIONS } from "@/lib/data/risk-profile-questions";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
 import { cn } from "@/lib/utils";
 
 interface AnalysisResultProps {

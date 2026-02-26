@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, BookOpenCheck } from 'lucide-react';
-import { ModuleGrid } from '@/components/features/education/catalog/module-grid';
+import { ModuleGrid } from '@/components/features/learning/catalog/module-grid';
 import { employeeEducationService } from '@/services/employee-education.service';
 import { EducationModule, EducationCategory } from '@/lib/types/education';
 import { toast } from 'sonner';

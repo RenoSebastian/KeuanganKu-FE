@@ -1,7 +1,7 @@
 "use client";
 
 import { Briefcase } from "lucide-react";
-import { CheckupWizard } from "@/components/features/finance/checkup-wizard";
+import { CheckupWizard } from "@/components/features/calculator/finance/checkup-wizard";
 
 /**
  * AGENT CHECKUP PAGE

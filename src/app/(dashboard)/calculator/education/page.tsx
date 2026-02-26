@@ -20,9 +20,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // Wizard Steps Components
-import { ClientFormStep } from "@/components/features/education/wizard/client-form-step";
-import { ChildrenFormStep } from "@/components/features/education/wizard/children-form-step";
-import { SimulationResultStep } from "@/components/features/education/wizard/simulation-result-step";
+import { ClientFormStep } from "@/components/features/calculator/education/client-form-step";
+import { ChildrenFormStep } from "@/components/features/calculator/education/children-form-step";
+import { SimulationResultStep } from "@/components/features/calculator/education/simulation-result-step";
 
 // Types, Schema & Services
 import { EducationSimulationForm } from "@/lib/schemas/education-simulation.schema";

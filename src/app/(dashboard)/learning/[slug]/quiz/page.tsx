@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Loader2, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { QuizRunner } from '@/components/features/education/quiz/quiz-runner';
+import { QuizRunner } from '@/components/features/learning/quiz/quiz-runner';
 import { employeeEducationService } from '@/services/employee-education.service';
 // [FIX] Import UserQuizData dari Library Types (Single Source of Truth), bukan dari Service
 import { UserQuizData } from '@/lib/types/education';

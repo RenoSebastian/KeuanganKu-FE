@@ -16,9 +16,9 @@ import { financialService } from "@/services/financial.service";
 import { BudgetResult, CreateBudgetSimulationDto } from "@/lib/types";
 
 // Components
-import { BudgetGuide } from "@/components/features/calculator/budget-guide";
-import { MonthlyHelperModal } from "@/components/features/finance/monthly-helper-modal";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { BudgetGuide } from "@/components/features/calculator/guide/budget-guide";
+import { MonthlyHelperModal } from "@/components/features/calculator/finance/monthly-helper-modal";
+import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
 import { BudgetForm } from "@/components/features/calculator/budget/budget-form";
 import { BudgetResults } from "@/components/features/calculator/budget/budget-results";
 
