@@ -10,7 +10,7 @@ export const riskProfileService = {
      * [CORE] Agent Simulation Flow
      * Mengirim data kuesioner, menerima PDF Stream untuk download, 
      * dan membaca Header Token untuk visualisasi data di UI.
-     * * Endpoint: POST /financial/simulation/risk-profile-pdf
+     * Endpoint: POST /financial/simulation/risk-profile-pdf
      */
     simulateRiskProfile: async (payload: RiskProfilePayload): Promise<RiskProfileServiceResponse> => {
         try {
@@ -85,35 +85,66 @@ export const riskProfileService = {
     },
 
     /**
-     * [UTILITY] Decode Token Manual via Backend (Optional)
-     * Digunakan jika kita ingin memvalidasi signature token saat fitur 'Load Data / Upload .mgc'
+     * Mendecode token .mgc menjadi data JSON yang bisa dibaca frontend
+     * [UPDATED]: Dilengkapi sanitasi token & mapping data yang robust
      */
-    decodeSimulationToken: async (tokenString: string): Promise<RiskProfileSimulationResult> => {
+    decodeSimulationToken: async (token: string): Promise<any> => {
         try {
-            const response = await api.post("/financial/simulation/decode", {
-                simulationToken: tokenString
-            });
+            // 1. SANITASI TOKEN (PENTING UNTUK MENGHINDARI ERROR 400)
+            // - Hapus whitespace kiri/kanan
+            // - Hapus karakter BOM (\uFEFF) yang sering muncul dari Notepad
+            // - Hapus tanda kutip ganda di awal/akhir jika ada
+            const cleanToken = token
+                .trim()
+                .replace(/^\uFEFF/, '')
+                .replace(/^"|"$/g, '');
 
-            // Backend mengembalikan struktur: { message: "...", data: { client, financial, result, ... } }
-            // Kita mapping agar sesuai interface RiskProfileSimulationResult di FE
-            const raw = response.data.data;
+            if (!cleanToken) throw new Error("Konten file token kosong.");
 
-            // Mapping respon backend ke struktur frontend jika ada perbedaan
+            // 2. Request ke Backend
+            const response = await api.post('/financial/simulation/decode', { token: cleanToken });
+
+            // 3. Handle Response (Flexible Mapping)
+            // Backend bisa mengembalikan response.data langsung atau terbungkus
+            const data = response.data?.data || response.data;
+
+            // Validasi dasar
+            if (!data) throw new Error("Data hasil decode kosong.");
+
+            // [FIX LOGIC]
+            // Jika data sudah memiliki struktur 'meta', kembalikan langsung.
+            // Tidak perlu mapping manual 'last_simulation_date' yang menyebabkan error.
+            if (data.meta && data.client && (data.financial || data.result)) {
+                return data;
+            }
+
+            // [FALLBACK]: Mapping untuk struktur legacy (jika backend berubah format)
+            // (Tetapi berdasarkan log error Anda, bagian ini yang memicu masalah karena 'raw' tidak sesuai ekspektasi)
             return {
                 meta: {
                     version: "1.0",
-                    generatedAt: raw.last_simulation_date || new Date().toISOString(),
+                    generatedAt: data.created_at || new Date().toISOString(), // Fallback ke created_at atau now
                     agentId: "unknown",
                     module: "RISK_PROFILE"
                 },
-                client: raw.client,
-                financial: raw.financial,
-                result: raw.result || raw.financialRatios // Fallback property name
-            } as RiskProfileSimulationResult;
+                client: {
+                    name: data.client_name || data.client?.name || "",
+                    dob: data.client_dob || data.client?.dob || "",
+                    city: data.client_city || data.client?.city || "",
+                    job: data.client_job || data.client?.job || "",
+                    phone: data.client_phone || data.client?.phone || ""
+                },
+                financial: {
+                    answers: data.answers || data.financial?.answers || [] // Pastikan ini sesuai dengan struktur legacy jika ada
+                },
+                result: data.result || null
+            };
 
         } catch (error: any) {
             console.error("Token Validate Error:", error);
-            throw new Error(error.response?.data?.message || "File simulasi rusak atau tidak valid.");
+            // Lempar error message yang bersih ke UI
+            const msg = error.response?.data?.message || error.message;
+            throw new Error(Array.isArray(msg) ? msg[0] : msg);
         }
-    }
+    },
 };

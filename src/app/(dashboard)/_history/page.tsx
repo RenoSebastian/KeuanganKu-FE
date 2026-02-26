@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
 import { CheckupDetailResponse } from "@/lib/types";
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal"; // [NEW]
+import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal"; // [NEW]
 
 // --- HELPER FORMATTER ---
 const formatMoney = (val: number) =>

@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { APP_CONFIG, STORAGE_KEYS, UI_MESSAGES } from "@/lib/constants";
+import { useSystemStore } from "@/hooks/use-system-store"; // [NEW] Integrasi Store Keselamatan
 
 // --- ERROR DICTIONARY ---
 // Peta pesan error yang user-friendly berdasarkan kode error teknis
@@ -10,7 +11,7 @@ const ERROR_DICTIONARY: Record<string, string> = {
   P2025: "Data yang ingin Anda ubah tidak ditemukan di sistem.",
 
   // HTTP Status Errors
-  403: "Akses ditolak atau kuota penggunaan Anda telah habis.", // [UPDATED]
+  403: "Akses ditolak atau kuota penggunaan Anda telah habis.",
   413: "Ukuran file terlalu besar. Mohon unggah file yang lebih kecil.",
   429: "Terlalu banyak permintaan. Mohon tunggu beberapa saat.",
   500: "Terjadi kesalahan pada server. Tim kami sedang memperbaikinya.",
@@ -20,25 +21,19 @@ const ERROR_DICTIONARY: Record<string, string> = {
 // 1. Buat Instance Axios
 const api = axios.create({
   baseURL: APP_CONFIG.API_URL,
-  // [UPDATED] Timeout menggunakan konstanta global (default 30s)
   timeout: APP_CONFIG.API_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
     "Accept": "application/json",
   },
-  // [UPDATED] Mengizinkan pengiriman Cookies (Penting jika BE menggunakan HttpOnly Cookies)
   withCredentials: true,
 });
 
 // 2. Request Interceptor (Hybrid Auth: Support Cookie & Bearer)
 api.interceptors.request.use(
   (config) => {
-    // Cek apakah kode jalan di browser (client-side)
     if (typeof window !== "undefined") {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-
-      // Jika ada token di localStorage, inject sebagai Bearer
-      // (Ini fallback jika cookie tidak terdeteksi otomatis)
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -53,26 +48,42 @@ api.interceptors.request.use(
 // 3. Response Interceptor (Handle Error Global & Resilience)
 api.interceptors.response.use(
   (response) => {
+    // [NEW] LOGIKA PEMULIHAN: Jika request berhasil, bersihkan state error sistem jika ada
+    const { state, reset } = useSystemStore.getState();
+    if (state !== 'NORMAL' && state !== 'OFFLINE') {
+      reset();
+    }
     return response;
   },
   (error: AxiosError<{ message: string | string[], statusCode: number }>) => {
+    const { setMaintenance, setServerError } = useSystemStore.getState();
+
     // --- A. NETWORK & TIMEOUT HANDLING ---
 
-    // [NEW] Handling Timeout (Network Edge Case)
     if (error.code === 'ECONNABORTED') {
       return Promise.reject(new Error(UI_MESSAGES.ERRORS.NETWORK_TIMEOUT));
     }
 
-    // [NEW] Handling Network Error (Offline/Server Down)
+    // Jika tidak ada response, kemungkinan server mati total atau user offline
     if (!error.response) {
       return Promise.reject(new Error(UI_MESSAGES.ERRORS.NETWORK_OFFLINE));
     }
 
-    // --- B. AUTHENTICATION & QUOTA HANDLING ---
+    // --- B. AUTHENTICATION, QUOTA & SYSTEM STATUS HANDLING ---
 
     const status = error.response.status;
 
-    // [EXISTING] Handling 401 (Unauthorized) & Auto-Logout
+    // 1. Tangkap Sinyal Maintenance (503) -> Memicu UI Imersif
+    if (status === 503) {
+      setMaintenance(true);
+    }
+
+    // 2. Tangkap Sinyal Server Error Berat (500) -> Memicu UI Imersif
+    else if (status === 500) {
+      setServerError(ERROR_DICTIONARY[500]);
+    }
+
+    // 3. Handling 401 (Unauthorized) & Auto-Logout
     if (
       status === 401 &&
       typeof window !== "undefined" &&
@@ -80,15 +91,12 @@ api.interceptors.response.use(
     ) {
       localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
       window.location.href = "/login";
-      return Promise.reject(new Error("Sesi Anda telah berakhir. Silakan login kembali."));
+      return Promise.reject(new Error("Sesi berakhir. Silakan login kembali."));
     }
 
-    // [NEW - INTEGRATION] Handling 403 (Forbidden / Quota Exceeded)
-    // Jika backend melempar 403 pada saat simulasi, berarti kuota habis atau plan tidak sesuai.
-    // Kita trigger Event Global agar UI (Modal) muncul otomatis di mana saja.
+    // 4. Handling 403 (Forbidden / Quota Exceeded)
     if (status === 403) {
       if (typeof window !== "undefined") {
-        // Dispatch event untuk ditangkap oleh Global Layout / Modal Provider
         window.dispatchEvent(new Event("QUOTA_EXCEEDED"));
       }
     }
@@ -96,24 +104,17 @@ api.interceptors.response.use(
     // --- C. INTELLIGENT ERROR MAPPING (UX Hardening) ---
 
     const backendMessage = error.response.data?.message;
-
-    // Flatten message jika berupa array (validasi NestJS class-validator sering return array)
-    const rawMessage = Array.isArray(backendMessage)
-      ? backendMessage[0]
-      : backendMessage || "";
-
+    const rawMessage = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage || "";
     let userFriendlyMessage = rawMessage;
 
-    // 1. Cek Dictionary berdasarkan HTTP Status
+    // Cek Dictionary berdasarkan HTTP Status
     if (ERROR_DICTIONARY[status]) {
-      // Prioritaskan pesan backend jika spesifik, jika default error server gunakan dictionary
       if (status === 500 || status === 503) {
         userFriendlyMessage = ERROR_DICTIONARY[status];
       }
     }
 
-    // 2. Cek Spesifik Prisma Error (biasanya terselip di dalam pesan error 409 Conflict atau 400)
-    // Backend NestJS sering mengembalikan pesan asli Prisma di mode dev, atau custom exception di prod.
+    // Cek Spesifik Prisma Error
     if (typeof rawMessage === 'string') {
       if (rawMessage.includes("P2003") || rawMessage.toLowerCase().includes("foreign key")) {
         userFriendlyMessage = ERROR_DICTIONARY.P2003;
@@ -124,10 +125,9 @@ api.interceptors.response.use(
       }
     }
 
-    // Update pesan error object agar component UI (Toast) menampilkan pesan yang sudah diterjemahkan
+    // Update pesan error object agar component UI (Toast) menampilkan pesan yang manusiawi
     error.message = userFriendlyMessage;
 
-    // Return error asli (dengan message yang sudah dipercantik) untuk di-handle component
     return Promise.reject(error);
   }
 );
