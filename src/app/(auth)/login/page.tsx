@@ -146,7 +146,7 @@ function LoginForm() {
 
           <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-100/50">
             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1.5">Pusat Bantuan IT</p>
-            <a href="tel:+6281224000269" className="text-sm text-slate-600 font-bold hover:text-blue-600 transition-colors flex items-center justify-center gap-2">
+            <a href="tel:+628122377761" className="text-sm text-slate-600 font-bold hover:text-blue-600 transition-colors flex items-center justify-center gap-2">
               Hubungi Support
             </a>
           </div>
