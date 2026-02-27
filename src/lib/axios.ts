@@ -16,7 +16,6 @@ interface CustomErrorResponse {
 
 // --- QUEUE SYSTEM UNTUK REFRESH TOKEN ---
 let isRefreshing = false;
-// [FIX] Ubah tipe parameter resolve menjadi 'string | null' agar sinkron dengan Promise
 let failedQueue: Array<{ resolve: (value: string | null) => void; reject: (reason?: any) => void }> = [];
 
 const processQueue = (error: any, token: string | null = null) => {
@@ -53,9 +52,15 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// 2. Request Interceptor 
+// 2. Request Interceptor (Circuit Breaker & Auth Injection)
 api.interceptors.request.use(
   (config) => {
+    // [NEW] CIRCUIT BREAKER
+    const { isSessionTerminated } = useSystemStore.getState();
+    if (isSessionTerminated) {
+      return Promise.reject(new axios.Cancel("Halted: Session Terminated"));
+    }
+
     if (typeof window !== "undefined") {
       const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
@@ -75,7 +80,7 @@ api.interceptors.request.use(
   }
 );
 
-// 3. Response Interceptor 
+// 3. Response Interceptor (Error Handling & Rescue)
 api.interceptors.response.use(
   (response) => {
     const { state, reset } = useSystemStore.getState();
@@ -84,19 +89,29 @@ api.interceptors.response.use(
     }
     return response;
   },
-  async (error: AxiosError<CustomErrorResponse>) => {
-    const { setMaintenance, setServerError } = useSystemStore.getState();
-    const originalRequest = error.config as ExtendedAxiosRequestConfig;
+  async (error: any) => {
+    // [FIX] Parameter 'error' dikembalikan ke tipe 'any' untuk menghindari TS 'never'
 
-    if (error.code === 'ECONNABORTED') {
+    const { setMaintenance, setServerError, triggerSessionTermination } = useSystemStore.getState();
+
+    // 1. Cek apakah ini error buatan Circuit Breaker (axios.Cancel)
+    if (axios.isCancel(error)) {
+      return Promise.reject(error);
+    }
+
+    // [FIX] Type Casting secara aman di dalam fungsi
+    const axError = error as AxiosError<CustomErrorResponse>;
+    const originalRequest = axError.config as ExtendedAxiosRequestConfig;
+
+    if (axError.code === 'ECONNABORTED') {
       return Promise.reject(new Error(UI_MESSAGES.ERRORS.NETWORK_TIMEOUT));
     }
-    if (!error.response) {
+    if (!axError.response) {
       return Promise.reject(new Error(UI_MESSAGES.ERRORS.NETWORK_OFFLINE));
     }
 
-    const status = error.response.status;
-    const responseData = error.response.data;
+    const status = axError.response.status;
+    const responseData = axError.response.data;
     const errorCode = responseData?.errorCode;
 
     if (status === 503) {
@@ -108,21 +123,21 @@ api.interceptors.response.use(
     // --- B. ZERO-TRUST SESSION MANAGEMENT ---
     if (status === 401 && typeof window !== "undefined") {
 
+      // KONDISI 1: Sesi Ditendang
       if (errorCode === 'ERR_SESSION_SUPERSEDED' || errorCode === 'ERR_DEVICE_MISMATCH') {
+        triggerSessionTermination();
+
         localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
         localStorage.removeItem('refresh_token');
 
-        if (!window.location.pathname.includes("/login")) {
-          window.location.href = "/login?reason=kicked";
-        }
-        return Promise.reject(new Error("Sesi diambil alih oleh perangkat lain."));
+        return Promise.reject(new axios.Cancel("Sesi diambil alih oleh perangkat lain."));
       }
 
+      // KONDISI 2: Token Expired Murni
       if (!originalRequest._retry && !window.location.pathname.includes("/login")) {
 
         if (isRefreshing) {
           try {
-            // [FIX] Sinkronisasi tipe Promise dengan failedQueue
             const token = await new Promise<string | null>((resolve, reject) => {
               failedQueue.push({ resolve, reject });
             });
@@ -145,7 +160,7 @@ api.interceptors.response.use(
           isRefreshing = false;
           localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
           window.location.href = "/login?reason=expired";
-          return Promise.reject(error);
+          return Promise.reject(axError);
         }
 
         try {
@@ -203,8 +218,8 @@ api.interceptors.response.use(
       }
     }
 
-    error.message = userFriendlyMessage;
-    return Promise.reject(error);
+    axError.message = userFriendlyMessage;
+    return Promise.reject(axError);
   }
 );
 

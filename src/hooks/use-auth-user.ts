@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import api from '@/lib/axios';
-import { getOrCreateDeviceId } from '@/lib/device-id'; // [NEW] Import Device Fingerprint Helper
+import { getOrCreateDeviceId } from '@/lib/device-id';
+import { EMERGENCY_SAVE_EVENT } from './use-simulation-persistence'; // [NEW] Import event constant
 
 // =================================================================
 // TYPE DEFINITIONS (Matching Backend Response)
@@ -35,12 +36,10 @@ export interface UserProfile {
         namaUnit: string;
         kodeUnit: string;
     };
-    // Data Penting untuk Logic Frontend
     usage?: UserUsage | null;
     subscription?: UserSubscription | null;
 }
 
-// Interface Payload Token (Minimal Data)
 export interface UserTokenPayload {
     sub: string;
     email: string;
@@ -58,91 +57,77 @@ export function useAuthUser() {
     const [isLoading, setIsLoading] = useState(true);
     const [isPro, setIsPro] = useState(false);
     const [quota, setQuota] = useState(0);
-    const [deviceId, setDeviceId] = useState<string>(''); // [NEW] State untuk Device ID
+    const [deviceId, setDeviceId] = useState<string>('');
 
-    // 1. Fungsi Fetch Data Terbaru dari Server
     const fetchUserProfile = useCallback(async () => {
         try {
             const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
             if (!token) {
                 setUser(null);
                 setIsLoading(false);
                 return;
             }
-
-            // [CRITICAL] Panggil endpoint /me yang sudah kita update di Backend
-            // Response harus mengandung object `usage` dan `subscription`
             const response = await api.get('/users/me');
             const userData: UserProfile = response.data;
-
             setUser(userData);
-
-            // Update Derived State
-            const activeSub = userData.subscription?.status === 'ACTIVE';
-            const userQuota = userData.usage?.simulationQuota ?? 0;
-
-            setIsPro(activeSub);
-            setQuota(userQuota);
-
+            setIsPro(userData.subscription?.status === 'ACTIVE');
+            setQuota(userData.usage?.simulationQuota ?? 0);
         } catch (error: any) {
-            console.error("Gagal mengambil profil user:", error);
-
-            // [LOGIC] Jika server menolak dengan 401, bersihkan state
             if (error?.response?.status === 401) {
-                if (typeof window !== 'undefined') {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('refresh_token');
-                    setUser(null);
-                }
+                forceLogout('expired');
             }
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    // [NEW] 2. Fungsi Force Logout (Untuk Fase 3 & 4)
-    // Fungsi ini akan dipanggil oleh Interceptor atau WebSocket jika terdeteksi Kick-out
+    // [UPDATED] 2. Fungsi Force Logout (Data Protection Edition)
     const forceLogout = useCallback((reason: 'kicked' | 'expired' | 'manual' = 'manual') => {
         if (typeof window !== 'undefined') {
-            // Hapus semua token, TAPI biarkan device_signature tetap utuh!
-            localStorage.removeItem('token');
-            localStorage.removeItem('refresh_token');
 
-            setUser(null);
+            // [STEP 1] SINYAL PENYELAMATAN DATA
+            // Kirim pesan ke semua komponen yang menggunakan useSimulationPersistence
+            // agar segera melakukan write ke localStorage.
+            console.log("⚠️ System: Preparing data backup before logout...");
+            window.dispatchEvent(new Event(EMERGENCY_SAVE_EVENT));
 
-            // Redirect keras ke halaman login dengan menyertakan alasan
-            window.location.href = `/login${reason !== 'manual' ? `?reason=${reason}` : ''}`;
+            // [STEP 2] JEDA EKSEKUSI (Graceful Shutdown)
+            // Beri waktu 300ms agar operasi I/O localStorage selesai sebelum state dihancurkan
+            setTimeout(() => {
+                // Pembersihan Token & Sesi
+                localStorage.removeItem('token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('user');
+
+                setUser(null);
+                setIsPro(false);
+                setQuota(0);
+
+                if (reason === 'expired' || reason === 'manual') {
+                    window.location.href = `/login${reason === 'expired' ? '?reason=expired' : ''}`;
+                }
+            }, 300);
         }
     }, []);
 
     // 3. Initial Load Logic
     useEffect(() => {
-        // [LOGIC] Inisialisasi Device ID begitu komponen/aplikasi di-mount
-        // Memastikan ID langsung tersedia tanpa memblokir rendering UI
         const currentDeviceId = getOrCreateDeviceId();
         setDeviceId(currentDeviceId);
-
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
         if (token) {
             try {
-                // [OPTIMIZATION] Decode token dulu untuk render UI dasar (Nama/Role) secepat kilat
                 const decoded = jwtDecode<UserTokenPayload>(token);
-
-                // Set initial state dari token (tanpa quota/sub dulu)
                 setUser((prev) => prev || {
                     id: decoded.sub,
                     email: decoded.email,
-                    fullName: 'Loading...', // Placeholder
+                    fullName: 'Loading...',
                     role: decoded.role,
                 });
-
-                // Lalu fetch data lengkap (background sync)
                 fetchUserProfile();
             } catch (e) {
-                console.error("Token invalid:", e);
-                forceLogout('expired'); // Eksekusi pembersihan jika token cacat
+                forceLogout('expired');
             }
         } else {
             setIsLoading(false);
@@ -150,12 +135,12 @@ export function useAuthUser() {
     }, [fetchUserProfile, forceLogout]);
 
     return {
-        user,           // Object User Lengkap
-        isLoading,      // Status loading fetch API
-        isPro,          // Boolean helper: Apakah user PRO?
-        quota,          // Number helper: Sisa kuota user
-        deviceId,       // [NEW] Identitas perangkat persisten
-        refreshUser: fetchUserProfile, // Fungsi untuk memaksa update data
-        forceLogout,    // [NEW] Fungsi darurat untuk memutuskan sesi lokal
+        user,
+        isLoading,
+        isPro,
+        quota,
+        deviceId,
+        refreshUser: fetchUserProfile,
+        forceLogout,
     };
 }
