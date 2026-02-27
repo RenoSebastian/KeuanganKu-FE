@@ -8,7 +8,8 @@ import { Menu, Lock, Rocket } from "lucide-react";
 import BottomNav from "@/components/shared/bottom-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useBreakpoints } from "@/hooks/use-media-query";
-import { SocketProvider } from "@/providers/socket-provider"; // [NEW] Provider Socket
+import { SocketProvider } from "@/providers/socket-provider";
+import { SessionTerminatedModal } from "@/components/shared/session-terminated-modal"; // [NEW] Import Modal Kick-out
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter
-} from "@/components/ui/dialog"; // [NEW] UI Components
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -24,8 +25,8 @@ import { Button } from "@/components/ui/button";
  * Wrapper utama untuk semua halaman dashboard (User, Admin, Director).
  *
  * UPDATE LOG:
- * - Menambahkan SocketProvider untuk realtime notifikasi.
- * - Menambahkan Global Modal Listener untuk event 'QUOTA_EXCEEDED'.
+ * - Integrasi SessionTerminatedModal untuk mendeteksi kick-out secara global.
+ * - Optimalisasi z-index agar modal keamanan menutupi seluruh konten termasuk sidebar.
  */
 export default function DashboardLayout({
   children,
@@ -37,7 +38,7 @@ export default function DashboardLayout({
 
   // 2. State Management
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showQuotaModal, setShowQuotaModal] = useState(false); // [NEW] State Modal Kuota
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
 
   // 3. Effect untuk Sinkronisasi State terhadap Ukuran Layar
   useEffect(() => {
@@ -50,15 +51,13 @@ export default function DashboardLayout({
     }
   }, [isDesktop, isTablet, isMobile]);
 
-  // 4. [NEW] Global Event Listener untuk Axios Interceptor
+  // 4. Global Event Listener untuk Axios Interceptor (Quota Check)
   useEffect(() => {
     const handleQuotaExceeded = () => {
       setShowQuotaModal(true);
     };
 
-    // Dengarkan event dari src/lib/axios.ts
     window.addEventListener("QUOTA_EXCEEDED", handleQuotaExceeded);
-
     return () => {
       window.removeEventListener("QUOTA_EXCEEDED", handleQuotaExceeded);
     };
@@ -80,9 +79,8 @@ export default function DashboardLayout({
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
   return (
-    // [NEW] Wrap seluruh dashboard dengan SocketProvider
     <SocketProvider>
-      <div className="min-h-screen w-full bg-slate-50 relative overflow-x-hidden">
+      <div className="min-h-screen w-full bg-slate-50 relative overflow-x-hidden pt-[env(safe-area-inset-top)]">
 
         {/* OVERLAY BACKGROUND (Mobile/Tablet) */}
         {isSidebarOpen && !isDesktop && (
@@ -134,32 +132,35 @@ export default function DashboardLayout({
 
         </div>
 
-        {/* [NEW] GLOBAL QUOTA MODAL */}
-        {/* Modal ini akan muncul otomatis jika backend mengembalikan 403 Forbidden */}
+        {/* [NEW] SESSION TERMINATED MODAL (KICK-OUT) */}
+        {/* Modal ini akan muncul otomatis jika tuas 'isSessionTerminated' ditarik oleh Axios/Socket */}
+        <SessionTerminatedModal />
+
+        {/* GLOBAL QUOTA MODAL */}
         <Dialog open={showQuotaModal} onOpenChange={setShowQuotaModal}>
-          <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogContent className="sm:max-w-md rounded-[2rem] border-none shadow-2xl">
             <DialogHeader className="flex flex-col items-center text-center gap-2">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center animate-pulse mb-2">
+              <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center animate-pulse mb-2">
                 <Lock className="w-8 h-8 text-red-600" />
               </div>
-              <DialogTitle className="text-xl font-black text-slate-800">
+              <DialogTitle className="text-xl font-extrabold text-slate-900">
                 Akses Dibatasi
               </DialogTitle>
-              <DialogDescription className="text-center text-slate-600">
+              <DialogDescription className="text-center text-slate-600 text-sm leading-relaxed">
                 Mohon maaf, kuota simulasi gratis Anda telah habis atau masa aktif paket Anda telah berakhir.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-3 py-4">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-500 text-center">
-                Upgrade ke <strong>PRO</strong> untuk akses tanpa batas ke semua fitur simulasi, export PDF, dan analisis mendalam.
+            <div className="space-y-3 py-2">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] text-slate-500 text-center font-medium leading-relaxed">
+                Upgrade ke <strong className="text-indigo-600">PRO-MITRA</strong> untuk akses tanpa batas ke semua fitur simulasi, export PDF, dan analisis portofolio mendalam.
               </div>
             </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button variant="outline" onClick={() => setShowQuotaModal(false)} className="w-full sm:w-auto rounded-xl">
+            <DialogFooter className="flex-col sm:flex-row gap-3 pt-2">
+              <Button variant="ghost" onClick={() => setShowQuotaModal(false)} className="w-full sm:w-auto rounded-xl text-slate-400 font-bold">
                 Nanti Saja
               </Button>
-              <Link href="/pricing" className="w-full sm:w-auto">
-                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">
+              <Link href="/pricing" className="w-full sm:flex-1">
+                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold h-12 shadow-lg shadow-indigo-200 active:scale-95 transition-all">
                   <Rocket className="w-4 h-4 mr-2" /> Upgrade Sekarang
                 </Button>
               </Link>

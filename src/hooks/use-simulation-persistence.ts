@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // --- CONSTANTS ---
 export const SIMULATION_STORAGE_KEYS = {
@@ -13,24 +13,16 @@ export const SIMULATION_STORAGE_KEYS = {
     PENSION: "AGENT_SIM_PENSION_DRAFT_V1",
 };
 
-/**
- * useSimulationPersistence (FULL PERSISTENCE EDITION)
- * ---------------------------------------------------
- * Hook ini sekarang mencakup penyimpanan Hasil Simulasi (Result).
- * - Menangani penyimpanan state: Client, Input, Result, PDF, Token.
- * - Memastikan data survive saat Refresh di halaman Result.
- * - Tetap memiliki Safety Guard untuk mencegah overwrite data kosong.
- */
+export const EMERGENCY_SAVE_EVENT = "KEUANGANKU_SAVE_DRAFT_BEFORE_DIE";
+
 export function useSimulationPersistence<TClient, TData, TResult = any>(
     key: string,
     currentClientData: TClient | null,
     currentInputData: TData | null,
     currentStep: number,
-    // Parameter Baru (Optional agar tidak merusak modul lain/Legacy)
     currentResult: TResult | null = null,
     currentPdfUrl: string | null = null,
     currentMgcToken: string | null = null,
-    // Callback Hydration diperluas
     onHydrate?: (
         client: TClient | null,
         input: TData | null,
@@ -40,105 +32,124 @@ export function useSimulationPersistence<TClient, TData, TResult = any>(
         token: string | null
     ) => void
 ) {
-    // State: Penanda apakah data sudah selesai dimuat dari storage
     const [isHydrated, setIsHydrated] = useState(false);
+    const [draftData, setDraftData] = useState<any>(null);
+    const [draftAvailable, setDraftAvailable] = useState(false);
 
-    // 1. MOUNT LOGIC (AUTO-HYDRATE)
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        try {
-            const stored = localStorage.getItem(key);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                // Jika parent menyediakan callback onHydrate, kita inject semua data
-                if (parsed && onHydrate && typeof onHydrate === 'function') {
-                    console.log(`[Persistence] Auto-hydrating ${key} with Result...`);
-                    onHydrate(
-                        parsed.clientData || null,
-                        parsed.inputData || null,
-                        typeof parsed.step === 'number' ? parsed.step : 0,
-                        parsed.result || null,      // Restore Result
-                        parsed.pdfUrl || null,      // Restore PDF
-                        parsed.mgcToken || null     // Restore Token
-                    );
-                }
-            }
-        } catch (e) {
-            console.error(`[Persistence] Failed to hydrate ${key}:`, e);
-            // Jika data korup, hapus storage agar tidak error selamanya
-            localStorage.removeItem(key);
-        } finally {
-            // [CRITICAL] Buka gerbang save setelah loading selesai
-            setIsHydrated(true);
-        }
-    }, []); // Run once on mount
-
-    // 2. AUTO-SAVE (WITH SAFETY GUARDS)
-    useEffect(() => {
-        // GUARD 1: Write-Protection saat Loading
-        if (!isHydrated) return;
-
-        // GUARD 2: Context Awareness (Fix Data Hilang)
-        // Jika kita bukan di halaman pertama, TAPI data client kosong,
-        // itu indikasi bug render. JANGAN save ke storage (biar storage aman).
-        if (currentStep > 0 && !currentClientData) {
-            console.warn(`[Persistence] Prevented CORRUPT SAVE on ${key}. Step: ${currentStep}, Client: Null`);
-            return;
-        }
-
-        // Debounce Save (500ms)
-        const timer = setTimeout(() => {
-            // Optional: Jangan save jika benar-benar kosong di awal
-            const isClientEmpty = !currentClientData;
-            const isInputEmpty = !currentInputData || (Object.keys(currentInputData as object).length === 0);
-
-            if (currentStep === 0 && isClientEmpty && isInputEmpty) return;
-
-            const payload = {
-                clientData: currentClientData,
-                inputData: currentInputData,
-                step: currentStep,
-                // Simpan State Hasil juga
-                result: currentResult,
-                pdfUrl: currentPdfUrl,
-                mgcToken: currentMgcToken,
-                lastModified: Date.now()
-            };
-
-            try {
-                localStorage.setItem(key, JSON.stringify(payload));
-            } catch (e) {
-                console.warn("[Persistence] Storage write failed:", e);
-            }
-        }, 500);
-
-        return () => clearTimeout(timer);
-    }, [
+    const stateRef = useRef({
         currentClientData,
         currentInputData,
         currentStep,
-        currentResult,    // Dependency baru
-        currentPdfUrl,    // Dependency baru
-        currentMgcToken,  // Dependency baru
-        isHydrated,
-        key
-    ]);
+        currentResult,
+        currentPdfUrl,
+        currentMgcToken
+    });
 
-    // 3. ACTIONS
+    useEffect(() => {
+        stateRef.current = {
+            currentClientData,
+            currentInputData,
+            currentStep,
+            currentResult,
+            currentPdfUrl,
+            currentMgcToken
+        };
+    }, [currentClientData, currentInputData, currentStep, currentResult, currentPdfUrl, currentMgcToken]);
+
+    // 1. Initial Check for Draft
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                setDraftData(parsed);
+                setDraftAvailable(true);
+            } catch (e) {
+                localStorage.removeItem(key);
+            }
+        }
+        setIsHydrated(true);
+    }, [key]);
+
+    const saveToStorage = useCallback(() => {
+        const { currentClientData, currentInputData, currentStep, currentResult, currentPdfUrl, currentMgcToken } = stateRef.current;
+
+        if (currentStep === 0 && !currentClientData && !currentInputData) return;
+
+        const payload = {
+            clientData: currentClientData,
+            inputData: currentInputData,
+            step: currentStep,
+            result: currentResult,
+            pdfUrl: currentPdfUrl,
+            mgcToken: currentMgcToken,
+            lastModified: Date.now(),
+            isEmergencyBackup: true
+        };
+
+        try {
+            localStorage.setItem(key, JSON.stringify(payload));
+        } catch (e) {
+            console.warn("[Persistence] Save failed:", e);
+        }
+    }, [key]);
+
+    // 2. AUTO-SAVE & EMERGENCY LISTENER
+    useEffect(() => {
+        if (!isHydrated) return;
+
+        const handleEmergency = () => saveToStorage();
+        window.addEventListener(EMERGENCY_SAVE_EVENT, handleEmergency);
+
+        const timer = setTimeout(() => {
+            if (currentStep > 0 && !currentClientData) return;
+            saveToStorage();
+        }, 1000);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener(EMERGENCY_SAVE_EVENT, handleEmergency);
+        };
+    }, [currentClientData, currentInputData, currentStep, isHydrated, saveToStorage]);
+
+    // --- ACTIONS UNTUK WIZARD ---
+
+    const restoreDraft = useCallback(() => {
+        if (!draftData) return null;
+        if (onHydrate) {
+            onHydrate(
+                draftData.clientData || null,
+                draftData.inputData || null,
+                draftData.step || 0,
+                draftData.result || null,
+                draftData.pdfUrl || null,
+                draftData.mgcToken || null
+            );
+        }
+        setDraftAvailable(false); // Sembunyikan banner setelah dipulihkan
+        return draftData;
+    }, [draftData, onHydrate]);
+
+    const ignoreDraft = useCallback(() => {
+        localStorage.removeItem(key);
+        setDraftAvailable(false);
+        setDraftData(null);
+    }, [key]);
+
     const clearStorage = useCallback(() => {
         localStorage.removeItem(key);
+        setDraftAvailable(false);
+        setDraftData(null);
     }, [key]);
 
     return {
         isHydrated,
         clearStorage,
-
-        // --- COMPATIBILITY LAYER ---
-        // (Properti dummy agar file lain seperti Budget/RiskProfile tidak error build)
-        draftAvailable: false,
-        restoreDraft: () => null,
-        ignoreDraft: () => { },
-        draftData: null
+        draftAvailable,
+        restoreDraft,
+        ignoreDraft,
+        draftData
     };
 }

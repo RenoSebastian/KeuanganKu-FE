@@ -7,9 +7,9 @@ import { BellRing, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-rea
 
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { useNotificationStore, NotificationItem } from '@/hooks/use-notification-store';
-import { STORAGE_KEYS } from '@/lib/constants'; // Pastikan constants.ts memiliki definisi ini
+import { STORAGE_KEYS } from '@/lib/constants';
+import { useSystemStore } from '@/hooks/use-system-store'; // [NEW] Import System Store
 
-// Helper untuk icon toast berdasarkan tipe notifikasi
 const getToastIcon = (type: string) => {
     switch (type) {
         case 'SUCCESS': return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
@@ -20,13 +20,16 @@ const getToastIcon = (type: string) => {
 };
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-    // [UPDATE] Ekstrak forceLogout dari hook untuk Fase 4
     const { user, refreshUser, forceLogout } = useAuthUser();
     const { addNotification, setConnectionStatus } = useNotificationStore();
+
+    // [NEW] Tarik tuas circuit breaker langsung dari WSS
+    const { triggerSessionTermination } = useSystemStore();
+
     const socketRef = useRef<Socket | null>(null);
 
     // =================================================================
-    // 1. CORE SOCKET ORCHESTRATION (Koneksi & Event Listener)
+    // 1. CORE SOCKET ORCHESTRATION 
     // =================================================================
     useEffect(() => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -70,26 +73,22 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
             // --- BUSINESS LOGIC EVENTS ---
 
-            // [NEW] EVENT C: SINGLE CONCURRENT SESSION KICK-OUT (FASE 4)
+            // [MODIFIED] EVENT C: SINGLE CONCURRENT SESSION KICK-OUT
             socketRef.current.on('force_logout', (data: any) => {
-                console.warn('🚨 KICK-OUT SIGNAL RECEIVED:', data);
+                console.warn('🚨 WSS KICK-OUT SIGNAL RECEIVED:', data);
 
-                // 1. Putus koneksi agar tidak re-connect otomatis
+                // 1. Matikan WSS agar tidak mencoba auto-reconnect menggunakan token lama
                 socketRef.current?.disconnect();
                 setConnectionStatus(false);
 
-                // 2. Tampilkan UI Blocking (Persisten) via Sonner
-                toast("Peringatan Keamanan Sistem", {
-                    description: "Akun Anda baru saja digunakan untuk login di perangkat lain. Akses di perangkat ini segera dihentikan.",
-                    icon: <AlertTriangle className="w-6 h-6 text-red-600" />,
-                    duration: 5000, // Tampilkan selama 5 detik sebelum menendang
-                    style: { backgroundColor: '#fef2f2', borderColor: '#fee2e2', color: '#991b1b' },
-                });
+                // 2. [CRITICAL] Aktifkan Circuit Breaker FE agar semua sisa request API (seperti pooling) terputus.
+                triggerSessionTermination();
 
-                // 3. Beri jeda sedikit agar user sempat membaca Toast, lalu tendang secara keras
-                setTimeout(() => {
-                    forceLogout('kicked');
-                }, 2000);
+                // 3. Bersihkan memori residu dengan memanggil fungsi hook tanpa trigger redirect
+                forceLogout('kicked');
+
+                // Catatan: UX Modal "Account in Use" (Fase 3) sekarang otomatis terpicu
+                // karena ia memantau state isSessionTerminated dari triggerSessionTermination().
             });
 
             // EVENT A: Notifikasi Baru Masuk
@@ -122,32 +121,29 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 setConnectionStatus(false);
             }
         };
-    }, [user, addNotification, setConnectionStatus, refreshUser, forceLogout]);
+    }, [user, addNotification, setConnectionStatus, refreshUser, forceLogout, triggerSessionTermination]);
 
     // =================================================================
-    // [NEW] 2. PWA LIFECYCLE RESILIENCE (FASE 5)
+    // 2. PWA LIFECYCLE RESILIENCE 
     // =================================================================
     useEffect(() => {
-        // Fungsi ini akan tertrigger saat user minimize aplikasi lalu membukanya lagi
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('📱 PWA Woke Up from Background. Checking session integrity...');
-
                 const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                const { isSessionTerminated } = useSystemStore.getState();
 
-                // Kondisi A: User buka kembali aplikasi, tapi token tiba-tiba hilang (mungkin dibersihkan tab lain)
+                // [FIX] Jika status aplikasi sudah ditendang, jangan coba apa-apa saat layar menyala
+                if (isSessionTerminated) return;
+
                 if (!token && window.location.pathname !== '/login') {
                     console.warn('⚠️ Token is missing on wake-up. Forcing manual logout.');
                     forceLogout('expired');
                     return;
                 }
 
-                // Kondisi B: WSS terputus karena Doze Mode OS Android/iOS, kita harus hidupkan ulang
                 if (token && socketRef.current?.disconnected) {
                     console.log('🔄 Reconnecting socket after wake-up...');
                     socketRef.current.connect();
-
-                    // Kita fetch profil terbaru berjaga-jaga jika ada perubahan data saat HP tertidur
                     refreshUser();
                 }
             }
@@ -155,7 +151,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
         if (typeof window !== 'undefined') {
             document.addEventListener('visibilitychange', handleVisibilityChange);
-            // Fallback untuk WebView lama yang tidak merespon visibilitychange
             window.addEventListener('focus', handleVisibilityChange);
         }
 
