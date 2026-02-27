@@ -1,8 +1,4 @@
-// ============================================================================
-// AUTHENTICATION & USER DOMAIN
-// ============================================================================
-
-import { HealthStatus } from "./common"; // Pastikan file common.ts dibuat setelah ini
+import { HealthStatus } from "./common"; // Pastikan file common.ts sudah ada
 
 export type UserRole = "USER" | "ADMIN" | "DIRECTOR" | "UNIT_HEAD";
 
@@ -22,6 +18,7 @@ export interface UnitKerja {
 export interface LoginDto {
     email: string;
     password: string;
+    deviceId: string; // [NEW] Wajib untuk Single Concurrent Session
 }
 
 export interface RegisterDto {
@@ -31,63 +28,62 @@ export interface RegisterDto {
     role?: string;
     nip?: string;
     unitKerja?: string;
+    deviceId: string; // [NEW] Wajib untuk Single Concurrent Session
+}
+
+// [NEW] Kontrak DTO untuk Rotasi Token
+export interface RefreshTokenDto {
+    refreshToken: string;
+    deviceId: string;
 }
 
 // ============================================================================
 // SUBSCRIPTION & USAGE
 // ============================================================================
 
-// Interface ini memetakan data dari table UserSubscription & UserUsage di BE
 export interface UserSubscription {
     id: string;
     status: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'CANCELLED';
     startDate: string;
     endDate: string;
-    // [UPDATED] Sesuai dengan include: { plan: true } dari Backend
     plan?: {
         id: string;
         name: string;
-        price: number | string; // Handle Decimal/BigInt serialization
+        price: number | string;
         durationMonths: number;
     };
 }
 
 export interface UserUsage {
-    simulationQuota: number; // Sisa Token (Credit)
-    totalUsed: number;       // Total simulasi yang pernah dibuat
+    simulationQuota: number;
+    totalUsed: number;
 }
 
 // ============================================================================
 // MAIN USER ENTITY
 // ============================================================================
 
-// [UPDATED] USER INTERFACE SINKRON DENGAN BACKEND PRISMA SCHEMA
 export interface User {
     id: string;
     email: string;
     fullName: string;
-    name?: string;    // Fallback
+    name?: string;
     role: UserRole;
     nip?: string;
     dateOfBirth?: string;
 
-    // --- [NEW] ADDITIONAL PROFILE FIELDS ---
-    avatar?: string;      // [ADDITION] Foto diri (Base64 String)
-    gender?: string;      // [ADDITION] Jenis Kelamin
-    address?: string;     // [ADDITION] Alamat Domisili
-    noWa?: string;        // [ADDITION] Nomor WhatsApp
-    agencyName?: string;  // [ADDITION] Nama Perusahaan Asuransi
-    agentLevel?: string;  // [ADDITION] Jabatan/Level Agen
+    avatar?: string;
+    gender?: string;
+    address?: string;
+    noWa?: string;
+    agencyName?: string;
+    agentLevel?: string;
     companyName?: string;
     goals?: string;
-    // ----------------------------------------
 
-    // [INTEGRATION] SUBSCRIPTION & QUOTA
     subscription?: UserSubscription;
     usage?: UserUsage;
 
-    // [NEW] AGGREGATION DATA (Untuk Dashboard Total Report)
-    // Diisi oleh prisma include: { _count: { select: { simulationLogs: true } } }
     _count?: {
         simulationLogs: number;
     };
@@ -96,7 +92,6 @@ export interface User {
     createdAt?: string;
     updatedAt?: string;
 
-    // Properti untuk hasil pencarian & dashboard
     financialChecks?: {
         status: HealthStatus;
         healthScore: number;
@@ -104,7 +99,9 @@ export interface User {
     }[];
 }
 
+// [UPDATED] Mengakomodasi Hybrid JWT (Access & Refresh)
 export interface AuthResponse {
     access_token: string;
+    refresh_token?: string; // Tambahan Refresh Token dari Backend
     user: User;
 }
