@@ -289,7 +289,13 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
         {!internalCollapse ? (
           <>
             <div className="relative w-24 h-24 drop-shadow-sm hover:scale-105 transition-transform duration-500">
-              <Image src="/images/logokeuanganku.png" alt="Logo KeuanganKu" fill className="object-contain" priority />
+              <Image
+                src="/images/logokeuanganku.png"
+                alt="Logo KeuanganKu"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Tambahkan ini
+                className="object-contain"
+              />
             </div>
             <div className="text-center px-4 -mt-7">
               <p className="text-[9px] font-bold text-blue-600 uppercase tracking-[0.2em] leading-tight mt-0.5 whitespace-nowrap opacity-80">

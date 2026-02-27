@@ -19,7 +19,7 @@ import {
 import { financialService } from "@/services/financial.service";
 
 // Imports Sub-Components
-import { ClientIdentityForm } from "./checkup/client-identity-form";
+import { ClientIdentityForm } from "./client-identity-form";
 import { CheckupResult } from "./checkup-result";
 import { FinancialInputSection } from "./financial-input-section";
 
@@ -178,7 +178,15 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             return;
         }
 
-        const payload = { ...financialRecord, ...clientData };
+        // [FIXED] Generate UUID Session ID untuk validasi Backend & Ledger Kuota
+        const sessionId = crypto.randomUUID();
+
+        // [FIXED] Include sessionId ke dalam payload
+        const payload = {
+            ...financialRecord,
+            ...clientData,
+            sessionId: sessionId
+        };
 
         // Prioritaskan onComplete dari parent (legacy support/controller terpisah)
         if (onComplete) {
@@ -191,6 +199,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         const toastId = toast.loading("Memproses Kalkulasi...", { description: "Menganalisis matriks kesehatan finansial..." });
 
         try {
+            // Service akan menerima payload dengan sessionId
             const response = await financialService.simulateAgentCheckup(payload);
 
             setSimulationData(response);

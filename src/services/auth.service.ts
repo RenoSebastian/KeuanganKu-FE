@@ -1,20 +1,32 @@
 import api from "@/lib/axios";
-import { LoginDto, RegisterDto, AuthResponse, User } from "@/lib/types";
+import { LoginDto, RegisterDto, AuthResponse, User, RefreshTokenDto } from "@/lib/types/auth"; // Sesuaikan path jika menggunakan export barrel (index.ts)
 import Cookies from "js-cookie";
+import { getOrCreateDeviceId } from "@/lib/device-id";
 
 export const authService = {
   // 1. LOGIN
-  login: async (data: LoginDto) => {
-    const response = await api.post<AuthResponse>("/auth/login", data);
+  // Menggunakan Omit agar UI Component tidak perlu repot mengirim deviceId.
+  // Service ini yang akan mengurusnya secara otomatis (Interceptor Pattern).
+  login: async (data: Omit<LoginDto, 'deviceId'>) => {
+    const deviceId = getOrCreateDeviceId();
+    const payload: LoginDto = { ...data, deviceId };
+
+    const response = await api.post<AuthResponse>("/auth/login", payload);
 
     if (response.data.access_token) {
-      const token = response.data.access_token;
-      const user = response.data.user;
+      const { access_token, refresh_token, user } = response.data;
 
-      Cookies.set("token", token, { expires: 1, path: '/' });
+      // Set cookie untuk access_token (opsional, jika SSR butuh)
+      Cookies.set("token", access_token, { expires: 1, path: '/' });
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("token", token);
+        localStorage.setItem("token", access_token);
+
+        // Simpan refresh_token jika Backend mengirimkannya
+        if (refresh_token) {
+          localStorage.setItem("refresh_token", refresh_token);
+        }
+
         localStorage.setItem("user", JSON.stringify(user));
       }
     }
@@ -23,34 +35,70 @@ export const authService = {
   },
 
   // 2. REGISTER
-  register: async (data: RegisterDto) => {
-    const response = await api.post<AuthResponse>("/auth/register", data);
+  register: async (data: Omit<RegisterDto, 'deviceId'>) => {
+    const deviceId = getOrCreateDeviceId();
+    const payload: RegisterDto = { ...data, deviceId };
+
+    const response = await api.post<AuthResponse>("/auth/register", payload);
 
     if (response.data.access_token) {
-      const token = response.data.access_token;
-      Cookies.set("token", token, { expires: 1, path: '/' });
+      const { access_token, refresh_token, user } = response.data;
+
+      Cookies.set("token", access_token, { expires: 1, path: '/' });
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        localStorage.setItem("token", access_token);
+        if (refresh_token) {
+          localStorage.setItem("refresh_token", refresh_token);
+        }
+        localStorage.setItem("user", JSON.stringify(user));
       }
     }
 
     return response.data;
   },
 
-  // 3. LOGOUT
+  // [NEW] 3. REFRESH TOKEN (Silent Rotation)
+  refreshTokens: async () => {
+    if (typeof window === "undefined") return null;
+
+    const refreshToken = localStorage.getItem("refresh_token");
+    const deviceId = getOrCreateDeviceId();
+
+    if (!refreshToken) throw new Error("No refresh token available");
+
+    const payload: RefreshTokenDto = { refreshToken, deviceId };
+
+    const response = await api.post<AuthResponse>("/auth/refresh", payload);
+
+    if (response.data.access_token) {
+      const { access_token, refresh_token } = response.data;
+
+      Cookies.set("token", access_token, { expires: 1, path: '/' });
+      localStorage.setItem("token", access_token);
+
+      if (refresh_token) {
+        localStorage.setItem("refresh_token", refresh_token);
+      }
+    }
+
+    return response.data;
+  },
+
+  // 4. LOGOUT
   logout: () => {
     Cookies.remove("token", { path: '/' });
 
     if (typeof window !== "undefined") {
+      // Pembersihan total memori autentikasi, KECUALI device_signature
       localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
       window.location.href = "/login";
     }
   },
 
-  // 4. GET ME (SYNC PROFILE)
+  // 5. GET ME (SYNC PROFILE)
   getMe: async () => {
     try {
       const response = await api.get<User>("/users/me");
@@ -65,16 +113,11 @@ export const authService = {
     }
   },
 
-  // ============================================================================
-  // [NEW] 5. UPDATE PROFILE
-  // Mengirim data profil terbaru ke backend dan menyinkronkan data lokal
-  // ============================================================================
+  // 6. UPDATE PROFILE
   updateProfile: async (data: Partial<User>) => {
     try {
-      // Menggunakan endpoint PATCH sesuai kontrak backend
       const response = await api.patch<User>("/users/me", data);
 
-      // Sinkronisasi LocalStorage agar perubahan (Nama/Avatar) langsung muncul di UI
       if (response.data && typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(response.data));
       }
@@ -86,7 +129,7 @@ export const authService = {
     }
   },
 
-  // 6. HELPER: GET CURRENT USER
+  // 7. HELPER: GET CURRENT USER
   getCurrentUser: (): User | null => {
     if (typeof window !== "undefined") {
       const userStr = localStorage.getItem("user");
@@ -102,7 +145,7 @@ export const authService = {
     return null;
   },
 
-  // 7. HELPER: IS AUTHENTICATED
+  // 8. HELPER: IS AUTHENTICATED
   isAuthenticated: (): boolean => {
     const token = Cookies.get("token");
     return !!token;

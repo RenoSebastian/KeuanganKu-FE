@@ -5,7 +5,7 @@ import { GoalSimulationResult } from "@/lib/types";
 import { GoalRealityCard } from "./goal-reality-card";
 import { GoalSolutionCard } from "./goal-solution-card";
 import { GoalStrategyCard } from "./goal-strategy-card";
-import { GoalsGuide } from "../goals-guide";
+import { GoalsGuide } from "../guide/goals-guide";
 
 interface GoalResultsProps {
     result: GoalSimulationResult | null;

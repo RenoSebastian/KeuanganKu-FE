@@ -10,7 +10,7 @@ export const riskProfileService = {
      * [CORE] Agent Simulation Flow
      * Mengirim data kuesioner, menerima PDF Stream untuk download, 
      * dan membaca Header Token untuk visualisasi data di UI.
-     * * Endpoint: POST /financial/simulation/risk-profile-pdf
+     * Endpoint: POST /financial/simulation/risk-profile-pdf
      */
     simulateRiskProfile: async (payload: RiskProfilePayload): Promise<RiskProfileServiceResponse> => {
         try {
@@ -25,16 +25,14 @@ export const riskProfileService = {
                 }
             );
 
-            // 1. Ambil Token dari Header (Berisi data hasil kalkulasi JSON)
-            // Axios secara otomatis mengubah nama header menjadi lowercase
+            // 1. Ambil Token dari Header
             const mgcToken = response.headers['x-mgc-token'];
 
             if (!mgcToken) {
                 throw new Error("Security Token (.mgc) tidak ditemukan dalam response server.");
             }
 
-            // 2. Decode Token di Client-Side (Stateless Decoding)
-            // Format Token Backend: PayloadBase64.Signature
+            // 2. Decode Token di Client-Side
             const [payloadBase64] = mgcToken.split('.');
 
             if (!payloadBase64) {
@@ -43,7 +41,6 @@ export const riskProfileService = {
 
             let decodedData: RiskProfileSimulationResult;
             try {
-                // Decode Base64 ke JSON String -> Parse ke Object
                 const jsonString = atob(payloadBase64);
                 decodedData = JSON.parse(jsonString);
             } catch (e) {
@@ -51,11 +48,10 @@ export const riskProfileService = {
                 throw new Error("Gagal membaca data hasil simulasi dari token.");
             }
 
-            // 3. Buat URL Blob untuk PDF agar bisa didownload/preview
+            // 3. Buat URL Blob untuk PDF
             const blob = new Blob([response.data], { type: "application/pdf" });
             const pdfUrl = window.URL.createObjectURL(blob);
 
-            // 4. Return Paket Lengkap ke Component
             return {
                 pdfUrl,
                 token: mgcToken,
@@ -65,9 +61,6 @@ export const riskProfileService = {
         } catch (error: any) {
             console.error("Risk Profile Simulation Error:", error);
 
-            // [EDGE CASE HANDLER]
-            // Jika response error (misal 400 Bad Request), axios tetap mengembalikannya sebagai Blob karena 'responseType: blob'.
-            // Kita perlu konversi Blob error kembali ke JSON text untuk membaca pesan error asli dari Backend.
             if (error.response?.data instanceof Blob) {
                 const errorBlob = error.response.data;
                 const errorText = await errorBlob.text();
@@ -75,7 +68,6 @@ export const riskProfileService = {
                     const errorJson = JSON.parse(errorText);
                     throw new Error(errorJson.message || "Gagal memproses simulasi.");
                 } catch (jsonError) {
-                    // Jika gagal parse JSON, berarti error raw/network
                     throw new Error("Terjadi kesalahan sistem saat memproses PDF.");
                 }
             }
@@ -85,35 +77,66 @@ export const riskProfileService = {
     },
 
     /**
-     * [UTILITY] Decode Token Manual via Backend (Optional)
-     * Digunakan jika kita ingin memvalidasi signature token saat fitur 'Load Data / Upload .mgc'
+     * Mendecode token .mgc menjadi data JSON yang bisa dibaca frontend.
+     * [UPDATED]: Logic disederhanakan untuk file RAW STRING dengan pembersihan karakter agresif.
      */
-    decodeSimulationToken: async (tokenString: string): Promise<RiskProfileSimulationResult> => {
+    decodeSimulationToken: async (fileContent: string): Promise<any> => {
         try {
-            const response = await api.post("/financial/simulation/decode", {
-                simulationToken: tokenString
-            });
+            // [LOGIC PEMBERSIHAN]
+            // 1. .trim() -> Hapus spasi depan/belakang
+            // 2. .replace(/^\uFEFF/, '') -> Hapus BOM (Byte Order Mark) jika file dari Notepad
+            // 3. .replace(/\s/g, '') -> Hapus SEMUA spasi & enter (newline) di tengah/akhir string
+            // 4. .replace(/^"|"$/g, '') -> Hapus tanda kutip jika string terbungkus kutip
 
-            // Backend mengembalikan struktur: { message: "...", data: { client, financial, result, ... } }
-            // Kita mapping agar sesuai interface RiskProfileSimulationResult di FE
-            const raw = response.data.data;
+            const cleanToken = fileContent
+                .trim()
+                .replace(/^\uFEFF/, '')
+                .replace(/\s/g, '')
+                .replace(/^"|"$/g, '');
 
-            // Mapping respon backend ke struktur frontend jika ada perbedaan
+            if (!cleanToken) throw new Error("Isi file token kosong setelah dibersihkan.");
+
+            // Debugging (Opsional: Cek di console browser)
+            // console.log("Token Cleaned:", cleanToken);
+
+            // Kirim ke Backend dengan key 'token' (sesuai payload JSON request)
+            const response = await api.post('/financial/simulation/decode', { simulationToken: cleanToken });
+
+            // Handle Response dari Backend (bisa terbungkus .data atau langsung)
+            const data = response.data?.data || response.data;
+
+            if (!data) throw new Error("Data hasil decode kosong dari server.");
+
+            // Return data sesuai struktur yang dibutuhkan UI
+            if (data.meta && data.client && (data.financial || data.result)) {
+                return data;
+            }
+
+            // Fallback mapping (Jaga-jaga jika format backend berubah)
             return {
                 meta: {
                     version: "1.0",
-                    generatedAt: raw.last_simulation_date || new Date().toISOString(),
-                    agentId: "unknown",
+                    generatedAt: data.created_at || new Date().toISOString(),
                     module: "RISK_PROFILE"
                 },
-                client: raw.client,
-                financial: raw.financial,
-                result: raw.result || raw.financialRatios // Fallback property name
-            } as RiskProfileSimulationResult;
+                client: {
+                    name: data.client_name || data.client?.name || "",
+                    dob: data.client_dob || data.client?.dob || "",
+                    city: data.client_city || data.client?.city || "",
+                    job: data.client_job || data.client?.job || "",
+                    phone: data.client_phone || data.client?.phone || ""
+                },
+                financial: {
+                    answers: data.answers || data.financial?.answers || []
+                },
+                result: data.result || null
+            };
 
         } catch (error: any) {
             console.error("Token Validate Error:", error);
-            throw new Error(error.response?.data?.message || "File simulasi rusak atau tidak valid.");
+            const msg = error.response?.data?.message || error.message;
+            // Jika backend mengembalikan array error message, ambil yang pertama
+            throw new Error(Array.isArray(msg) ? msg[0] : msg);
         }
-    }
+    },
 };

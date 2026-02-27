@@ -10,7 +10,7 @@ import { financialService } from "@/services/financial.service";
 import { useAuthUser } from "@/hooks/use-auth-user"; // [NEW] Auth Hook
 
 // UI Components
-import { PdfLoadingModal } from "@/components/features/finance/pdf-loading-modal";
+import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";

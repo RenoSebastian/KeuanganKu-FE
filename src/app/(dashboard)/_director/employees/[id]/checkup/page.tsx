@@ -1,9 +1,9 @@
 // SERVER COMPONENT
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { 
-  ArrowLeft, 
-  ShieldAlert, 
+import {
+  ArrowLeft,
+  ShieldAlert,
   ChevronRight,
   FileText
 } from "lucide-react";
@@ -16,7 +16,7 @@ import { directorService } from "@/services/director.service";
 // Components
 import EmployeeProfileHeader from "@/components/features/director/audit/employee-profile-header";
 import AuditNotice from "@/components/features/director/audit/audit-notice";
-import { CheckupResult } from "@/components/features/finance/checkup-result";
+import { CheckupResult } from "@/components/features/calculator/finance/checkup-result";
 import PrintButton from "@/components/features/director/audit/print-button";
 
 // [FIX NEXT.JS 15] Params sebagai Promise
@@ -63,11 +63,11 @@ export default async function EmployeeAuditPage({ params }: { params: Promise<{ 
   // --- STATE: SUCCESS (MINIMALIST VIEW) ---
   return (
     <div className="min-h-screen bg-white pb-20">
-      
+
       {/* 1. HEADER NAVIGASI (Sangat Minimalis & Clean) */}
       <header className="border-b border-slate-100 bg-white sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          
+
           {/* Breadcrumb Style Nav */}
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <Link href="/director/dashboard" className="hover:text-slate-900 transition-colors">
@@ -83,11 +83,11 @@ export default async function EmployeeAuditPage({ params }: { params: Promise<{ 
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-xs font-medium text-slate-600">
-                <FileText className="w-3 h-3" />
-                <span>REF: {id.substring(0, 6).toUpperCase()}</span>
-             </div>
-             <PrintButton />
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-xs font-medium text-slate-600">
+              <FileText className="w-3 h-3" />
+              <span>REF: {id.substring(0, 6).toUpperCase()}</span>
+            </div>
+            <PrintButton />
           </div>
         </div>
       </header>
@@ -98,13 +98,13 @@ export default async function EmployeeAuditPage({ params }: { params: Promise<{ 
         {/* SECTION A: IDENTITY & CONTEXT */}
         <section>
           <div className="mb-6">
-             {/* Security Notice yang tidak mencolok tapi ada */}
-             <AuditNotice viewerName="DIREKSI" />
+            {/* Security Notice yang tidak mencolok tapi ada */}
+            <AuditNotice viewerName="DIREKSI" />
           </div>
 
           {/* Profile Header - Langsung flat, tanpa card berlebihan */}
           <div className="bg-white">
-             <EmployeeProfileHeader profile={profile} />
+            <EmployeeProfileHeader profile={profile} />
           </div>
         </section>
 
@@ -126,11 +126,11 @@ export default async function EmployeeAuditPage({ params }: { params: Promise<{ 
             Ini menghilangkan efek "Card dalam Card".
           */}
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <CheckupResult 
-                data={analysis} 
-                rawData={record} 
-                mode="DIRECTOR_VIEW" 
-             />
+            <CheckupResult
+              data={analysis}
+              rawData={record}
+              mode="DIRECTOR_VIEW"
+            />
           </div>
         </section>
 

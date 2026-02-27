@@ -300,23 +300,58 @@ export interface EducationSimulationResponse {
     filename: string;
 }
 
-// 3. Struktur Data UI / View Model (Digunakan di Component Page & Result)
-// Interface ini digunakan jika Anda melakukan mapping data dari Response -> Tampilan UI
+// ============================================================================
+// 3. STRUKTUR DATA UI / VIEW MODEL (HASIL MERGE SMART)
+// ============================================================================
+
 export interface StageBreakdownItem {
+    // Milik Pecahan Anda
     level: string;
-    costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL";
+    costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL" | "ANNUAL"; // Digabung
     yearsToStart: number;
     currentCost: number;
     futureCost: number;
     monthlySaving: number;
+
+    // Suntikan dari types.ts Raksasa (dibuat opsional agar tak merusak code baru)
+    requiredSaving?: number;
+    item?: any;
+    dueYear?: number;
+    stage?: string;
+    stageId?: string;
+}
+
+// Menambahkan tipe dari Raksasa yang diperlukan ChildSimulationResult
+export interface StageDetailItem {
+    item: string;
+    dueYear: number;
+    futureCost: number;
+    requiredSaving: number;
+}
+
+export interface StageResult {
+    stageId: string;
+    label: string;
+    startGrade: number;
+    paymentFrequency: "MONTHLY" | "SEMESTER";
+    totalFutureCost: number;
+    monthlySaving: number;
+    details: StageDetailItem[];
 }
 
 export interface ChildSimulationResult {
+    // Milik Pecahan Anda
     name: string;
     age: number;
     totalFutureCost: number;
     monthlySaving: number;
-    stages: StageBreakdownItem[];
+    stages: StageBreakdownItem[] | StageResult[]; // Union dengan format lama
+
+    // Suntikan dari types.ts Raksasa
+    childId?: string;
+    childName?: string;
+    totalMonthlySaving?: number;
+    stagesBreakdown?: StageBreakdownItem[];
 }
 
 export interface EducationSimulationResult {
@@ -343,24 +378,71 @@ export interface EducationSimulationResult {
 }
 
 // ============================================================================
-// UTILITY TYPES (Maintenance & DB Stats)
+// SUNTIKAN DARI TYPES.TS RAKSASA (Tipe Lama yang Belum Ada di File Ini)
 // ============================================================================
 
-export interface DatabaseStats {
-    tables: {
-        tableName: string;
-        rowCount: number;
-        totalBytes: number;
-        formattedSize: string;
-        indexBytes: number;
-    }[];
-    totalDatabaseSize: number;
-    formattedTotalSize: string;
+export interface PlanInput {
+    stageId: string;
+    startGrade: number; // Default 1
+    costNow: {
+        entryFee: number;
+        monthlyFee: number; // SPP (x12) atau UKT (x2)
+    };
 }
 
-export interface PruneExecutionPayload {
-    entityType: string;
-    entityId?: string;
-    cutoffDate: string;
-    pruneToken: string;
+export interface ChildProfile {
+    id: string;
+    name: string;
+    dob: string;
+    gender: "L" | "P";
+    avatarColor: string;
+    plans: PlanInput[];
+}
+
+export interface EducationStagePayload {
+    level: SchoolLevel; // Mengikuti Enum baru Anda
+    costType: "ENTRY" | "ANNUAL";
+    currentCost: number;
+    yearsToStart: number;
+}
+
+export interface EducationPayload {
+    childName: string;
+    childDob: string; // YYYY-MM-DD
+    method?: "STATIC" | "GEOMETRIC";
+    inflationRate?: number;
+    returnRate?: number;
+    stages?: EducationStagePayload[];
+}
+
+// Alias DTO untuk Service
+export interface CreateEducationPlanDto extends EducationPayload { }
+
+export interface EducationCalculationResult {
+    totalFutureCost: number;
+    monthlySaving: number; // Total Saving (Sum of items)
+    stagesBreakdown: StageBreakdownItem[]; // Data Rincian Granular
+}
+
+export interface EducationPlanResponse {
+    plan: {
+        id: string;
+        userId: string;
+        childName: string;
+        childDob: string;
+        createdAt: string;
+        inflationRate: number;
+        returnRate: number;
+        method?: string;
+    };
+    calculation: EducationCalculationResult;
+}
+
+// Alias Data Response untuk Service
+export interface EducationPlanData extends EducationPlanResponse { }
+
+export interface PortfolioSummary {
+    grandTotalMonthlySaving: number;
+    totalFutureCost: number;
+    details: ChildSimulationResult[];
 }

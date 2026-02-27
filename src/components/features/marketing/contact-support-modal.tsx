@@ -105,7 +105,7 @@ const ContactSupportModal = ({ isOpen, onClose }: ContactSupportModalProps) => {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => copyToClipboard('geocitra.office@gmail.com')}
+                                            onClick={() => copyToClipboard('hello@keuanganku.id')}
                                             className="h-7 px-2.5 rounded-lg text-[10px] font-bold border-slate-200 bg-white"
                                         >
                                             {copied ? <Check className="w-3 h-3 text-green-500 mr-1" /> : <Copy className="w-3 h-3 text-slate-400 mr-1" />}
@@ -115,12 +115,12 @@ const ContactSupportModal = ({ isOpen, onClose }: ContactSupportModalProps) => {
 
                                     <div className="flex-1 w-full mb-4">
                                         <h4 className="text-base font-black text-slate-800 mb-1">Email Ticketing</h4>
-                                        <p className="text-xs text-slate-500 font-medium font-mono mb-1 truncate">geocitra.office@gmail.com</p>
+                                        <p className="text-xs text-slate-500 font-medium font-mono mb-1 truncate">hello@keuanganku.id</p>
                                         <p className="text-[10px] text-slate-400 font-bold">Estimasi: &lt; 2 Jam Kerja</p>
                                     </div>
 
                                     <Button
-                                        onClick={() => window.location.href = 'mailto:geocitra.office@gmail.com'}
+                                        onClick={() => window.location.href = 'mailto:hello@keuanganku.id'}
                                         className="w-full h-10 rounded-xl bg-slate-800 hover:bg-indigo-600 text-white font-bold shadow-md active:scale-95 transition-all text-xs mt-auto"
                                     >
                                         Kirim Email

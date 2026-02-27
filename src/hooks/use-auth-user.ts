@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import api from '@/lib/axios';
+import { getOrCreateDeviceId } from '@/lib/device-id'; // [NEW] Import Device Fingerprint Helper
 
 // =================================================================
 // TYPE DEFINITIONS (Matching Backend Response)
@@ -57,6 +58,7 @@ export function useAuthUser() {
     const [isLoading, setIsLoading] = useState(true);
     const [isPro, setIsPro] = useState(false);
     const [quota, setQuota] = useState(0);
+    const [deviceId, setDeviceId] = useState<string>(''); // [NEW] State untuk Device ID
 
     // 1. Fungsi Fetch Data Terbaru dari Server
     const fetchUserProfile = useCallback(async () => {
@@ -83,19 +85,44 @@ export function useAuthUser() {
             setIsPro(activeSub);
             setQuota(userQuota);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Gagal mengambil profil user:", error);
-            // Opsional: Jika 401, bisa trigger logout atau clear local storage
-            if (typeof window !== 'undefined') {
-                // localStorage.removeItem('token');
+
+            // [LOGIC] Jika server menolak dengan 401, bersihkan state
+            if (error?.response?.status === 401) {
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('refresh_token');
+                    setUser(null);
+                }
             }
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    // 2. Initial Load Logic
+    // [NEW] 2. Fungsi Force Logout (Untuk Fase 3 & 4)
+    // Fungsi ini akan dipanggil oleh Interceptor atau WebSocket jika terdeteksi Kick-out
+    const forceLogout = useCallback((reason: 'kicked' | 'expired' | 'manual' = 'manual') => {
+        if (typeof window !== 'undefined') {
+            // Hapus semua token, TAPI biarkan device_signature tetap utuh!
+            localStorage.removeItem('token');
+            localStorage.removeItem('refresh_token');
+
+            setUser(null);
+
+            // Redirect keras ke halaman login dengan menyertakan alasan
+            window.location.href = `/login${reason !== 'manual' ? `?reason=${reason}` : ''}`;
+        }
+    }, []);
+
+    // 3. Initial Load Logic
     useEffect(() => {
+        // [LOGIC] Inisialisasi Device ID begitu komponen/aplikasi di-mount
+        // Memastikan ID langsung tersedia tanpa memblokir rendering UI
+        const currentDeviceId = getOrCreateDeviceId();
+        setDeviceId(currentDeviceId);
+
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
         if (token) {
@@ -115,19 +142,20 @@ export function useAuthUser() {
                 fetchUserProfile();
             } catch (e) {
                 console.error("Token invalid:", e);
-                setUser(null);
-                setIsLoading(false);
+                forceLogout('expired'); // Eksekusi pembersihan jika token cacat
             }
         } else {
             setIsLoading(false);
         }
-    }, [fetchUserProfile]);
+    }, [fetchUserProfile, forceLogout]);
 
     return {
         user,           // Object User Lengkap
         isLoading,      // Status loading fetch API
         isPro,          // Boolean helper: Apakah user PRO?
         quota,          // Number helper: Sisa kuota user
-        refreshUser: fetchUserProfile, // Fungsi untuk memaksa update data (misal setelah bayar/simulasi)
+        deviceId,       // [NEW] Identitas perangkat persisten
+        refreshUser: fetchUserProfile, // Fungsi untuk memaksa update data
+        forceLogout,    // [NEW] Fungsi darurat untuk memutuskan sesi lokal
     };
 }

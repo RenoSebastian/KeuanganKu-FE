@@ -6,9 +6,17 @@ import {
     CheckCircle2, AlertTriangle, XCircle,
     RefreshCcw, FileText, ChevronDown, ChevronUp, ArrowLeft,
     TrendingUp, Activity, Download,
-    Lock, Sparkles, Scale, Wallet, Target, Info, FileArchive
+    Lock, Sparkles, Scale, Wallet, Target, Info, FileArchive,
+    User, Heart, Calendar, Phone, Briefcase, MapPin
 } from "lucide-react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+
 import { FinancialRecord, HealthAnalysisResult, CheckupSimulationResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
@@ -94,16 +102,36 @@ export function CheckupResult({
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
     const [localPdfLoading, setLocalPdfLoading] = useState(false);
-    const [isDownloadingMgc, setIsDownloadingMgc] = useState(false); // Membedakan loading MGC dan PDF
+    const [isDownloadingMgc, setIsDownloadingMgc] = useState(false);
 
     const isReadOnly = mode === "DIRECTOR_VIEW";
     const isAgentMode = mode === "AGENT_SIMULATION";
 
     // --- DATA NORMALIZATION ---
     let payload: CheckupSimulationResult | HealthAnalysisResult | null = null;
-    if (data?.data?.result) payload = data.data.result;
-    else if (data?.result) payload = data.result;
-    else payload = data;
+    let clientInfo: any = null;
+
+    if (data?.data?.result) {
+        payload = data.data.result;
+        clientInfo = data.data.client; // Extract client info from new structure
+    } else if (data?.result) {
+        payload = data.result;
+        clientInfo = data.client || (data as any).userProfile;
+    } else {
+        payload = data;
+        clientInfo = (data as any).client || (data as any).userProfile;
+    }
+
+    // Helper untuk Status Pernikahan
+    const getMaritalStatusLabel = (status: string) => {
+        const map: Record<string, string> = {
+            SINGLE: "Belum Menikah",
+            MARRIED: "Menikah",
+            DIVORCED: "Cerai",
+            WIDOWED: "Cerai Mati"
+        };
+        return map[status] || status || "-";
+    };
 
     if (!payload || (!payload.ratios && !(payload as any).ratiosDetails)) {
         return (
@@ -128,7 +156,6 @@ export function CheckupResult({
 
     // --- HANDLERS ---
 
-    // Handler Khusus Download .MGC (Simulation Backup)
     const handleAgentDownloadMgc = async () => {
         if (isDownloadingMgc) return;
         if (!data || (!data.mgcToken && !data.pdfBuffer)) {
@@ -146,7 +173,6 @@ export function CheckupResult({
         }
     };
 
-    // Handler Khusus Download PDF
     const handleDownloadPdf = async () => {
         if (localPdfLoading) return;
 
@@ -154,11 +180,9 @@ export function CheckupResult({
             setLocalPdfLoading(true);
 
             if (isAgentMode) {
-                // Di mode agen, kita gunakan helper khusus atau delegasikan ke props
                 if (onDownloadPdf) {
                     onDownloadPdf();
                 } else if (data?.pdfBuffer) {
-                    // Jika backend langsung mengembalikan buffer PDF
                     const blob = new Blob([new Uint8Array(data.pdfBuffer.data)], { type: 'application/pdf' });
                     const url = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -171,7 +195,6 @@ export function CheckupResult({
                     alert("Buffer PDF tidak ditemukan di data respons. Hubungi Admin.");
                 }
             } else {
-                // Legacy / User Mode (Ambil dari DB berdasarkan ID)
                 const recordId = (payload as any).id || (rawData as any)?.id;
                 if (!recordId) {
                     alert("ID Laporan tidak ditemukan. Mohon simpan data terlebih dahulu.");
@@ -346,28 +369,63 @@ export function CheckupResult({
             </div>
 
             {/* =========================================
-                2. AI DIAGNOSA SUMMARY 
+                2. AI DIAGNOSA & CLIENT INFO
                 ========================================= */}
-            <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white rounded-[1.5rem] p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center gap-4 relative overflow-hidden"
-            >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-2xl pointer-events-none" />
-                <div className="p-3 bg-indigo-50 rounded-xl shrink-0">
-                    <Sparkles className="w-6 h-6 text-indigo-600" />
-                </div>
-                <div className="relative z-10 flex-1">
-                    <h4 className="text-sm font-bold text-slate-800 mb-1 flex items-center gap-2">
-                        Analisa Cerdas Sistem
-                    </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* AI Summary */}
+                <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-white rounded-[1.5rem] p-5 shadow-sm border border-slate-200 flex flex-col gap-4 relative overflow-hidden"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-50 rounded-xl shrink-0">
+                            <Sparkles className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-800">Analisa Cerdas Sistem</h4>
+                    </div>
                     <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
                         Anda memiliki <strong className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{healthyCount} indikator SEHAT</strong>.
                         Sistem merekomendasikan Anda untuk segera memperbaiki sektor <strong className="text-indigo-600 border-b border-indigo-200">{priorityFix}</strong> guna meningkatkan skor kesehatan total.
                     </p>
-                </div>
-            </motion.div>
+                </motion.div>
+
+                {/* Client Info (With Marital Status) */}
+                {clientInfo && (
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="bg-white rounded-[1.5rem] p-5 shadow-sm border border-slate-200 flex flex-col gap-4"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-slate-50 rounded-xl shrink-0">
+                                <User className="w-5 h-5 text-slate-600" />
+                            </div>
+                            <h4 className="text-sm font-bold text-slate-800">Profil Klien</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-y-2 text-xs text-slate-600">
+                            <div className="flex flex-col">
+                                <span className="text-slate-400">Nama</span>
+                                <span className="font-semibold">{clientInfo.name}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-slate-400">Status</span>
+                                <span className="font-semibold">{getMaritalStatusLabel(clientInfo.maritalStatus)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-slate-400">Pekerjaan</span>
+                                <span className="font-semibold">{clientInfo.occupation || clientInfo.job || "-"}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-slate-400">Domisili</span>
+                                <span className="font-semibold">{clientInfo.city || "-"}</span>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </div>
 
             {/* =========================================
                 3. THE 8 RATIOS 
@@ -507,15 +565,16 @@ export function CheckupResult({
                                 Revisi Input
                             </Button>
                         )}
-                        
+
+                        {/* [FIXED] Tombol Reset: Membersihkan Data Lama via Parent Function */}
                         <Button
                             variant="outline"
                             onClick={onReset}
                             disabled={isDownloading}
-                            className="w-full sm:w-auto h-12 rounded-xl border-slate-300 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all px-6"
+                            className="w-full sm:w-auto h-12 rounded-xl border-slate-300 text-slate-600 font-bold hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 active:scale-95 transition-all px-6"
                         >
                             <RefreshCcw className="w-4 h-4 mr-2" />
-                            Buat Analisa Baru
+                            Mulai Sesi Baru
                         </Button>
 
                         {/* Tombol Khusus Agen: Download .mgc (Backup Data) */}

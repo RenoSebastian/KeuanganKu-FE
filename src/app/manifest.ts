@@ -2,27 +2,26 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'KeuanganKu - MAXIPRO', // Nama Lengkap Aplikasi
-    short_name: 'KeuanganKu',      // Nama di bawah icon HP
-    description: 'Aplikasi Perencanaan Keuangan Karyawan MAXIPRO',
+    name: 'KeuanganKu',
+    short_name: 'KeuanganKu',
+    description: 'Platform Perencanaan Keuangan & Simulasi Finansial Profesional untuk Agen',
     start_url: '/',
-    display: 'standalone',         // Tampilan Native (tanpa browser bar)
+    display: 'standalone',
     background_color: '#ffffff',
-    theme_color: '#0056b3',        // Biru PAM JAYA (sesuai history file Anda)
+    theme_color: '#0056b3',
     icons: [
       {
-        src: '/icons/icon-192x192.png',
+        src: '/icons/icon.png', // Pastikan file ini ada di public/icons/icon.png
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        src: '/icons/icon-512x512.png',
+        src: '/icons/icon.png',
         sizes: '512x512',
         type: 'image/png',
       },
-      // Opsional: Maskable icon (safe zone untuk icon bulat)
       {
-        src: '/icons/icon-512x512.png',
+        src: '/icons/icon.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable'
