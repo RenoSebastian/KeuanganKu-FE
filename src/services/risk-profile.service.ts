@@ -25,16 +25,14 @@ export const riskProfileService = {
                 }
             );
 
-            // 1. Ambil Token dari Header (Berisi data hasil kalkulasi JSON)
-            // Axios secara otomatis mengubah nama header menjadi lowercase
+            // 1. Ambil Token dari Header
             const mgcToken = response.headers['x-mgc-token'];
 
             if (!mgcToken) {
                 throw new Error("Security Token (.mgc) tidak ditemukan dalam response server.");
             }
 
-            // 2. Decode Token di Client-Side (Stateless Decoding)
-            // Format Token Backend: PayloadBase64.Signature
+            // 2. Decode Token di Client-Side
             const [payloadBase64] = mgcToken.split('.');
 
             if (!payloadBase64) {
@@ -43,7 +41,6 @@ export const riskProfileService = {
 
             let decodedData: RiskProfileSimulationResult;
             try {
-                // Decode Base64 ke JSON String -> Parse ke Object
                 const jsonString = atob(payloadBase64);
                 decodedData = JSON.parse(jsonString);
             } catch (e) {
@@ -51,11 +48,10 @@ export const riskProfileService = {
                 throw new Error("Gagal membaca data hasil simulasi dari token.");
             }
 
-            // 3. Buat URL Blob untuk PDF agar bisa didownload/preview
+            // 3. Buat URL Blob untuk PDF
             const blob = new Blob([response.data], { type: "application/pdf" });
             const pdfUrl = window.URL.createObjectURL(blob);
 
-            // 4. Return Paket Lengkap ke Component
             return {
                 pdfUrl,
                 token: mgcToken,
@@ -65,9 +61,6 @@ export const riskProfileService = {
         } catch (error: any) {
             console.error("Risk Profile Simulation Error:", error);
 
-            // [EDGE CASE HANDLER]
-            // Jika response error (misal 400 Bad Request), axios tetap mengembalikannya sebagai Blob karena 'responseType: blob'.
-            // Kita perlu konversi Blob error kembali ke JSON text untuk membaca pesan error asli dari Backend.
             if (error.response?.data instanceof Blob) {
                 const errorBlob = error.response.data;
                 const errorText = await errorBlob.text();
@@ -75,7 +68,6 @@ export const riskProfileService = {
                     const errorJson = JSON.parse(errorText);
                     throw new Error(errorJson.message || "Gagal memproses simulasi.");
                 } catch (jsonError) {
-                    // Jika gagal parse JSON, berarti error raw/network
                     throw new Error("Terjadi kesalahan sistem saat memproses PDF.");
                 }
             }
@@ -85,46 +77,46 @@ export const riskProfileService = {
     },
 
     /**
-     * Mendecode token .mgc menjadi data JSON yang bisa dibaca frontend
-     * [UPDATED]: Dilengkapi sanitasi token & mapping data yang robust
+     * Mendecode token .mgc menjadi data JSON yang bisa dibaca frontend.
+     * [UPDATED]: Logic disederhanakan untuk file RAW STRING dengan pembersihan karakter agresif.
      */
-    decodeSimulationToken: async (token: string): Promise<any> => {
+    decodeSimulationToken: async (fileContent: string): Promise<any> => {
         try {
-            // 1. SANITASI TOKEN (PENTING UNTUK MENGHINDARI ERROR 400)
-            // - Hapus whitespace kiri/kanan
-            // - Hapus karakter BOM (\uFEFF) yang sering muncul dari Notepad
-            // - Hapus tanda kutip ganda di awal/akhir jika ada
-            const cleanToken = token
+            // [LOGIC PEMBERSIHAN]
+            // 1. .trim() -> Hapus spasi depan/belakang
+            // 2. .replace(/^\uFEFF/, '') -> Hapus BOM (Byte Order Mark) jika file dari Notepad
+            // 3. .replace(/\s/g, '') -> Hapus SEMUA spasi & enter (newline) di tengah/akhir string
+            // 4. .replace(/^"|"$/g, '') -> Hapus tanda kutip jika string terbungkus kutip
+
+            const cleanToken = fileContent
                 .trim()
                 .replace(/^\uFEFF/, '')
+                .replace(/\s/g, '')
                 .replace(/^"|"$/g, '');
 
-            if (!cleanToken) throw new Error("Konten file token kosong.");
+            if (!cleanToken) throw new Error("Isi file token kosong setelah dibersihkan.");
 
-            // 2. Request ke Backend
+            // Debugging (Opsional: Cek di console browser)
+            // console.log("Token Cleaned:", cleanToken);
+
+            // Kirim ke Backend dengan key 'token' (sesuai payload JSON request)
             const response = await api.post('/financial/simulation/decode', { token: cleanToken });
 
-            // 3. Handle Response (Flexible Mapping)
-            // Backend bisa mengembalikan response.data langsung atau terbungkus
+            // Handle Response dari Backend (bisa terbungkus .data atau langsung)
             const data = response.data?.data || response.data;
 
-            // Validasi dasar
-            if (!data) throw new Error("Data hasil decode kosong.");
+            if (!data) throw new Error("Data hasil decode kosong dari server.");
 
-            // [FIX LOGIC]
-            // Jika data sudah memiliki struktur 'meta', kembalikan langsung.
-            // Tidak perlu mapping manual 'last_simulation_date' yang menyebabkan error.
+            // Return data sesuai struktur yang dibutuhkan UI
             if (data.meta && data.client && (data.financial || data.result)) {
                 return data;
             }
 
-            // [FALLBACK]: Mapping untuk struktur legacy (jika backend berubah format)
-            // (Tetapi berdasarkan log error Anda, bagian ini yang memicu masalah karena 'raw' tidak sesuai ekspektasi)
+            // Fallback mapping (Jaga-jaga jika format backend berubah)
             return {
                 meta: {
                     version: "1.0",
-                    generatedAt: data.created_at || new Date().toISOString(), // Fallback ke created_at atau now
-                    agentId: "unknown",
+                    generatedAt: data.created_at || new Date().toISOString(),
                     module: "RISK_PROFILE"
                 },
                 client: {
@@ -135,15 +127,15 @@ export const riskProfileService = {
                     phone: data.client_phone || data.client?.phone || ""
                 },
                 financial: {
-                    answers: data.answers || data.financial?.answers || [] // Pastikan ini sesuai dengan struktur legacy jika ada
+                    answers: data.answers || data.financial?.answers || []
                 },
                 result: data.result || null
             };
 
         } catch (error: any) {
             console.error("Token Validate Error:", error);
-            // Lempar error message yang bersih ke UI
             const msg = error.response?.data?.message || error.message;
+            // Jika backend mengembalikan array error message, ambil yang pertama
             throw new Error(Array.isArray(msg) ? msg[0] : msg);
         }
     },

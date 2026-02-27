@@ -104,9 +104,10 @@ export function RiskProfileWizard() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Reset input value agar bisa pilih file yang sama jika gagal
+        // Reset input value agar user bisa memilih file yang sama jika upload sebelumnya gagal
         e.target.value = "";
 
+        // Validasi ekstensi file
         if (!file.name.endsWith(".mgc")) {
             toast.error("Format file tidak valid. Gunakan file .mgc");
             return;
@@ -119,18 +120,22 @@ export function RiskProfileWizard() {
 
         reader.onload = async (event) => {
             try {
-                const tokenString = event.target?.result as string;
-                if (!tokenString) throw new Error("File kosong");
+                // Baca konten file sebagai string
+                const rawContent = event.target?.result as string;
+                if (!rawContent) throw new Error("File kosong");
 
-                // [UPDATED CALL]: Panggil service yang sudah diperbaiki
+                // Bersihkan whitespace (spasi/enter) dari file mentah sebelum diproses
+                const tokenString = rawContent.trim();
+
+                // [CALL SERVICE] Decode dengan sanitasi di service
                 const decoded = await riskProfileService.decodeSimulationToken(tokenString);
 
-                // Validasi Modul
+                // Validasi Modul (Safety Check)
                 if (decoded.meta?.module !== "RISK_PROFILE") {
                     throw new Error(`File ini adalah data ${decoded.meta?.module}, bukan Profil Risiko.`);
                 }
 
-                // Normalisasi Jawaban (antisipasi format array/object)
+                // Normalisasi Jawaban (antisipasi perbedaan format array vs object dari versi lama)
                 let normalizedAnswers: RiskProfileAnswerItem[] = [];
                 const rawAnswers = decoded.financial?.answers;
 
@@ -143,22 +148,25 @@ export function RiskProfileWizard() {
                     }));
                 }
 
+                // Update State Aplikasi
                 setClientData(decoded.client);
                 setAnswers(normalizedAnswers);
 
-                // Jika sudah ada result, langsung tampilkan
+                // Cek apakah file sudah mengandung hasil analisa (Result)
                 if (decoded.result) {
                     setSimulationResult(decoded.result);
                     setCurrentStep("RESULT");
                 } else {
-                    // Jika draft belum selesai, masuk ke Quiz
+                    // Jika data belum ada hasil (draft), arahkan ke step Kuesioner
                     setCurrentStep("QUIZ");
                 }
 
-                setMgcToken(tokenString); // Simpan token asli untuk download ulang
-                setPdfUrl(null); // PDF harus generate ulang jika perlu
+                // Simpan token yang sudah dibersihkan ke state untuk keperluan download/restore nanti
+                setMgcToken(tokenString);
+                setPdfUrl(null); // Reset PDF karena import baru belum tentu punya PDF yang valid
 
                 toast.success("Import Berhasil!", { id: toastId, description: `Data simulasi ${decoded.client.name} berhasil dimuat.` });
+
             } catch (err: any) {
                 console.error("Import Failed:", err);
                 toast.error("Gagal Import", { id: toastId, description: err.message || "File rusak atau format tidak valid." });
@@ -172,7 +180,7 @@ export function RiskProfileWizard() {
             setIsImporting(false);
         };
 
-        // [CRITICAL] Baca sebagai text string
+        // [CRITICAL] Wajib readAsText agar token terbaca sebagai string, bukan Blob/DataURL
         reader.readAsText(file);
     };
 
