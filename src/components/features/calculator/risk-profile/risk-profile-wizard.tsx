@@ -154,7 +154,7 @@ export function RiskProfileWizard() {
 
                 // Cek apakah file sudah mengandung hasil analisa (Result)
                 if (decoded.result) {
-                    setSimulationResult(decoded.result);
+                    setSimulationResult(decoded);
                     setCurrentStep("RESULT");
                 } else {
                     // Jika data belum ada hasil (draft), arahkan ke step Kuesioner

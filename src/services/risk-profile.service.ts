@@ -100,7 +100,7 @@ export const riskProfileService = {
             // console.log("Token Cleaned:", cleanToken);
 
             // Kirim ke Backend dengan key 'token' (sesuai payload JSON request)
-            const response = await api.post('/financial/simulation/decode', { token: cleanToken });
+            const response = await api.post('/financial/simulation/decode', { simulationToken: cleanToken });
 
             // Handle Response dari Backend (bisa terbungkus .data atau langsung)
             const data = response.data?.data || response.data;
