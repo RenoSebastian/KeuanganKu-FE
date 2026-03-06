@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { adminService } from "@/services/admin.service";
-import { masterDataService, UnitKerja } from "@/services/master-data.service";
+import { MasterDataService, UnitKerja } from "@/services/master-data.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 

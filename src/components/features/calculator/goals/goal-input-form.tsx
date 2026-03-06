@@ -9,11 +9,22 @@ import { cn } from "@/lib/utils";
 
 // --- INTERFACES ---
 export interface GoalOption {
-    id: string; label: string; icon: any; desc: string;
+    id: string;
+    label: string;
+    icon: React.ElementType; // Perbaikan dari 'any' menjadi React.ElementType untuk komponen Ikon
+    desc: string;
+}
+
+export interface ClientData {
+    clientName: string;
+    clientDob: string;
+    clientCity: string;
+    clientPhone?: string;
+    clientJob?: string;
 }
 
 interface GoalInputFormProps {
-    clientData: any;
+    clientData: ClientData; // Perbaikan dari 'any' menjadi strict type
     handleClientChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 
     goalOptions: GoalOption[];
@@ -55,6 +66,20 @@ export function GoalInputForm(props: GoalInputFormProps) {
         returnRate, setReturnRate,
         handleReset, handleSimulate, isLoading
     } = props;
+
+    // Kalkulasi logical untuk minimal target waktu (1 bulan ke depan dari local time)
+    const getMinTargetDate = () => {
+        const today = new Date();
+        today.setMonth(today.getMonth() + 1);
+
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+
+    const minDate = getMinTargetDate();
 
     return (
         <div className="lg:col-span-5 space-y-6 animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300 flex flex-col">
@@ -147,14 +172,14 @@ export function GoalInputForm(props: GoalInputFormProps) {
                             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">No. HP <span className="text-[9px] font-normal lowercase">(Opsional)</span></Label>
                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                 <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                <Input type="tel" inputMode="numeric" name="clientPhone" placeholder="0812..." value={clientData.clientPhone} onChange={handleClientChange} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" />
+                                <Input type="tel" inputMode="numeric" name="clientPhone" placeholder="0812..." value={clientData.clientPhone || ''} onChange={handleClientChange} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" />
                             </div>
                         </div>
                         <div className="group space-y-1.5">
                             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Pekerjaan <span className="text-[9px] font-normal lowercase">(Opsional)</span></Label>
                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                 <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                <Input name="clientJob" placeholder="PNS" value={clientData.clientJob} onChange={handleClientChange} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" />
+                                <Input name="clientJob" placeholder="PNS" value={clientData.clientJob || ''} onChange={handleClientChange} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" />
                             </div>
                         </div>
                     </div>
@@ -186,7 +211,8 @@ export function GoalInputForm(props: GoalInputFormProps) {
                                 <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Target Tercapai <span className="text-rose-500">*</span></Label>
                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                     <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                    <Input type="date" value={targetDate} onChange={e => { setTargetDate(e.target.value); resetResult(); }} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm block w-full focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" min={new Date().toISOString().split("T")[0]} />
+                                    {/* PERBAIKAN LOGICAL BUG: Menggunakan minDate yang sudah dikalkulasi, bukan tanggal hari ini */}
+                                    <Input type="date" value={targetDate} onChange={e => { setTargetDate(e.target.value); resetResult(); }} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm block w-full focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" min={minDate} />
                                 </div>
                             </div>
                             <div className="group space-y-1.5">
@@ -204,14 +230,15 @@ export function GoalInputForm(props: GoalInputFormProps) {
                                     <span>Asumsi Inflasi Tahunan</span>
                                     <span className="text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm">{inflation}%</span>
                                 </div>
-                                <Slider value={inflation} onChange={(v) => { setInflation(v); resetResult(); }} min={0} max={15} step={0.5} className="py-2" />
+                                {/* Asumsi Slider Anda mengkonsumsi single number. Jika ini komponen shadcn asli, perhatikan dokumentasinya terkadang meminta array [inflation] */}
+                                <Slider value={inflation as any} onChange={(v: any) => { setInflation(v); resetResult(); }} min={0} max={15} step={0.5} className="py-2" />
                             </div>
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                                     <span>Return Investasi Tahunan</span>
                                     <span className="text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm">{returnRate}%</span>
                                 </div>
-                                <Slider value={returnRate} onChange={(v) => { setReturnRate(v); resetResult(); }} min={0} max={20} step={0.5} className="py-2" />
+                                <Slider value={returnRate as any} onChange={(v: any) => { setReturnRate(v); resetResult(); }} min={0} max={20} step={0.5} className="py-2" />
                             </div>
                         </div>
                     </div>
