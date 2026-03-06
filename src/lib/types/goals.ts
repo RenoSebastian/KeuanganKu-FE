@@ -1,98 +1,133 @@
 // ============================================================================
-// FINANCIAL GOALS MODULE TYPES
+// DOMAIN: FINANCIAL GOALS MODULE TYPES
 // ============================================================================
 
-// [DTO] Alias Data Response untuk Service
+/**
+ * [DTO Response] Representasi data entitas Goal dari database (Read/Fetch).
+ */
 export interface GoalPlanData {
     id: string;
     goalName: string;
     targetAmount: number;
     futureValue: number;
     monthlySaving: number;
-    createdAt: string;
+    createdAt: string; // ISO 8601 Date String
 }
 
-// Interface untuk SAVE (CreateGoalDto)
+/**
+ * Base Payload untuk persistensi data Impian Finansial.
+ */
 export interface GoalPayload {
     goalName: string;
-    targetAmount: number; // Nilai Future Value yang sudah dihitung
-    targetDate: string;   // Tanggal tercapai (Date.now() + years)
+    /** Nilai Future Value yang sudah dikalkulasi dengan inflasi */
+    targetAmount: number;
+    /** Target waktu tercapai (Format: YYYY-MM-DD atau ISO String) */
+    targetDate: string;
     inflationRate: number;
     returnRate: number;
-    monthlySaving?: number; // Optional for simulation
+    /** Opsional: Hasil simulasi tabungan bulanan yang disetujui klien */
+    monthlySaving?: number;
 }
 
-// [FIX] Alias DTO & Response Data
+/**
+ * [DTO Request] Contract untuk endpoint POST /goals (Create).
+ * Memisahkan semantic alias antara Payload dasar dan Request DTO.
+ */
 export interface CreateGoalDto extends GoalPayload { }
 
+
 // ============================================================================
-// CALCULATOR SIMULATION TYPES (User / Self)
+// DOMAIN: CALCULATOR SIMULATION TYPES (User / Self Service)
 // ============================================================================
 
-// Interface untuk SIMULATE (SimulateGoalDto)
+/**
+ * [DTO Request] Input dasar untuk kalkulator simulasi standar.
+ */
 export interface SimulateGoalDto {
-    targetAmount: number;
+    targetAmount: number; // Nilai saat ini (Present Value)
     years: number;
     inflationRate: number;
     returnRate: number;
 }
 
+/**
+ * [DTO Request] Input kalkulator dengan dukungan backwards-compatibility.
+ */
 export interface GoalSimulationInput extends SimulateGoalDto {
-    currentCost?: number; // Legacy support
+    /** @deprecated Gunakan targetAmount. Dipertahankan untuk legacy UI. */
+    currentCost?: number;
 }
 
-// Interface Output Simulasi (Backend Response)
+/**
+ * [DTO Response] Hasil agregasi dari mesin kalkulasi finansial (Backend/Engine).
+ */
 export interface GoalSimulationResult {
-    futureTargetAmount: number; // Matches BE response property
-    monthlySaving: number;      // PMT (Tabungan Bulanan)
-    years?: number;             // [MERGE] Optional dari Pecahan Raksasa
+    futureTargetAmount: number;    // Hasil Future Value
+    monthlySaving: number;         // PMT (Payment per Month)
 
-    // [MERGE] Properti tambahan dari Section 11 Giant Types
+    // Temporal Properties
+    years?: number;
     yearsDuration?: number;
     monthsDuration?: number;
-    futureExistingFund?: number;   // Modal awal kena investasi
-    netTarget?: number;            // Kekurangan (Gap)
+
+    // Investment Metrics
+    /** Nilai masa depan dari modal/tabungan awal yang sudah diinvestasikan */
+    futureExistingFund?: number;
+    /** Gap: Nilai yang benar-benar harus dikumpulkan (Future Target - Future Existing) */
+    netTarget?: number;
 }
 
+
 // ============================================================================
-// LEGACY SUPPORT TYPES
+// DOMAIN: LEGACY SUPPORT TYPES (Tightly Coupled to Old UI)
 // ============================================================================
 
 export type GoalType = "IBADAH" | "LIBURAN" | "PERNIKAHAN" | "LAINNYA";
 
+/**
+ * @deprecated Rencana transisi: Migrasi ke CreateGoalSimulationDto
+ */
 export interface SpecialGoalInput {
     goalType: GoalType;
     currentCost: number;
     inflationRate: number;
-    investmentRate: number;
-    duration: number;
+    investmentRate: number; // Inconsistent naming: equivalent to returnRate
+    duration: number;       // Inconsistent naming: equivalent to years
 }
 
+/**
+ * @deprecated Rencana transisi: Migrasi ke GoalSimulationResult
+ */
 export interface SpecialGoalResult {
-    futureValue: number;
+    futureValue: number;    // Inconsistent naming: equivalent to futureTargetAmount
     monthlySaving: number;
 }
 
+
 // ============================================================================
-// AGENT SIMULATION TYPES (From Section 11 of Giant Types)
+// DOMAIN: AGENT / ADVISOR SIMULATION TYPES (Stateless Aggregation)
 // ============================================================================
 
-// [NEW] GOAL SIMULATION INPUT (STATELESS)
+/**
+ * [DTO Request] Payload komprehensif untuk simulasi via Agen (Section 11).
+ * Menggabungkan informasi entitas Klien dan parameter Impian dalam satu agregat.
+ */
 export interface CreateGoalSimulationDto {
-    // Identity
+    // --- Client Identity Aggregate ---
     clientName: string;
-    clientDob: string;
+    clientDob: string; // YYYY-MM-DD
     clientCity: string;
     clientJob?: string;
     clientPhone?: string;
 
-    // Goal Params
+    // --- Financial Goal Aggregate ---
     goalName: string;
-    targetAmount: number;
-    targetDate: string; // YYYY-MM-DD
-    currentSaving?: number; // Modal Awal
+    targetAmount: number;   // Present Value / Biaya Saat Ini
+    targetDate: string;     // YYYY-MM-DD
+    /** Modal Awal (Lump Sum) yang sudah dimiliki klien */
+    currentSaving?: number;
 
-    // Economics
+    // --- Economic Assumptions ---
     inflationRate?: number;
     returnRate?: number;
 }
