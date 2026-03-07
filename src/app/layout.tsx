@@ -6,10 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "KeuanganKu - MAXIPRO",
-  description: "Aplikasi Perencanaan Keuangan Karyawan",
-  // [FIX]: Hapus baris 'manifest: "/manifest.json"' dari sini. 
-  // Next.js App Router secara otomatis membaca file 'src/app/manifest.ts' Anda dan menyuntikkannya dengan benar.
+  title: "KeuanganKu - Portal Agent",
+  description: "Sistem Perencanaan Keuangan untuk Agen Profesional",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -36,10 +34,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body 
+      <body
         className={`${inter.className} bg-slate-50 text-slate-900 antialiased min-h-screen overscroll-none select-none`}
       >
         {children}
+        {/* Toaster diletakkan di Root agar notifikasi (seperti OTP sukses) bisa melintasi semua halaman */}
         <Toaster richColors position="top-right" />
       </body>
     </html>
