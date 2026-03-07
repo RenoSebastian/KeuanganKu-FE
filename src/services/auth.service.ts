@@ -1,12 +1,23 @@
 import api from "@/lib/axios";
-import { LoginDto, RegisterDto, AuthResponse, User, RefreshTokenDto } from "@/lib/types/auth"; // Sesuaikan path jika menggunakan export barrel (index.ts)
+// Sesuaikan import DTO dengan kontrak terbaru
+import {
+  LoginDto,
+  RegisterDto,
+  AuthResponse,
+  User,
+  RefreshTokenDto,
+  VerifyOtpDto,
+  ResendOtpDto,
+  RegisterPhase1Response,
+  ResendOtpResponse
+} from "@/lib/types/auth";
 import Cookies from "js-cookie";
 import { getOrCreateDeviceId } from "@/lib/device-id";
 
 export const authService = {
-  // 1. LOGIN
-  // Menggunakan Omit agar UI Component tidak perlu repot mengirim deviceId.
-  // Service ini yang akan mengurusnya secara otomatis (Interceptor Pattern).
+  // =================================================================
+  // 1. LOGIN (EXISTING)
+  // =================================================================
   login: async (data: Omit<LoginDto, 'deviceId'>) => {
     const deviceId = getOrCreateDeviceId();
     const payload: LoginDto = { ...data, deviceId };
@@ -16,17 +27,13 @@ export const authService = {
     if (response.data.access_token) {
       const { access_token, refresh_token, user } = response.data;
 
-      // Set cookie untuk access_token (opsional, jika SSR butuh)
       Cookies.set("token", access_token, { expires: 1, path: '/' });
 
       if (typeof window !== "undefined") {
         localStorage.setItem("token", access_token);
-
-        // Simpan refresh_token jika Backend mengirimkannya
         if (refresh_token) {
           localStorage.setItem("refresh_token", refresh_token);
         }
-
         localStorage.setItem("user", JSON.stringify(user));
       }
     }
@@ -34,13 +41,27 @@ export const authService = {
     return response.data;
   },
 
-  // 2. REGISTER
-  register: async (data: Omit<RegisterDto, 'deviceId'>) => {
+  // =================================================================
+  // 2. REGISTER: PHASE 1 (REQUEST OTP)
+  // =================================================================
+  register: async (data: RegisterDto) => {
+    // Pada tahap ini, kita hanya menembak API untuk memicu pengiriman OTP ke email
+    // Tidak ada Token JWT yang dikembalikan oleh Backend di tahap ini.
+    const response = await api.post<RegisterPhase1Response>("/auth/register", data);
+    return response.data;
+  },
+
+  // =================================================================
+  // 3. REGISTER: PHASE 2 (VERIFY OTP & AUTO-LOGIN)
+  // =================================================================
+  verifyOtp: async (data: Omit<VerifyOtpDto, 'deviceId'>) => {
+    // Sisipkan Device ID secara otomatis agar Backend bisa membuat Single Concurrent Session
     const deviceId = getOrCreateDeviceId();
-    const payload: RegisterDto = { ...data, deviceId };
+    const payload: VerifyOtpDto = { ...data, deviceId };
 
-    const response = await api.post<AuthResponse>("/auth/register", payload);
+    const response = await api.post<AuthResponse>("/auth/verify-otp", payload);
 
+    // Identik dengan logika login, kita simpan token dan user data
     if (response.data.access_token) {
       const { access_token, refresh_token, user } = response.data;
 
@@ -58,7 +79,17 @@ export const authService = {
     return response.data;
   },
 
-  // [NEW] 3. REFRESH TOKEN (Silent Rotation)
+  // =================================================================
+  // 4. RESEND OTP (COOLDOWN & LIMIT ENFORCED)
+  // =================================================================
+  resendOtp: async (data: ResendOtpDto) => {
+    const response = await api.post<ResendOtpResponse>("/auth/resend-otp", data);
+    return response.data;
+  },
+
+  // =================================================================
+  // 5. REFRESH TOKEN (Silent Rotation)
+  // =================================================================
   refreshTokens: async () => {
     if (typeof window === "undefined") return null;
 
@@ -85,12 +116,13 @@ export const authService = {
     return response.data;
   },
 
-  // 4. LOGOUT
+  // =================================================================
+  // 6. LOGOUT
+  // =================================================================
   logout: () => {
     Cookies.remove("token", { path: '/' });
 
     if (typeof window !== "undefined") {
-      // Pembersihan total memori autentikasi, KECUALI device_signature
       localStorage.removeItem("token");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
@@ -98,7 +130,9 @@ export const authService = {
     }
   },
 
-  // 5. GET ME (SYNC PROFILE)
+  // =================================================================
+  // 7. GET ME (SYNC PROFILE)
+  // =================================================================
   getMe: async () => {
     try {
       const response = await api.get<User>("/users/me");
@@ -113,7 +147,9 @@ export const authService = {
     }
   },
 
-  // 6. UPDATE PROFILE
+  // =================================================================
+  // 8. UPDATE PROFILE
+  // =================================================================
   updateProfile: async (data: Partial<User>) => {
     try {
       const response = await api.patch<User>("/users/me", data);
@@ -129,7 +165,9 @@ export const authService = {
     }
   },
 
-  // 7. HELPER: GET CURRENT USER
+  // =================================================================
+  // HELPER METHODS
+  // =================================================================
   getCurrentUser: (): User | null => {
     if (typeof window !== "undefined") {
       const userStr = localStorage.getItem("user");
@@ -145,7 +183,6 @@ export const authService = {
     return null;
   },
 
-  // 8. HELPER: IS AUTHENTICATED
   isAuthenticated: (): boolean => {
     const token = Cookies.get("token");
     return !!token;
