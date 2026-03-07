@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export interface InputOTPProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
@@ -10,23 +11,27 @@ export interface InputOTPProps extends Omit<React.InputHTMLAttributes<HTMLInputE
 }
 
 const InputOTP = React.forwardRef<HTMLInputElement, InputOTPProps>(
-    ({ className, value, onChange, maxLength = 6, ...props }, ref) => {
-        // Array of refs untuk mengontrol fokus setiap kotak input
+    ({ className, value, onChange, maxLength = 6, disabled, ...props }, ref) => {
         const inputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
 
-        const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-            const val = e.target.value;
+        // Sinkronisasi fokus saat komponen di-mount
+        React.useEffect(() => {
+            if (props.autoFocus) {
+                inputRefs.current[0]?.focus();
+            }
+        }, [props.autoFocus]);
 
-            // Validasi Regex: Hanya izinkan angka
-            if (!/^[0-9]*$/.test(val)) return;
+        const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+            const val = e.target.value.replace(/[^0-9]/g, ""); // Pastikan hanya angka
+            if (!val && e.target.value !== "") return; // Blokir jika input bukan angka
 
             const newValue = value.split("");
-            // Ambil karakter terakhir untuk menangani kasus ketikan cepat
+            // Menangani kasus jika user mengetik di kotak yang sudah ada isinya
             newValue[index] = val.slice(-1);
             const combined = newValue.join("");
             onChange(combined);
 
-            // Pindahkan fokus ke kotak berikutnya jika tidak kosong
+            // Auto-focus ke kanan
             if (val !== "" && index < maxLength - 1) {
                 inputRefs.current[index + 1]?.focus();
             }
@@ -35,8 +40,7 @@ const InputOTP = React.forwardRef<HTMLInputElement, InputOTPProps>(
         const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
             if (e.key === "Backspace") {
                 if (!value[index] && index > 0) {
-                    // Jika kotak saat ini kosong dan user tekan backspace, 
-                    // pindah ke kotak sebelumnya dan hapus isinya.
+                    // Backspace di kotak kosong -> lari ke kiri dan hapus
                     const newValue = value.split("");
                     newValue[index - 1] = "";
                     onChange(newValue.join(""));
@@ -51,12 +55,13 @@ const InputOTP = React.forwardRef<HTMLInputElement, InputOTPProps>(
 
         const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
             e.preventDefault();
-            // Ekstrak hanya angka dari data yang di-paste, batasi sesuai maxLength
-            const pastedData = e.clipboardData.getData("text/plain").replace(/[^0-9]/g, "").slice(0, maxLength);
+            const pastedData = e.clipboardData
+                .getData("text/plain")
+                .replace(/[^0-9]/g, "")
+                .slice(0, maxLength);
 
             if (pastedData) {
                 onChange(pastedData);
-                // Otomatis pindahkan fokus ke kotak kosong berikutnya, atau kotak terakhir
                 const nextFocusIndex = Math.min(pastedData.length, maxLength - 1);
                 inputRefs.current[nextFocusIndex]?.focus();
             }
@@ -64,37 +69,74 @@ const InputOTP = React.forwardRef<HTMLInputElement, InputOTPProps>(
 
         return (
             <div className={cn("flex items-center justify-center gap-2 sm:gap-3", className)}>
-                {Array.from({ length: maxLength }).map((_, index) => (
-                    <input
-                        key={index}
-                        ref={(el) => {
-                            inputRefs.current[index] = el;
-                            // Forward the ref for the first input if needed by React Hook Form
-                            if (index === 0 && typeof ref === 'function') ref(el);
-                            else if (index === 0 && ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
-                        }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="\d*"
-                        maxLength={1}
-                        value={value[index] || ""}
-                        onChange={(e) => handleChange(e, index)}
-                        onKeyDown={(e) => handleKeyDown(e, index)}
-                        onPaste={handlePaste}
-                        className={cn(
-                            "w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-semibold bg-background",
-                            "border border-input rounded-md ring-offset-background transition-all",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                            "disabled:cursor-not-allowed disabled:opacity-50",
-                            value[index] ? "border-primary/50 text-primary" : ""
-                        )}
-                        {...props}
-                    />
-                ))}
+                {Array.from({ length: maxLength }).map((_, index) => {
+                    const isFocused = !disabled && (
+                        // Fokus jika index ini aktif, ATAU jika kotak sebelumnya terisi dan ini kotak kosong pertama
+                        (value.length === index) ||
+                        (value.length === maxLength && index === maxLength - 1)
+                    );
+
+                    const char = value[index] || "";
+
+                    return (
+                        <React.Fragment key={index}>
+                            <div className="relative group">
+                                <input
+                                    ref={(el) => {
+                                        inputRefs.current[index] = el;
+                                        if (index === 0 && ref) {
+                                            if (typeof ref === "function") ref(el);
+                                            else (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
+                                        }
+                                    }}
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="one-time-code"
+                                    pattern="\d*"
+                                    maxLength={1}
+                                    value={char}
+                                    disabled={disabled}
+                                    onChange={(e) => handleChange(e, index)}
+                                    onKeyDown={(e) => handleKeyDown(e, index)}
+                                    onPaste={handlePaste}
+                                    className={cn(
+                                        // Layout Utama Kotak
+                                        "w-12 h-16 sm:w-14 sm:h-20 text-center text-2xl font-black rounded-2xl transition-all duration-300",
+                                        "bg-slate-50 border-2 border-slate-100 text-slate-900 outline-none",
+                                        // State: Terisi
+                                        char && "border-slate-200 bg-white shadow-sm",
+                                        // State: Fokus / Aktif
+                                        "focus:border-blue-600 focus:bg-white focus:ring-8 focus:ring-blue-500/10",
+                                        // State: Disabled
+                                        "disabled:opacity-50 disabled:cursor-not-allowed",
+                                        // Mencegah font default browser yang jelek
+                                        "appearance-none"
+                                    )}
+                                    {...props}
+                                />
+
+                                {/* Animasi Cursor Buatan (Hanya muncul jika kotak kosong dan aktif) */}
+                                {!char && !disabled && (
+                                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                                        <div className="w-0.5 h-8 bg-blue-600 opacity-0 group-focus-within:animate-caret-blink" />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Separator di tengah digit (Contoh: 123 - 456) */}
+                            {index === 2 && (
+                                <div className="w-1 sm:w-2 flex justify-center">
+                                    <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                </div>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
             </div>
         );
     }
 );
+
 InputOTP.displayName = "InputOTP";
 
 export { InputOTP };
