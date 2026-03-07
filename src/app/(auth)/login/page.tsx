@@ -11,17 +11,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   LogIn, Eye, EyeOff, Lock, Mail, AlertCircle,
-  ArrowLeft, ShieldCheck, Briefcase, Info, Loader2
+  ArrowLeft, ShieldCheck, Info, Loader2
 } from "lucide-react";
 import { authService } from "@/services/auth.service";
-import Cookies from "js-cookie";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+// [TAMBAHAN] Import Komponen Verifikator Login yang baru saja kita buat
+import { LoginOtpForm } from "@/components/features/auth/login-otp-form";
+
+// Mendefinisikan tipe langkah (State Machine)
+type LoginStep = 1 | 2;
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
   const kickReason = searchParams.get('reason');
+
+  // [STATE MACHINE] Mengendalikan transisi tampilan
+  const [step, setStep] = useState<LoginStep>(1);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,34 +46,26 @@ function LoginForm() {
     }
   }, [kickReason]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLoginPhase1 = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
     setInfoMessage("");
 
     try {
-      const response = await authService.login({
+      // [LOGIKA BISNIS] Kita hanya meminta Backend untuk memverifikasi kredensial 
+      // dan mengirimkan OTP (Deferred Session)
+      await authService.login({
         email: formData.email,
         password: formData.password
       });
 
-      if (response.access_token) {
-        Cookies.set('token', response.access_token, {
-          expires: 1,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax'
-        });
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
+      // Transisi ke Phase 2 (Verifikasi OTP) secara mulus
+      setStep(2);
+      toast.success("Otorisasi Diperlukan", {
+        description: "Kode keamanan telah dikirim ke kotak masuk Anda.",
+      });
 
-      const role = response.user.role;
-      const dashboardPath = callbackUrl || (
-        role === 'DIRECTOR' ? '/_director/dashboard' :
-          role === 'ADMIN' ? '/admin/dashboard' : '/dashboard'
-      );
-
-      router.push(dashboardPath);
     } catch (err: any) {
       setError(err.response?.status === 403 || err.response?.status === 401
         ? "Email atau kata sandi tidak sesuai. Silakan coba lagi."
@@ -81,106 +82,142 @@ function LoginForm() {
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
       <Card className="border-none shadow-2xl shadow-blue-900/5 bg-white/90 backdrop-blur-2xl overflow-hidden rounded-[2.5rem]">
-        <CardContent className="p-7 sm:p-10">
-          <form onSubmit={handleLogin} className="space-y-6">
+        <CardContent className="p-7 sm:p-10 relative overflow-hidden">
 
-            {/* Alert Section */}
-            <AnimatePresence mode="wait">
-              {(error || infoMessage) && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className={cn(
-                    "p-4 rounded-2xl text-[13px] flex items-start gap-3 border font-medium",
-                    error ? "bg-red-50 text-red-700 border-red-100" : "bg-blue-50 text-blue-700 border-blue-100"
-                  )}
-                >
-                  {error ? <AlertCircle className="w-5 h-5 shrink-0" /> : <Info className="w-5 h-5 shrink-0" />}
-                  <span>{error || infoMessage}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <AnimatePresence mode="wait">
 
-            <div className="space-y-5">
-              {/* Email */}
-              <div className="space-y-2.5">
-                <Label htmlFor="email" className="text-slate-600 font-bold text-[13px] ml-1 uppercase tracking-wider">Email</Label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 group-focus-within:bg-blue-600 group-focus-within:text-white transition-all duration-300">
-                    <Mail size={18} />
+            {/* ================================================================= */}
+            {/* STATE 1: CREDENTIAL INPUT                                         */}
+            {/* ================================================================= */}
+            {step === 1 && (
+              <motion.div
+                key="step-1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+              >
+                <form onSubmit={handleLoginPhase1} className="space-y-6">
+
+                  {/* Alert Section */}
+                  <AnimatePresence mode="wait">
+                    {(error || infoMessage) && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className={cn(
+                          "p-4 rounded-2xl text-[13px] flex items-start gap-3 border font-medium mb-6",
+                          error ? "bg-red-50 text-red-700 border-red-100" : "bg-blue-50 text-blue-700 border-blue-100"
+                        )}
+                      >
+                        {error ? <AlertCircle className="w-5 h-5 shrink-0" /> : <Info className="w-5 h-5 shrink-0" />}
+                        <span>{error || infoMessage}</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="space-y-5">
+                    {/* Email */}
+                    <div className="space-y-2.5">
+                      <Label htmlFor="email" className="text-slate-600 font-bold text-[13px] ml-1 uppercase tracking-wider">Email</Label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 group-focus-within:bg-blue-600 group-focus-within:text-white transition-all duration-300">
+                          <Mail size={18} />
+                        </div>
+                        <Input
+                          id="email"
+                          type="email"
+                          inputMode="email"
+                          placeholder="nama@email.com"
+                          className="pl-16 h-15 bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-8 focus:ring-blue-500/5 transition-all rounded-2xl text-base"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="space-y-2.5">
+                      <Label htmlFor="password" className="text-slate-600 font-bold text-[13px] ml-1 uppercase tracking-wider">Kata Sandi</Label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 group-focus-within:bg-blue-600 group-focus-within:text-white transition-all duration-300">
+                          <Lock size={18} />
+                        </div>
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          className="pl-16 pr-12 h-15 bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-8 focus:ring-blue-500/5 transition-all rounded-2xl text-base"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <Input
-                    id="email"
-                    type="email"
-                    inputMode="email"
-                    placeholder="nama@email.com"
-                    className="pl-16 h-15 bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-8 focus:ring-blue-500/5 transition-all rounded-2xl text-base"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
 
-              {/* Password */}
-              <div className="space-y-2.5">
-                {/* [FIX]: Menghapus prop 'size' yang tidak didukung oleh komponen Label */}
-                <Label htmlFor="password" className="text-slate-600 font-bold text-[13px] ml-1 uppercase tracking-wider">Kata Sandi</Label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 group-focus-within:bg-blue-600 group-focus-within:text-white transition-all duration-300">
-                    <Lock size={18} />
-                  </div>
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="pl-16 pr-12 h-15 bg-slate-50 border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-8 focus:ring-blue-500/5 transition-all rounded-2xl text-base"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full h-15 mt-4 text-base font-black uppercase tracking-widest rounded-2xl bg-slate-900 hover:bg-black text-white shadow-xl shadow-slate-200 transition-all active:scale-[0.97]"
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
+                    {isLoading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      <span className="flex items-center gap-3">
+                        Lanjutkan <LogIn size={20} />
+                      </span>
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-10 pt-8 border-t border-slate-50 text-center space-y-8">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-tight">Belum punya akses?</span>
+                    <Link href="/register" className="text-blue-600 font-black text-sm hover:underline decoration-2 underline-offset-4">
+                      Daftar Akun Agent
+                    </Link>
+                  </div>
+
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-full border border-slate-100">
+                    <ShieldCheck size={14} className="text-emerald-500" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">
+                      Bank-Grade Security
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            )}
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-15 mt-4 text-base font-black uppercase tracking-widest rounded-2xl bg-slate-900 hover:bg-black text-white shadow-xl shadow-slate-200 transition-all active:scale-[0.97]"
-            >
-              {isLoading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <span className="flex items-center gap-3">
-                  Masuk Portal <LogIn size={20} />
-                </span>
-              )}
-            </Button>
-          </form>
+            {/* ================================================================= */}
+            {/* STATE 2: OTP VERIFICATION (COMPONENT DELEGATION)                  */}
+            {/* ================================================================= */}
+            {step === 2 && (
+              <motion.div
+                key="step-2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+              >
+                <LoginOtpForm
+                  email={formData.email}
+                  onBack={() => setStep(1)}
+                />
+              </motion.div>
+            )}
 
-          <div className="mt-10 pt-8 border-t border-slate-50 text-center space-y-8">
-            <div className="flex flex-col gap-2">
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-tight">Belum punya akses?</span>
-              <Link href="/register" className="text-blue-600 font-black text-sm hover:underline decoration-2 underline-offset-4">
-                Daftar Akun Agent
-              </Link>
-            </div>
+          </AnimatePresence>
 
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-full border border-slate-100">
-              <ShieldCheck size={14} className="text-emerald-500" />
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">
-                Verified End-to-End Encryption
-              </span>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </motion.div>
@@ -214,17 +251,17 @@ export default function LoginPage() {
         {/* Portal Header */}
         <div className="flex flex-col items-center text-center space-y-4">
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }} // Start sedikit lebih besar agar transisi scale lebih halus
+            initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative flex items-center justify-center p-2" // Hapus bg-white, border, rounded, dan shadow
+            className="relative flex items-center justify-center p-2"
           >
             <Image
               src="/images/logokeuanganku.png"
               alt="Logo KeuanganKu"
-              width={80} // Ukuran dasar diperbesar
+              width={80}
               height={60}
-              className="object-contain w-auto h-20 sm:h-16" // Mengontrol tinggi secara responsif tanpa terbatas kotak h-24
+              className="object-contain w-auto h-20 sm:h-16"
               priority
             />
           </motion.div>
@@ -234,7 +271,7 @@ export default function LoginPage() {
               Selamat Datang
             </h1>
             <p className="text-slate-500 text-sm font-medium">
-              Masuk untuk mengelola data finansial klien.
+              Portal Keamanan Agen Asuransi.
             </p>
           </div>
         </div>

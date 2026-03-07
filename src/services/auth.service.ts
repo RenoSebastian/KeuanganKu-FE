@@ -1,5 +1,4 @@
 import api from "@/lib/axios";
-// Sesuaikan import DTO dengan kontrak terbaru
 import {
   LoginDto,
   RegisterDto,
@@ -16,71 +15,88 @@ import { getOrCreateDeviceId } from "@/lib/device-id";
 
 export const authService = {
   // =================================================================
-  // 1. LOGIN (EXISTING)
+  // HELPER: STANDARDIZASI PENYIMPANAN SESI (DRY Principle)
+  // =================================================================
+  _saveSession: (data: AuthResponse) => {
+    if (data.access_token) {
+      Cookies.set("token", data.access_token, { expires: 1, path: '/' });
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem("refresh_token", data.refresh_token);
+        }
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+      }
+    }
+  },
+
+  // =================================================================
+  // 1. LOGIN: PHASE 1 (INISIASI & REQUEST OTP)
   // =================================================================
   login: async (data: Omit<LoginDto, 'deviceId'>) => {
     const deviceId = getOrCreateDeviceId();
     const payload: LoginDto = { ...data, deviceId };
 
-    const response = await api.post<AuthResponse>("/auth/login", payload);
+    // [MODIFIKASI] Endpoint ini sekarang hanya mengembalikan sinyal OTP terkirim,
+    // BUKAN JWT Token. Kita tangkap message dan emailnya.
+    const response = await api.post<{ message: string; email: string; expiresIn: string }>("/auth/login", payload);
 
-    if (response.data.access_token) {
-      const { access_token, refresh_token, user } = response.data;
+    // Tidak ada penyimpanan token di sini (Deferred Session)
+    return response.data;
+  },
 
-      Cookies.set("token", access_token, { expires: 1, path: '/' });
+  // =================================================================
+  // 2. LOGIN: PHASE 2 (VERIFY OTP & CETAK SESI)
+  // =================================================================
+  verifyLoginOtp: async (data: Omit<VerifyOtpDto, 'deviceId'>) => {
+    const deviceId = getOrCreateDeviceId();
+    const payload: VerifyOtpDto = { ...data, deviceId };
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("token", access_token);
-        if (refresh_token) {
-          localStorage.setItem("refresh_token", refresh_token);
-        }
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-    }
+    // Menembak endpoint baru khusus verifikasi login
+    const response = await api.post<AuthResponse>("/auth/login/verify", payload);
+
+    // Setelah OTP valid, BE memberikan JWT. Kita simpan menggunakan helper.
+    authService._saveSession(response.data);
 
     return response.data;
   },
 
   // =================================================================
-  // 2. REGISTER: PHASE 1 (REQUEST OTP)
+  // 3. LOGIN: RESEND OTP
+  // =================================================================
+  resendLoginOtp: async (data: ResendOtpDto) => {
+    const response = await api.post<ResendOtpResponse>("/auth/login/resend", data);
+    return response.data;
+  },
+
+  // =================================================================
+  // 4. REGISTER: PHASE 1 (REQUEST OTP)
   // =================================================================
   register: async (data: RegisterDto) => {
-    // Pada tahap ini, kita hanya menembak API untuk memicu pengiriman OTP ke email
-    // Tidak ada Token JWT yang dikembalikan oleh Backend di tahap ini.
     const response = await api.post<RegisterPhase1Response>("/auth/register", data);
     return response.data;
   },
 
   // =================================================================
-  // 3. REGISTER: PHASE 2 (VERIFY OTP & AUTO-LOGIN)
+  // 5. REGISTER: PHASE 2 (VERIFY OTP & AUTO-LOGIN)
   // =================================================================
   verifyOtp: async (data: Omit<VerifyOtpDto, 'deviceId'>) => {
-    // Sisipkan Device ID secara otomatis agar Backend bisa membuat Single Concurrent Session
     const deviceId = getOrCreateDeviceId();
     const payload: VerifyOtpDto = { ...data, deviceId };
 
     const response = await api.post<AuthResponse>("/auth/verify-otp", payload);
 
-    // Identik dengan logika login, kita simpan token dan user data
-    if (response.data.access_token) {
-      const { access_token, refresh_token, user } = response.data;
-
-      Cookies.set("token", access_token, { expires: 1, path: '/' });
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("token", access_token);
-        if (refresh_token) {
-          localStorage.setItem("refresh_token", refresh_token);
-        }
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-    }
+    // Menggunakan helper untuk menyimpan token hasil registrasi
+    authService._saveSession(response.data);
 
     return response.data;
   },
 
   // =================================================================
-  // 4. RESEND OTP (COOLDOWN & LIMIT ENFORCED)
+  // 6. REGISTER: RESEND OTP
   // =================================================================
   resendOtp: async (data: ResendOtpDto) => {
     const response = await api.post<ResendOtpResponse>("/auth/resend-otp", data);
@@ -88,7 +104,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 5. REFRESH TOKEN (Silent Rotation)
+  // 7. REFRESH TOKEN (Silent Rotation)
   // =================================================================
   refreshTokens: async () => {
     if (typeof window === "undefined") return null;
@@ -103,13 +119,11 @@ export const authService = {
     const response = await api.post<AuthResponse>("/auth/refresh", payload);
 
     if (response.data.access_token) {
-      const { access_token, refresh_token } = response.data;
+      Cookies.set("token", response.data.access_token, { expires: 1, path: '/' });
+      localStorage.setItem("token", response.data.access_token);
 
-      Cookies.set("token", access_token, { expires: 1, path: '/' });
-      localStorage.setItem("token", access_token);
-
-      if (refresh_token) {
-        localStorage.setItem("refresh_token", refresh_token);
+      if (response.data.refresh_token) {
+        localStorage.setItem("refresh_token", response.data.refresh_token);
       }
     }
 
@@ -117,7 +131,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 6. LOGOUT
+  // 8. LOGOUT
   // =================================================================
   logout: () => {
     Cookies.remove("token", { path: '/' });
@@ -131,7 +145,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 7. GET ME (SYNC PROFILE)
+  // 9. GET ME (SYNC PROFILE)
   // =================================================================
   getMe: async () => {
     try {
@@ -148,7 +162,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 8. UPDATE PROFILE
+  // 10. UPDATE PROFILE
   // =================================================================
   updateProfile: async (data: Partial<User>) => {
     try {
@@ -166,7 +180,7 @@ export const authService = {
   },
 
   // =================================================================
-  // HELPER METHODS
+  // UTILITIES
   // =================================================================
   getCurrentUser: (): User | null => {
     if (typeof window !== "undefined") {
