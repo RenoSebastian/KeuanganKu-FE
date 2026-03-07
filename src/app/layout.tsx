@@ -6,8 +6,15 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "KeuanganKu - Portal Agent",
+  title: "KeuanganKu",
   description: "Sistem Perencanaan Keuangan untuk Agen Profesional",
+  // Penambahan konfigurasi icons
+  icons: {
+    icon: "/icons/icon.png",
+    shortcut: "/icons/icon.png",
+    // Menambahkan apple-touch-icon meningkatkan kompatibilitas PWA jika diakses via perangkat iOS
+    apple: "/icons/icon-192x192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
