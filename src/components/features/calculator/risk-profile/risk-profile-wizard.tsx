@@ -35,6 +35,9 @@ import { useSimulationPersistence, SIMULATION_STORAGE_KEYS } from "@/hooks/use-s
 import { cn } from "@/lib/utils";
 import { useAuthUser } from "@/hooks/use-auth-user";
 
+// [NEW] Import Formatter Terstandarisasi
+import { generateSimulationFilename } from "@/lib/formatters";
+
 // Definisi Step Flow
 type WizardStep = "IDENTITY" | "QUIZ" | "RESULT";
 
@@ -294,12 +297,14 @@ export function RiskProfileWizard() {
             }
 
             if (targetPdfUrl) {
+                // [PERBAIKAN] Menggunakan fungsi Formatter Terstandarisasi
+                const filenamePdf = generateSimulationFilename("Risk Profile", clientData.name, "pdf");
+                const filenameMgc = generateSimulationFilename("Risk Profile", clientData.name, "mgc");
+
                 // Download PDF
                 const link = document.createElement('a');
                 link.href = targetPdfUrl;
-                const cleanName = clientData.name.replace(/[^a-zA-Z0-9]/g, '_');
-                const filename = `RiskProfile_${cleanName}.pdf`;
-                link.setAttribute('download', filename);
+                link.setAttribute('download', filenamePdf);
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
@@ -310,7 +315,7 @@ export function RiskProfileWizard() {
                     const urlMgc = window.URL.createObjectURL(blobMgc);
                     const linkMgc = document.createElement('a');
                     linkMgc.href = urlMgc;
-                    linkMgc.setAttribute('download', filename.replace('.pdf', '.mgc'));
+                    linkMgc.setAttribute('download', filenameMgc);
                     document.body.appendChild(linkMgc);
                     linkMgc.click();
                     linkMgc.remove();

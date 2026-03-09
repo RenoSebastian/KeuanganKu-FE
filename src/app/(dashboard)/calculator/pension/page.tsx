@@ -19,6 +19,7 @@ import { PensionResultSection } from "@/components/features/calculator/pension/p
 import { PensionGuide } from "@/components/features/calculator/guide/pension-guide";
 import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
 import { QuotaAlert } from "@/components/features/calculator/pension/quota-alert";
+import { generateSimulationFilename } from "@/lib/formatters";
 
 export default function PensionPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
@@ -104,8 +105,8 @@ export default function PensionPage() {
 
       setGeneratedFiles({
         pdfUrl, mgcToken: token,
-        filenameMgc: `Backup_Pensiun_${cleanName}.mgc`,
-        filenamePdf: `Rencana_Pensiun_${cleanName}.pdf`
+        filenameMgc: generateSimulationFilename("Rencana Dana Hari Tua", clientData.clientName, "mgc"),
+        filenamePdf: generateSimulationFilename("Rencana Dana Hari Tua", clientData.clientName, "pdf")
       });
 
       toast.success("Analisa Selesai");

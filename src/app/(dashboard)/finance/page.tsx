@@ -21,7 +21,7 @@ const FINANCE_MENUS = [
         border: "group-hover:border-blue-500/50"
       },
       {
-        label: "Dana Pendidikan",
+        label: "Rencana Dana Pendidikan",
         emoji: "🎓",
         href: "/calculator/education",
         desc: "Simulasi biaya sekolah anak",
@@ -41,7 +41,7 @@ const FINANCE_MENUS = [
         border: "group-hover:border-emerald-500/50"
       },
       {
-        label: "Dana Hari Tua",
+        label: "Rencana Dana Hari Tua",
         emoji: "☂️",
         href: "/calculator/pension",
         desc: "Kemerdekaan finansial",
@@ -51,7 +51,7 @@ const FINANCE_MENUS = [
         border: "group-hover:border-purple-500/50"
       },
       {
-        label: "Proteksi Jiwa",
+        label: "Rancang Proteksi",
         emoji: "🛡️",
         href: "/calculator/insurance",
         desc: "Hitung uang pertanggungan",

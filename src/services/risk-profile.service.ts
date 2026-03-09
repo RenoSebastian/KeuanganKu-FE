@@ -5,6 +5,9 @@ import {
     RiskProfileSimulationResult
 } from "@/lib/types/risk-profile";
 
+// [NEW] Injeksi Pure Fabrication untuk standardisasi penamaan file
+import { generateSimulationFilename } from "@/lib/formatters";
+
 export const riskProfileService = {
     /**
      * [CORE] Agent Simulation Flow
@@ -96,9 +99,6 @@ export const riskProfileService = {
 
             if (!cleanToken) throw new Error("Isi file token kosong setelah dibersihkan.");
 
-            // Debugging (Opsional: Cek di console browser)
-            // console.log("Token Cleaned:", cleanToken);
-
             // Kirim ke Backend dengan key 'token' (sesuai payload JSON request)
             const response = await api.post('/financial/simulation/decode', { simulationToken: cleanToken });
 
@@ -139,4 +139,34 @@ export const riskProfileService = {
             throw new Error(Array.isArray(msg) ? msg[0] : msg);
         }
     },
+
+    /**
+     * [NEW] Helper Controller untuk eksekusi unduhan file.
+     * Menerapkan prinsip Information Expert agar UI Component murni fokus pada state & render,
+     * bukan mengurus manipulasi DOM (createElement 'a') dan perakitan string nama file secara manual.
+     */
+    downloadRiskProfileFiles: (pdfUrl: string | null, mgcToken: string | null, clientName: string = "Klien") => {
+        if (pdfUrl) {
+            const filenamePdf = generateSimulationFilename("Risk Profile", clientName, "pdf");
+            const linkPdf = document.createElement('a');
+            linkPdf.href = pdfUrl;
+            linkPdf.setAttribute('download', filenamePdf);
+            document.body.appendChild(linkPdf);
+            linkPdf.click();
+            linkPdf.remove();
+        }
+
+        if (mgcToken) {
+            const filenameMgc = generateSimulationFilename("Risk Profile", clientName, "mgc");
+            const blobMgc = new Blob([mgcToken], { type: 'text/plain' });
+            const urlMgc = window.URL.createObjectURL(blobMgc);
+            const linkMgc = document.createElement('a');
+            linkMgc.href = urlMgc;
+            linkMgc.setAttribute('download', filenameMgc);
+            document.body.appendChild(linkMgc);
+            linkMgc.click();
+            linkMgc.remove();
+            window.URL.revokeObjectURL(urlMgc);
+        }
+    }
 };

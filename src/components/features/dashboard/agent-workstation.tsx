@@ -27,13 +27,13 @@ export function AgentWorkstation() {
             theme: "bg-amber-50 border-amber-100 text-amber-600 hover:border-amber-300"
         },
         {
-            label: "Pensiun",
+            label: "Hari Tua",
             emoji: "🛡️",
             href: "/calculator/pension",
             theme: "bg-rose-50 border-rose-100 text-rose-600 hover:border-rose-300"
         },
         {
-            label: "Asuransi",
+            label: "Proteksi",
             emoji: "☂️",
             href: "/calculator/insurance",
             theme: "bg-purple-50 border-purple-100 text-purple-600 hover:border-purple-300"

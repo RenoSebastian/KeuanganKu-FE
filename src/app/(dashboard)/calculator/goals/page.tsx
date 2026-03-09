@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { GoalHeader } from "@/components/features/calculator/goals/goal-header";
 import { GoalInputForm } from "@/components/features/calculator/goals/goal-input-form";
 import { GoalResults } from "@/components/features/calculator/goals/goal-results";
+import { generateSimulationFilename } from "@/lib/formatters";
 
 // --- KONFIGURASI PILIHAN ---
 const GOAL_OPTIONS = [
@@ -139,8 +140,8 @@ export default function GoalsPage() {
 
             setGeneratedFiles({
                 pdfUrl, mgcToken: token,
-                filenameMgc: `Backup_Goal_${cleanName}.mgc`,
-                filenamePdf: `Rencana_Goal_${cleanName}.pdf`
+                filenameMgc: generateSimulationFilename("Rencana Khusus", clientData.clientName, "mgc"),
+                filenamePdf: generateSimulationFilename("Rencana Khusus", clientData.clientName, "pdf")
             });
 
             toast.success("Analisa Selesai", { description: "Sistem telah menemukan strategi terbaik untuk klien Anda." });
