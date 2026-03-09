@@ -15,10 +15,11 @@ import {
     Sparkles,
     ChevronLeft
 } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, generateSimulationFilename } from "@/lib/formatters";
 import { toast } from "sonner";
 import { financialService } from "@/services/financial.service";
 import { cn } from "@/lib/utils";
+
 
 interface SimulationResultStepProps {
     result: EducationSimulationResponse;
@@ -68,8 +69,12 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         toast.loading("Menyiapkan dokumen laporan...");
 
         try {
-            // 1. Download PDF (Request Stream ke Backend)
-            await financialService.downloadEducationSimulationPdf(result.simulationId);
+            // [PERBAIKAN] Ekstrak nama klien dari state data
+            const clientName = simulationData?.clientName || "Klien";
+
+            // 1. Download PDF (Request Stream ke Backend) 
+            // [PERBAIKAN] Kirim nama klien ke parameter kedua service
+            await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
 
             // 2. Download File Sesi (.mgc) - Client Side Generation
             if (result.mgcToken) {
@@ -78,9 +83,9 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 const link = document.createElement("a");
                 link.href = url;
 
-                // Nama file sesuai dari BE atau default
-                const filename = result.filename ? result.filename.replace('.pdf', '.mgc') : `session-${result.simulationId}.mgc`;
-                link.download = filename;
+                // [PERBAIKAN] Gunakan utilitas standar penamaan
+                const filenameMgc = generateSimulationFilename("Education Plan", clientName, "mgc");
+                link.download = filenameMgc;
 
                 document.body.appendChild(link);
                 link.click();
