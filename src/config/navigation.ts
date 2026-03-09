@@ -24,7 +24,7 @@ export const NAVIGATION_CONFIG = {
   main: [
     { label: "Dashboard", icon: Home, href: "/dashboard" },
     { label: "Kalkulator Keuangan", icon: Wallet, href: "/finance" },
-    { label: "Learning Center", icon: BookOpenCheck, href: "/learning" },
+    // { label: "Learning Center", icon: BookOpenCheck, href: "/learning" },
     // { label: "Riwayat", icon: History, href: "/history" }, // Hidden for Phase 1
     { label: "Profil", icon: User, href: "/profile" },
     { label: "Subscription", icon: WalletCards, href: "/subscription" },
@@ -35,7 +35,7 @@ export const NAVIGATION_CONFIG = {
     { label: "Dashboard Admin", icon: LayoutDashboard, href: "/admin/dashboard" },
     { label: "Verifikasi Bayar", icon: FileCheck, href: "/admin/verification" }, // [NEW] Halaman Audit Pembayaran
     { label: "Manajemen User", icon: Users, href: "/admin/users" },
-    { label: "Data Master", icon: Database, href: "/admin/master-data" },
+    // { label: "Data Master", icon: Database, href: "/admin/master-data" },
     { label: "Modul Edukasi", icon: BookOpen, href: "/admin/education" },
     { label: "Data Maintenance", icon: Archive, href: "/admin/maintenance" },
     { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },

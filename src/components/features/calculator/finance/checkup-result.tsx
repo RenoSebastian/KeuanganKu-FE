@@ -21,6 +21,7 @@ import { FinancialRecord, HealthAnalysisResult, CheckupSimulationResult } from "
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
 import { PdfLoadingModal } from "./pdf-loading-modal";
+import { generateSimulationFilename } from "@/lib/formatters";
 
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW" | "AGENT_SIMULATION";
 
@@ -164,7 +165,9 @@ export function CheckupResult({
         }
         try {
             setIsDownloadingMgc(true);
-            await financialService.downloadSimulationFiles(data);
+            // [PERBAIKAN] Ambil nama klien dan teruskan ke service MGC
+            const clientName = clientInfo?.name || "Klien";
+            await financialService.downloadSimulationFiles(data, clientName);
         } catch (error) {
             console.error("Simulation Download Error:", error);
             alert("Gagal memproses file simulasi.");
@@ -178,6 +181,8 @@ export function CheckupResult({
 
         try {
             setLocalPdfLoading(true);
+            // [PERBAIKAN] Ekstrak nama klien dari variabel lokalisasi yang sudah ada
+            const clientName = clientInfo?.name || "Klien";
 
             if (isAgentMode) {
                 if (onDownloadPdf) {
@@ -187,7 +192,11 @@ export function CheckupResult({
                     const url = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
-                    link.setAttribute('download', `Laporan_Simulasi_${data.filename || 'Klien'}.pdf`);
+
+                    // [PERBAIKAN] Gunakan utilitas standar penamaan untuk buffer internal
+                    const filenamePdf = generateSimulationFilename("Financial Checkup", clientName, "pdf");
+                    link.setAttribute('download', filenamePdf);
+
                     document.body.appendChild(link);
                     link.click();
                     link.parentNode?.removeChild(link);
@@ -200,7 +209,8 @@ export function CheckupResult({
                     alert("ID Laporan tidak ditemukan. Mohon simpan data terlebih dahulu.");
                     return;
                 }
-                await financialService.downloadCheckupPdf(recordId);
+                // [PERBAIKAN] Teruskan nama klien ke service
+                await financialService.downloadCheckupPdf(recordId, clientName);
             }
         } catch (error) {
             console.error("PDF Download Error:", error);

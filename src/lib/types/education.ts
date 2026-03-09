@@ -290,6 +290,7 @@ export interface EducationSimulationResponse {
         totalFutureCost: number;
         totalMonthlySaving: number;
         childrenPlans: EducationSimulationPayload['childrenPlans'];
+        clientName?: string; // [PERBAIKAN TS2339]: Menambahkan optional property agar diizinkan oleh compiler
     };
 
     // ID Simulasi untuk request download terpisah
