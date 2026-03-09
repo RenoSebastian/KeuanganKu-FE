@@ -21,6 +21,7 @@ import { MonthlyHelperModal } from "@/components/features/calculator/finance/mon
 import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
 import { BudgetForm } from "@/components/features/calculator/budget/budget-form";
 import { BudgetResults } from "@/components/features/calculator/budget/budget-results";
+import { generateSimulationFilename } from "@/lib/formatters";
 
 export default function AgentBudgetPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
@@ -118,8 +119,8 @@ export default function AgentBudgetPage() {
       setGeneratedFiles({
         pdfUrl: window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' })),
         mgcToken: token,
-        filenameMgc: `Backup_Budget_${clientData.clientName}.mgc`,
-        filenamePdf: `Budget_Plan_${clientData.clientName}.pdf`
+        filenameMgc: generateSimulationFilename("Budget Plan", clientData.clientName, "mgc"),
+        filenamePdf: generateSimulationFilename("Budget Plan", clientData.clientName, "pdf")
       });
       toast.success("Analisa Selesai");
     } catch (error: any) {

@@ -29,6 +29,7 @@ import { OtherCostsForm } from "@/components/features/calculator/insurance/Other
 import { DownloadCenter } from "@/components/features/calculator/insurance/DownloadCenter";
 import { RecommendationCard } from "@/components/features/calculator/insurance/RecommendationCard";
 import { HelperCalculatorModal } from "@/components/features/calculator/insurance/HelperCalculatorModal";
+import { generateSimulationFilename } from "@/lib/formatters";
 
 export default function InsurancePage() {
   // --- AUTH & QUOTA ---
@@ -109,8 +110,8 @@ export default function InsurancePage() {
       toast.error("Kuota Habis", { description: "Silakan upgrade ke PRO untuk simulasi lagi." });
       return;
     }
-    
-    if (!clientData.clientName || !clientData.clientDob || !annualIncome) {
+
+    if (!clientData.clientName || !annualIncome) {
       toast.error("Data Belum Lengkap", { description: "Nama Klien, Tanggal Lahir, dan Gaji wajib diisi." });
       return;
     }
@@ -150,8 +151,8 @@ export default function InsurancePage() {
 
       setGeneratedFiles({
         pdfUrl, mgcToken: token,
-        filenameMgc: `Backup_Asuransi_${cleanName}.mgc`,
-        filenamePdf: `Laporan_Asuransi_${cleanName}.pdf`
+        filenameMgc: generateSimulationFilename("Rancang Proteksi", clientData.clientName, "mgc"),
+        filenamePdf: generateSimulationFilename("Rancang Proteksi", clientData.clientName, "pdf")
       });
 
       toast.success("Analisa Selesai");

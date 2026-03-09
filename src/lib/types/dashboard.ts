@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { HealthStatus } from "./common";
-import { UserRole, UnitKerja } from "./auth";
+import { UserRole } from "./auth";
 import { FinancialRecord, HealthAnalysisResult } from "./financial-checkup";
 
 // ============================================================================
@@ -25,7 +25,6 @@ export interface AdminUser {
     nip: string;
     unitId?: string; // Untuk backward compatibility
     unitKerjaId?: string;
-    unitKerja?: UnitKerja;
     role: UserRole;
     isActive: boolean;
     lastLogin?: string;

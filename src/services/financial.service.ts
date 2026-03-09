@@ -42,6 +42,9 @@ import {
   EducationSimulationResponse
 } from "@/lib/types/education";
 
+// [NEW] Import Pure Fabrication Utility untuk standardisasi penamaan file
+import { generateSimulationFilename } from "@/lib/formatters";
+
 // ============================================================================
 // PRIVATE ADAPTER HELPERS (Internal Service Logic)
 // ============================================================================
@@ -106,7 +109,7 @@ export const financialService = {
     return response.data;
   },
 
-  downloadCheckupPdf: async (checkupId: string) => {
+  downloadCheckupPdf: async (checkupId: string, clientName: string = "Klien") => {
     const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -114,7 +117,8 @@ export const financialService = {
 
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
-    const filename = `Financial-Report-${new Date().toISOString().split('T')[0]}.pdf`;
+    // Menggunakan Formatter Terstandar
+    const filename = generateSimulationFilename("Financial Checkup", clientName, "pdf");
     link.href = url;
     link.setAttribute('download', filename);
     document.body.appendChild(link);
@@ -136,7 +140,7 @@ export const financialService = {
     return response.data;
   },
 
-  downloadBudgetPdf: async (budgetId: string) => {
+  downloadBudgetPdf: async (budgetId: string, clientName: string = "Klien") => {
     const response = await api.get(`/financial/budget/pdf/${budgetId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -145,7 +149,8 @@ export const financialService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Budget-Report-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Menggunakan Formatter Terstandar
+    link.setAttribute('download', generateSimulationFilename("Budget Plan", clientName, "pdf"));
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -161,7 +166,7 @@ export const financialService = {
     return response.data;
   },
 
-  downloadPensionPdf: async (planId: string) => {
+  downloadPensionPdf: async (planId: string, clientName: string = "Klien") => {
     const response = await api.get(`/financial/pension/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -169,7 +174,8 @@ export const financialService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Pension-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Menggunakan Formatter Terstandar
+    link.setAttribute('download', generateSimulationFilename("Pension Plan", clientName, "pdf"));
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -192,7 +198,7 @@ export const financialService = {
     return raw;
   },
 
-  downloadInsurancePdf: async (planId: string) => {
+  downloadInsurancePdf: async (planId: string, clientName: string = "Klien") => {
     const response = await api.get(`/financial/insurance/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -200,7 +206,8 @@ export const financialService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Insurance-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Menggunakan Formatter Terstandar
+    link.setAttribute('download', generateSimulationFilename("Insurance Plan", clientName, "pdf"));
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -217,7 +224,7 @@ export const financialService = {
     return response.data.data;
   },
 
-  downloadGoalPdf: async (planId: string) => {
+  downloadGoalPdf: async (planId: string, clientName: string = "Klien") => {
     const response = await api.get(`/financial/goals/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -225,7 +232,8 @@ export const financialService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Goal-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Menggunakan Formatter Terstandar
+    link.setAttribute('download', generateSimulationFilename("Goal Plan", clientName, "pdf"));
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -268,7 +276,7 @@ export const financialService = {
   },
 
   // Download for PERSONAL Education Plan
-  downloadEducationPdf: async () => {
+  downloadEducationPdf: async (clientName: string = "Klien") => {
     const response = await api.get(`/financial/education/pdf`, {
       responseType: 'blob',
       timeout: 60000,
@@ -276,7 +284,8 @@ export const financialService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Education-Family-Plan-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Menggunakan Formatter Terstandar
+    link.setAttribute('download', generateSimulationFilename("Education Plan", clientName, "pdf"));
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -299,7 +308,7 @@ export const financialService = {
     return response.data;
   },
 
-  downloadHistoryPdf: async (historyId: string) => {
+  downloadHistoryPdf: async (historyId: string, clientName: string = "Klien") => {
     const response = await api.get(`/financial/checkup/history/pdf/${historyId}`, {
       responseType: 'blob',
       timeout: 60000,
@@ -307,7 +316,8 @@ export const financialService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Checkup-History-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Menggunakan Formatter Terstandar
+    link.setAttribute('download', generateSimulationFilename("Checkup History", clientName, "pdf"));
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -373,7 +383,7 @@ export const financialService = {
    * 2. Request Download (On-Demand)
    * Menggunakan ID Simulasi dari langkah 1 untuk men-stream file PDF.
    */
-  downloadEducationSimulationPdf: async (simulationId: string) => {
+  downloadEducationSimulationPdf: async (simulationId: string, clientName: string = "Klien") => {
     const response = await api.get(`/financial/simulation/education/${simulationId}/pdf`, {
       responseType: 'blob',
       timeout: 60000,
@@ -384,13 +394,16 @@ export const financialService = {
     const link = document.createElement('a');
     link.href = url;
 
-    // Deteksi nama file dari Header (opsional) atau gunakan default
+    // Deteksi nama file dari Header (opsional), fallback ke formatter terstandar
     const contentDisposition = response.headers['content-disposition'];
-    let filename = `Education_Plan_${simulationId}.pdf`;
+    let filename = generateSimulationFilename("Education Plan", clientName, "pdf");
+
     if (contentDisposition) {
       const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-      if (fileNameMatch && fileNameMatch.length === 2)
-        filename = fileNameMatch[1];
+      if (fileNameMatch && fileNameMatch.length === 2) {
+        // Jika server memaksa header nama file, bisa override atau dikomentari jika ingin FE mendikte nama.
+        // filename = fileNameMatch[1]; 
+      }
     }
 
     link.setAttribute('download', filename);
@@ -424,9 +437,12 @@ export const financialService = {
    * Helper untuk mendownload .mgc Token (JSON -> File)
    * Digunakan jika kita ingin user bisa save session tanpa download PDF.
    */
-  downloadSimulationFiles: (simulationResult: any) => {
+  downloadSimulationFiles: (simulationResult: any, clientName: string = "Klien") => {
     const { mgcToken, filename } = simulationResult;
-    const baseFilename = filename || `Simulation_${new Date().toISOString().split('T')[0]}`;
+
+    // Jika filename dari parameter exist, kita gunakan base name-nya, jika tidak pakai formatter
+    const fallbackFilename = generateSimulationFilename("Simulation", clientName, "mgc");
+    const baseFilename = filename || fallbackFilename;
 
     if (mgcToken) {
       try {
@@ -435,7 +451,8 @@ export const financialService = {
         const link = document.createElement('a');
         link.href = tokenUrl;
 
-        const tokenName = baseFilename.replace(/\.pdf$/i, '') + '.mgc';
+        // Memastikan ekstensinya adalah .mgc
+        const tokenName = baseFilename.endsWith('.mgc') ? baseFilename : baseFilename.replace(/\.pdf$/i, '') + '.mgc';
         link.download = tokenName;
 
         document.body.appendChild(link);
