@@ -109,8 +109,9 @@ export default function InsurancePage() {
       toast.error("Kuota Habis", { description: "Silakan upgrade ke PRO untuk simulasi lagi." });
       return;
     }
-    if (!clientData.clientName || !annualIncome) {
-      toast.error("Data Belum Lengkap", { description: "Nama Klien dan Gaji wajib diisi." });
+    
+    if (!clientData.clientName || !clientData.clientDob || !annualIncome) {
+      toast.error("Data Belum Lengkap", { description: "Nama Klien, Tanggal Lahir, dan Gaji wajib diisi." });
       return;
     }
 
@@ -381,7 +382,7 @@ export default function InsurancePage() {
         type={showIncomeModal ? 'INCOME' : showKprModal ? 'KPR' : showKpmModal ? 'KPM' : null}
         tempMonthly={tempMonthly}
         tempTenor={tempTenor}
-        onMonthlyChange={setTempMonthly}
+        onMonthlyChange={(val) => handleMoneyInput(val, setTempMonthly)}
         onTenorChange={setTempTenor}
         onApply={applyCalculation}
       />
