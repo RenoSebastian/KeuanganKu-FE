@@ -49,7 +49,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             const socketUrl = apiUrl.replace('/api', '');
 
             socketRef.current = io(socketUrl, {
-                auth: { token: `Bearer ${token}` },
+                auth: { token: token }, // ✅ FIX: Kirim raw token saja tanpa 'Bearer '
                 reconnectionAttempts: 5,
                 reconnectionDelay: 2000,
                 transports: ['websocket'],
