@@ -5,7 +5,6 @@ import {
     EducationProgressStatus,
     QuizSubmissionResult,
     SubmitQuizPayload,
-    // [FIX] Import UserQuizData dari source of truth
     UserQuizData
 } from '@/lib/types/education';
 
@@ -19,9 +18,6 @@ interface ModuleListResponse {
         limit: number
     };
 }
-
-// [FIX] Hapus definisi interface lokal UserQuizData yang menyebabkan konflik
-// Gunakan UserQuizData dari '@/lib/types/education' yang sudah di-import di atas.
 
 export const employeeEducationService = {
 
@@ -54,7 +50,7 @@ export const employeeEducationService = {
     },
 
     /**
-     * [UPDATED] Mengupdate progress (Checkpoint).
+     * Mengupdate progress (Checkpoint).
      * Menggunakan SLUG agar sinkron dengan route PublicEducationController Backend:
      * POST /education/modules/:slug/progress
      */

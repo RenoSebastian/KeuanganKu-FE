@@ -8,9 +8,8 @@ import {
     UpdateModulePayload,
     UpsertQuizPayload,
     Quiz,
-    DatabaseStats,
 } from '@/lib/types/education';
-import { PruneExecutionPayload } from '@/lib/types/retention';
+import { PruneExecutionPayload, DatabaseStats } from '@/lib/types/retention';
 
 /**
  * EDUCATION SERVICE (UPDATED)
@@ -60,13 +59,15 @@ export const educationService = {
 
     async getModuleById(id: string) {
         // [NOTE] Digunakan oleh Admin Edit Page
-        // Endpoint ini harusnya admin-specific jika ada data sensitif, 
-        // tapi public endpoint juga bisa dipakai jika datanya sama.
-        // Kita gunakan endpoint Admin untuk keamanan.
         const response = await apiClient.get<EducationModule>(`/admin/education/modules/${id}`);
         return response.data;
     },
 
+    /**
+     * [VERIFIED]: createModule dan updateModule sekarang otomatis 
+     * akan meneruskan `payload.sections` yang berisi `imageUrls: string[]`
+     * berkat definisi antarmuka CreateModulePayload di Tahap 1.
+     */
     async createModule(payload: CreateModulePayload) {
         const response = await apiClient.post<EducationModule>('/admin/education/modules', payload);
         return response.data;
@@ -101,7 +102,6 @@ export const educationService = {
     // 3. QUIZ MANAGEMENT (ADMIN)
     // =================================================================
 
-    // [CRITICAL FIX] Method ini yang dicari oleh page.tsx
     async getQuizConfiguration(moduleId: string) {
         const response = await apiClient.get<Quiz>(`/admin/education/modules/${moduleId}/quiz`);
         return response.data;
@@ -121,7 +121,6 @@ export const educationService = {
         return response.data;
     },
 
-    // [CRITICAL FIX] Menggunakan nama method executePrune sesuai interface
     async executePrune(payload: PruneExecutionPayload) {
         const response = await apiClient.post('/admin/retention/prune', payload);
         return response.data;

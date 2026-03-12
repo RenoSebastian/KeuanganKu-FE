@@ -16,7 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 import { moduleFormSchema, ModuleFormValues } from '@/lib/schemas/education-schema';
 import { educationService } from '@/services/education.service';
-import { mediaService } from '@/services/media.service'; // [FIX] Import Media Service
+import { mediaService } from '@/services/media.service';
 import {
     EducationCategory,
     EducationModule,
@@ -52,9 +52,10 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                 title: s.title || '',
                 contentMarkdown: s.contentMarkdown,
                 sectionOrder: s.sectionOrder,
-                illustrationUrl: s.illustrationUrl || ''
+                // [FIXED] Menggunakan array imageUrls dari inisialisasi awal
+                imageUrls: s.imageUrls || []
             })) || [
-                    { title: 'Pendahuluan', contentMarkdown: '', sectionOrder: 1, illustrationUrl: '' }
+                    { title: 'Pendahuluan', contentMarkdown: '', sectionOrder: 1, imageUrls: [] }
                 ]
         },
     });
@@ -78,33 +79,51 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
         loadCategories();
     }, []);
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string, index?: number) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    // [FIXED] Fungsi Upload yang mendeteksi Multi-Image untuk Sections dan Single-Image untuk Thumbnail
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'sections' | 'thumbnailUrl', sectionIndex?: number) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
 
-        if (file.size > 2 * 1024 * 1024) {
-            toast.error("Ukuran file terlalu besar (Maksimal 2MB)");
-            return;
+        // Jika section, kita hitung berapa slot yang tersisa (Max 4)
+        if (fieldName === 'sections' && sectionIndex !== undefined) {
+            const currentImages = form.getValues(`sections.${sectionIndex}.imageUrls`) || [];
+            if (currentImages.length + files.length > 4) {
+                toast.error("Maksimal hanya diperbolehkan 4 gambar per halaman materi.");
+                return;
+            }
         }
 
-        const uploadKey = index !== undefined ? `section-${index}` : 'thumbnail';
+        // Cek ukuran file
+        for (const file of files) {
+            if (file.size > 2 * 1024 * 1024) {
+                toast.error(`Ukuran file ${file.name} terlalu besar (Maks. 2MB)`);
+                return;
+            }
+        }
+
+        const uploadKey = sectionIndex !== undefined ? `section-${sectionIndex}` : 'thumbnail';
         setIsUploading(uploadKey);
 
-        const formData = new FormData();
-        formData.append('file', file);
-
         try {
-            const res = await api.post('/media/upload', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            // Upload semua file secara paralel menggunakan Promise.all
+            const uploadPromises = files.map(async (file) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await api.post('/media/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                return res.data?.data?.url || res.data?.url;
             });
 
-            // Handle response wrapper structure
-            const filePath = res.data?.data?.url || res.data?.url;
+            const uploadedUrls = await Promise.all(uploadPromises);
 
-            if (index !== undefined) {
-                form.setValue(`sections.${index}.illustrationUrl`, filePath, { shouldDirty: true });
+            if (fieldName === 'sections' && sectionIndex !== undefined) {
+                // Ambil array lama, gabungkan dengan yang baru di-upload
+                const currentImages = form.getValues(`sections.${sectionIndex}.imageUrls`) || [];
+                form.setValue(`sections.${sectionIndex}.imageUrls`, [...currentImages, ...uploadedUrls], { shouldDirty: true, shouldValidate: true });
             } else {
-                form.setValue('thumbnailUrl', filePath, { shouldDirty: true });
+                // Thumbnail hanya 1 gambar
+                form.setValue('thumbnailUrl', uploadedUrls[0], { shouldDirty: true, shouldValidate: true });
             }
             toast.success("Gambar berhasil diunggah");
         } catch (error) {
@@ -112,7 +131,17 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
             toast.error("Gagal mengunggah gambar ke server");
         } finally {
             setIsUploading(null);
+            // Reset input file value agar bisa pilih file yang sama berulang kali jika dibutuhkan
+            e.target.value = '';
         }
+    };
+
+    // [FIXED] Fungsi untuk menghapus salah satu gambar dari Array di Section
+    const removeSectionImage = (sectionIndex: number, imageIndex: number) => {
+        const currentImages = form.getValues(`sections.${sectionIndex}.imageUrls`) || [];
+        const newImages = [...currentImages];
+        newImages.splice(imageIndex, 1);
+        form.setValue(`sections.${sectionIndex}.imageUrls`, newImages, { shouldDirty: true, shouldValidate: true });
     };
 
     const onSubmit = async (data: ModuleFormValues) => {
@@ -123,7 +152,7 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                 title: s.title || '',
                 contentMarkdown: s.contentMarkdown,
                 sectionOrder: s.sectionOrder,
-                illustrationUrl: s.illustrationUrl
+                imageUrls: s.imageUrls || []
             }));
 
             if (initialData?.id) {
@@ -151,8 +180,6 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
             setIsSubmitting(false);
         }
     };
-
-    // [FIX] HAPUS FUNGSI getPreviewUrl LOKAL YANG BERMASALAH
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-20">
@@ -201,7 +228,7 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => append({ title: '', contentMarkdown: '', sectionOrder: fields.length + 1, illustrationUrl: '' })}
+                                onClick={() => append({ title: '', contentMarkdown: '', sectionOrder: fields.length + 1, imageUrls: [] })}
                             >
                                 <Plus className="w-4 h-4 mr-2" /> Tambah Halaman
                             </Button>
@@ -209,7 +236,9 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
 
                         <div className="space-y-6">
                             {fields.map((field, index) => {
-                                const currentIllustrationUrl = form.watch(`sections.${index}.illustrationUrl`);
+                                const currentImageUrls = form.watch(`sections.${index}.imageUrls`) || [];
+                                const canUploadMore = currentImageUrls.length < 4;
+
                                 return (
                                     <Card key={field.id} className="overflow-hidden border-l-4 border-l-primary/40 shadow-sm">
                                         <CardContent className="pt-6 space-y-5">
@@ -238,32 +267,63 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                             </div>
 
                                             <div className="space-y-3">
-                                                <Label className="text-sm font-medium">Gambar Ilustrasi</Label>
-                                                <div className="flex items-center gap-4">
-                                                    {currentIllustrationUrl ? (
-                                                        <div className="relative w-32 h-20 rounded-md overflow-hidden border bg-muted shadow-sm">
-                                                            {/* [FIX] Gunakan mediaService.getFullUrl */}
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-sm font-medium">Gambar Ilustrasi (Maks. 4)</Label>
+                                                    <span className="text-xs text-muted-foreground">{currentImageUrls.length} / 4</span>
+                                                </div>
+
+                                                {/* [FIXED] Grid Layout untuk Array Gambar */}
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    {/* Merender Preview Gambar yang sudah di-upload */}
+                                                    {currentImageUrls.map((url, imgIndex) => (
+                                                        <div key={imgIndex} className="relative aspect-video rounded-md overflow-hidden border bg-muted shadow-sm group">
                                                             <img
-                                                                src={mediaService.getFullUrl(currentIllustrationUrl)}
-                                                                alt="Preview"
-                                                                className="w-full h-full object-cover"
+                                                                src={mediaService.getFullUrl(url)}
+                                                                alt={`Preview ${imgIndex + 1}`}
+                                                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                                             />
-                                                            <button type="button" onClick={() => form.setValue(`sections.${index}.illustrationUrl`, '', { shouldDirty: true })} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeSectionImage(index, imgIndex)}
+                                                                className="absolute top-1 right-1 bg-red-600/90 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
                                                         </div>
-                                                    ) : (
-                                                        <div className="w-32 h-20 border-2 border-dashed rounded-md flex flex-col items-center justify-center bg-muted/30 text-muted-foreground">
-                                                            <ImageIcon className="w-6 h-6 mb-1 opacity-20" />
-                                                            <span className="text-[10px]">No Image</span>
+                                                    ))}
+
+                                                    {/* Slot Upload Baru (Jika belum mencapai batas 4) */}
+                                                    {canUploadMore && (
+                                                        <div className="aspect-video border-2 border-dashed rounded-md flex flex-col items-center justify-center bg-muted/10 hover:bg-muted/30 transition-colors">
+                                                            <Input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                multiple // Mengizinkan multi-select file di dialog OS
+                                                                className="hidden"
+                                                                id={`file-section-${index}`}
+                                                                onChange={(e) => handleFileUpload(e, 'sections', index)}
+                                                                disabled={isUploading === `section-${index}`}
+                                                            />
+                                                            <Label
+                                                                htmlFor={`file-section-${index}`}
+                                                                className="flex flex-col items-center justify-center w-full h-full cursor-pointer text-muted-foreground"
+                                                            >
+                                                                {isUploading === `section-${index}` ? (
+                                                                    <Loader2 className="w-5 h-5 animate-spin mb-1 text-primary" />
+                                                                ) : (
+                                                                    <>
+                                                                        <Plus className="w-5 h-5 mb-1" />
+                                                                        <span className="text-[10px] font-medium">Tambah ({4 - currentImageUrls.length})</span>
+                                                                    </>
+                                                                )}
+                                                            </Label>
                                                         </div>
                                                     )}
-                                                    <div className="flex-1">
-                                                        <Input type="file" accept="image/*" className="hidden" id={`file-section-${index}`} onChange={(e) => handleFileUpload(e, 'sections', index)} />
-                                                        <Label htmlFor={`file-section-${index}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-9 px-4 cursor-pointer">
-                                                            {isUploading === `section-${index}` ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                                                            {currentIllustrationUrl ? 'Ganti Gambar' : 'Upload Gambar'}
-                                                        </Label>
-                                                    </div>
                                                 </div>
+
+                                                {form.formState.errors.sections?.[index]?.imageUrls && (
+                                                    <p className="text-xs text-red-500">{form.formState.errors.sections[index]?.imageUrls?.message}</p>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -322,7 +382,6 @@ export function ModuleForm({ initialData }: ModuleFormProps) {
                                 <div className="space-y-4">
                                     {form.watch('thumbnailUrl') ? (
                                         <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted">
-                                            {/* [FIX] Gunakan mediaService.getFullUrl */}
                                             <img
                                                 src={mediaService.getFullUrl(form.watch('thumbnailUrl'))}
                                                 alt="Cover Preview"

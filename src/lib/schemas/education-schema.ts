@@ -30,7 +30,12 @@ export type CategoryFormValues = z.infer<typeof categorySchema>;
 export const sectionSchema = z.object({
     title: z.string().optional(),
     contentMarkdown: z.string().min(10, { message: "Konten materi terlalu pendek (min 10 karakter)" }),
-    illustrationUrl: z.string().optional(), // Path relative (uploads/...)
+
+    // [FIXED] Diubah dari illustrationUrl menjadi array imageUrls (Max 4)
+    imageUrls: z.array(
+        z.string().regex(IMAGE_PATH_REGEX, { message: "Format URL gambar tidak valid" })
+    ).max(4, { message: "Maksimal 4 gambar per halaman materi" }).optional(),
+
     sectionOrder: z.number(),
 });
 

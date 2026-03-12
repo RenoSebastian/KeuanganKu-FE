@@ -35,7 +35,7 @@ export const NAVIGATION_CONFIG = {
     { label: "Dashboard Admin", icon: LayoutDashboard, href: "/admin/dashboard" },
     { label: "Verifikasi Bayar", icon: FileCheck, href: "/admin/verification" }, // [NEW] Halaman Audit Pembayaran
     { label: "Manajemen User", icon: Users, href: "/admin/users" },
-    // { label: "Data Master", icon: Database, href: "/admin/master-data" },
+    { label: "Data Master", icon: Database, href: "/admin/master-data" },
     { label: "Modul Edukasi", icon: BookOpen, href: "/admin/education" },
     { label: "Data Maintenance", icon: Archive, href: "/admin/maintenance" },
     { label: "Konfigurasi", icon: Settings, href: "/admin/settings" },
