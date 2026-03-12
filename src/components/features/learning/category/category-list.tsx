@@ -42,6 +42,7 @@ import { DeleteCategoryDialog } from "./delete-category-dialog";
 
 // Services & Types
 import { educationService } from "@/services/education.service";
+import { mediaService } from "@/services/media.service"; // [FIXED] Import Media Service
 import { EducationCategory } from "@/lib/types/education";
 
 export function CategoryList() {
@@ -79,13 +80,7 @@ export function CategoryList() {
         item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // --- Helper: Image URL Resolver ---
-    const getIconUrl = (path: string) => {
-        if (path.startsWith("http")) return path;
-        // Asumsi: Base URL API sudah dikonfigurasi di ENV atau Proxy
-        // Jika path dari BE adalah "uploads/icon.png", kita tambahkan prefix API
-        return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/${path}`;
-    };
+    // [FIXED] Menghapus fungsi lokal getIconUrl dan menggantinya langsung di render menggunakan mediaService
 
     // --- Render Helpers ---
     if (loading) {
@@ -156,12 +151,14 @@ export function CategoryList() {
                                 <TableRow key={category.id} className="hover:bg-gray-50/50">
                                     <TableCell>
                                         <div className="relative h-10 w-10 overflow-hidden rounded-lg border bg-gray-100">
+                                            {/* [FIXED] Menggunakan mediaService.getFullUrl dan unoptimized */}
                                             <Image
-                                                src={getIconUrl(category.iconUrl)}
+                                                src={mediaService.getFullUrl(category.iconUrl)}
                                                 alt={category.name}
                                                 fill
                                                 className="object-cover"
                                                 sizes="40px"
+                                                unoptimized
                                                 onError={(e) => {
                                                     // Fallback jika gambar rusak (opsional)
                                                     e.currentTarget.style.display = 'none';
@@ -186,7 +183,7 @@ export function CategoryList() {
                                         {category.isActive ? (
                                             <Badge className="bg-green-500 hover:bg-green-600">Aktif</Badge>
                                         ) : (
-                                            <Badge variant="danger">Non-Aktif</Badge>
+                                            <Badge variant="danger">Non-Aktif</Badge> // [FIXED] Menggunakan variant bawaan shadcn
                                         )}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
@@ -228,12 +225,11 @@ export function CategoryList() {
             {/* Dialog Create */}
             <CategoryFormDialog
                 open={isCreateOpen}
-                // [FIX] Explicit type for boolean callback
                 onOpenChange={(open: boolean) => setIsCreateOpen(open)}
                 onSuccess={() => {
                     setIsCreateOpen(false);
                     fetchCategories();
-                    toast.success("Kategori berhasil dibuat");
+                    // Toast success sudah di-handle oleh form component
                 }}
             />
 
@@ -241,13 +237,11 @@ export function CategoryList() {
             {editingCategory && (
                 <CategoryFormDialog
                     open={!!editingCategory}
-                    // [FIX] Explicit type for boolean callback
                     onOpenChange={(open: boolean) => !open && setEditingCategory(null)}
                     initialData={editingCategory}
                     onSuccess={() => {
                         setEditingCategory(null);
                         fetchCategories();
-                        toast.success("Kategori berhasil diperbarui");
                     }}
                 />
             )}
@@ -255,13 +249,12 @@ export function CategoryList() {
             {/* Dialog Delete */}
             <DeleteCategoryDialog
                 open={!!deletingId}
-                // [FIX] Explicit type for boolean callback
                 onOpenChange={(open: boolean) => !open && setDeletingId(null)}
                 categoryId={deletingId || ""}
                 onSuccess={() => {
                     setDeletingId(null);
                     fetchCategories();
-                    toast.success("Kategori berhasil dihapus");
+                    // Toast success sudah di-handle oleh delete component
                 }}
             />
         </div>

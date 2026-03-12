@@ -10,6 +10,7 @@ import { toast } from "sonner";
 // Services & API
 import apiClient from "@/lib/axios";
 import { educationService } from "@/services/education.service";
+import { mediaService } from "@/services/media.service"; // [FIXED] Menggunakan Media Service Terpusat
 
 // Types & Schemas
 import {
@@ -95,16 +96,6 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
         form.setValue("iconUrl", "", { shouldValidate: true, shouldDirty: true });
     };
 
-    // Helper untuk menampilkan gambar preview dengan path yang benar
-    const getImageUrl = (path: string) => {
-        if (!path) return "";
-        if (path.startsWith("http")) return path;
-        const base = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
-        if (path.startsWith('api/')) return `${base}/${path}`;
-        if (path.startsWith('uploads/')) return `${base}/api/${path}`;
-        return `${base}/${path}`;
-    };
-
     // 3. Submit Handler
     const onSubmit = async (values: CategoryFormValues) => {
         try {
@@ -146,18 +137,20 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                     name="iconUrl"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Icon Kategori</FormLabel>
+                            <FormLabel>Icon Kategori <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
                                 <div className="flex items-center gap-4">
                                     {/* Image Preview Area */}
                                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-gray-50">
                                         {field.value ? (
                                             <>
+                                                {/* [FIXED] Menggunakan mediaService terpusat untuk keamanan resolusi */}
                                                 <Image
-                                                    src={getImageUrl(field.value)}
+                                                    src={mediaService.getFullUrl(field.value)}
                                                     alt="Icon Preview"
                                                     fill
                                                     className="object-cover"
+                                                    unoptimized // Ditambahkan agar Next/Image tidak crash me-load external URL di mode Dev
                                                 />
                                                 <button
                                                     type="button"
@@ -215,7 +208,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                         name="name"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Nama Kategori</FormLabel>
+                                <FormLabel>Nama Kategori <span className="text-red-500">*</span></FormLabel>
                                 <FormControl>
                                     <Input placeholder="Contoh: Investasi Saham" {...field} disabled={isSubmitting} />
                                 </FormControl>
