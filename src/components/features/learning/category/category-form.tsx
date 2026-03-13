@@ -8,9 +8,8 @@ import Image from "next/image";
 import { toast } from "sonner";
 
 // Services & API
-import apiClient from "@/lib/axios";
 import { educationService } from "@/services/education.service";
-import { mediaService } from "@/services/media.service"; // [FIXED] Menggunakan Media Service Terpusat
+import { mediaService } from "@/services/media.service";
 
 // Types & Schemas
 import {
@@ -69,23 +68,17 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
 
         try {
             setIsUploading(true);
-            const formData = new FormData();
-            formData.append("file", file);
 
-            // POST ke Media Service Backend
-            const response = await apiClient.post("/media/upload", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-
-            // Adapt response structure (handle wrapped or direct data)
-            const uploadedUrl = response.data.data?.url || response.data.url;
+            // [FIX] Menggunakan mediaService yang sudah diperbaiki, bukan nembak Axios langsung
+            // Ini menjaga arsitektur tetap bersih dan menghindari duplikasi bug boundary
+            const uploadedUrl = await mediaService.upload(file);
 
             // Update form state
             form.setValue("iconUrl", uploadedUrl, { shouldValidate: true, shouldDirty: true });
             toast.success("Icon berhasil diupload");
         } catch (error) {
             console.error("Upload error:", error);
-            toast.error("Gagal mengupload gambar. Pastikan format JPG/PNG.");
+            toast.error("Gagal mengupload gambar. Pastikan format JPG/PNG/WEBP.");
         } finally {
             setIsUploading(false);
             e.target.value = ""; // Reset input
@@ -144,13 +137,12 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-gray-50">
                                         {field.value ? (
                                             <>
-                                                {/* [FIXED] Menggunakan mediaService terpusat untuk keamanan resolusi */}
                                                 <Image
                                                     src={mediaService.getFullUrl(field.value)}
                                                     alt="Icon Preview"
                                                     fill
                                                     className="object-cover"
-                                                    unoptimized // Ditambahkan agar Next/Image tidak crash me-load external URL di mode Dev
+                                                    unoptimized
                                                 />
                                                 <button
                                                     type="button"
@@ -186,7 +178,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                                         <input
                                             id="icon-upload-trigger"
                                             type="file"
-                                            accept="image/png, image/jpeg, image/jpg, image/webp"
+                                            accept="image/png, image/jpeg, image/webp"
                                             className="hidden"
                                             onChange={handleImageUpload}
                                         />

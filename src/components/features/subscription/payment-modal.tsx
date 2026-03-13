@@ -59,8 +59,9 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                 toast.error("File terlalu besar", { description: "Maksimal ukuran file adalah 2MB." });
                 return;
             }
-            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-                toast.error("Format tidak didukung", { description: "Harap unggah gambar (JPG/PNG) atau PDF." });
+            // [FIX] Validasi diselaraskan dengan backend: Hanya menerima image/jpeg, image/png, atau image/webp
+            if (!file.type.match(/^image\/(jpeg|png|webp)$/i)) {
+                toast.error("Format tidak didukung", { description: "Harap unggah gambar (JPG, PNG, atau WEBP)." });
                 return;
             }
             setFileObj(file);
@@ -273,14 +274,15 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                         <Upload size={24} />
                                     </div>
                                     <p className="text-sm font-black text-slate-700">Lampirkan Bukti Bayar</p>
-                                    <p className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-tighter">Tap untuk pilih file (Maks. 2MB)</p>
+                                    <p className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-tighter">Tap untuk pilih file JPG/PNG/WEBP (Maks. 2MB)</p>
                                 </div>
                             )}
                             <input
                                 id="proof-upload"
                                 type="file"
                                 hidden
-                                accept="image/jpeg,image/png,application/pdf"
+                                // [FIX] Selaraskan extension accept native browser ke format gambar saja
+                                accept="image/jpeg,image/png,image/webp"
                                 onChange={handleFileChange}
                             />
                         </div>

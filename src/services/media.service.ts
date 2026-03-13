@@ -31,12 +31,10 @@ export const mediaService = {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Menggunakan 'multipart/form-data'
+        // [FIX] Menghapus hardcode 'Content-Type' agar Axios dan Browser dapat
+        // otomatis men-generate boundary string (misal: multipart/form-data; boundary=---WebKit...)
         const response = await apiClient.post<MediaUploadResponse>('/media/upload', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            // Opsional: Tambahkan onUploadProgress jika ingin menampilkan progress bar detail
+            // Opsional: Tambahkan onUploadProgress di sini jika ingin menampilkan progress bar
         });
 
         // Mengembalikan URL path yang disimpan di DB (e.g., "uploads/xyz.jpg")

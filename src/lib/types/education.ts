@@ -40,7 +40,7 @@ export enum SchoolLevel {
 // Enum Tipe Biaya (Digunakan untuk mapping label di UI)
 export enum CostType {
     ENTRY = 'ENTRY',
-    MONTHLY = 'ANNUAL', // Mapping ke ANNUAL untuk konsistensi DB lama
+    MONTHLY = 'ANNUAL', // Mapping ke ANNUAL untuk konsistensi DB
 }
 
 // ============================================================================
@@ -68,8 +68,8 @@ export interface ModuleSection {
     sectionOrder: number;
     title: string;
     contentMarkdown: string;
-    // [FIXED] Diubah dari illustrationUrl?: string menjadi array of strings
-    imageUrls?: string[];
+    // [FIXED] Sesuai migrasi update_module_section_array
+    imageUrls: string[];
     createdAt: string;
     updatedAt: string;
 }
@@ -105,7 +105,6 @@ export interface Quiz {
     questions: QuizQuestion[];
     createdAt: string;
     updatedAt: string;
-    // Helper fields untuk UI (jika ada progress user)
     lastAttemptScore?: number | null;
     isPassed?: boolean;
 }
@@ -166,7 +165,7 @@ export interface UserQuizData {
 export interface CreateCategoryPayload {
     name: string;
     description?: string;
-    iconUrl: string;
+    iconUrl: string; // Wajib diisi (string URL hasil upload)
 }
 
 export interface UpdateCategoryPayload extends Partial<CreateCategoryPayload> { }
@@ -176,8 +175,8 @@ export interface SectionPayload {
     title: string;
     contentMarkdown: string;
     sectionOrder: number;
-    // [FIXED] Diubah dari illustrationUrl?: string menjadi array of strings
-    imageUrls?: string[];
+    // [FIXED] Menggunakan Array sesuai arsitektur baru
+    imageUrls: string[];
 }
 
 export interface CreateModulePayload {
@@ -188,7 +187,7 @@ export interface CreateModulePayload {
     level: EducationLevel;
     readingTime: number;
     points: number;
-    thumbnailUrl?: string;
+    thumbnailUrl: string; // Wajib diisi cover-nya
     sections: SectionPayload[];
 }
 
@@ -227,7 +226,7 @@ export interface UpsertQuizPayload {
 }
 
 // ============================================================================
-// SUBMISSION DTOs
+// SUBMISSION & SIMULATION DTOs
 // ============================================================================
 
 export interface QuizSubmissionResult {
@@ -245,20 +244,14 @@ export interface SubmitQuizPayload {
     }[];
 }
 
-// ============================================================================
-// AGENT SIMULATION DTOs (UPDATED FOR SCENARIO B)
-// ============================================================================
-
 export interface EducationSimulationPayload {
     clientName: string;
     clientDob?: string;
     clientCity: string;
     clientJob?: string;
     clientPhone?: string;
-
     inflationRate: number;
     returnRate: number;
-
     childrenPlans: Array<{
         childName: string;
         childDob: string;
@@ -291,7 +284,7 @@ export interface EducationSimulationResponse {
 }
 
 // ============================================================================
-// 3. STRUKTUR DATA UI / VIEW MODEL (HASIL MERGE SMART)
+// VIEW MODELS (UI Presentation Layer)
 // ============================================================================
 
 export interface StageBreakdownItem {
@@ -308,33 +301,15 @@ export interface StageBreakdownItem {
     stageId?: string;
 }
 
-export interface StageDetailItem {
-    item: string;
-    dueYear: number;
-    futureCost: number;
-    requiredSaving: number;
-}
-
-export interface StageResult {
-    stageId: string;
-    label: string;
-    startGrade: number;
-    paymentFrequency: "MONTHLY" | "SEMESTER";
-    totalFutureCost: number;
-    monthlySaving: number;
-    details: StageDetailItem[];
-}
-
 export interface ChildSimulationResult {
     name: string;
     age: number;
     totalFutureCost: number;
     monthlySaving: number;
-    stages: StageBreakdownItem[] | StageResult[];
+    stages: StageBreakdownItem[];
     childId?: string;
     childName?: string;
     totalMonthlySaving?: number;
-    stagesBreakdown?: StageBreakdownItem[];
 }
 
 export interface EducationSimulationResult {
@@ -351,48 +326,7 @@ export interface EducationSimulationResult {
     simulationId: string;
     mgcToken?: string;
     filename?: string;
-    rawResponse?: EducationSimulationResponse;
 }
-
-// ============================================================================
-// SUNTIKAN DARI TYPES.TS RAKSASA
-// ============================================================================
-
-export interface PlanInput {
-    stageId: string;
-    startGrade: number;
-    costNow: {
-        entryFee: number;
-        monthlyFee: number;
-    };
-}
-
-export interface ChildProfile {
-    id: string;
-    name: string;
-    dob: string;
-    gender: "L" | "P";
-    avatarColor: string;
-    plans: PlanInput[];
-}
-
-export interface EducationStagePayload {
-    level: SchoolLevel;
-    costType: "ENTRY" | "ANNUAL";
-    currentCost: number;
-    yearsToStart: number;
-}
-
-export interface EducationPayload {
-    childName: string;
-    childDob: string;
-    method?: "STATIC" | "GEOMETRIC";
-    inflationRate?: number;
-    returnRate?: number;
-    stages?: EducationStagePayload[];
-}
-
-export interface CreateEducationPlanDto extends EducationPayload { }
 
 export interface EducationCalculationResult {
     totalFutureCost: number;
@@ -412,12 +346,4 @@ export interface EducationPlanResponse {
         method?: string;
     };
     calculation: EducationCalculationResult;
-}
-
-export interface EducationPlanData extends EducationPlanResponse { }
-
-export interface PortfolioSummary {
-    grandTotalMonthlySaving: number;
-    totalFutureCost: number;
-    details: ChildSimulationResult[];
 }

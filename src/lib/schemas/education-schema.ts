@@ -9,9 +9,9 @@ import { EducationLevel, QuizType } from '@/lib/types/education';
  * ------------------------------------------------------------------
  */
 
-// Regex untuk validasi path gambar (mirip dengan BE)
-// Menerima: "uploads/xyz.jpg" atau "/uploads/xyz.jpg" atau URL lengkap http...
-const IMAGE_PATH_REGEX = /^(http|https|\/?uploads\/)/;
+// [FIXED] Regex yang lebih aman dan sinkron dengan Backend.
+// Memastikan awalan valid DAN akhiran file harus .jpg, .jpeg, .png, atau .webp
+const IMAGE_PATH_REGEX = /^(http|https|\/?uploads\/).*\.(jpg|jpeg|png|webp)$/i;
 
 // --- CATEGORY SCHEMA ---
 export const categorySchema = z.object({
@@ -21,7 +21,7 @@ export const categorySchema = z.object({
     description: z.string().optional(),
     iconUrl: z.string()
         .min(1, { message: "Silakan upload icon terlebih dahulu" })
-        .regex(IMAGE_PATH_REGEX, { message: "Format path icon tidak valid" }),
+        .regex(IMAGE_PATH_REGEX, { message: "Format file tidak didukung. Gunakan JPG, PNG, atau WEBP" }),
 });
 
 export type CategoryFormValues = z.infer<typeof categorySchema>;
@@ -33,7 +33,7 @@ export const sectionSchema = z.object({
 
     // [FIXED] Diubah dari illustrationUrl menjadi array imageUrls (Max 4)
     imageUrls: z.array(
-        z.string().regex(IMAGE_PATH_REGEX, { message: "Format URL gambar tidak valid" })
+        z.string().regex(IMAGE_PATH_REGEX, { message: "Format gambar tidak valid. Gunakan JPG/PNG/WEBP" })
     ).max(4, { message: "Maksimal 4 gambar per halaman materi" }).optional(),
 
     sectionOrder: z.number(),
@@ -51,7 +51,7 @@ export const moduleFormSchema = z.object({
 
     thumbnailUrl: z.string()
         .min(1, { message: "Silakan upload cover modul" })
-        .regex(IMAGE_PATH_REGEX, { message: "Format path gambar tidak valid" }),
+        .regex(IMAGE_PATH_REGEX, { message: "Format gambar tidak valid. Gunakan JPG/PNG/WEBP" }),
 
     excerpt: z.string()
         .min(10, { message: "Deskripsi singkat minimal 10 karakter" })
@@ -78,7 +78,9 @@ export type ModuleFormValues = z.infer<typeof moduleFormSchema>;
 const optionSchema = z.object({
     optionText: z.string().min(1, { message: "Teks opsi jawaban tidak boleh kosong" }),
     isCorrect: z.boolean().default(false),
-    imageUrl: z.string().optional(), // Support gambar pada opsi
+    imageUrl: z.string().optional().refine((val) => !val || IMAGE_PATH_REGEX.test(val), {
+        message: "Format gambar opsi tidak valid"
+    }),
     orderIndex: z.number().optional(),
 });
 
@@ -90,7 +92,9 @@ const questionSchema = z.object({
     questionText: z.string().min(5, { message: "Pertanyaan minimal 5 karakter" }),
     type: z.nativeEnum(QuizType).default(QuizType.SINGLE_CHOICE),
     points: z.coerce.number().min(1, { message: "Poin pertanyaan minimal 1" }),
-    imageUrl: z.string().optional(), // Support gambar pada soal
+    imageUrl: z.string().optional().refine((val) => !val || IMAGE_PATH_REGEX.test(val), {
+        message: "Format gambar soal tidak valid"
+    }),
     explanation: z.string().optional(),
     orderIndex: z.number().optional(), // Optional di form, diisi otomatis saat submit
 
