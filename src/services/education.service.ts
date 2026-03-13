@@ -24,16 +24,20 @@ export const educationService = {
     // 1. CATEGORY MANAGEMENT (ADMIN)
     // =================================================================
 
+    // =================================================================
+    // 1. CATEGORY MANAGEMENT (ADMIN)
+    // =================================================================
+
     /**
      * Mengambil daftar kategori. Digunakan di Admin Table dan Dropdown Filter.
      */
     async getCategories() {
-        const response = await apiClient.get<EducationCategory[]>('/education/categories');
+        const response = await apiClient.get<EducationCategory[]>('/admin/education/categories'); // ✅ BENAR
         return response.data;
     },
 
     async getCategoryById(id: string) {
-        const response = await apiClient.get<EducationCategory>(`/education/categories/${id}`);
+        const response = await apiClient.get<EducationCategory>(`/admin/education/categories/${id}`);
         return response.data;
     },
 
