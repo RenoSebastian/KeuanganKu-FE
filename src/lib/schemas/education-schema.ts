@@ -9,9 +9,8 @@ import { EducationLevel, QuizType } from '@/lib/types/education';
  * ------------------------------------------------------------------
  */
 
-// [FIXED] Regex yang lebih aman dan sinkron dengan Backend.
-// Memastikan awalan valid DAN akhiran file harus .jpg, .jpeg, .png, atau .webp
-const IMAGE_PATH_REGEX = /^(http|https|\/?uploads\/).*\.(jpg|jpeg|png|webp)$/i;
+// [FIXED] Relaksasi boundary awalan untuk menerima URI routing '/media/' atau relative path API lainnya
+const IMAGE_PATH_REGEX = /^(http|https|\/).*\.(jpg|jpeg|png|webp)$/i;
 
 // --- CATEGORY SCHEMA ---
 export const categorySchema = z.object({
