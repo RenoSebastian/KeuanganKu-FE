@@ -81,7 +81,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
 
         setIsSubmitting(true);
         try {
-            await subscriptionService.createOrder(plan.id, fileObj);
+            await subscriptionService.createOrder(plan.id, uniqueCode, fileObj);
             toast.success("Bukti transfer terkirim!", {
                 description: "Status akun Anda akan segera aktif setelah verifikasi otomatis."
             });

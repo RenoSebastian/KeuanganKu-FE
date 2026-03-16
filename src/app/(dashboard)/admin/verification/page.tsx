@@ -52,6 +52,7 @@ interface PendingOrder {
     id: string;
     proofImageUrl: string;
     snapshotPrice: string | number;
+    uniqueCode?: number;
     createdAt: string;
     verificationStatus: "PENDING" | "VALID" | "INVALID";
     plan: {
@@ -309,8 +310,13 @@ export default function VerificationPage() {
                                             <TableCell className="text-slate-600 text-sm">
                                                 {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: dateFnsId })}
                                             </TableCell>
-                                            <TableCell className="font-mono text-slate-700 font-medium">
-                                                Rp {Number(order.snapshotPrice).toLocaleString("id-ID")}
+                                            <TableCell className="font-mono text-slate-700 font-medium leading-tight">
+                                                <div className="flex flex-col">
+                                                    <span>Rp {(Number(order.snapshotPrice) + Number(order.uniqueCode || 0)).toLocaleString("id-ID")}</span>
+                                                    <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
+                                                        +{order.uniqueCode || 0} Kode Unik
+                                                    </span>
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">
@@ -393,8 +399,9 @@ export default function VerificationPage() {
                                         </div>
                                         <div className="text-right">
                                             <span className="block font-mono font-bold text-slate-900 text-sm">
-                                                Rp {Number(order.snapshotPrice).toLocaleString("id-ID")}
+                                                Rp {(Number(order.snapshotPrice) + Number(order.uniqueCode || 0)).toLocaleString("id-ID")}
                                             </span>
+                                            <span className="text-[9px] font-bold text-emerald-600 block mb-0.5">+{order.uniqueCode || 0} Kode Unik</span>
                                             <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-widest mt-0.5 block">PENDING</span>
                                         </div>
                                     </div>
@@ -491,8 +498,11 @@ export default function VerificationPage() {
                                     <p className="font-medium text-slate-900">{selectedOrder.user.fullName}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Nominal Tagihan</span>
-                                    <p className="font-medium text-slate-900">Rp {Number(selectedOrder.snapshotPrice).toLocaleString("id-ID")}</p>
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Nominal Persis</span>
+                                    <p className="font-medium text-slate-900 text-base">
+                                        Rp {(Number(selectedOrder.snapshotPrice) + Number(selectedOrder.uniqueCode || 0)).toLocaleString("id-ID")}
+                                    </p>
+                                    <p className="text-[10px] text-emerald-600 font-bold">Kode Unik (+{selectedOrder.uniqueCode || 0})</p>
                                 </div>
                                 <div className="space-y-1">
                                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Paket</span>

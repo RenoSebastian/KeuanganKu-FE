@@ -21,6 +21,7 @@ export interface SubscriptionOrder {
     proofImageUrl: string;
     verificationStatus: 'PENDING' | 'VALID' | 'INVALID';
     snapshotPrice: number;
+    uniqueCode: number;
     plan?: SubscriptionPlan;
     createdAt: string;
 }
@@ -32,9 +33,10 @@ export const subscriptionService = {
         return response.data;
     },
 
-    createOrder: async (planId: string, file: File) => {
+    createOrder: async (planId: string, uniqueCode: number, file: File) => {
         const formData = new FormData();
         formData.append('planId', planId);
+        formData.append('uniqueCode', uniqueCode.toString());
         formData.append('proofFile', file);
 
         const response = await api.post('/subscription/buy', formData, {
