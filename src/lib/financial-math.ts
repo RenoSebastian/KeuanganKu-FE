@@ -1,12 +1,7 @@
 import {
   BudgetResult,
   BudgetAllocation,
-  ChildProfile,
-  EducationLevel,
-  PlanInput,
-  PortfolioSummary,
-  StageResult,
-  ChildSimulationResult,
+  SchoolLevel,
   PensionInput,
   PensionResult,
   InsuranceInput,
@@ -24,7 +19,7 @@ import { SchoolLevelType, DEFAULT_STAGE_DURATION } from "@/lib/schemas/education
 // ============================================================================
 
 export interface EducationStage {
-  id: EducationLevel;
+  id: SchoolLevel;
   label: string;
   entryAge: number;
   duration: number;
@@ -32,12 +27,12 @@ export interface EducationStage {
 }
 
 export const STAGES_DB: EducationStage[] = [
-  { id: "TK", label: "TK / PAUD", entryAge: 5, duration: 2, paymentFrequency: "MONTHLY" },
-  { id: "SD", label: "Sekolah Dasar", entryAge: 7, duration: 6, paymentFrequency: "MONTHLY" },
-  { id: "SMP", label: "SMP", entryAge: 13, duration: 3, paymentFrequency: "MONTHLY" },
-  { id: "SMA", label: "SMA", entryAge: 16, duration: 3, paymentFrequency: "MONTHLY" },
-  { id: "S1", label: "Sarjana (S1)", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
-  { id: "S2", label: "Magister (S2)", entryAge: 23, duration: 2, paymentFrequency: "SEMESTER" },
+  { id: SchoolLevel.TK, label: "TK / PAUD", entryAge: 5, duration: 2, paymentFrequency: "MONTHLY" },
+  { id: SchoolLevel.SD, label: "Sekolah Dasar", entryAge: 7, duration: 6, paymentFrequency: "MONTHLY" },
+  { id: SchoolLevel.SMP, label: "SMP", entryAge: 13, duration: 3, paymentFrequency: "MONTHLY" },
+  { id: SchoolLevel.SMA, label: "SMA", entryAge: 16, duration: 3, paymentFrequency: "MONTHLY" },
+  { id: SchoolLevel.S1, label: "Sarjana (S1)", entryAge: 19, duration: 4, paymentFrequency: "SEMESTER" },
+  { id: SchoolLevel.S2, label: "Magister (S2)", entryAge: 23, duration: 2, paymentFrequency: "SEMESTER" },
 ];
 
 // --- BASIC HELPERS ---

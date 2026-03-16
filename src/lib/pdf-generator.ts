@@ -2,14 +2,6 @@
   import autoTable, { RowInput } from "jspdf-autotable";
   import { formatRupiah } from "./financial-math";
   import {
-    PortfolioSummary,
-    BudgetResult,
-    PensionInput,
-    PensionResult,
-    InsuranceInput,
-    InsuranceResult,
-    SpecialGoalInput,
-    SpecialGoalResult,
     FinancialRecord,
     HealthAnalysisResult
   } from "./types";

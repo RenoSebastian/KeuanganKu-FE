@@ -40,7 +40,7 @@ export enum SchoolLevel {
 // Enum Tipe Biaya (Digunakan untuk mapping label di UI)
 export enum CostType {
     ENTRY = 'ENTRY',
-    MONTHLY = 'ANNUAL', // Mapping ke ANNUAL untuk konsistensi DB lama
+    MONTHLY = 'ANNUAL', // Mapping ke ANNUAL untuk konsistensi DB
 }
 
 // ============================================================================
@@ -68,7 +68,8 @@ export interface ModuleSection {
     sectionOrder: number;
     title: string;
     contentMarkdown: string;
-    illustrationUrl?: string | null;
+    // [FIXED] Sesuai migrasi update_module_section_array
+    imageUrls: string[];
     createdAt: string;
     updatedAt: string;
 }
@@ -104,7 +105,6 @@ export interface Quiz {
     questions: QuizQuestion[];
     createdAt: string;
     updatedAt: string;
-    // Helper fields untuk UI (jika ada progress user)
     lastAttemptScore?: number | null;
     isPassed?: boolean;
 }
@@ -165,7 +165,7 @@ export interface UserQuizData {
 export interface CreateCategoryPayload {
     name: string;
     description?: string;
-    iconUrl: string;
+    iconUrl: string; // Wajib diisi (string URL hasil upload)
 }
 
 export interface UpdateCategoryPayload extends Partial<CreateCategoryPayload> { }
@@ -175,7 +175,8 @@ export interface SectionPayload {
     title: string;
     contentMarkdown: string;
     sectionOrder: number;
-    illustrationUrl?: string;
+    // [FIXED] Menggunakan Array sesuai arsitektur baru
+    imageUrls: string[];
 }
 
 export interface CreateModulePayload {
@@ -186,7 +187,7 @@ export interface CreateModulePayload {
     level: EducationLevel;
     readingTime: number;
     points: number;
-    thumbnailUrl?: string;
+    thumbnailUrl: string; // Wajib diisi cover-nya
     sections: SectionPayload[];
 }
 
@@ -225,7 +226,7 @@ export interface UpsertQuizPayload {
 }
 
 // ============================================================================
-// SUBMISSION DTOs
+// SUBMISSION & SIMULATION DTOs
 // ============================================================================
 
 export interface QuizSubmissionResult {
@@ -243,78 +244,56 @@ export interface SubmitQuizPayload {
     }[];
 }
 
-// ============================================================================
-// AGENT SIMULATION DTOs (UPDATED FOR SCENARIO B)
-// ============================================================================
-
-// 1. Payload Request (Dikirim FE -> BE)
 export interface EducationSimulationPayload {
     clientName: string;
     clientDob?: string;
     clientCity: string;
     clientJob?: string;
     clientPhone?: string;
-
     inflationRate: number;
     returnRate: number;
-
     childrenPlans: Array<{
         childName: string;
         childDob: string;
         stages: Array<{
             level: SchoolLevel;
             costType?: CostType;
-
-            // Fields Baru (Sesuai Schema Form)
             startYear: number;
             duration: number;
             costEntry: number;
             costMonthly?: number;
             costSemester?: number;
             costFull?: number;
-
-            // Hasil Kalkulasi FE (dikirim ke BE untuk dicetak di PDF/Disimpan)
             calculatedFutureValue?: number;
             calculatedMonthlySaving?: number;
         }>
     }>;
 }
 
-// 2. Response Data (Diterima FE <- BE)
-// Skenario B: Hanya menerima Data JSON dan ID Simulasi. Tidak ada Buffer PDF/Blob.
 export interface EducationSimulationResponse {
-    status: string; // "success" | "error"
-
-    // Data angka untuk visualisasi (Grafik/Ringkasan)
+    status: string;
     data: {
         totalFutureCost: number;
         totalMonthlySaving: number;
         childrenPlans: EducationSimulationPayload['childrenPlans'];
-        clientName?: string; // [PERBAIKAN TS2339]: Menambahkan optional property agar diizinkan oleh compiler
+        clientName?: string;
     };
-
-    // ID Simulasi untuk request download terpisah
     simulationId: string;
-
-    // Token & Filename untuk keperluan save/restore state
     mgcToken: string;
     filename: string;
 }
 
 // ============================================================================
-// 3. STRUKTUR DATA UI / VIEW MODEL (HASIL MERGE SMART)
+// VIEW MODELS (UI Presentation Layer)
 // ============================================================================
 
 export interface StageBreakdownItem {
-    // Milik Pecahan Anda
     level: string;
-    costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL" | "ANNUAL"; // Digabung
+    costType: "ENTRY" | "MONTHLY" | "SEMESTER" | "FULL" | "ANNUAL";
     yearsToStart: number;
     currentCost: number;
     futureCost: number;
     monthlySaving: number;
-
-    // Suntikan dari types.ts Raksasa (dibuat opsional agar tak merusak code baru)
     requiredSaving?: number;
     item?: any;
     dueYear?: number;
@@ -322,37 +301,15 @@ export interface StageBreakdownItem {
     stageId?: string;
 }
 
-// Menambahkan tipe dari Raksasa yang diperlukan ChildSimulationResult
-export interface StageDetailItem {
-    item: string;
-    dueYear: number;
-    futureCost: number;
-    requiredSaving: number;
-}
-
-export interface StageResult {
-    stageId: string;
-    label: string;
-    startGrade: number;
-    paymentFrequency: "MONTHLY" | "SEMESTER";
-    totalFutureCost: number;
-    monthlySaving: number;
-    details: StageDetailItem[];
-}
-
 export interface ChildSimulationResult {
-    // Milik Pecahan Anda
     name: string;
     age: number;
     totalFutureCost: number;
     monthlySaving: number;
-    stages: StageBreakdownItem[] | StageResult[]; // Union dengan format lama
-
-    // Suntikan dari types.ts Raksasa
+    stages: StageBreakdownItem[];
     childId?: string;
     childName?: string;
     totalMonthlySaving?: number;
-    stagesBreakdown?: StageBreakdownItem[];
 }
 
 export interface EducationSimulationResult {
@@ -365,64 +322,16 @@ export interface EducationSimulationResult {
         totalFutureCost: number;
         totalMonthlyInvestment: number;
     };
-
-    // Data Breakdown untuk UI (Wajib ada untuk render grafik/tabel)
     children: ChildSimulationResult[];
-
-    // Metadata Simulasi
-    simulationId: string; // ID Database untuk Download on Demand
+    simulationId: string;
     mgcToken?: string;
     filename?: string;
-
-    // Opsional: Raw Response jika dibutuhkan debugging
-    rawResponse?: EducationSimulationResponse;
 }
-
-// ============================================================================
-// SUNTIKAN DARI TYPES.TS RAKSASA (Tipe Lama yang Belum Ada di File Ini)
-// ============================================================================
-
-export interface PlanInput {
-    stageId: string;
-    startGrade: number; // Default 1
-    costNow: {
-        entryFee: number;
-        monthlyFee: number; // SPP (x12) atau UKT (x2)
-    };
-}
-
-export interface ChildProfile {
-    id: string;
-    name: string;
-    dob: string;
-    gender: "L" | "P";
-    avatarColor: string;
-    plans: PlanInput[];
-}
-
-export interface EducationStagePayload {
-    level: SchoolLevel; // Mengikuti Enum baru Anda
-    costType: "ENTRY" | "ANNUAL";
-    currentCost: number;
-    yearsToStart: number;
-}
-
-export interface EducationPayload {
-    childName: string;
-    childDob: string; // YYYY-MM-DD
-    method?: "STATIC" | "GEOMETRIC";
-    inflationRate?: number;
-    returnRate?: number;
-    stages?: EducationStagePayload[];
-}
-
-// Alias DTO untuk Service
-export interface CreateEducationPlanDto extends EducationPayload { }
 
 export interface EducationCalculationResult {
     totalFutureCost: number;
-    monthlySaving: number; // Total Saving (Sum of items)
-    stagesBreakdown: StageBreakdownItem[]; // Data Rincian Granular
+    monthlySaving: number;
+    stagesBreakdown: StageBreakdownItem[];
 }
 
 export interface EducationPlanResponse {
@@ -437,13 +346,4 @@ export interface EducationPlanResponse {
         method?: string;
     };
     calculation: EducationCalculationResult;
-}
-
-// Alias Data Response untuk Service
-export interface EducationPlanData extends EducationPlanResponse { }
-
-export interface PortfolioSummary {
-    grandTotalMonthlySaving: number;
-    totalFutureCost: number;
-    details: ChildSimulationResult[];
 }

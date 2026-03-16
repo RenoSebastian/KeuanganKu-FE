@@ -38,7 +38,7 @@ export function QuizRunner({
     const params = useParams();
     const slug = params.slug as string;
 
-    const { user, isLoaded: isAuthLoaded } = useAuthUser();
+    const { user, isLoading: isAuthLoaded } = useAuthUser();
 
     // [FIX STATE] Simpan userId yang valid terakhir kali dilihat.
     const [stableUserId, setStableUserId] = useState<string | null>(null);
@@ -157,7 +157,7 @@ export function QuizRunner({
     // --- RENDER GUARDS ---
 
     // 1. Initial Loading
-    if (!isHydrated || (!isAuthLoaded && mode === "LEARN")) {
+    if (!isHydrated || (isAuthLoaded && mode === "LEARN")) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

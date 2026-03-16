@@ -74,24 +74,24 @@ export function GoalResults({ result, targetAmount, inflation, returnRate, gener
                                 targetAmount={targetAmount}
                                 futureTargetAmount={result.futureTargetAmount}
                                 inflationRate={inflation}
-                                yearsDuration={result.yearsDuration}
+                                yearsDuration={result.yearsDuration || 0}
                             />
                         </motion.div>
                         <motion.div variants={itemVariants}>
                             <GoalSolutionCard
                                 monthlySaving={result.monthlySaving}
-                                totalTarget={result.futureTargetAmount}
-                                yearsDuration={result.yearsDuration}
+                                totalTarget={result.futureTargetAmount || 0}
+                                yearsDuration={result.yearsDuration || 0}
                                 returnRate={returnRate}
-                                isSurplus={result.netTarget <= 0}
+                                isSurplus={(result.netTarget || 0) <= 0}
                             />
                         </motion.div>
                         <motion.div variants={itemVariants}>
                             <GoalStrategyCard
-                                futureTargetAmount={result.futureTargetAmount}
-                                futureExistingFund={result.futureExistingFund}
+                                futureTargetAmount={result.futureTargetAmount || 0}
+                                futureExistingFund={result.futureExistingFund || 0}
                                 returnRate={returnRate}
-                                netTarget={result.netTarget}
+                                netTarget={result.netTarget || 0}
                             />
                         </motion.div>
                     </motion.div>

@@ -8,8 +8,8 @@ import Image from "next/image";
 import { toast } from "sonner";
 
 // Services & API
-import apiClient from "@/lib/axios";
 import { educationService } from "@/services/education.service";
+import { mediaService } from "@/services/media.service";
 
 // Types & Schemas
 import {
@@ -68,23 +68,17 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
 
         try {
             setIsUploading(true);
-            const formData = new FormData();
-            formData.append("file", file);
 
-            // POST ke Media Service Backend
-            const response = await apiClient.post("/media/upload", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-
-            // Adapt response structure (handle wrapped or direct data)
-            const uploadedUrl = response.data.data?.url || response.data.url;
+            // [FIX] Menggunakan mediaService yang sudah diperbaiki, bukan nembak Axios langsung
+            // Ini menjaga arsitektur tetap bersih dan menghindari duplikasi bug boundary
+            const uploadedUrl = await mediaService.upload(file);
 
             // Update form state
             form.setValue("iconUrl", uploadedUrl, { shouldValidate: true, shouldDirty: true });
             toast.success("Icon berhasil diupload");
         } catch (error) {
             console.error("Upload error:", error);
-            toast.error("Gagal mengupload gambar. Pastikan format JPG/PNG.");
+            toast.error("Gagal mengupload gambar. Pastikan format JPG/PNG/WEBP.");
         } finally {
             setIsUploading(false);
             e.target.value = ""; // Reset input
@@ -93,16 +87,6 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
 
     const handleRemoveImage = () => {
         form.setValue("iconUrl", "", { shouldValidate: true, shouldDirty: true });
-    };
-
-    // Helper untuk menampilkan gambar preview dengan path yang benar
-    const getImageUrl = (path: string) => {
-        if (!path) return "";
-        if (path.startsWith("http")) return path;
-        const base = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
-        if (path.startsWith('api/')) return `${base}/${path}`;
-        if (path.startsWith('uploads/')) return `${base}/api/${path}`;
-        return `${base}/${path}`;
     };
 
     // 3. Submit Handler
@@ -146,7 +130,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                     name="iconUrl"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Icon Kategori</FormLabel>
+                            <FormLabel>Icon Kategori <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
                                 <div className="flex items-center gap-4">
                                     {/* Image Preview Area */}
@@ -154,10 +138,11 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                                         {field.value ? (
                                             <>
                                                 <Image
-                                                    src={getImageUrl(field.value)}
+                                                    src={mediaService.getFullUrl(field.value)}
                                                     alt="Icon Preview"
                                                     fill
                                                     className="object-cover"
+                                                    unoptimized
                                                 />
                                                 <button
                                                     type="button"
@@ -193,7 +178,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                                         <input
                                             id="icon-upload-trigger"
                                             type="file"
-                                            accept="image/png, image/jpeg, image/jpg, image/webp"
+                                            accept="image/png, image/jpeg, image/webp"
                                             className="hidden"
                                             onChange={handleImageUpload}
                                         />
@@ -215,7 +200,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
                         name="name"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Nama Kategori</FormLabel>
+                                <FormLabel>Nama Kategori <span className="text-red-500">*</span></FormLabel>
                                 <FormControl>
                                     <Input placeholder="Contoh: Investasi Saham" {...field} disabled={isSubmitting} />
                                 </FormControl>

@@ -1,14 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { BellRing, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+
+interface SocketContextType {
+    socket: Socket | null;
+    isConnected: boolean;
+}
+
+const SocketContext = createContext<SocketContextType>({ socket: null, isConnected: false });
+
+export const useSocket = () => {
+    const context = useContext(SocketContext);
+    if (!context) return { socket: null, isConnected: false };
+    return context;
+};
 
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { useNotificationStore, NotificationItem } from '@/hooks/use-notification-store';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { useSystemStore } from '@/hooks/use-system-store'; // [NEW] Import System Store
+import { authService } from '@/services/auth.service'; // [NEW] For Heartbeat
 
 const getToastIcon = (type: string) => {
     switch (type) {
@@ -27,6 +41,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const { triggerSessionTermination } = useSystemStore();
 
     const socketRef = useRef<Socket | null>(null);
+    const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
 
     // =================================================================
     // 1. CORE SOCKET ORCHESTRATION 
@@ -54,6 +69,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 reconnectionDelay: 2000,
                 transports: ['websocket'],
             });
+
+            setSocketInstance(socketRef.current);
 
             // --- CONNECTION EVENTS ---
             socketRef.current.on('connect', () => {
@@ -109,6 +126,23 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             socketRef.current.on('force_refresh_user', () => {
                 refreshUser();
             });
+
+            // [NEW] EVENT: Admin Dashboard Real-time Metrics (Pembayaran Baru)
+            socketRef.current.on('NEW_PAYMENT_ORDER', (data: any) => {
+                toast("Pesanan Baru Masuk!", {
+                    description: `${data.planName} - Rp ${data.snapshotPrice.toLocaleString('id-ID')}`,
+                    icon: <BellRing className="w-5 h-5 text-indigo-500" />,
+                    duration: 5000,
+                });
+                // Broadcast custom event for widgets to pick up
+                window.dispatchEvent(new CustomEvent('REFRESH_ADMIN_DASHBOARD'));
+            });
+
+            // [NEW] EVENT: Admin Dashboard Real-time Metrics (Pembayaran Diproses admin lain)
+            socketRef.current.on('PAYMENT_ORDER_PROCESSED', (data: any) => {
+                // Broadcast custom event for widgets to pick up
+                window.dispatchEvent(new CustomEvent('REFRESH_ADMIN_DASHBOARD'));
+            });
         }
 
         return () => {
@@ -116,27 +150,57 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 socketRef.current.off('notification_new');
                 socketRef.current.off('force_refresh_user');
                 socketRef.current.off('force_logout');
+                socketRef.current.off('NEW_PAYMENT_ORDER');
+                socketRef.current.off('PAYMENT_ORDER_PROCESSED');
                 socketRef.current.disconnect();
                 socketRef.current = null;
+                setSocketInstance(null);
                 setConnectionStatus(false);
             }
         };
     }, [user, addNotification, setConnectionStatus, refreshUser, forceLogout, triggerSessionTermination]);
 
     // =================================================================
-    // 2. PWA LIFECYCLE RESILIENCE 
+    // 2. PWA LIFECYCLE & HEARTBEAT RESILIENCE (REDIS)
     // =================================================================
     useEffect(() => {
+        let heartbeatInterval: NodeJS.Timeout | null = null;
+
+        const startHeartbeat = () => {
+            if (heartbeatInterval) return;
+            
+            // Tembak sekali saat fungsi dipanggil pertama kali
+            authService.sendHeartbeat();
+            
+            // Tembak berkala setiap 45 detik (Redis TTL 60s)
+            heartbeatInterval = setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    authService.sendHeartbeat();
+                }
+            }, 45000); 
+        };
+
+        const stopHeartbeat = () => {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+        };
+
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                 const { isSessionTerminated } = useSystemStore.getState();
 
                 // [FIX] Jika status aplikasi sudah ditendang, jangan coba apa-apa saat layar menyala
-                if (isSessionTerminated) return;
+                if (isSessionTerminated) {
+                    stopHeartbeat();
+                    return;
+                }
 
                 if (!token && window.location.pathname !== '/login') {
                     console.warn('⚠️ Token is missing on wake-up. Forcing manual logout.');
+                    stopHeartbeat();
                     forceLogout('expired');
                     return;
                 }
@@ -146,12 +210,28 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                     socketRef.current.connect();
                     refreshUser();
                 }
+
+                // Resume heartbeat monitoring once back online
+                if (token) {
+                    startHeartbeat();
+                }
+            } else {
+                // Pause heartbeat to save battery/bandwidth strictly when sleeping 
+                // However, depending on product requirement, you may want to keep it alive via Service Worker instead.
+                // For this scenario we pause it, eventually Redis TTL will evict the session, showing user as 'offline' when away.
+                stopHeartbeat();
             }
         };
 
         if (typeof window !== 'undefined') {
             document.addEventListener('visibilitychange', handleVisibilityChange);
             window.addEventListener('focus', handleVisibilityChange);
+            
+            // Kickstart directly if we already have a token and page is currently active
+            const token = localStorage.getItem('token');
+            if (token && document.visibilityState === 'visible' && !useSystemStore.getState().isSessionTerminated) {
+                startHeartbeat();
+            }
         }
 
         return () => {
@@ -159,8 +239,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
                 window.removeEventListener('focus', handleVisibilityChange);
             }
+            stopHeartbeat();
         };
     }, [forceLogout, refreshUser]);
 
-    return <>{children}</>;
+    // Retrieve connection status to provide via context
+    const connectionStatus = useNotificationStore(state => state.isConnected);
+
+    return (
+        <SocketContext.Provider value={{ socket: socketInstance, isConnected: connectionStatus }}>
+            {children}
+        </SocketContext.Provider>
+    );
 }

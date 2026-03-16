@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { format } from "date-fns";
+import { id as dateFnsId } from "date-fns/locale";
 import {
   Search, Plus, MoreHorizontal,
   User as UserIcon, Shield, CreditCard,
@@ -20,32 +22,50 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
 import { toast } from "sonner";
 import { adminService } from "@/services/admin.service";
+import api from "@/lib/axios"; // Digunakan untuk memanggil endpoint spesifik inject quota
 import { cn } from "@/lib/utils";
 
-// --- MOCK INTERFACE FOR SAAS USER (To replace legacy User type) ---
-interface SaaSUser {
+// --- INTERFACE MENYESUAIKAN RESPONSE BACKEND PHASE 2 ---
+interface AgentUser {
   id: string;
   fullName: string;
   email: string;
-  role: "USER" | "ADMIN" | "SUPER_ADMIN";
-  plan: "FREE" | "PRO" | "ENTERPRISE";
-  status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
-  quotaUsed: number;
-  quotaLimit: number;
-  joinedAt: string;
+  role: string;
+  agency?: { name: string; code: string };
+  usage?: { simulationQuota: number; totalUsed: number };
+  subscription?: { status: string; endDate: string; plan?: { name: string } };
+  createdAt: string;
 }
 
 export default function AdminUsersPage() {
   // --- STATE ---
-  const [users, setUsers] = useState<SaaSUser[]>([]);
+  const [users, setUsers] = useState<AgentUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterRole, setFilterRole] = useState<string>("ALL");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
 
-  // Debounce search
+  // State untuk Inject Quota Modal
+  const [isInjectModalOpen, setIsInjectModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AgentUser | null>(null);
+  const [injectAmount, setInjectAmount] = useState<number | string>("");
+  const [injectReason, setInjectReason] = useState("");
+  const [isInjecting, setIsInjecting] = useState(false);
+
+  // Debounce search untuk optimalisasi panggilan API Fuzzy Search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(timer);
@@ -55,32 +75,20 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // NOTE: Di production, ganti ini dengan call API asli
-      // const data = await adminService.getUsers({ search: debouncedSearch });
-
-      // Simulasi Data SaaS untuk UI Preview
-      await new Promise(r => setTimeout(r, 800));
-      const mockUsers: SaaSUser[] = [
-        { id: "1", fullName: "Reno Sebastian", email: "reno@example.com", role: "SUPER_ADMIN", plan: "ENTERPRISE", status: "ACTIVE", quotaUsed: 45, quotaLimit: 1000, joinedAt: "2025-01-10" },
-        { id: "2", fullName: "Budi Santoso", email: "budi.s@agency.com", role: "USER", plan: "PRO", status: "ACTIVE", quotaUsed: 88, quotaLimit: 100, joinedAt: "2025-02-14" },
-        { id: "3", fullName: "Siti Aminah", email: "siti@gmail.com", role: "USER", plan: "FREE", status: "INACTIVE", quotaUsed: 5, quotaLimit: 5, joinedAt: "2024-12-05" },
-        { id: "4", fullName: "Operational Team", email: "ops@keuanganku.com", role: "ADMIN", plan: "ENTERPRISE", status: "ACTIVE", quotaUsed: 12, quotaLimit: 9999, joinedAt: "2024-11-20" },
-      ];
-
-      // Filter logic (Client side simulation)
-      let filtered = mockUsers.filter(u =>
-        u.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
-      );
-
-      if (filterStatus !== "ALL") {
-        filtered = filtered.filter(u => u.status === filterStatus);
+      // Panggil API Backend (yang sudah dioptimasi dengan pg_trgm di Phase 2)
+      const queryParams: any = { search: debouncedSearch, limit: 50 }; // Ambil 50 data untuk view ini
+      if (filterRole !== "ALL") {
+        queryParams.role = filterRole;
       }
 
-      setUsers(filtered);
+      const response: any = await adminService.getUsers(queryParams);
+
+      // Mengatasi struktur balikan: bisa array langsung atau object { data, meta }
+      const dataList = response.data ? response.data : response;
+      setUsers(dataList);
     } catch (error) {
       console.error(error);
-      toast.error("Gagal memuat data subscriber");
+      toast.error("Gagal memuat data pengguna");
     } finally {
       setIsLoading(false);
     }
@@ -88,17 +96,56 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, [debouncedSearch, filterStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, filterRole]);
 
   // --- HANDLERS ---
-  const handleAction = (action: string, user: SaaSUser) => {
+  const handleAction = async (action: string, user: AgentUser) => {
     if (action === "delete") {
-      if (!confirm(`Hapus user ${user.fullName}? Data transaksi akan di-archive.`)) return;
-      toast.success("User berhasil dinonaktifkan (Soft Delete)");
+      if (!confirm(`Hapus pengguna ${user.fullName} secara permanen? Aksi ini akan dicatat di Audit Log.`)) return;
+      try {
+        await adminService.deleteUser(user.id);
+        toast.success("User berhasil dihapus");
+        fetchUsers();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Gagal menghapus user");
+      }
     } else if (action === "inject") {
-      toast.success(`Bonus kuota ditambahkan ke ${user.fullName}`);
+      setSelectedUser(user);
+      setInjectAmount("");
+      setInjectReason("");
+      setIsInjectModalOpen(true);
     } else if (action === "reset_password") {
-      toast.info(`Email reset password dikirim ke ${user.email}`);
+      toast.info(`Email reset password dikirim ke ${user.email} (Fitur segera hadir)`);
+    }
+  };
+
+  const handleInjectSubmit = async () => {
+    if (!selectedUser) return;
+    if (!injectAmount || Number(injectAmount) === 0) {
+      toast.warning("Nominal token tidak valid.");
+      return;
+    }
+    if (!injectReason.trim()) {
+      toast.warning("Alasan wajib diisi untuk pencatatan Audit Log.");
+      return;
+    }
+
+    setIsInjecting(true);
+    try {
+      // Memanggil endpoint baru Fase 2
+      await api.patch(`/admin/subscription/users/${selectedUser.id}/quota`, {
+        amount: Number(injectAmount),
+        reason: injectReason
+      });
+
+      toast.success(`Berhasil menambahkan ${injectAmount} token ke ${selectedUser.fullName}`);
+      setIsInjectModalOpen(false);
+      fetchUsers(); // Refresh data untuk melihat perubahan limit
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal melakukan injeksi kuota");
+    } finally {
+      setIsInjecting(false);
     }
   };
 
@@ -122,7 +169,7 @@ export default function AdminUsersPage() {
               User Management
             </h1>
             <p className="text-slate-400 text-sm mt-1 max-w-lg">
-              Monitor subscriber, kelola kuota, dan atur hak akses sistem.
+              Monitor subscriber, kelola kuota, dan atur hak akses sistem secara komprehensif.
             </p>
           </div>
 
@@ -146,7 +193,7 @@ export default function AdminUsersPage() {
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder="Search by name, email..."
+              placeholder="Fuzzy Search by name, email, agency, nip..."
               className="pl-10 h-11 bg-transparent border-transparent focus:bg-slate-50 rounded-xl text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -154,26 +201,27 @@ export default function AdminUsersPage() {
           </div>
           <div className="h-8 w-px bg-slate-200 hidden md:block my-auto" />
 
+          {/* Menggunakan Role Filtering sesuai dukungan Backend */}
           <div className="flex gap-2 p-1 overflow-x-auto">
-            {["ALL", "ACTIVE", "INACTIVE", "SUSPENDED"].map((status) => (
+            {["ALL", "USER", "ADMIN", "DIRECTOR"].map((role) => (
               <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
+                key={role}
+                onClick={() => setFilterRole(role)}
                 className={cn(
                   "px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
-                  filterStatus === status
+                  filterRole === role
                     ? "bg-slate-900 text-white shadow-md"
                     : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 )}
               >
-                {status}
+                {role}
               </button>
             ))}
           </div>
         </Card>
 
-        {/* --- DATA TABLE --- */}
-        <Card className="overflow-hidden shadow-sm border-slate-200 bg-white rounded-2xl">
+        {/* --- DESKTOP DATA TABLE --- */}
+        <Card className="overflow-hidden shadow-sm border-slate-200 bg-white rounded-2xl hidden md:block mb-12">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
@@ -187,130 +235,141 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                        <p className="text-slate-500 font-medium text-xs">Loading subscribers...</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : users.length > 0 ? (
-                  users.map((user) => (
-                    <tr key={user.id} className="bg-white hover:bg-slate-50 transition-colors group">
-
-                      {/* 1. USER IDENTITY */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm",
-                            user.role.includes("ADMIN") ? "bg-slate-800" : "bg-linear-to-br from-blue-500 to-blue-600"
-                          )}>
-                            {user.fullName.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-bold text-slate-800 flex items-center gap-2">
-                              {user.fullName}
-                              {user.role === 'SUPER_ADMIN' && <Shield className="w-3 h-3 text-blue-600 fill-blue-100" />}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                              <Mail className="w-3 h-3" /> {user.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 2. PLAN & STATUS */}
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col items-start gap-1.5">
-                          <Badge variant="outline" className={cn(
-                            "border-0 font-bold px-2 py-0.5",
-                            user.plan === "ENTERPRISE" ? "bg-purple-50 text-purple-700 ring-1 ring-purple-100" :
-                              user.plan === "PRO" ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" :
-                                "bg-slate-100 text-slate-600"
-                          )}>
-                            {user.plan === "ENTERPRISE" && <Crown className="w-3 h-3 mr-1 fill-purple-200" />}
-                            {user.plan} PLAN
-                          </Badge>
-
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide">
-                            {user.status === "ACTIVE" ? (
-                              <>
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-emerald-600">Active</span>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                <span className="text-slate-400">Inactive</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 3. USAGE QUOTA */}
-                      <td className="px-6 py-4">
-                        <div className="w-full max-w-35">
-                          <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                            <span>{user.quotaUsed} used</span>
-                            <span>{user.quotaLimit} limit</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className={cn("h-full rounded-full transition-all duration-500",
-                                (user.quotaUsed / user.quotaLimit) > 0.9 ? "bg-red-500" : "bg-blue-500"
-                              )}
-                              style={{ width: `${Math.min((user.quotaUsed / user.quotaLimit) * 100, 100)}%` }}
-                            />
-                          </div>
-                          {(user.quotaUsed / user.quotaLimit) > 0.9 && (
-                            <span className="text-[10px] text-red-500 flex items-center gap-1 mt-1 font-medium">
-                              <AlertCircle className="w-3 h-3" /> Low Quota
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 4. JOINED DATE */}
-                      <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                        {new Date(user.joinedAt).toLocaleDateString('id-ID', {
-                          day: 'numeric', month: 'short', year: 'numeric'
-                        })}
-                      </td>
-
-                      {/* 5. ACTIONS */}
-                      <td className="px-6 py-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuLabel>User Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleAction('edit', user)}>
-                              <UserIcon className="w-4 h-4 mr-2" /> Edit Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAction('inject', user)}>
-                              <Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Quota
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAction('reset_password', user)}>
-                              <Shield className="w-4 h-4 mr-2" /> Reset Password
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                              onClick={() => handleAction('delete', user)}
-                            >
-                              <XCircle className="w-4 h-4 mr-2" /> Deactivate
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <tr key={idx}>
+                      {Array.from({ length: 5 }).map((_, colIdx) => (
+                        <td key={colIdx} className="px-6 py-4">
+                          <div className="h-10 bg-slate-100 animate-pulse rounded-lg w-full" />
+                        </td>
+                      ))}
                     </tr>
                   ))
+                ) : users.length > 0 ? (
+                  users.map((user) => {
+                    const planName = user.subscription?.plan?.name?.toUpperCase() || "FREE";
+                    const isPro = user.subscription?.status === "ACTIVE";
+                    const quotaLimit = user.usage?.simulationQuota || 0;
+                    const quotaUsed = user.usage?.totalUsed || 0;
+                    const quotaPercentage = quotaLimit > 0 ? (quotaUsed / quotaLimit) * 100 : 0;
+
+                    return (
+                      <tr key={user.id} className="bg-white hover:bg-slate-50 transition-colors group">
+                        {/* 1. USER IDENTITY */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm",
+                              user.role.includes("ADMIN") ? "bg-slate-800" : "bg-linear-to-br from-blue-500 to-blue-600"
+                            )}>
+                              {user.fullName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-800 flex items-center gap-2">
+                                {user.fullName}
+                                {user.role === 'SUPER_ADMIN' && <Shield className="w-3 h-3 text-blue-600 fill-blue-100" />}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                                <Mail className="w-3 h-3" /> {user.email}
+                              </div>
+                              {user.agency && (
+                                <div className="text-[10px] font-medium text-slate-400 mt-0.5">
+                                  {user.agency.name}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 2. PLAN & STATUS */}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-start gap-1.5">
+                            <Badge variant="outline" className={cn(
+                              "border-0 font-bold px-2 py-0.5",
+                              planName.includes("ENTERPRISE") ? "bg-purple-50 text-purple-700 ring-1 ring-purple-100" :
+                                isPro ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" :
+                                  "bg-slate-100 text-slate-600"
+                            )}>
+                              {planName.includes("ENTERPRISE") && <Crown className="w-3 h-3 mr-1 fill-purple-200" />}
+                              {planName} PLAN
+                            </Badge>
+
+                            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide">
+                              {isPro ? (
+                                <>
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  <span className="text-emerald-600">Active Subs</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                  <span className="text-slate-400">Basic / Inactive</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 3. USAGE QUOTA */}
+                        <td className="px-6 py-4">
+                          <div className="w-full max-w-[140px]">
+                            <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                              <span>{quotaUsed} used</span>
+                              <span>{quotaLimit} limit</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className={cn("h-full rounded-full transition-all duration-500",
+                                  quotaPercentage > 90 ? "bg-red-500" : "bg-blue-500"
+                                )}
+                                style={{ width: `${Math.min(quotaPercentage, 100)}%` }}
+                              />
+                            </div>
+                            {quotaPercentage > 90 && (
+                              <span className="text-[10px] text-red-500 flex items-center gap-1 mt-1 font-medium">
+                                <AlertCircle className="w-3 h-3" /> Low Quota
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 4. JOINED DATE */}
+                        <td className="px-6 py-4 text-xs font-medium text-slate-500">
+                          {format(new Date(user.createdAt), "dd MMM yyyy", { locale: dateFnsId })}
+                        </td>
+
+                        {/* 5. ACTIONS */}
+                        <td className="px-6 py-4 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuLabel>User Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleAction('edit', user)}>
+                                <UserIcon className="w-4 h-4 mr-2" /> Edit Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleAction('inject', user)}>
+                                <Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Quota
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleAction('reset_password', user)}>
+                                <Shield className="w-4 h-4 mr-2" /> Reset Password
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                onClick={() => handleAction('delete', user)}
+                              >
+                                <XCircle className="w-4 h-4 mr-2" /> Deactivate
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    )
+                  })
                 ) : (
                   <tr>
                     <td colSpan={5} className="px-6 py-16 text-center">
@@ -330,7 +389,188 @@ export default function AdminUsersPage() {
             </table>
           </div>
         </Card>
+
+        {/* --- MOBILE CARD LIST PATTERN --- */}
+        <div className="md:hidden space-y-4">
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <Card key={idx} className="p-4 rounded-2xl border-slate-200 bg-white shadow-sm space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-slate-100 animate-pulse rounded w-1/2" />
+                    <div className="h-3 bg-slate-100 animate-pulse rounded w-1/3" />
+                  </div>
+                </div>
+                <div className="h-6 bg-slate-100 animate-pulse rounded w-1/4" />
+                <div className="h-8 bg-slate-100 animate-pulse rounded w-full mt-2" />
+              </Card>
+            ))
+          ) : users.length > 0 ? (
+            users.map((user) => {
+              const planName = user.subscription?.plan?.name?.toUpperCase() || "FREE";
+              const isPro = user.subscription?.status === "ACTIVE";
+              const quotaLimit = user.usage?.simulationQuota || 0;
+              const quotaUsed = user.usage?.totalUsed || 0;
+              const quotaPercentage = quotaLimit > 0 ? (quotaUsed / quotaLimit) * 100 : 0;
+
+              return (
+                <Card key={user.id} className="p-4 rounded-2xl border-slate-200 bg-white/95 shadow-sm space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm",
+                        user.role.includes("ADMIN") ? "bg-slate-800" : "bg-linear-to-br from-blue-500 to-blue-600"
+                      )}>
+                        {user.fullName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 flex items-center gap-1.5 text-sm">
+                          {user.fullName}
+                          {user.role === 'SUPER_ADMIN' && <Shield className="w-3 h-3 text-blue-600 fill-blue-100" />}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                          <Mail className="w-3 h-3" /> {user.email}
+                        </div>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700 -mr-2 -mt-2">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 z-50">
+                        <DropdownMenuLabel>User Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleAction('edit', user)}>
+                          <UserIcon className="w-4 h-4 mr-2" /> Edit Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAction('inject', user)}>
+                          <Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Quota
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAction('reset_password', user)}>
+                          <Shield className="w-4 h-4 mr-2" /> Reset Password
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          onClick={() => handleAction('delete', user)}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" /> Deactivate
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="flex items-center justify-between border-y border-slate-50 py-2">
+                    <Badge variant="outline" className={cn(
+                      "border-0 font-bold px-2 py-0.5",
+                      planName.includes("ENTERPRISE") ? "bg-purple-50 text-purple-700 ring-1 ring-purple-100" :
+                        isPro ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" :
+                          "bg-slate-100 text-slate-600"
+                    )}>
+                      {planName.includes("ENTERPRISE") && <Crown className="w-3 h-3 mr-1 fill-purple-200" />}
+                      {planName} PLAN
+                    </Badge>
+
+                    <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide">
+                      {isPro ? (
+                        <>
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-emerald-600">Active</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                          <span className="text-slate-400">Inactive</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="w-full">
+                    <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                      <span>{quotaUsed} used</span>
+                      <span>{quotaLimit} limit</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-500",
+                          quotaPercentage > 90 ? "bg-red-500" : "bg-blue-500"
+                        )}
+                        style={{ width: `${Math.min(quotaPercentage, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </Card>
+              );
+            })
+          ) : (
+            <Card className="p-8 rounded-2xl border-slate-200 bg-white/95 shadow-sm text-center flex flex-col items-center">
+              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 mb-3">
+                <Filter className="w-8 h-8 text-slate-300" />
+              </div>
+              <p className="text-slate-900 font-bold">No subscribers found</p>
+              <p className="text-slate-500 text-xs">Try adjusting your filters.</p>
+            </Card>
+          )}
+        </div>
       </div>
+
+      {/* --- INJECT QUOTA MODAL / DIALOG --- */}
+      <Dialog open={isInjectModalOpen} onOpenChange={(open) => !open && setIsInjectModalOpen(false)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Inject Token Kuota</DialogTitle>
+            <DialogDescription>
+              Menambah atau mengurangi (dengan minus) kuota user <b>{selectedUser?.fullName}</b>.
+              Setiap aksi akan dicatat secara ketat di Audit Log.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4 mt-2">
+            <div className="grid gap-2">
+              <Label htmlFor="amount" className="text-slate-700 font-semibold">Nominal Token</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="Contoh: 50 atau -10"
+                value={injectAmount}
+                onChange={(e) => setInjectAmount(e.target.value)}
+              />
+              <p className="text-[10px] text-slate-500 font-medium">Gunakan angka negatif untuk memotong kuota.</p>
+            </div>
+
+            <div className="grid gap-2 mt-2">
+              <Label htmlFor="reason" className="text-slate-700 font-semibold">Alasan Injeksi (Wajib Audit)</Label>
+              <Textarea
+                id="reason"
+                placeholder="Contoh: Kompensasi downtime sistem, bonus manual, dll."
+                value={injectReason}
+                onChange={(e) => setInjectReason(e.target.value)}
+                className="resize-none"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setIsInjectModalOpen(false)} disabled={isInjecting}>
+              Batal
+            </Button>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={handleInjectSubmit}
+              disabled={isInjecting || !injectReason.trim() || !injectAmount}
+            >
+              {isInjecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+              Eksekusi Injeksi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

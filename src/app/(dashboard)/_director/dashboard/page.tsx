@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { directorService } from "@/services/director.service";
-import DashboardView from "@/components/features/director/dashboard-view"; 
+import DashboardView from "@/components/features/_director/dashboard-view"; 
 
 // Server Component (Async)
 export default async function DirectorDashboardPage() {

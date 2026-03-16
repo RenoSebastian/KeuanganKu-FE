@@ -11,8 +11,6 @@ import {
   CreateGoalDto,
   SimulateGoalDto,
   GoalPlanData,
-  CreateEducationPlanDto,
-  EducationPlanData,
   GoalSimulationResult,
   CreateBudgetSimulationDto,
   CreateInsuranceSimulationDto,
@@ -240,8 +238,8 @@ export const financialService = {
   },
 
   // D. Pendidikan Anak (PERSONAL - DB SAVED)
-  calculateEducation: async (data: CreateEducationPlanDto) => {
-    const response = await api.post<{ plan: EducationPlanData, calculation: any }>("/financial/calculator/education", data);
+  calculateEducation: async (data: any) => {
+    const response = await api.post<{ plan: any, calculation: any }>("/financial/calculator/education", data);
     return response.data;
   },
 
@@ -353,7 +351,7 @@ export const financialService = {
   },
 
   simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/risk-profile/simulation", data, {
+    return await api.post("/financial/simulation/risk-profile-pdf", data, {
       responseType: 'arraybuffer'
     });
   },

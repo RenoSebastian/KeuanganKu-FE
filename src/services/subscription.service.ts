@@ -1,53 +1,74 @@
-import api from "@/lib/axios";
+import api from '@/lib/axios';
 
-// Sesuaikan dengan Model Prisma Backend
+// Interface pendukung
 export interface SubscriptionPlan {
     id: string;
     code: string;
     name: string;
-    description: string;
-    durationMonths: number;
+    description?: string;
     price: number;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
+    bonusQuota: number;
+    durationMonths: number;
+    isActive?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface SubscriptionOrder {
     id: string;
-    plan: SubscriptionPlan;
-    proofImageUrl?: string; // Optional karena bisa nullable di DB
+    userId: string;
+    planId: string;
+    proofImageUrl: string;
     verificationStatus: 'PENDING' | 'VALID' | 'INVALID';
     snapshotPrice: number;
-    adminNotes?: string;
+    plan?: SubscriptionPlan;
     createdAt: string;
 }
 
 export const subscriptionService = {
-    // Ambil daftar paket yang tersedia
+    // --- CLIENT SIDE METHODS (Existing) ---
     getPlans: async () => {
-        const response = await api.get<SubscriptionPlan[]>("/subscription/plans");
+        const response = await api.get<SubscriptionPlan[]>('/subscription/plans');
         return response.data;
     },
 
-    // Kirim bukti pembayaran (Create Order & Upload)
-    // Menggunakan FormData karena Backend mengharapkan Multipart File
     createOrder: async (planId: string, file: File) => {
         const formData = new FormData();
         formData.append('planId', planId);
-        formData.append('proofFile', file); // Key harus sesuai dengan @UseInterceptors(FileInterceptor('proofFile')) di Backend
+        formData.append('proofFile', file);
 
-        const response = await api.post("/subscription/buy", formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
+        const response = await api.post('/subscription/buy', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;
     },
 
-    // Ambil riwayat transaksi user
     getMyOrders: async () => {
-        const response = await api.get<SubscriptionOrder[]>("/subscription/orders");
+        const response = await api.get<SubscriptionOrder[]>('/subscription/my-orders');
+        return response.data;
+    },
+
+    // --- ADMIN SIDE METHODS (PHASE 1 ENHANCED) ---
+
+    getPendingOrders: async () => {
+        const response = await api.get('/admin/subscription/pending');
+        return response.data;
+    },
+
+    verifyOrder: async (payload: { orderId: string; status: 'VALID' | 'INVALID'; adminNotes?: string }) => {
+        const response = await api.patch('/admin/subscription/verify', payload);
+        return response.data;
+    },
+
+    // [NEW] Bulk Verification
+    bulkVerifyOrders: async (payload: { orderIds: string[]; status: 'VALID' | 'INVALID'; adminNotes?: string }) => {
+        const response = await api.post('/admin/subscription/bulk-verify', payload);
+        return response.data;
+    },
+
+    // [NEW] Compensating Transaction / Revoke
+    revokeOrder: async (payload: { orderId: string; reason: string }) => {
+        const response = await api.post('/admin/subscription/revoke', payload);
         return response.data;
     }
 };

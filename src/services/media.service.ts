@@ -31,16 +31,24 @@ export const mediaService = {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Menggunakan 'multipart/form-data'
         const response = await apiClient.post<MediaUploadResponse>('/media/upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
-            // Opsional: Tambahkan onUploadProgress jika ingin menampilkan progress bar detail
         });
 
-        // Mengembalikan URL path yang disimpan di DB (e.g., "uploads/xyz.jpg")
-        return response.data.data.url;
+        // --- [FIX] URI Normalization ---
+        // Backend mereturn raw physical path (e.g., "/uploads/media/uuid.webp").
+        // Kita harus memangkasnya menjadi URI API yang valid untuk dikonsumsi getFullUrl(),
+        // yaitu "/media/uuid.webp" agar cocok dengan kontrak @Get(':filename') di MediaController.
+
+        const rawUrl = response.data.data.url;
+
+        // Ekstraksi murni nama file dari ujung string path
+        const filename = rawUrl.substring(rawUrl.lastIndexOf('/') + 1);
+
+        // Kembalikan URI yang sesuai dengan routing NestJS
+        return `/media/${filename}`;
     },
 
     /**

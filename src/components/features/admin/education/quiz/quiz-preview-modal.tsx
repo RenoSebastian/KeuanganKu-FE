@@ -18,7 +18,7 @@ import { QuizFormValues } from "@/lib/schemas/education-schema";
 import { UserQuizData, QuizType } from "@/lib/types/education";
 
 // Components
-import { QuizRunner } from "@/components/features/education/quiz/quiz-runner";
+import { QuizRunner } from "@/components/features/learning/quiz/quiz-runner";
 
 interface QuizPreviewModalProps {
     open: boolean;

@@ -63,6 +63,7 @@ export default function SubscriptionPage() {
         name: "Free Version",
         description: "Akses dasar untuk eksplorasi awal.",
         durationMonths: 0,
+        bonusQuota: 0,
         price: 0,
         isActive: true,
         createdAt: new Date().toISOString(),

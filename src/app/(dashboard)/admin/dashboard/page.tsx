@@ -1,427 +1,360 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence, Variants } from "framer-motion"; // Pastikan Variants ter-import
 import {
-    TrendingUp,
-    Users,
-    CreditCard,
-    AlertCircle,
-    ArrowUpRight,
-    ArrowDownRight,
-    Activity,
-    Settings,
-    ShieldCheck,
-    Wallet,
-    MoreHorizontal,
-    Bell
+    Settings, ShieldCheck, CreditCard, Users, Activity, Bell,
+    TrendingUp, RefreshCw, Radio
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
-// --- Types for SaaS Metrics ---
-interface SaaSMetrics {
-    mrr: number; // Monthly Recurring Revenue
-    totalUsers: number;
-    activeSubs: number;
-    pendingVerifications: number;
-    churnRate: number;
-    growth: {
-        mrr: number;
-        users: number;
-    };
+// Import Service, Types, & Providers
+import { adminService } from "@/services/admin.service";
+import { DashboardMetricsResponse, CashflowLedgerResponse } from "@/lib/types/dashboard";
+import { useSocket } from "@/providers/socket-provider";
+
+// Import Components
+import { DashboardKpiCards } from "@/components/features/admin/dashboard/kpi-cards";
+import { FeatureUsageChart } from "@/components/features/admin/dashboard/feature-usage-chart";
+import { CashflowLedgerTable } from "@/components/features/admin/dashboard/cashflow-ledger-table";
+import { DashboardSkeleton } from "@/components/features/admin/dashboard/dashboard-skeleton";
+import { PendingApprovalsWidget } from "@/components/features/admin/dashboard/pending-approvals-widget";
+
+interface AuditLogEvent {
+    id: string;
+    title: string;
+    description: string;
+    timestamp: string;
+    type: 'info' | 'success' | 'warning' | 'error';
 }
+
+// --- Framer Motion Variants ---
+// [FIX]: Menambahkan as const agar TypeScript mengerti ini adalah literal "spring"
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    show: {
+        opacity: 1,
+        y: 0,
+        transition: {
+            type: "spring" as const, // <--- KUNCI PERBAIKANNYA DI SINI
+            stiffness: 300,
+            damping: 24
+        }
+    }
+};
 
 export default function AdminDashboardPage() {
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [metrics, setMetrics] = useState<SaaSMetrics | null>(null);
+    const { socket, isConnected } = useSocket();
 
-    // Simulasi Data Fetching
-    useEffect(() => {
-        const fetchMetrics = async () => {
-            // Di real app, ini fetch ke API Backend
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setMetrics({
-                mrr: 45000000, // Rp 45.000.000
-                totalUsers: 1240,
-                activeSubs: 856,
-                pendingVerifications: 12, // Butuh tindakan segera
-                churnRate: 2.4,
-                growth: {
-                    mrr: 15.5, // +15.5%
-                    users: 8.2 // +8.2%
-                }
-            });
-            setLoading(false);
-        };
+    // State Management
+    const [loadingMetrics, setLoadingMetrics] = useState(true);
+    const [loadingLedger, setLoadingLedger] = useState(true);
+    const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
+    const [ledger, setLedger] = useState<CashflowLedgerResponse | null>(null);
+    const [liveActivities, setLiveActivities] = useState<AuditLogEvent[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const limitPerPage = 5;
 
-        fetchMetrics();
+    // Pull-to-Refresh State
+    const [touchStart, setTouchStart] = useState(0);
+    const [touchMove, setTouchMove] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // --- LOGIKA RE-FETCH ---
+    const fetchMetrics = useCallback(async (isSilent = false) => {
+        try {
+            if (!isSilent) setLoadingMetrics(true);
+            const data = await adminService.getDashboardMetrics();
+            setMetrics(data);
+        } catch (error) {
+            toast.error("Gagal memuat metrik dashboard");
+        } finally {
+            setLoadingMetrics(false);
+        }
     }, []);
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            maximumFractionDigits: 0,
-        }).format(value);
+    const fetchLedger = useCallback(async (page: number, isSilent = false) => {
+        try {
+            if (!isSilent) setLoadingLedger(true);
+            const data = await adminService.getCashflowLedger(page, limitPerPage);
+            setLedger(data);
+        } catch (error) {
+            toast.error("Gagal memuat buku besar arus kas");
+        } finally {
+            setLoadingLedger(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchMetrics(); }, [fetchMetrics]);
+    useEffect(() => { fetchLedger(currentPage); }, [currentPage, fetchLedger]);
+
+    useEffect(() => {
+        if (!socket) return;
+        socket.on("admin_activity_stream", (newEvent: AuditLogEvent) => {
+            setLiveActivities((prev) => [newEvent, ...prev].slice(0, 20));
+        });
+        return () => { socket.off("admin_activity_stream"); };
+    }, [socket]);
+
+    const handleActionCompleted = () => {
+        fetchMetrics(true);
+        fetchLedger(1, true);
+        setCurrentPage(1);
+    };
+
+    const handlePageChange = (newPage: number) => setCurrentPage(newPage);
+
+    // --- PULL TO REFRESH LOGIC ---
+    const handleTouchStart = (e: React.TouchEvent) => { if (window.scrollY === 0) setTouchStart(e.touches[0].clientY); };
+    const handleTouchMove = (e: React.TouchEvent) => { if (touchStart > 0) setTouchMove(e.touches[0].clientY); };
+    const handleTouchEnd = () => {
+        const pullDist = touchMove - touchStart;
+        if (touchStart > 0 && pullDist > 100) {
+            setIsRefreshing(true);
+            Promise.all([fetchMetrics(), fetchLedger(1)]).finally(() => {
+                setIsRefreshing(false);
+                toast.success("Dashboard diperbarui");
+            });
+        }
+        setTouchStart(0);
+        setTouchMove(0);
     };
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-24 md:pb-12">
+        <div
+            className="min-h-dvh bg-[#F8FAFC] relative overflow-hidden pb-24 md:pb-12"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            {/* PULL TO REFRESH INDICATORS */}
+            <AnimatePresence>
+                {touchStart > 0 && touchMove - touchStart > 0 && !isRefreshing && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: Math.min((touchMove - touchStart) * 0.4, 60) }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-md shadow-xl border border-slate-100 rounded-full w-12 h-12"
+                    >
+                        <RefreshCw className="w-5 h-5 text-blue-600 opacity-70" style={{ transform: `rotate(${touchMove - touchStart}deg)` }} />
+                    </motion.div>
+                )}
+                {isRefreshing && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1, y: 50 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white shadow-2xl shadow-blue-900/20 border border-slate-100 rounded-full w-12 h-12"
+                    >
+                        <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {/* --- HERO SECTION (The Central Bank Vibe) --- */}
-            {/* Gradient background yang dalam untuk kesan premium & tech */}
-            <div className="relative bg-slate-900 pt-8 pb-20 md:pt-12 md:pb-32 overflow-hidden rounded-b-[2.5rem] md:rounded-b-[3.5rem] shadow-xl">
-
-                {/* Abstract Tech Patterns */}
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4" />
-                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4" />
-                <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-10 mix-blend-overlay"></div>
-
-                <div className="relative z-10 px-6 max-w-7xl mx-auto">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="bg-blue-500/10 text-blue-200 border-blue-500/20 backdrop-blur-md">
-                                    <ShieldCheck className="w-3 h-3 mr-1" />
-                                    Admin Operator
-                                </Badge>
-                                <span className="text-slate-400 text-xs font-medium">v2.4.0 SaaS Engine</span>
-                            </div>
-                            <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
-                                Revenue Command Center
-                            </h1>
-                            <p className="text-slate-400 text-sm md:text-base mt-1 max-w-md">
-                                Pantau performa bisnis, verifikasi pembayaran, dan kelola parameter ekonomi global.
-                            </p>
-                        </div>
-
-                        {/* Quick Notification Widget */}
-                        <div className="flex items-center gap-3">
-                            <Button size="icon" variant="ghost" className="text-white hover:bg-white/10 rounded-full">
-                                <Bell className="w-5 h-5" />
-                            </Button>
-                            <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-xs font-medium text-white">System Operational</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            {/* HEADER BACKGROUND UNDERLAY (Immersive 3D Space) */}
+            <div className="absolute top-0 left-0 right-0 h-95 md:h-105 bg-slate-900 rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl shadow-blue-900/10 z-0 overflow-hidden">
+                <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 10, 0] }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} className="absolute -top-[20%] -right-[10%] w-125 h-125 bg-blue-600/30 rounded-full blur-[120px] pointer-events-none" />
+                <motion.div animate={{ scale: [1.2, 1, 1.2], x: [0, -30, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }} className="absolute top-[30%] -left-[10%] w-100 h-100 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay"></div>
             </div>
 
-            {/* --- MAIN CONTENT (Overlap Hero) --- */}
-            <div className="px-5 max-w-7xl mx-auto -mt-16 md:-mt-24 relative z-20 space-y-6">
+            {/* MAIN CONTENT FLOW */}
+            <div className="relative z-10 px-4 sm:px-6 pt-8 md:pt-12 max-w-7xl mx-auto flex flex-col gap-6 md:gap-8">
 
-                {/* 1. KEY METRICS ROW (The Money Machines) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. HERO HEADER AREA */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 mb-2">
+                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <Badge variant="outline" className="bg-white/10 text-cyan-50 border-white/20 backdrop-blur-md px-3 py-1 font-black uppercase tracking-widest text-[10px]">
+                                <ShieldCheck className="w-3 h-3 mr-1.5 text-cyan-400" />
+                                Admin Console
+                            </Badge>
+                            <span className="text-slate-300 text-[11px] font-bold uppercase tracking-wider">
+                                {metrics?.lastUpdatedAt ? `Sync: ${new Date(metrics.lastUpdatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'Syncing...'}
+                            </span>
+                        </div>
+                        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter drop-shadow-sm">
+                            Revenue Command Center
+                        </h1>
+                    </motion.div>
 
-                    {/* MRR Card - The Most Important Metric */}
-                    <MetricCard
-                        title="Monthly Recurring Revenue"
-                        value={loading ? undefined : formatCurrency(metrics?.mrr || 0)}
-                        trend={metrics?.growth.mrr}
-                        icon={Wallet}
-                        variant="primary"
-                        loading={loading}
-                    />
-
-                    {/* Active Subs */}
-                    <MetricCard
-                        title="Active Subscribers"
-                        value={loading ? undefined : metrics?.activeSubs.toString()}
-                        subValue={`Total: ${metrics?.totalUsers} Users`}
-                        trend={metrics?.growth.users}
-                        icon={Users}
-                        variant="default"
-                        loading={loading}
-                    />
-
-                    {/* Pending Verifications (Actionable) */}
-                    <MetricCard
-                        title="Pending Verification"
-                        value={loading ? undefined : metrics?.pendingVerifications.toString()}
-                        icon={AlertCircle}
-                        variant="warning"
-                        loading={loading}
-                        footerAction={() => router.push('/admin/verification')}
-                        footerText="Process Queue →"
-                    />
-
-                    {/* Churn Rate */}
-                    <MetricCard
-                        title="Churn Rate"
-                        value={loading ? undefined : `${metrics?.churnRate}%`}
-                        trend={-0.5} // Negative churn trend is good
-                        trendInversed // Red is bad, Green is good (for churn, down is green)
-                        icon={Activity}
-                        variant="default"
-                        loading={loading}
-                    />
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.2 }} className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="flex-1 md:flex-none bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-3 flex items-center justify-between md:justify-center gap-3 shadow-lg">
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex items-center justify-center w-3 h-3">
+                                    <div className={cn("w-2.5 h-2.5 rounded-full absolute", isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                                    <div className={cn("w-2.5 h-2.5 rounded-full absolute opacity-50", isConnected ? "bg-emerald-400 animate-ping" : "bg-amber-400")} />
+                                </div>
+                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                    {isConnected ? "WS Active" : "Connecting..."}
+                                </span>
+                            </div>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-12 w-12 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-2xl relative shadow-lg active:scale-95 transition-all">
+                            <Bell className="w-5 h-5" />
+                            {liveActivities.length > 0 && (
+                                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-slate-900 animate-pulse" />
+                            )}
+                        </Button>
+                    </motion.div>
                 </div>
 
-                {/* 2. OPERATIONAL GRID */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* 2. DYNAMIC CONTENT AREA */}
+                {loadingMetrics || !metrics ? (
+                    <DashboardSkeleton />
+                ) : (
+                    <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex flex-col gap-6 md:gap-8">
 
-                    {/* LEFT: Quick Actions (PWA Optimized) */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <Settings className="w-5 h-5 text-slate-500" />
-                            Operational Controls
-                        </h3>
+                        {/* KPI Metrics */}
+                        <motion.div variants={itemVariants}>
+                            <DashboardKpiCards revenue={metrics.revenue} users={metrics.users} />
+                        </motion.div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <ActionCard
-                                icon={TrendingUp}
-                                label="Parameter Ekonomi"
-                                desc="Atur Inflasi & Bunga"
-                                onClick={() => router.push('/admin/settings')}
-                                color="blue"
-                            />
-                            <ActionCard
-                                icon={CreditCard}
-                                label="Verifikasi Manual"
-                                desc="Cek Bukti Bayar"
-                                onClick={() => router.push('/admin/verification')}
-                                color="emerald"
-                                badge={metrics?.pendingVerifications}
-                            />
-                            <ActionCard
-                                icon={Users}
-                                label="User Management"
-                                desc="Edit Quota / Akses"
-                                onClick={() => router.push('/admin/users')}
-                                color="slate"
-                            />
-                            <ActionCard
-                                icon={Activity}
-                                label="System Logs"
-                                desc="Audit Trail & Error"
-                                onClick={() => router.push('/admin/maintenance')}
-                                color="amber"
-                            />
-                        </div>
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-                        {/* Simulated Chart Area */}
-                        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                            <div className="flex justify-between items-center mb-6">
-                                <div>
-                                    <h4 className="font-bold text-slate-800">Revenue Growth</h4>
-                                    <p className="text-xs text-slate-500">Performansi 6 bulan terakhir</p>
-                                </div>
-                                <Button variant="outline" size="sm" className="h-8 text-xs">Download Report</Button>
-                            </div>
-
-                            {/* CSS-Only Simple Bar Chart (Lightweight for PWA) */}
-                            <div className="h-48 flex items-end justify-between gap-2 md:gap-4 px-2">
-                                {[40, 55, 45, 70, 65, 85].map((h, i) => (
-                                    <div key={i} className="w-full flex flex-col items-center group cursor-pointer">
-                                        <div className="relative w-full max-w-[40px] bg-slate-100 rounded-t-lg overflow-hidden h-full">
-                                            <div
-                                                className="absolute bottom-0 w-full bg-blue-600 rounded-t-lg transition-all duration-500 group-hover:bg-blue-500"
-                                                style={{ height: `${h}%` }}
-                                            />
-                                        </div>
-                                        <span className="text-[10px] text-slate-400 mt-2 font-medium">
-                                            {['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'][i]}
-                                        </span>
+                            {/* LEFT COLUMN: Controls & Chart */}
+                            <div className="xl:col-span-2 space-y-6">
+                                <motion.div variants={itemVariants}>
+                                    <div className="flex items-center justify-between mb-4 px-1">
+                                        <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                                            <div className="p-1.5 bg-white/20 rounded-lg text-white">
+                                                <Settings className="w-4 h-4" />
+                                            </div>
+                                            Operational Controls
+                                        </h3>
                                     </div>
-                                ))}
+
+                                    {/* Action Cards Bento Grid */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+                                        <ActionCard icon={TrendingUp} label="Parameter" desc="Inflasi & Bunga" onClick={() => router.push('/admin/settings')} color="blue" />
+                                        <ActionCard icon={CreditCard} label="Verifikasi" desc="Bukti Bayar" onClick={() => router.push('/admin/verification')} color="emerald" badge={metrics.revenue.pendingValue > 0 ? "!" : null} />
+                                        <ActionCard icon={Users} label="Data User" desc="Kelola Akses" onClick={() => router.push('/admin/users')} color="indigo" />
+                                        <ActionCard icon={Activity} label="Sys Logs" desc="Audit & Error" onClick={() => router.push('/admin/maintenance/logs')} color="amber" />
+                                    </div>
+                                </motion.div>
+
+                                <motion.div variants={itemVariants}>
+                                    <FeatureUsageChart data={metrics.systemUsage.featureDistribution} />
+                                </motion.div>
+                            </div>
+
+                            {/* RIGHT COLUMN: Approvals & Live Feed */}
+                            <div className="space-y-6">
+                                <motion.div variants={itemVariants}>
+                                    <PendingApprovalsWidget onActionComplete={handleActionCompleted} />
+                                </motion.div>
+
+                                <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden max-h-[450px]">
+                                    <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                        <h3 className="font-black text-slate-800 tracking-tight flex items-center gap-2 text-sm">
+                                            <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
+                                            Live Audit Feed
+                                        </h3>
+                                        <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase bg-rose-50 text-rose-600 border-rose-200 shadow-sm">Real-time</Badge>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                                        {liveActivities.length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-10">
+                                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                                                    <Activity className="w-6 h-6 text-slate-300" />
+                                                </div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Menunggu Aktivitas...</p>
+                                            </div>
+                                        ) : (
+                                            <AnimatePresence initial={false}>
+                                                {liveActivities.map((log) => (
+                                                    <motion.div
+                                                        key={log.id}
+                                                        initial={{ opacity: 0, height: 0, scale: 0.9 }}
+                                                        animate={{ opacity: 1, height: "auto", scale: 1 }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        transition={{ duration: 0.3 }}
+                                                        className="flex gap-4 group"
+                                                    >
+                                                        <div className="relative mt-1 flex flex-col items-center">
+                                                            <div className={cn(
+                                                                "w-2.5 h-2.5 rounded-full ring-4 z-10 shadow-sm",
+                                                                log.type === 'success' ? "bg-emerald-500 ring-emerald-50" :
+                                                                    log.type === 'error' ? "bg-rose-500 ring-rose-50" :
+                                                                        log.type === 'warning' ? "bg-amber-500 ring-amber-50" :
+                                                                            "bg-blue-500 ring-blue-50"
+                                                            )} />
+                                                            {/* Vertical Line for timeline effect */}
+                                                            <div className="w-px h-full bg-slate-100 absolute top-3 -bottom-4 group-last:hidden" />
+                                                        </div>
+                                                        <div className="flex-1 pb-4">
+                                                            <p className="text-[13px] font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">{log.title}</p>
+                                                            <p className="text-[11px] text-slate-500 leading-relaxed mt-1 font-medium">{log.description}</p>
+                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-2">{log.timestamp}</p>
+                                                        </div>
+                                                    </motion.div>
+                                                ))}
+                                            </AnimatePresence>
+                                        )}
+                                    </div>
+                                </motion.div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* RIGHT: Recent Activity Feed */}
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full">
-                        <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800">Live Activity</h3>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
-                        </div>
-                        <div className="p-0 flex-1 overflow-y-auto max-h-[400px]">
-                            {loading ? (
-                                <div className="p-5 space-y-4">
-                                    <Skeleton className="h-12 w-full rounded-xl" />
-                                    <Skeleton className="h-12 w-full rounded-xl" />
-                                    <Skeleton className="h-12 w-full rounded-xl" />
-                                </div>
-                            ) : (
-                                <div className="divide-y divide-slate-50">
-                                    <ActivityItem
-                                        title="Subscription Verified"
-                                        desc="User Reno Sebastian upgraded to Pro Plan"
-                                        time="2m ago"
-                                        type="success"
-                                    />
-                                    <ActivityItem
-                                        title="Inflation Updated"
-                                        desc="Admin changed Education Inflation to 7%"
-                                        time="1h ago"
-                                        type="neutral"
-                                    />
-                                    <ActivityItem
-                                        title="Payment Rejected"
-                                        desc="Invalid proof for Transaction #9921"
-                                        time="3h ago"
-                                        type="danger"
-                                    />
-                                    <ActivityItem
-                                        title="New User Register"
-                                        desc="User Budi Santoso joined"
-                                        time="5h ago"
-                                        type="neutral"
+                        {/* Full Width Ledger */}
+                        <motion.div variants={itemVariants}>
+                            {ledger && (
+                                <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden p-1">
+                                    <CashflowLedgerTable
+                                        data={ledger.data}
+                                        meta={ledger.meta}
+                                        isLoading={loadingLedger}
+                                        onPageChange={handlePageChange}
                                     />
                                 </div>
                             )}
-                        </div>
-                        <div className="p-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
-                            <Button variant="ghost" className="w-full text-xs text-slate-500 h-8">View All Logs</Button>
-                        </div>
-                    </div>
+                        </motion.div>
 
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// --- SUB-COMPONENTS FOR CLEANER CODE ---
-
-function MetricCard({
-    title, value, subValue, trend, icon: Icon, variant = "default", loading, trendInversed, footerAction, footerText
-}: any) {
-    const isPositive = trend > 0;
-    const trendColor = trendInversed
-        ? (isPositive ? "text-red-500" : "text-emerald-500")
-        : (isPositive ? "text-emerald-500" : "text-red-500");
-    const TrendIcon = isPositive ? ArrowUpRight : ArrowDownRight;
-
-    const bgStyles = {
-        default: "bg-white border-slate-100",
-        primary: "bg-gradient-to-br from-blue-600 to-blue-700 border-transparent text-white",
-        warning: "bg-amber-50 border-amber-100"
-    };
-
-    const textStyles = {
-        default: "text-slate-800",
-        primary: "text-white",
-        warning: "text-amber-900"
-    };
-
-    const labelStyles = {
-        default: "text-slate-500",
-        primary: "text-blue-100",
-        warning: "text-amber-700/70"
-    };
-
-    if (loading) return <Skeleton className="h-[140px] w-full rounded-2xl" />;
-
-    return (
-        <div className={cn("rounded-2xl p-5 shadow-sm border flex flex-col justify-between relative overflow-hidden group transition-all duration-300 hover:shadow-md", bgStyles[variant as keyof typeof bgStyles])}>
-
-            {/* Background Decor */}
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110">
-                <Icon className="w-24 h-24" />
-            </div>
-
-            <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                    <p className={cn("text-xs font-bold uppercase tracking-wider", labelStyles[variant as keyof typeof labelStyles])}>
-                        {title}
-                    </p>
-                    <div className={cn("p-2 rounded-lg bg-white/10 backdrop-blur-sm")}>
-                        <Icon className={cn("w-4 h-4", variant === 'primary' ? 'text-white' : 'text-slate-400')} />
-                    </div>
-                </div>
-
-                <div className="flex items-baseline gap-2">
-                    <h3 className={cn("text-2xl lg:text-3xl font-black tracking-tight", textStyles[variant as keyof typeof textStyles])}>
-                        {value}
-                    </h3>
-                </div>
-
-                {subValue && (
-                    <p className={cn("text-xs mt-1 font-medium", labelStyles[variant as keyof typeof labelStyles])}>{subValue}</p>
-                )}
-            </div>
-
-            <div className="relative z-10 mt-4 flex items-center justify-between">
-                {trend !== undefined && (
-                    <div className={cn("flex items-center text-xs font-bold bg-white/10 px-2 py-1 rounded-md backdrop-blur-sm", variant === 'primary' ? 'text-white' : trendColor)}>
-                        <TrendIcon className="w-3 h-3 mr-1" />
-                        {Math.abs(trend)}%
-                        <span className={cn("ml-1 font-normal opacity-70", variant === 'primary' ? 'text-blue-100' : 'text-slate-400')}>
-                            vs last month
-                        </span>
-                    </div>
-                )}
-
-                {footerAction && (
-                    <button
-                        onClick={footerAction}
-                        className="text-xs font-bold flex items-center gap-1 hover:gap-2 transition-all text-amber-700"
-                    >
-                        {footerText} <ArrowUpRight className="w-3 h-3" />
-                    </button>
+                    </motion.div>
                 )}
             </div>
         </div>
     );
 }
 
+// --- Premium Action Card Component ---
 function ActionCard({ icon: Icon, label, desc, onClick, color, badge }: any) {
     const colorMap = {
-        blue: "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white",
-        emerald: "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white",
-        slate: "bg-slate-100 text-slate-600 group-hover:bg-slate-800 group-hover:text-white",
-        amber: "bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white",
+        blue: "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white shadow-blue-100/50",
+        emerald: "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white shadow-emerald-100/50",
+        slate: "bg-slate-100 text-slate-600 group-hover:bg-slate-800 group-hover:text-white shadow-slate-200/50",
+        amber: "bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white shadow-amber-100/50",
+        indigo: "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white shadow-indigo-100/50",
     };
 
     return (
         <button
             onClick={onClick}
-            className="group flex flex-col items-start p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 relative"
+            className="group flex flex-col items-start p-4 md:p-5 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm hover:shadow-xl hover:shadow-slate-200/40 hover:-translate-y-1 transition-all duration-300 relative active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
-            {badge > 0 && (
-                <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white animate-pulse">
+            {badge && (
+                <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-md ring-2 ring-white animate-pulse">
                     {badge}
                 </span>
             )}
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors duration-300", colorMap[color as keyof typeof colorMap])}>
-                <Icon className="w-5 h-5" />
+            <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-500 shadow-inner",
+                colorMap[color as keyof typeof colorMap]
+            )}>
+                <Icon className="w-5 h-5 md:w-6 md:h-6" />
             </div>
-            <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors text-left w-full">
-                {label}
-            </h4>
-            <p className="text-[10px] text-slate-400 font-medium text-left">
-                {desc}
-            </p>
+            <h4 className="font-black text-slate-800 text-[13px] md:text-sm tracking-tight group-hover:text-blue-600 transition-colors text-left w-full">{label}</h4>
+            <p className="text-[10px] md:text-[11px] text-slate-500 font-medium text-left line-clamp-1 mt-0.5">{desc}</p>
         </button>
-    );
-}
-
-function ActivityItem({ title, desc, time, type }: any) {
-    const iconMap = {
-        success: { icon: ShieldCheck, color: "text-emerald-500 bg-emerald-50" },
-        danger: { icon: AlertCircle, color: "text-red-500 bg-red-50" },
-        neutral: { icon: Activity, color: "text-blue-500 bg-blue-50" }
-    };
-
-    const style = iconMap[type as keyof typeof iconMap];
-    const Icon = style.icon;
-
-    return (
-        <div className="flex items-start gap-3 p-4 hover:bg-slate-50 transition-colors cursor-default">
-            <div className={cn("p-2 rounded-full shrink-0", style.color)}>
-                <Icon className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-                <p className="text-xs font-bold text-slate-800">{title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
-            </div>
-            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{time}</span>
-        </div>
     );
 }
