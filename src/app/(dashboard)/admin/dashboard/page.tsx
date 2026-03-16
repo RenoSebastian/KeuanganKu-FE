@@ -1,8 +1,9 @@
+// File: src/app/(dashboard)/admin/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, Variants } from "framer-motion"; // Pastikan Variants ter-import
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
     Settings, ShieldCheck, CreditCard, Users, Activity, Bell,
     TrendingUp, RefreshCw, Radio
@@ -23,6 +24,7 @@ import { FeatureUsageChart } from "@/components/features/admin/dashboard/feature
 import { CashflowLedgerTable } from "@/components/features/admin/dashboard/cashflow-ledger-table";
 import { DashboardSkeleton } from "@/components/features/admin/dashboard/dashboard-skeleton";
 import { PendingApprovalsWidget } from "@/components/features/admin/dashboard/pending-approvals-widget";
+import { UserAnalyticsChart } from "@/components/features/admin/dashboard/user-analytics-chart"; // [NEW] Task 4 Chart
 
 interface AuditLogEvent {
     id: string;
@@ -33,7 +35,6 @@ interface AuditLogEvent {
 }
 
 // --- Framer Motion Variants ---
-// [FIX]: Menambahkan as const agar TypeScript mengerti ini adalah literal "spring"
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -45,7 +46,7 @@ const itemVariants: Variants = {
         opacity: 1,
         y: 0,
         transition: {
-            type: "spring" as const, // <--- KUNCI PERBAIKANNYA DI SINI
+            type: "spring" as const,
             stiffness: 300,
             damping: 24
         }
@@ -131,7 +132,6 @@ export default function AdminDashboardPage() {
     };
 
     const handleLogClick = (log: AuditLogEvent) => {
-        // Navigasi otomatis berdasarkan tipe aktivitas
         if (log.description.includes("subscription")) router.push('/admin/verification');
         if (log.description.includes("parameter")) router.push('/admin/settings');
         if (log.title.includes("User")) router.push(`/admin/users?search=${log.id}`);
@@ -313,8 +313,6 @@ export default function AdminDashboardPage() {
                                                             <p className="text-[11px] text-slate-500 leading-relaxed mt-1 font-medium italic line-clamp-2">
                                                                 "{log.description}"
                                                             </p>
-
-                                                            {/* Action Indicator yang muncul saat di-hover */}
                                                             <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <div className="w-1 h-1 bg-blue-600 rounded-full" />
                                                                 <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Klik untuk Investigasi</span>
@@ -328,6 +326,11 @@ export default function AdminDashboardPage() {
                                 </motion.div>
                             </div>
                         </div>
+
+                        {/* [NEW] Task 4 - User Analytics Chart (Full Width) */}
+                        <motion.div variants={itemVariants}>
+                            <UserAnalyticsChart />
+                        </motion.div>
 
                         {/* Full Width Ledger */}
                         <motion.div variants={itemVariants}>

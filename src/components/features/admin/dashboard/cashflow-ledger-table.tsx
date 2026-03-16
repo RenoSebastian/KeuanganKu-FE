@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, FileText, User as UserIcon, Inbox, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, User as UserIcon, Inbox, Loader2, DownloadCloud } from 'lucide-react';
 import { CashflowLedgerItem, PaginationMeta, CashflowStatus } from '@/lib/types/dashboard';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { adminService } from '@/services/admin.service';
 
 interface CashflowLedgerTableProps {
     data: CashflowLedgerItem[];
@@ -23,6 +25,8 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
     isLoading = false,
     onPageChange
 }) => {
+    // [TASK 1] State untuk memantau status generasi dokumen PDF
+    const [isDownloading, setIsDownloading] = useState(false);
 
     // --- Helper Format Waktu ---
     const formatLocalTime = (isoString: string) => {
@@ -30,6 +34,37 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
             day: '2-digit', month: 'short', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
+    };
+
+    // --- Ekspor Dokumen Fisik (PDF) ---
+    const handleDownloadPdf = async () => {
+        setIsDownloading(true);
+        const toastId = toast.loading('Sedang menyiapkan dokumen PDF...');
+
+        try {
+            const blob = await adminService.downloadCashflowReport('Keseluruhan');
+
+            // Rekayasa Blob to Download Link
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Laporan_Arus_Kas_${new Date().getTime()}.pdf`);
+
+            // Simulasikan klik untuk memicu unduhan di browser
+            document.body.appendChild(link);
+            link.click();
+
+            // Bersihkan sisa DOM
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Dokumen berhasil diunduh.', { id: toastId });
+        } catch (error) {
+            console.error('Download failed:', error);
+            toast.error('Gagal mengunduh dokumen. Coba beberapa saat lagi.', { id: toastId });
+        } finally {
+            setIsDownloading(false);
+        }
     };
 
     // --- Premium Status Badge Component ---
@@ -54,17 +89,33 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
     return (
         <Card className="border-none shadow-none bg-transparent sm:bg-white sm:border-slate-100 sm:shadow-sm rounded-none sm:rounded-[2rem] overflow-hidden flex flex-col h-full">
 
-            {/* Header Area */}
-            <CardHeader className="bg-transparent sm:bg-white border-b border-slate-100 px-2 sm:px-6 py-5">
-                <CardTitle className="flex items-center gap-3 text-xl font-black text-slate-800 tracking-tight">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-inner">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                    </div>
-                    Buku Besar Transaksi
-                </CardTitle>
-                <CardDescription className="font-medium text-slate-500 mt-1 pl-13 sm:pl-0">
-                    Riwayat mutasi masuk dan verifikasi langganan.
-                </CardDescription>
+            {/* Header Area with Download Button */}
+            <CardHeader className="bg-transparent sm:bg-white border-b border-slate-100 px-2 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <CardTitle className="flex items-center gap-3 text-xl font-black text-slate-800 tracking-tight">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-inner">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        Buku Besar Transaksi
+                    </CardTitle>
+                    <CardDescription className="font-medium text-slate-500 mt-1 pl-13 sm:pl-0">
+                        Riwayat mutasi masuk dan verifikasi langganan.
+                    </CardDescription>
+                </div>
+
+                {/* [NEW] Tombol Aksi Unduh */}
+                {data.length > 0 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto self-start sm:self-center font-semibold border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+                        onClick={handleDownloadPdf}
+                        disabled={isDownloading || isLoading}
+                    >
+                        {isDownloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DownloadCloud className="w-4 h-4 mr-2" />}
+                        Unduh Laporan PDF
+                    </Button>
+                )}
             </CardHeader>
 
             <CardContent className="p-0 sm:p-6 flex-1 flex flex-col">

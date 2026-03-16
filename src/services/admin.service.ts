@@ -1,7 +1,9 @@
 import api from '@/lib/axios';
 import {
     DashboardMetricsResponse,
-    CashflowLedgerResponse
+    CashflowLedgerResponse,
+    AnalyticsResolution, // [NEW] Import dari DTO
+    TimeSeriesDataPoint  // [NEW] Import dari DTO
 } from '@/lib/types/dashboard';
 
 // Tipe Data User sesuai response Backend terbaru
@@ -92,6 +94,31 @@ export const adminService = {
     getCashflowLedger: async (page: number = 1, limit: number = 10) => {
         const response = await api.get<CashflowLedgerResponse>('/admin/dashboard/cashflow', {
             params: { page, limit }
+        });
+        return response.data;
+    },
+
+    // [NEW] Fitur Unduh PDF (Task 1) - Menggunakan tipe kembalian Blob
+    downloadCashflowReport: async (period: string = 'Keseluruhan'): Promise<Blob> => {
+        const response = await api.get('/admin/dashboard/cashflow/export', {
+            params: { period },
+            responseType: 'blob' // SANGAT PENTING: Mencegah korupsi binary PDF
+        });
+        return response.data;
+    },
+
+    // [NEW] Analitik Kinerja / Akuisisi Pengguna (Task 4)
+    getGrowthAnalytics: async (startDate: string, endDate: string, resolution: AnalyticsResolution) => {
+        const response = await api.get<TimeSeriesDataPoint[]>('/admin/dashboard/analytics/growth', {
+            params: { startDate, endDate, resolution }
+        });
+        return response.data;
+    },
+
+    // [NEW] Analitik Keterlibatan / Login Pengguna (Task 4)
+    getEngagementAnalytics: async (startDate: string, endDate: string, resolution: AnalyticsResolution) => {
+        const response = await api.get<TimeSeriesDataPoint[]>('/admin/dashboard/analytics/engagement', {
+            params: { startDate, endDate, resolution }
         });
         return response.data;
     },
