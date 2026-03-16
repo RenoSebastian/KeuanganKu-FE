@@ -48,14 +48,27 @@ export const subscriptionService = {
         return response.data;
     },
 
-    // --- ADMIN SIDE METHODS (NEW - Fixes TS Error 2339) ---
+    // --- ADMIN SIDE METHODS (PHASE 1 ENHANCED) ---
+
     getPendingOrders: async () => {
         const response = await api.get('/admin/subscription/pending');
         return response.data;
     },
 
-    verifyOrder: async (payload: { orderId: string; status: 'VALID' | 'INVALID'; adminNotes: string }) => {
+    verifyOrder: async (payload: { orderId: string; status: 'VALID' | 'INVALID'; adminNotes?: string }) => {
         const response = await api.patch('/admin/subscription/verify', payload);
+        return response.data;
+    },
+
+    // [NEW] Bulk Verification
+    bulkVerifyOrders: async (payload: { orderIds: string[]; status: 'VALID' | 'INVALID'; adminNotes?: string }) => {
+        const response = await api.post('/admin/subscription/bulk-verify', payload);
+        return response.data;
+    },
+
+    // [NEW] Compensating Transaction / Revoke
+    revokeOrder: async (payload: { orderId: string; reason: string }) => {
+        const response = await api.post('/admin/subscription/revoke', payload);
         return response.data;
     }
 };

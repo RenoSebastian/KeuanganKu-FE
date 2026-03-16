@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { BellRing, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+
+interface SocketContextType {
+    socket: Socket | null;
+    isConnected: boolean;
+}
+
+const SocketContext = createContext<SocketContextType>({ socket: null, isConnected: false });
+
+export const useSocket = () => {
+    const context = useContext(SocketContext);
+    if (!context) return { socket: null, isConnected: false };
+    return context;
+};
 
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { useNotificationStore, NotificationItem } from '@/hooks/use-notification-store';
@@ -28,6 +41,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const { triggerSessionTermination } = useSystemStore();
 
     const socketRef = useRef<Socket | null>(null);
+    const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
 
     // =================================================================
     // 1. CORE SOCKET ORCHESTRATION 
@@ -55,6 +69,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 reconnectionDelay: 2000,
                 transports: ['websocket'],
             });
+
+            setSocketInstance(socketRef.current);
 
             // --- CONNECTION EVENTS ---
             socketRef.current.on('connect', () => {
@@ -138,6 +154,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 socketRef.current.off('PAYMENT_ORDER_PROCESSED');
                 socketRef.current.disconnect();
                 socketRef.current = null;
+                setSocketInstance(null);
                 setConnectionStatus(false);
             }
         };
@@ -226,5 +243,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         };
     }, [forceLogout, refreshUser]);
 
-    return <>{children}</>;
+    // Retrieve connection status to provide via context
+    const connectionStatus = useNotificationStore(state => state.isConnected);
+
+    return (
+        <SocketContext.Provider value={{ socket: socketInstance, isConnected: connectionStatus }}>
+            {children}
+        </SocketContext.Provider>
+    );
 }

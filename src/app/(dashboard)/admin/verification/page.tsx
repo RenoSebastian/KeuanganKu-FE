@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import { id as dateFnsId } from "date-fns/locale";
 import {
     CheckCircle,
     XCircle,
@@ -10,12 +10,13 @@ import {
     Loader2,
     AlertCircle,
     Search,
-    RefreshCw
+    RefreshCw,
+    CheckSquare
 } from "lucide-react";
 import { toast } from "sonner";
 
-import api from "@/lib/axios";
-// [FIX] Import helper getImageUrl
+// [FIX] Menggunakan Subscription Service, bukan tembak axios langsung
+import { subscriptionService } from "@/services/subscription.service";
 import { getImageUrl } from "@/lib/utils";
 
 import {
@@ -70,22 +71,21 @@ export default function VerificationPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
 
-    // State untuk Modal Verifikasi
+    // State untuk Modal Verifikasi Individual
     const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
     const [adminNotes, setAdminNotes] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // [NEW] PWA Mobile State untuk Bulk Selection
+    // State untuk Bulk Selection (Berlaku untuk Desktop & Mobile)
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-
 
     // --- Fetch Data ---
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const response = await api.get<PendingOrder[]>("/admin/subscription/pending");
-            setOrders(response.data);
+            const data = await subscriptionService.getPendingOrders();
+            setOrders(data);
         } catch (error) {
             toast.error("Gagal memuat data pesanan");
         } finally {
@@ -104,6 +104,7 @@ export default function VerificationPage() {
         order.plan.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // --- Individual Verification Handler ---
     const handleVerify = async (status: "VALID" | "INVALID") => {
         if (!selectedOrder) return;
 
@@ -114,7 +115,7 @@ export default function VerificationPage() {
 
         setIsProcessing(true);
         try {
-            await api.patch("/admin/subscription/verify", {
+            await subscriptionService.verifyOrder({
                 orderId: selectedOrder.id,
                 status,
                 adminNotes: adminNotes || undefined,
@@ -126,10 +127,12 @@ export default function VerificationPage() {
                     : "Pesanan berhasil ditolak ❌"
             );
 
-            // Refresh Data & Close Modal
             await fetchOrders();
             setSelectedOrder(null);
             setAdminNotes("");
+
+            // Hapus dari daftar selection jika sebelumnya terpilih
+            setSelectedOrderIds(prev => prev.filter(id => id !== selectedOrder.id));
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Gagal memproses verifikasi");
         } finally {
@@ -137,35 +140,45 @@ export default function VerificationPage() {
         }
     };
 
-    // [NEW] Handler untuk Bulk Action di Mobile
+    // --- Bulk Selection Logic ---
     const toggleOrderSelection = (id: string) => {
         setSelectedOrderIds(prev =>
             prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
         );
     };
 
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedOrderIds(filteredOrders.map(order => order.id));
+        } else {
+            setSelectedOrderIds([]);
+        }
+    };
+
+    // --- Bulk Verification Handler ---
     const handleBulkVerify = async (status: "VALID" | "INVALID") => {
         if (selectedOrderIds.length === 0) return;
-        
+
         setIsProcessing(true);
         try {
-            // Proses beruntun karena menggunakan API single-update yang sudah ada
-            await Promise.all(selectedOrderIds.map(id =>
-                api.patch("/admin/subscription/verify", {
-                    orderId: id,
-                    status,
-                    adminNotes: status === "INVALID" ? "Ditolak otomatis via Bulk Action" : undefined,
-                })
-            ));
+            // [ENTERPRISE PATTERN] Tembak 1 kali ke backend endpoint /bulk-verify
+            const result = await subscriptionService.bulkVerifyOrders({
+                orderIds: selectedOrderIds,
+                status,
+                adminNotes: status === "INVALID" ? "Ditolak via Bulk Action Dashboard" : "Disetujui via Bulk Action Dashboard",
+            });
 
-            toast.success(`${selectedOrderIds.length} pesanan berhasil ${status === "VALID" ? "disetujui" : "ditolak"}`);
-            
-            // Reset state
+            toast.success(`${result.successfulIds.length} pesanan berhasil ${status === "VALID" ? "disetujui" : "ditolak"}`);
+
+            if (result.failed.length > 0) {
+                toast.warning(`${result.failed.length} pesanan gagal diproses.`);
+            }
+
             setSelectedOrderIds([]);
             setIsSelectMode(false);
             await fetchOrders();
         } catch (error: any) {
-            toast.error("Gagal memproses beberapa pesanan. Silakan coba lagi.");
+            toast.error("Terjadi kesalahan pada sistem saat memproses pesanan massal.");
         } finally {
             setIsProcessing(false);
         }
@@ -189,7 +202,7 @@ export default function VerificationPage() {
                 </div>
             </div>
 
-            {/* METRIC CARDS (Optional Summary) */}
+            {/* METRIC CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-white border-slate-200 shadow-sm">
                     <CardHeader className="pb-2">
@@ -203,7 +216,7 @@ export default function VerificationPage() {
             </div>
 
             {/* MAIN CONTENT */}
-            <Card className="border-slate-200 shadow-sm overflow-hidden mb-24 md:mb-0 relative">
+            <Card className="border-slate-200 shadow-sm overflow-hidden mb-24 relative">
                 <div className="p-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                         <Search className="w-4 h-4 text-slate-400" />
@@ -215,7 +228,7 @@ export default function VerificationPage() {
                         />
                     </div>
 
-                    {/* [NEW] PWA Select Mode Toggle (Mobile Only) */}
+                    {/* Mobile Toggle Mode */}
                     <div className="md:hidden self-end">
                         <Button
                             variant={isSelectMode ? "secondary" : "outline"}
@@ -223,7 +236,7 @@ export default function VerificationPage() {
                             className={`rounded-full shadow-sm text-xs font-semibold px-4 transition-all ${isSelectMode ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200' : 'bg-white'}`}
                             onClick={() => {
                                 setIsSelectMode(!isSelectMode);
-                                if (isSelectMode) setSelectedOrderIds([]); // Reset if turning off
+                                if (isSelectMode) setSelectedOrderIds([]);
                             }}
                         >
                             {isSelectMode ? "Batal Pilih" : "Pilih Multi"}
@@ -234,74 +247,94 @@ export default function VerificationPage() {
                 {/* DESKTOP VIEW: TABLE */}
                 <div className="hidden md:block">
                     <Table>
-                    <TableHeader className="bg-slate-50">
-                        <TableRow>
-                            <TableHead className="w-50">User Info</TableHead>
-                            <TableHead>Paket Langganan</TableHead>
-                            <TableHead>Tanggal Order</TableHead>
-                            <TableHead>Harga</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
-                            <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
+                        <TableHeader className="bg-slate-50">
                             <TableRow>
-                                <TableCell colSpan={6} className="h-32 text-center">
-                                    <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
-                                        <Loader2 className="w-6 h-6 animate-spin" />
-                                        <span className="text-xs">Memuat data...</span>
-                                    </div>
-                                </TableCell>
+                                {/* Header Checkbox */}
+                                <TableHead className="w-[50px] text-center px-4">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                                        checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                    />
+                                </TableHead>
+                                <TableHead className="w-50">User Info</TableHead>
+                                <TableHead>Paket Langganan</TableHead>
+                                <TableHead>Tanggal Order</TableHead>
+                                <TableHead>Harga</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="text-right pr-6">Aksi</TableHead>
                             </TableRow>
-                        ) : filteredOrders.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
-                                    Tidak ada pesanan pending saat ini.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filteredOrders.map((order) => (
-                                <TableRow key={order.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-slate-800">{order.user.fullName}</span>
-                                            <span className="text-xs text-slate-500">{order.user.email}</span>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="h-32 text-center">
+                                        <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                                            <Loader2 className="w-6 h-6 animate-spin" />
+                                            <span className="text-xs">Memuat data...</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                                            {order.plan.name}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-slate-600 text-sm">
-                                        {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: id })}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-slate-700 font-medium">
-                                        Rp {Number(order.snapshotPrice).toLocaleString("id-ID")}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                                            PENDING
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => setSelectedOrder(order)}
-                                            className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
-                                        >
-                                            <Eye className="w-4 h-4 mr-2" /> Periksa
-                                        </Button>
+                                </TableRow>
+                            ) : filteredOrders.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                                        Tidak ada pesanan pending saat ini.
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                filteredOrders.map((order) => {
+                                    const isSelected = selectedOrderIds.includes(order.id);
+                                    return (
+                                        <TableRow key={order.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50/50'}`}>
+                                            <TableCell className="text-center px-4">
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleOrderSelection(order.id)}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col cursor-pointer" onClick={() => toggleOrderSelection(order.id)}>
+                                                    <span className="font-bold text-slate-800">{order.user.fullName}</span>
+                                                    <span className="text-xs text-slate-500">{order.user.email}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                                    {order.plan.name}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-slate-600 text-sm">
+                                                {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: dateFnsId })}
+                                            </TableCell>
+                                            <TableCell className="font-mono text-slate-700 font-medium">
+                                                Rp {Number(order.snapshotPrice).toLocaleString("id-ID")}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                                                    PENDING
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
+                                                >
+                                                    <Eye className="w-4 h-4 mr-2" /> Periksa
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
                 </div>
 
-                {/* [NEW] MOBILE VIEW: CARD LIST */}
+                {/* MOBILE VIEW: CARD LIST */}
                 <div className="md:hidden grid grid-cols-1 divide-y divide-slate-100 bg-white">
                     {isLoading ? (
                         <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
@@ -355,7 +388,7 @@ export default function VerificationPage() {
                                                 {order.plan.name}
                                             </Badge>
                                             <span className="text-[11px] text-slate-500">
-                                                {format(new Date(order.createdAt), "dd MMM yy, HH:mm", { locale: id })}
+                                                {format(new Date(order.createdAt), "dd MMM yy, HH:mm", { locale: dateFnsId })}
                                             </span>
                                         </div>
                                         <div className="text-right">
@@ -372,28 +405,47 @@ export default function VerificationPage() {
                 </div>
             </Card>
 
-            {/* [NEW] PWA STICKY ACTION BAR FOR BULK ACTIONS (Mobile Only) */}
-            {isSelectMode && selectedOrderIds.length > 0 && (
-                <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 px-4 py-3 bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex items-center justify-between animate-in slide-in-from-bottom-5">
-                    <span className="text-sm font-bold text-slate-800">
-                        {selectedOrderIds.length} Terpilih
-                    </span>
+            {/* UNIFIED FLOATING ACTION BAR FOR BULK ACTIONS (Desktop & Mobile) */}
+            {selectedOrderIds.length > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-lg z-50 px-6 py-4 bg-slate-900/95 backdrop-blur-xl border border-slate-700 shadow-2xl rounded-full flex items-center justify-between gap-4 animate-in slide-in-from-bottom-8">
                     <div className="flex items-center gap-2">
-                        <Button 
-                            variant="destructive" 
-                            size="sm" 
+                        <CheckSquare className="w-5 h-5 text-indigo-400" />
+                        <span className="text-sm font-bold text-white">
+                            {selectedOrderIds.length} Terpilih
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hidden md:flex text-slate-300 hover:text-white"
+                            onClick={() => {
+                                setSelectedOrderIds([]);
+                                setIsSelectMode(false);
+                            }}
+                            disabled={isProcessing}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="sm"
                             className="rounded-full shadow-sm text-xs font-semibold px-4 h-9"
                             onClick={() => handleBulkVerify("INVALID")}
                             disabled={isProcessing}
                         >
-                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : "Tolak"}
+                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin md:mr-2" /> : null}
+                            <span className="hidden md:inline">Tolak Massal</span>
+                            <span className="md:hidden ml-1">Tolak</span>
                         </Button>
-                        <Button 
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-sm text-xs font-semibold px-4 h-9"
+                        <Button
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full shadow-sm text-xs font-semibold px-4 h-9"
                             onClick={() => handleBulkVerify("VALID")}
                             disabled={isProcessing}
                         >
-                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : "Setujui"}
+                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin md:mr-2" /> : null}
+                            <span className="hidden md:inline">Setujui Massal</span>
+                            <span className="md:hidden ml-1">Setujui</span>
                         </Button>
                     </div>
                 </div>
@@ -411,15 +463,14 @@ export default function VerificationPage() {
 
                     {selectedOrder && (
                         <div className="grid gap-6 py-4">
-                            {/* [FIX] Image Preview dengan Helper URL */}
-                            <div className="bg-slate-100 rounded-xl overflow-hidden border border-slate-200 relative group min-h-50 flex items-center justify-center">
+                            {/* Image Preview dengan Helper URL */}
+                            <div className="bg-slate-100 rounded-xl overflow-hidden border border-slate-200 relative group min-h-[200px] flex items-center justify-center">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src={getImageUrl(selectedOrder.proofImageUrl)}
                                     alt="Bukti Transfer"
-                                    className="w-full h-auto max-h-100 object-contain transition-transform group-hover:scale-105"
+                                    className="w-full h-auto max-h-[400px] object-contain transition-transform group-hover:scale-105"
                                     onError={(e) => {
-                                        // Fallback ke placeholder jika gambar rusak/404
                                         (e.target as HTMLImageElement).src = "/images/placeholder.png";
                                     }}
                                 />
@@ -450,7 +501,7 @@ export default function VerificationPage() {
                                 <div className="space-y-1">
                                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Waktu Upload</span>
                                     <p className="font-medium text-slate-900">
-                                        {format(new Date(selectedOrder.createdAt), "eeee, dd MMMM yyyy - HH:mm", { locale: id })}
+                                        {format(new Date(selectedOrder.createdAt), "eeee, dd MMMM yyyy - HH:mm", { locale: dateFnsId })}
                                     </p>
                                 </div>
                             </div>
@@ -491,7 +542,7 @@ export default function VerificationPage() {
                             <div className="bg-blue-50 p-3 rounded-lg flex gap-3 items-start border border-blue-100">
                                 <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                                 <p className="text-xs text-blue-700 leading-relaxed">
-                                    <strong>Note:</strong> Menyetujui akan mengubah kuota user menjadi UNLIMITED. Menolak akan mencabut akses PRO dan mengembalikan kuota ke status FREE (3 token). User akan menerima notifikasi otomatis.
+                                    <strong>Note:</strong> Menyetujui akan mengubah kuota user menjadi UNLIMITED. Menolak akan mencabut akses PRO dan mengembalikan kuota ke status FREE. User akan menerima notifikasi otomatis.
                                 </p>
                             </div>
                         </div>
@@ -499,7 +550,7 @@ export default function VerificationPage() {
 
                     <DialogFooter className="sm:justify-start">
                         <Button type="button" variant="ghost" onClick={() => setSelectedOrder(null)} disabled={isProcessing}>
-                            Batal
+                            Tutup Detail
                         </Button>
                     </DialogFooter>
                 </DialogContent>
