@@ -180,6 +180,18 @@ export const authService = {
   },
 
   // =================================================================
+  // 11. SUBMIT HEARTBEAT (REDIS TRACKING)
+  // =================================================================
+  sendHeartbeat: async () => {
+    try {
+      const deviceId = getOrCreateDeviceId();
+      await api.post("/users/heartbeat", { deviceId });
+    } catch (error) {
+      // Silently fail to avoid console spam
+    }
+  },
+
+  // =================================================================
   // UTILITIES
   // =================================================================
   getCurrentUser: (): User | null => {

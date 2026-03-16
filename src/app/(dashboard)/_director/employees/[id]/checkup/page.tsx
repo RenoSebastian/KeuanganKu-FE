@@ -14,10 +14,10 @@ import Link from "next/link";
 import { directorService } from "@/services/director.service";
 
 // Components
-import EmployeeProfileHeader from "@/components/features/director/audit/employee-profile-header";
-import AuditNotice from "@/components/features/director/audit/audit-notice";
+import EmployeeProfileHeader from "@/components/features/_director/audit/employee-profile-header";
+import AuditNotice from "@/components/features/_director/audit/audit-notice";
 import { CheckupResult } from "@/components/features/calculator/finance/checkup-result";
-import PrintButton from "@/components/features/director/audit/print-button";
+import PrintButton from "@/components/features/_director/audit/print-button";
 
 // [FIX NEXT.JS 15] Params sebagai Promise
 export default async function EmployeeAuditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -116,7 +116,7 @@ export default async function EmployeeAuditPage({ params }: { params: Promise<{ 
             <div>
               <h2 className="text-xl font-bold text-slate-900">Laporan Kesehatan Finansial</h2>
               <p className="text-sm text-slate-500 mt-1">
-                Generated at {new Date(analysis.generatedAt).toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" })}
+                Generated at {new Date(analysis?.generatedAt || Date.now()).toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" })}
               </p>
             </div>
           </div>

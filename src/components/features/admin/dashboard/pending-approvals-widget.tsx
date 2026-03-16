@@ -53,7 +53,17 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
 
     useEffect(() => {
         fetchPendingOrders();
-    }, []);
+
+        const handleRefresh = () => {
+             fetchPendingOrders();
+             onActionComplete(); // To refresh dashboard KPIs
+        }
+
+        window.addEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh);
+        return () => {
+            window.removeEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh);
+        }
+    }, [onActionComplete]);
 
     const formatLocalTime = (isoString: string) => {
         return new Date(isoString).toLocaleDateString('id-ID', {

@@ -6,7 +6,7 @@ import { Search, Loader2, X, Command, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { directorService } from "@/services/director.service";
 import { SearchResult } from "@/lib/types"; // [UPDATED] Use new type
-import SearchResultItem from "@/components/features/director/search/search-result-item";
+import SearchResultItem from "@/components/features/_director/search/search-result-item";
 
 export default function DirectorOmniSearch() {
   const router = useRouter();

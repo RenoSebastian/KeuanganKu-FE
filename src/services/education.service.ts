@@ -146,7 +146,8 @@ export const educationService = {
      * Menjalankan pembersihan data (Pruning) berdasarkan periode waktu tertentu.
      */
     async executePrune(payload: PruneExecutionPayload) {
-        const response = await apiClient.post('/admin/retention/prune', payload);
+        // Axios DELETE with payload needs to be specified in the 'data' config property
+        const response = await apiClient.delete('/admin/retention/prune', { data: payload });
         return response.data;
     },
 

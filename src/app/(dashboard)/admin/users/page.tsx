@@ -172,10 +172,11 @@ export default function AdminUsersPage() {
           </div>
         </Card>
 
-        {/* --- DATA TABLE --- */}
-        <Card className="overflow-hidden shadow-sm border-slate-200 bg-white rounded-2xl">
+        {/* --- DESKTOP DATA TABLE --- */}
+        <Card className="overflow-hidden shadow-sm border-slate-200 bg-white rounded-2xl hidden md:block">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
+              {/* thead as before */}
               <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
                 <tr>
                   <th className="px-6 py-4 font-bold">User Identity</th>
@@ -187,14 +188,15 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                        <p className="text-slate-500 font-medium text-xs">Loading subscribers...</p>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <tr key={idx}>
+                      {Array.from({ length: 5 }).map((_, colIdx) => (
+                        <td key={colIdx} className="px-6 py-4">
+                          <div className="h-10 bg-slate-100 animate-pulse rounded-lg w-full" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
                 ) : users.length > 0 ? (
                   users.map((user) => (
                     <tr key={user.id} className="bg-white hover:bg-slate-50 transition-colors group">
@@ -330,6 +332,125 @@ export default function AdminUsersPage() {
             </table>
           </div>
         </Card>
+
+        {/* --- MOBILE CARD LIST PATTERN --- */}
+        <div className="md:hidden space-y-4">
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <Card key={idx} className="p-4 rounded-2xl border-slate-200 bg-white shadow-sm space-y-3">
+                 <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse" />
+                    <div className="space-y-2 flex-1">
+                       <div className="h-4 bg-slate-100 animate-pulse rounded w-1/2" />
+                       <div className="h-3 bg-slate-100 animate-pulse rounded w-1/3" />
+                    </div>
+                 </div>
+                 <div className="h-6 bg-slate-100 animate-pulse rounded w-1/4" />
+                 <div className="h-8 bg-slate-100 animate-pulse rounded w-full mt-2" />
+              </Card>
+            ))
+          ) : users.length > 0 ? (
+            users.map((user) => (
+              <Card key={user.id} className="p-4 rounded-2xl border-slate-200 bg-white/95 shadow-sm space-y-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm",
+                      user.role.includes("ADMIN") ? "bg-slate-800" : "bg-linear-to-br from-blue-500 to-blue-600"
+                    )}>
+                      {user.fullName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-800 flex items-center gap-1.5 text-sm">
+                        {user.fullName}
+                        {user.role === 'SUPER_ADMIN' && <Shield className="w-3 h-3 text-blue-600 fill-blue-100" />}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                        <Mail className="w-3 h-3" /> {user.email}
+                      </div>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700 -mr-2 -mt-2">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 z-50">
+                      <DropdownMenuLabel>User Actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleAction('edit', user)}>
+                        <UserIcon className="w-4 h-4 mr-2" /> Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAction('inject', user)}>
+                        <Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Quota
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAction('reset_password', user)}>
+                        <Shield className="w-4 h-4 mr-2" /> Reset Password
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                        onClick={() => handleAction('delete', user)}
+                      >
+                        <XCircle className="w-4 h-4 mr-2" /> Deactivate
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                
+                <div className="flex items-center justify-between border-y border-slate-50 py-2">
+                   <Badge variant="outline" className={cn(
+                      "border-0 font-bold px-2 py-0.5",
+                      user.plan === "ENTERPRISE" ? "bg-purple-50 text-purple-700 ring-1 ring-purple-100" :
+                        user.plan === "PRO" ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" :
+                          "bg-slate-100 text-slate-600"
+                    )}>
+                      {user.plan === "ENTERPRISE" && <Crown className="w-3 h-3 mr-1 fill-purple-200" />}
+                      {user.plan} PLAN
+                    </Badge>
+
+                    <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide">
+                      {user.status === "ACTIVE" ? (
+                        <>
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-emerald-600">Active</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                          <span className="text-slate-400">Inactive</span>
+                        </>
+                      )}
+                    </div>
+                </div>
+
+                <div className="w-full">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                    <span>{user.quotaUsed} used</span>
+                    <span>{user.quotaLimit} limit</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-500",
+                        (user.quotaUsed / user.quotaLimit) > 0.9 ? "bg-red-500" : "bg-blue-500"
+                      )}
+                      style={{ width: `${Math.min((user.quotaUsed / user.quotaLimit) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </Card>
+            ))
+          ) : (
+             <Card className="p-8 rounded-2xl border-slate-200 bg-white/95 shadow-sm text-center flex flex-col items-center">
+                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 mb-3">
+                    <Filter className="w-8 h-8 text-slate-300" />
+                 </div>
+                 <p className="text-slate-900 font-bold">No subscribers found</p>
+                 <p className="text-slate-500 text-xs">Try adjusting your filters.</p>
+             </Card>
+          )}
+        </div>
       </div>
     </div>
   );

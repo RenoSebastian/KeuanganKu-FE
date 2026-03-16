@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { adminService } from "@/services/admin.service";
-import { MasterDataService, UnitKerja } from "@/services/master-data.service";
+import { masterDataService, UnitKerja } from "@/services/master-data.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ export default function CreateUserPage() {
       nip: "",
       email: "",
       password: "Maxipro123!",
-      unitKerjaId: "",
+      agencyId: "",
       role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
       jobTitle: "",
       dateOfBirth: "", // [NEW] Field Tanggal Lahir
@@ -52,7 +52,7 @@ export default function CreateUserPage() {
       if (!formData.fullName) newErrors.fullName = "Nama Lengkap wajib diisi";
       if (!formData.nip) newErrors.nip = "NIP wajib diisi";
       if (!formData.email) newErrors.email = "Email wajib diisi";
-      if (!formData.unitKerjaId) newErrors.unitKerjaId = "Unit Kerja wajib dipilih";
+      if (!formData.agencyId) newErrors.agencyId = "Unit Kerja wajib dipilih";
       if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi"; // [NEW] Validasi
 
       setErrors(newErrors);
@@ -189,16 +189,16 @@ export default function CreateUserPage() {
                         <div className="space-y-3">
                            <Label>Unit Kerja</Label>
                            <select
-                              className={cn("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm", errors.unitKerjaId && "border-rose-500")}
-                              value={formData.unitKerjaId}
-                              onChange={e => setFormData({ ...formData, unitKerjaId: e.target.value })}
+                              className={cn("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm", errors.agencyId && "border-rose-500")}
+                              value={formData.agencyId}
+                              onChange={e => setFormData({ ...formData, agencyId: e.target.value })}
                            >
                               <option value="">-- Pilih Unit Kerja --</option>
                               {units.map(unit => (
                                  <option key={unit.id} value={unit.id}>{unit.namaUnit} ({unit.kodeUnit})</option>
                               ))}
                            </select>
-                           {errors.unitKerjaId && <p className="text-[10px] text-rose-500 font-bold">{errors.unitKerjaId}</p>}
+                           {errors.agencyId && <p className="text-[10px] text-rose-500 font-bold">{errors.agencyId}</p>}
                         </div>
 
                         <div className="space-y-3">

@@ -5,9 +5,13 @@ export interface SubscriptionPlan {
     id: string;
     code: string;
     name: string;
+    description?: string;
     price: number;
     bonusQuota: number;
     durationMonths: number;
+    isActive?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface SubscriptionOrder {
@@ -17,6 +21,7 @@ export interface SubscriptionOrder {
     proofImageUrl: string;
     verificationStatus: 'PENDING' | 'VALID' | 'INVALID';
     snapshotPrice: number;
+    plan?: SubscriptionPlan;
     createdAt: string;
 }
 
@@ -30,9 +35,9 @@ export const subscriptionService = {
     createOrder: async (planId: string, file: File) => {
         const formData = new FormData();
         formData.append('planId', planId);
-        formData.append('file', file);
+        formData.append('proofFile', file);
 
-        const response = await api.post('/subscription/order', formData, {
+        const response = await api.post('/subscription/buy', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;
@@ -50,7 +55,7 @@ export const subscriptionService = {
     },
 
     verifyOrder: async (payload: { orderId: string; status: 'VALID' | 'INVALID'; adminNotes: string }) => {
-        const response = await api.post('/admin/subscription/verify', payload);
+        const response = await api.patch('/admin/subscription/verify', payload);
         return response.data;
     }
 };

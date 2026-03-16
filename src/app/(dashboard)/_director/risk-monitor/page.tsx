@@ -16,7 +16,7 @@ import { RiskyEmployeeDetail } from "@/lib/types";
 import { directorService } from "@/services/director.service";
 
 // Components
-import RiskFilterBar from "@/components/features/director/risk/risk-filter-bar";
+import RiskFilterBar from "@/components/features/_director/risk/risk-filter-bar";
 
 export default function RiskMonitorPage() {
   const router = useRouter();

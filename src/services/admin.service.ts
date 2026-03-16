@@ -28,7 +28,7 @@ export interface CreateUserPayload {
     nip: string; // [REQUIRED]
     password: string;
     role: 'USER' | 'ADMIN' | 'DIRECTOR';
-    unitKerjaId: string; // [REQUIRED] ID dari dropdown Master Data
+    agencyId: string; // [REQUIRED] ID dari dropdown Master Data
 
     // Opsional
     jobTitle?: string;
@@ -37,6 +37,27 @@ export interface CreateUserPayload {
 }
 
 export interface UpdateUserPayload extends Partial<CreateUserPayload> { }
+
+export interface PaginationParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+}
+
+export interface AdminUsersResponse {
+    data: User[];
+    meta: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+}
+
+export interface UserDetailResponse extends User {
+    // Extend with extra detail if needed by the backend payload
+}
 
 export const adminService = {
     // ========================================================================
@@ -62,32 +83,32 @@ export const adminService = {
     // ========================================================================
 
     // Get List Users (Support Search & Filter Role)
-    getUsers: async (params?: { search?: string; role?: string }) => {
-        const response = await api.get<User[]>('/users', { params });
+    getUsers: async (params?: PaginationParams) => {
+        const response = await api.get<AdminUsersResponse>('/admin/users', { params });
         return response.data;
     },
 
     // Get Detail User
     getUserById: async (id: string) => {
-        const response = await api.get<User>(`/users/${id}`);
+        const response = await api.get<UserDetailResponse>(`/admin/users/${id}`);
         return response.data;
     },
 
     // Create User Baru (Admin Only)
-    createUser: async (data: CreateUserPayload) => {
-        const response = await api.post<User>('/users', data);
+    createUser: async (payload: CreateUserPayload) => {
+        const response = await api.post<User>('/admin/users', payload);
         return response.data;
     },
 
     // Update User (Admin Only)
-    updateUser: async (id: string, data: UpdateUserPayload) => {
-        const response = await api.patch<User>(`/users/${id}`, data);
+    updateUser: async (id: string, payload: UpdateUserPayload) => {
+        const response = await api.patch<User>(`/admin/users/${id}`, payload);
         return response.data;
     },
 
     // Delete User (Admin Only)
     deleteUser: async (id: string) => {
-        const response = await api.delete<{ message: string; id: string }>(`/users/${id}`);
+        const response = await api.delete<{ message: string; id: string }>(`/admin/users/${id}`);
         return response.data;
     },
 };

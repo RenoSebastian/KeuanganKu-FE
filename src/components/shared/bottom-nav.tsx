@@ -1,20 +1,30 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, ClipboardCheck, User, Wallet } from "lucide-react";
+import { LayoutGrid, ClipboardCheck, User, Wallet, LayoutDashboard, Users, FileCheck, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Konfigurasi Menu: Hapus properti statis 'isPrimary'
-  const menuItems = [
+  const isAdminRoute = pathname.startsWith("/admin");
+
+  const userMenuItems = [
     { label: "Dashboard", icon: LayoutGrid, href: "/dashboard" },
     { label: "Keuangan", icon: Wallet, href: "/finance" },
     { label: "Checkup", icon: ClipboardCheck, href: "/calculator/checkup" },
     { label: "Profil", icon: User, href: "/profile" }
   ];
+
+  const adminMenuItems = [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
+    { label: "Verifikasi", icon: FileCheck, href: "/admin/verification" },
+    { label: "Users", icon: Users, href: "/admin/users" },
+    { label: "Data Master", icon: Database, href: "/admin/master-data" }
+  ];
+
+  const menuItems = isAdminRoute ? adminMenuItems : userMenuItems;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-100 select-none">

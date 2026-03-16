@@ -75,11 +75,16 @@ export default function VerificationPage() {
     const [adminNotes, setAdminNotes] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // [NEW] PWA Mobile State untuk Bulk Selection
+    const [isSelectMode, setIsSelectMode] = useState(false);
+    const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+
+
     // --- Fetch Data ---
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const response = await api.get<PendingOrder[]>("/admin/subscription/orders");
+            const response = await api.get<PendingOrder[]>("/admin/subscription/pending");
             setOrders(response.data);
         } catch (error) {
             toast.error("Gagal memuat data pesanan");
@@ -99,7 +104,6 @@ export default function VerificationPage() {
         order.plan.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // --- Action Handlers ---
     const handleVerify = async (status: "VALID" | "INVALID") => {
         if (!selectedOrder) return;
 
@@ -128,6 +132,40 @@ export default function VerificationPage() {
             setAdminNotes("");
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Gagal memproses verifikasi");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // [NEW] Handler untuk Bulk Action di Mobile
+    const toggleOrderSelection = (id: string) => {
+        setSelectedOrderIds(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkVerify = async (status: "VALID" | "INVALID") => {
+        if (selectedOrderIds.length === 0) return;
+        
+        setIsProcessing(true);
+        try {
+            // Proses beruntun karena menggunakan API single-update yang sudah ada
+            await Promise.all(selectedOrderIds.map(id =>
+                api.patch("/admin/subscription/verify", {
+                    orderId: id,
+                    status,
+                    adminNotes: status === "INVALID" ? "Ditolak otomatis via Bulk Action" : undefined,
+                })
+            ));
+
+            toast.success(`${selectedOrderIds.length} pesanan berhasil ${status === "VALID" ? "disetujui" : "ditolak"}`);
+            
+            // Reset state
+            setSelectedOrderIds([]);
+            setIsSelectMode(false);
+            await fetchOrders();
+        } catch (error: any) {
+            toast.error("Gagal memproses beberapa pesanan. Silakan coba lagi.");
         } finally {
             setIsProcessing(false);
         }
@@ -164,19 +202,38 @@ export default function VerificationPage() {
                 </Card>
             </div>
 
-            {/* MAIN CONTENT: TABLE */}
-            <Card className="border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-100 bg-white flex items-center gap-3">
-                    <Search className="w-4 h-4 text-slate-400" />
-                    <Input
-                        placeholder="Cari nama, email, atau paket..."
-                        className="max-w-xs border-none bg-transparent shadow-none focus-visible:ring-0 p-0 text-sm"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+            {/* MAIN CONTENT */}
+            <Card className="border-slate-200 shadow-sm overflow-hidden mb-24 md:mb-0 relative">
+                <div className="p-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <Search className="w-4 h-4 text-slate-400" />
+                        <Input
+                            placeholder="Cari nama, email, atau paket..."
+                            className="max-w-xs border-none bg-transparent shadow-none focus-visible:ring-0 p-0 text-sm w-full"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    {/* [NEW] PWA Select Mode Toggle (Mobile Only) */}
+                    <div className="md:hidden self-end">
+                        <Button
+                            variant={isSelectMode ? "secondary" : "outline"}
+                            size="sm"
+                            className={`rounded-full shadow-sm text-xs font-semibold px-4 transition-all ${isSelectMode ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200' : 'bg-white'}`}
+                            onClick={() => {
+                                setIsSelectMode(!isSelectMode);
+                                if (isSelectMode) setSelectedOrderIds([]); // Reset if turning off
+                            }}
+                        >
+                            {isSelectMode ? "Batal Pilih" : "Pilih Multi"}
+                        </Button>
+                    </div>
                 </div>
 
-                <Table>
+                {/* DESKTOP VIEW: TABLE */}
+                <div className="hidden md:block">
+                    <Table>
                     <TableHeader className="bg-slate-50">
                         <TableRow>
                             <TableHead className="w-50">User Info</TableHead>
@@ -242,7 +299,105 @@ export default function VerificationPage() {
                         )}
                     </TableBody>
                 </Table>
+                </div>
+
+                {/* [NEW] MOBILE VIEW: CARD LIST */}
+                <div className="md:hidden grid grid-cols-1 divide-y divide-slate-100 bg-white">
+                    {isLoading ? (
+                        <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                            <span className="text-xs">Memuat pesanan...</span>
+                        </div>
+                    ) : filteredOrders.length === 0 ? (
+                        <div className="py-12 text-center text-slate-500 text-sm">
+                            Tidak ada pesanan pending saat ini.
+                        </div>
+                    ) : (
+                        filteredOrders.map((order) => {
+                            const isSelected = selectedOrderIds.includes(order.id);
+                            return (
+                                <div
+                                    key={order.id}
+                                    onClick={() => {
+                                        if (isSelectMode) {
+                                            toggleOrderSelection(order.id);
+                                        } else {
+                                            setSelectedOrder(order);
+                                        }
+                                    }}
+                                    className={`p-4 flex flex-col gap-3 relative transition-colors ${isSelectMode ? 'cursor-pointer active:bg-slate-50' : ''} ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50/50'}`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {isSelectMode && (
+                                                <div className={`w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                                                    {isSelected && <CheckCircle className="w-4 h-4 text-white" />}
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-900 text-sm">{order.user.fullName}</span>
+                                                <span className="text-xs text-slate-500 truncate max-w-[180px]">{order.user.email}</span>
+                                            </div>
+                                        </div>
+                                        {!isSelectMode && (
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                className="bg-slate-100 hover:bg-slate-200 text-slate-800 shrink-0 h-8 rounded-full px-3 text-xs font-semibold"
+                                            >
+                                                Periksa
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-between w-full mt-1">
+                                        <div className="flex flex-col gap-1">
+                                            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 inline-flex w-fit text-[10px]">
+                                                {order.plan.name}
+                                            </Badge>
+                                            <span className="text-[11px] text-slate-500">
+                                                {format(new Date(order.createdAt), "dd MMM yy, HH:mm", { locale: id })}
+                                            </span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="block font-mono font-bold text-slate-900 text-sm">
+                                                Rp {Number(order.snapshotPrice).toLocaleString("id-ID")}
+                                            </span>
+                                            <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-widest mt-0.5 block">PENDING</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
             </Card>
+
+            {/* [NEW] PWA STICKY ACTION BAR FOR BULK ACTIONS (Mobile Only) */}
+            {isSelectMode && selectedOrderIds.length > 0 && (
+                <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 px-4 py-3 bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex items-center justify-between animate-in slide-in-from-bottom-5">
+                    <span className="text-sm font-bold text-slate-800">
+                        {selectedOrderIds.length} Terpilih
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="rounded-full shadow-sm text-xs font-semibold px-4 h-9"
+                            onClick={() => handleBulkVerify("INVALID")}
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : "Tolak"}
+                        </Button>
+                        <Button 
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-sm text-xs font-semibold px-4 h-9"
+                            onClick={() => handleBulkVerify("VALID")}
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : "Setujui"}
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL: VERIFICATION DETAIL */}
             <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>

@@ -9,7 +9,8 @@ import {
     Users,
     Activity,
     Bell,
-    TrendingUp
+    TrendingUp,
+    RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,11 @@ export default function AdminDashboardPage() {
     // Paginasi State untuk Ledger
     const [currentPage, setCurrentPage] = useState(1);
     const limitPerPage = 5;
+
+    // Pull-to-Refresh State
+    const [touchStart, setTouchStart] = useState(0);
+    const [touchMove, setTouchMove] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // --- LOGIKA RE-FETCH (Data Invalidation) ---
     // Menggunakan useCallback agar fungsi tetap stabil saat di-pass ke child component
@@ -88,8 +94,47 @@ export default function AdminDashboardPage() {
         setCurrentPage(newPage);
     };
 
+    // --- PULL TO REFRESH LOGIC ---
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (window.scrollY === 0) setTouchStart(e.touches[0].clientY);
+    };
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchStart > 0) setTouchMove(e.touches[0].clientY);
+    };
+    const handleTouchEnd = () => {
+        const pullDist = touchMove - touchStart;
+        if (touchStart > 0 && pullDist > 100) {
+            setIsRefreshing(true);
+            Promise.all([fetchMetrics(), fetchLedger(1)]).finally(() => {
+                setIsRefreshing(false);
+                toast.success("Dashboard diperbarui");
+            });
+        }
+        setTouchStart(0);
+        setTouchMove(0);
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-24 md:pb-12">
+        <div 
+            className="min-h-screen bg-slate-50/50 pb-24 md:pb-12"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            {/* Pull to Refresh Indicator */}
+            {touchStart > 0 && touchMove - touchStart > 0 && (
+                <div 
+                    className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center bg-white shadow-xl rounded-full w-10 h-10 transition-transform"
+                    style={{ transform: `translateX(-50%) translateY(${Math.min((touchMove - touchStart) * 0.5, 60)}px) rotate(${(touchMove - touchStart)}deg)` }}
+                >
+                    <RefreshCw className="w-5 h-5 text-blue-600" />
+                </div>
+            )}
+            {isRefreshing && (
+                <div className="fixed top-28 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center bg-white shadow-xl rounded-full w-10 h-10 animate-bounce">
+                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                </div>
+            )}
 
             {/* --- HERO SECTION (The Central Bank Vibe) --- */}
             <div className="relative bg-slate-900 pt-8 pb-20 md:pt-12 md:pb-32 overflow-hidden rounded-b-[2.5rem] md:rounded-b-[3.5rem] shadow-xl">
