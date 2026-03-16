@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle, XCircle, Eye, Inbox, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Eye, Inbox, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/formatters";
 import { subscriptionService } from "@/services/subscription.service";
@@ -21,13 +21,8 @@ interface PendingOrder {
     proofImageUrl: string;
     snapshotPrice: number;
     createdAt: string;
-    user: {
-        fullName: string;
-        email: string;
-    };
-    plan: {
-        name: string;
-    };
+    user: { fullName: string; email: string; };
+    plan: { name: string; };
 }
 
 export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ onActionComplete }) => {
@@ -53,16 +48,12 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
 
     useEffect(() => {
         fetchPendingOrders();
-
         const handleRefresh = () => {
-             fetchPendingOrders();
-             onActionComplete(); // To refresh dashboard KPIs
+            fetchPendingOrders();
+            onActionComplete();
         }
-
         window.addEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh);
-        return () => {
-            window.removeEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh);
-        }
+        return () => { window.removeEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh); }
     }, [onActionComplete]);
 
     const formatLocalTime = (isoString: string) => {
@@ -73,7 +64,6 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
 
     const handleVerifyOrder = async () => {
         if (!selectedOrder || !actionType || actionType === 'VIEW') return;
-
         if (actionType === 'REJECT' && !adminNotes.trim()) {
             toast.error("Alasan penolakan wajib diisi");
             return;
@@ -109,28 +99,40 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
         setAdminNotes('');
     };
 
+    // [PHASE 2 FIX] Agregasi data yang sebelumnya ada di KPI Card
+    const totalPendingValue = orders.reduce((sum, order) => sum + Number(order.snapshotPrice), 0);
+
     return (
         <>
-            <Card className="border-slate-100 shadow-sm flex flex-col h-full">
-                <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+            <Card className="border-amber-200 bg-white shadow-sm flex flex-col h-full rounded-2xl overflow-hidden">
+                {/* Visual Treatment yang lebih menonjol (Menggantikan KPI Orange) */}
+                <div className="bg-amber-50/50 p-4 border-b border-amber-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-base flex items-center gap-2">
+                        <CardTitle className="text-base flex items-center gap-2 text-amber-900">
+                            <AlertCircle className="w-5 h-5 text-amber-600" />
                             Antrean Verifikasi
-                            {orders.length > 0 && (
-                                <Badge variant="danger" className="animate-pulse px-1.5 h-5 flex justify-center items-center">
-                                    {orders.length}
-                                </Badge>
-                            )}
                         </CardTitle>
-                        <CardDescription className="text-xs">Konfirmasi pembayaran SaaS</CardDescription>
+                        <CardDescription className="text-xs mt-1 text-amber-700/70">
+                            Konfirmasi pembayaran SaaS yang menunggu tindakan.
+                        </CardDescription>
                     </div>
-                </CardHeader>
+                    {orders.length > 0 && (
+                        <div className="text-right">
+                            <div className="text-lg font-black text-amber-600">
+                                {formatCurrency(totalPendingValue)}
+                            </div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                                {orders.length} Transaksi Pending
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <CardContent className="p-0 flex-1 relative">
-                    {/* FIX: h-87.5 is 350px */}
-                    <ScrollArea className="h-87.5">
+                    <ScrollArea className="h-[350px]">
                         {isLoading ? (
                             <div className="p-5 flex justify-center items-center h-full text-slate-400">
-                                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Memuat...
+                                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Memuat antrean...
                             </div>
                         ) : orders.length === 0 ? (
                             <div className="p-8 flex flex-col items-center justify-center text-center h-full">
@@ -138,27 +140,29 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                                     <Inbox className="w-6 h-6 text-emerald-500" />
                                 </div>
                                 <h4 className="text-sm font-bold text-slate-800">Clear!</h4>
-                                <p className="text-xs text-slate-500 mt-1 max-w-50">
-                                    Semua pembayaran telah diverifikasi.
+                                <p className="text-xs text-slate-500 mt-1 max-w-[200px]">
+                                    Semua antrean pembayaran telah diverifikasi.
                                 </p>
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-100">
                                 {orders.map((order) => (
-                                    <div key={order.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col gap-2">
-                                        <div className="flex items-center justify-between">
-                                            <h4 className="text-sm font-bold text-slate-800 truncate pr-2">{order.user.fullName}</h4>
-                                            <span className="text-[10px] text-slate-400 whitespace-nowrap">{formatLocalTime(order.createdAt)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex gap-2 items-center">
-                                                <Badge variant="outline" className="text-[10px] bg-blue-50/50">{order.plan.name}</Badge>
-                                                <span className="text-xs font-semibold">{formatCurrency(order.snapshotPrice)}</span>
+                                    <div key={order.id} className="p-4 hover:bg-amber-50/30 transition-colors flex flex-col gap-3">
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <h4 className="text-sm font-bold text-slate-800 line-clamp-1">{order.user.fullName}</h4>
+                                                <span className="text-[10px] font-medium text-slate-400">{formatLocalTime(order.createdAt)}</span>
                                             </div>
-                                            <div className="flex gap-1">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenModal(order, 'VIEW')}><Eye className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={() => handleOpenModal(order, 'APPROVE')}><CheckCircle className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleOpenModal(order, 'REJECT')}><XCircle className="h-4 w-4" /></Button>
+                                            <span className="text-sm font-black text-slate-700">{formatCurrency(order.snapshotPrice)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-1">
+                                            <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-600 border-slate-200">
+                                                {order.plan.name}
+                                            </Badge>
+                                            <div className="flex gap-1.5">
+                                                <Button variant="outline" size="sm" className="h-7 px-2 text-xs text-slate-600" onClick={() => handleOpenModal(order, 'VIEW')}><Eye className="h-3 w-3 mr-1" /> Cek</Button>
+                                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => handleOpenModal(order, 'APPROVE')}><CheckCircle className="h-4 w-4" /></Button>
+                                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleOpenModal(order, 'REJECT')}><XCircle className="h-4 w-4" /></Button>
                                             </div>
                                         </div>
                                     </div>
@@ -170,8 +174,7 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
             </Card>
 
             <Dialog open={!!actionType} onOpenChange={(open) => !open && handleCloseModal()}>
-                {/* FIX: sm:max-w-106.25 is 425px */}
-                <DialogContent className="sm:max-w-106.25">
+                <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>
                             {actionType === 'VIEW' && 'Bukti Bayar'}
@@ -181,11 +184,12 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                     </DialogHeader>
 
                     {selectedOrder && (
-                        <div className="my-4 p-1 border rounded bg-slate-50 flex justify-center min-h-50">
+                        <div className="my-4 p-1 border border-slate-200 rounded-lg bg-slate-50 flex justify-center min-h-[200px] overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={selectedOrder.proofImageUrl}
                                 alt="Receipt"
-                                className="max-h-75 object-contain rounded"
+                                className="max-h-[300px] object-contain rounded"
                                 onError={(e) => (e.currentTarget.src = '/images/placeholder-receipt.png')}
                             />
                         </div>
@@ -193,10 +197,10 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
 
                     {actionType === 'REJECT' && (
                         <Textarea
-                            placeholder="Alasan penolakan..."
+                            placeholder="Alasan penolakan wajib diisi..."
                             value={adminNotes}
                             onChange={(e) => setAdminNotes(e.target.value)}
-                            className="mt-2"
+                            className="mt-2 resize-none"
                         />
                     )}
 
@@ -207,6 +211,7 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                                 variant={actionType === 'APPROVE' ? 'default' : 'destructive'}
                                 onClick={handleVerifyOrder}
                                 disabled={isSubmitting || (actionType === 'REJECT' && !adminNotes)}
+                                className={actionType === 'APPROVE' ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
                             >
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Konfirmasi

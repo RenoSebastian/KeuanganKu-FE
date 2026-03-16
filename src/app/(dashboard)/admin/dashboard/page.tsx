@@ -21,7 +21,7 @@ import { toast } from "sonner";
 // Import Service, Types, & Providers
 import { adminService } from "@/services/admin.service";
 import { DashboardMetricsResponse, CashflowLedgerResponse } from "@/lib/types/dashboard";
-import { useSocket } from "@/providers/socket-provider"; // [PHASE 4] Hook WebSocket
+import { useSocket } from "@/providers/socket-provider";
 
 // Import Components
 import { DashboardKpiCards } from "@/components/features/admin/dashboard/kpi-cards";
@@ -30,7 +30,6 @@ import { CashflowLedgerTable } from "@/components/features/admin/dashboard/cashf
 import { DashboardSkeleton } from "@/components/features/admin/dashboard/dashboard-skeleton";
 import { PendingApprovalsWidget } from "@/components/features/admin/dashboard/pending-approvals-widget";
 
-// [PHASE 4] Tipe untuk Live Activity
 interface AuditLogEvent {
     id: string;
     title: string;
@@ -41,18 +40,14 @@ interface AuditLogEvent {
 
 export default function AdminDashboardPage() {
     const router = useRouter();
-    const { socket, isConnected } = useSocket(); // Inject Socket IO
+    const { socket, isConnected } = useSocket();
 
     // State Management
     const [loadingMetrics, setLoadingMetrics] = useState(true);
     const [loadingLedger, setLoadingLedger] = useState(true);
     const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
     const [ledger, setLedger] = useState<CashflowLedgerResponse | null>(null);
-
-    // [PHASE 4] State untuk Live Feed
     const [liveActivities, setLiveActivities] = useState<AuditLogEvent[]>([]);
-
-    // Paginasi State untuk Ledger
     const [currentPage, setCurrentPage] = useState(1);
     const limitPerPage = 5;
 
@@ -61,7 +56,7 @@ export default function AdminDashboardPage() {
     const [touchMove, setTouchMove] = useState(0);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // --- LOGIKA RE-FETCH (Data Invalidation) ---
+    // --- LOGIKA RE-FETCH ---
     const fetchMetrics = useCallback(async (isSilent = false) => {
         try {
             if (!isSilent) setLoadingMetrics(true);
@@ -86,32 +81,15 @@ export default function AdminDashboardPage() {
         }
     }, []);
 
-    // Initial Load
-    useEffect(() => {
-        fetchMetrics();
-    }, [fetchMetrics]);
+    useEffect(() => { fetchMetrics(); }, [fetchMetrics]);
+    useEffect(() => { fetchLedger(currentPage); }, [currentPage, fetchLedger]);
 
-    useEffect(() => {
-        fetchLedger(currentPage);
-    }, [currentPage, fetchLedger]);
-
-    // [PHASE 4] WEBSOCKET SUBSCRIPTION
     useEffect(() => {
         if (!socket) return;
-
-        // Mendengarkan event dari NotificationGateway di Backend
         socket.on("admin_activity_stream", (newEvent: AuditLogEvent) => {
-            setLiveActivities((prev) => {
-                // Pertahankan hanya 20 log terbaru agar memori browser tidak bocor (Memory Safe)
-                const updatedFeed = [newEvent, ...prev].slice(0, 20);
-                return updatedFeed;
-            });
+            setLiveActivities((prev) => [newEvent, ...prev].slice(0, 20));
         });
-
-        // Cleanup listener saat komponen di-unmount
-        return () => {
-            socket.off("admin_activity_stream");
-        };
+        return () => { socket.off("admin_activity_stream"); };
     }, [socket]);
 
     const handleActionCompleted = () => {
@@ -120,17 +98,11 @@ export default function AdminDashboardPage() {
         setCurrentPage(1);
     };
 
-    const handlePageChange = (newPage: number) => {
-        setCurrentPage(newPage);
-    };
+    const handlePageChange = (newPage: number) => setCurrentPage(newPage);
 
     // --- PULL TO REFRESH LOGIC ---
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (window.scrollY === 0) setTouchStart(e.touches[0].clientY);
-    };
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (touchStart > 0) setTouchMove(e.touches[0].clientY);
-    };
+    const handleTouchStart = (e: React.TouchEvent) => { if (window.scrollY === 0) setTouchStart(e.touches[0].clientY); };
+    const handleTouchMove = (e: React.TouchEvent) => { if (touchStart > 0) setTouchMove(e.touches[0].clientY); };
     const handleTouchEnd = () => {
         const pullDist = touchMove - touchStart;
         if (touchStart > 0 && pullDist > 100) {
@@ -146,12 +118,12 @@ export default function AdminDashboardPage() {
 
     return (
         <div
-            className="min-h-screen bg-slate-50/50 pb-24 md:pb-12"
+            className="min-h-screen bg-slate-50/50 relative overflow-hidden"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            {/* Pull to Refresh Indicator */}
+            {/* PULL TO REFRESH INDICATORS */}
             {touchStart > 0 && touchMove - touchStart > 0 && (
                 <div
                     className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center bg-white shadow-xl rounded-full w-10 h-10 transition-transform"
@@ -166,61 +138,57 @@ export default function AdminDashboardPage() {
                 </div>
             )}
 
-            {/* --- HERO SECTION --- */}
-            <div className="relative bg-slate-900 pt-8 pb-20 md:pt-12 md:pb-32 overflow-hidden rounded-b-[2.5rem] md:rounded-b-[3.5rem] shadow-xl">
+            {/* [PHASE 2 FIX] SAFE BACKGROUND UNDERLAY (Tidak akan collides dengan konten) */}
+            <div className="absolute top-0 left-0 right-0 h-[380px] md:h-[400px] bg-slate-900 rounded-b-[2.5rem] md:rounded-b-[3.5rem] shadow-xl z-0 overflow-hidden">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4" />
                 <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4" />
                 <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-10 mix-blend-overlay"></div>
+            </div>
 
-                <div className="relative z-10 px-6 max-w-7xl mx-auto">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="bg-blue-500/10 text-blue-200 border-blue-500/20 backdrop-blur-md">
-                                    <ShieldCheck className="w-3 h-3 mr-1" />
-                                    Admin Operator
-                                </Badge>
-                                <span className="text-slate-400 text-xs font-medium">
-                                    {metrics?.lastUpdatedAt ? `Last Synced: ${new Date(metrics.lastUpdatedAt).toLocaleTimeString('id-ID')}` : 'Syncing...'}
-                                </span>
-                            </div>
-                            <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
-                                Revenue Command Center
-                            </h1>
+            {/* MAIN CONTENT FLOW (Natural Document Flow, Zero Negative Margins) */}
+            <div className="relative z-10 px-5 pt-8 md:pt-12 pb-24 md:pb-12 max-w-7xl mx-auto flex flex-col gap-6">
+
+                {/* 1. HERO HEADER AREA */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-200 border-blue-500/20 backdrop-blur-md">
+                                <ShieldCheck className="w-3 h-3 mr-1" />
+                                Admin Operator
+                            </Badge>
+                            <span className="text-slate-400 text-xs font-medium">
+                                {metrics?.lastUpdatedAt ? `Last Synced: ${new Date(metrics.lastUpdatedAt).toLocaleTimeString('id-ID')}` : 'Syncing...'}
+                            </span>
                         </div>
+                        <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
+                            Revenue Command Center
+                        </h1>
+                    </div>
 
-                        <div className="flex items-center gap-3">
-                            <Button size="icon" variant="ghost" className="text-white hover:bg-white/10 rounded-full relative">
-                                <Bell className="w-5 h-5" />
-                                {/* Notif Badge jika ada live activity baru */}
-                                {liveActivities.length > 0 && (
-                                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-900" />
-                                )}
-                            </Button>
-                            <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 flex items-center gap-3">
-                                {/* Indikator Status WebSocket */}
-                                <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
-                                <span className="text-xs font-medium text-white">
-                                    {isConnected ? "WS Connected" : "Connecting..."}
-                                </span>
-                            </div>
+                    <div className="flex items-center gap-3">
+                        <Button size="icon" variant="ghost" className="text-white hover:bg-white/10 rounded-full relative">
+                            <Bell className="w-5 h-5" />
+                            {liveActivities.length > 0 && (
+                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-900" />
+                            )}
+                        </Button>
+                        <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 flex items-center gap-3">
+                            <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
+                            <span className="text-xs font-medium text-white">
+                                {isConnected ? "WS Connected" : "Connecting..."}
+                            </span>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* --- MAIN CONTENT --- */}
-            <div className="px-5 max-w-7xl mx-auto -mt-16 md:-mt-24 relative z-20 space-y-6">
+                {/* 2. DYNAMIC CONTENT AREA */}
                 {loadingMetrics || !metrics ? (
                     <DashboardSkeleton />
                 ) : (
                     <>
-                        {/* 1. KPI CARDS ROW */}
                         <DashboardKpiCards revenue={metrics.revenue} users={metrics.users} />
 
-                        {/* 2. OPERATIONAL GRID & CHARTS */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
                             {/* LEFT: Quick Actions & Chart */}
                             <div className="lg:col-span-2 space-y-6">
                                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -242,7 +210,6 @@ export default function AdminDashboardPage() {
                             <div className="space-y-6">
                                 <PendingApprovalsWidget onActionComplete={handleActionCompleted} />
 
-                                {/* [PHASE 4] LIVE AUDIT FEED WIDGET */}
                                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-0 flex flex-col overflow-hidden max-h-[400px]">
                                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                         <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
@@ -282,17 +249,14 @@ export default function AdminDashboardPage() {
                             </div>
                         </div>
 
-                        {/* 3. CASHFLOW LEDGER ROW (PWA Refactored) */}
-                        <div className="pt-4">
-                            {ledger && (
-                                <CashflowLedgerTable
-                                    data={ledger.data}
-                                    meta={ledger.meta}
-                                    isLoading={loadingLedger}
-                                    onPageChange={handlePageChange}
-                                />
-                            )}
-                        </div>
+                        {ledger && (
+                            <CashflowLedgerTable
+                                data={ledger.data}
+                                meta={ledger.meta}
+                                isLoading={loadingLedger}
+                                onPageChange={handlePageChange}
+                            />
+                        )}
                     </>
                 )}
             </div>
@@ -300,7 +264,6 @@ export default function AdminDashboardPage() {
     );
 }
 
-// --- REUSABLE SUB-COMPONENTS ---
 function ActionCard({ icon: Icon, label, desc, onClick, color, badge }: any) {
     const colorMap = {
         blue: "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white",
@@ -308,12 +271,8 @@ function ActionCard({ icon: Icon, label, desc, onClick, color, badge }: any) {
         slate: "bg-slate-100 text-slate-600 group-hover:bg-slate-800 group-hover:text-white",
         amber: "bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white",
     };
-
     return (
-        <button
-            onClick={onClick}
-            className="group flex flex-col items-start p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative"
-        >
+        <button onClick={onClick} className="group flex flex-col items-start p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative">
             {badge && (
                 <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm ring-2 ring-white animate-pulse">
                     {badge}
@@ -322,12 +281,8 @@ function ActionCard({ icon: Icon, label, desc, onClick, color, badge }: any) {
             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors duration-300", colorMap[color as keyof typeof colorMap])}>
                 <Icon className="w-5 h-5" />
             </div>
-            <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors text-left w-full">
-                {label}
-            </h4>
-            <p className="text-[10px] text-slate-400 font-medium text-left line-clamp-1">
-                {desc}
-            </p>
+            <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors text-left w-full">{label}</h4>
+            <p className="text-[10px] text-slate-400 font-medium text-left line-clamp-1">{desc}</p>
         </button>
     );
 }
