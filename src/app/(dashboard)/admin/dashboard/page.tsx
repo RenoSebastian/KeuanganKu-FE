@@ -2,16 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence, Variants } from "framer-motion"; // Pastikan Variants ter-import
 import {
-    Settings,
-    ShieldCheck,
-    CreditCard,
-    Users,
-    Activity,
-    Bell,
-    TrendingUp,
-    RefreshCw,
-    Radio
+    Settings, ShieldCheck, CreditCard, Users, Activity, Bell,
+    TrendingUp, RefreshCw, Radio
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,6 +31,26 @@ interface AuditLogEvent {
     timestamp: string;
     type: 'info' | 'success' | 'warning' | 'error';
 }
+
+// --- Framer Motion Variants ---
+// [FIX]: Menambahkan as const agar TypeScript mengerti ini adalah literal "spring"
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    show: {
+        opacity: 1,
+        y: 0,
+        transition: {
+            type: "spring" as const, // <--- KUNCI PERBAIKANNYA DI SINI
+            stiffness: 300,
+            damping: 24
+        }
+    }
+};
 
 export default function AdminDashboardPage() {
     const router = useRouter();
@@ -118,171 +132,229 @@ export default function AdminDashboardPage() {
 
     return (
         <div
-            className="min-h-screen bg-slate-50/50 relative overflow-hidden"
+            className="min-h-dvh bg-[#F8FAFC] relative overflow-hidden pb-24 md:pb-12"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
             {/* PULL TO REFRESH INDICATORS */}
-            {touchStart > 0 && touchMove - touchStart > 0 && (
-                <div
-                    className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center bg-white shadow-xl rounded-full w-10 h-10 transition-transform"
-                    style={{ transform: `translateX(-50%) translateY(${Math.min((touchMove - touchStart) * 0.5, 60)}px) rotate(${(touchMove - touchStart)}deg)` }}
-                >
-                    <RefreshCw className="w-5 h-5 text-blue-600" />
-                </div>
-            )}
-            {isRefreshing && (
-                <div className="fixed top-28 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center bg-white shadow-xl rounded-full w-10 h-10 animate-bounce">
-                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
-                </div>
-            )}
+            <AnimatePresence>
+                {touchStart > 0 && touchMove - touchStart > 0 && !isRefreshing && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: Math.min((touchMove - touchStart) * 0.4, 60) }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-md shadow-xl border border-slate-100 rounded-full w-12 h-12"
+                    >
+                        <RefreshCw className="w-5 h-5 text-blue-600 opacity-70" style={{ transform: `rotate(${touchMove - touchStart}deg)` }} />
+                    </motion.div>
+                )}
+                {isRefreshing && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1, y: 50 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white shadow-2xl shadow-blue-900/20 border border-slate-100 rounded-full w-12 h-12"
+                    >
+                        <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {/* [PHASE 2 FIX] SAFE BACKGROUND UNDERLAY (Tidak akan collides dengan konten) */}
-            <div className="absolute top-0 left-0 right-0 h-[380px] md:h-[400px] bg-slate-900 rounded-b-[2.5rem] md:rounded-b-[3.5rem] shadow-xl z-0 overflow-hidden">
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4" />
-                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4" />
-                <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-10 mix-blend-overlay"></div>
+            {/* HEADER BACKGROUND UNDERLAY (Immersive 3D Space) */}
+            <div className="absolute top-0 left-0 right-0 h-95 md:h-105 bg-slate-900 rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl shadow-blue-900/10 z-0 overflow-hidden">
+                <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 10, 0] }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} className="absolute -top-[20%] -right-[10%] w-125 h-125 bg-blue-600/30 rounded-full blur-[120px] pointer-events-none" />
+                <motion.div animate={{ scale: [1.2, 1, 1.2], x: [0, -30, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }} className="absolute top-[30%] -left-[10%] w-100 h-100 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay"></div>
             </div>
 
-            {/* MAIN CONTENT FLOW (Natural Document Flow, Zero Negative Margins) */}
-            <div className="relative z-10 px-5 pt-8 md:pt-12 pb-24 md:pb-12 max-w-7xl mx-auto flex flex-col gap-6">
+            {/* MAIN CONTENT FLOW */}
+            <div className="relative z-10 px-4 sm:px-6 pt-8 md:pt-12 max-w-7xl mx-auto flex flex-col gap-6 md:gap-8">
 
                 {/* 1. HERO HEADER AREA */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="bg-blue-500/10 text-blue-200 border-blue-500/20 backdrop-blur-md">
-                                <ShieldCheck className="w-3 h-3 mr-1" />
-                                Admin Operator
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 mb-2">
+                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <Badge variant="outline" className="bg-white/10 text-cyan-50 border-white/20 backdrop-blur-md px-3 py-1 font-black uppercase tracking-widest text-[10px]">
+                                <ShieldCheck className="w-3 h-3 mr-1.5 text-cyan-400" />
+                                Admin Console
                             </Badge>
-                            <span className="text-slate-400 text-xs font-medium">
-                                {metrics?.lastUpdatedAt ? `Last Synced: ${new Date(metrics.lastUpdatedAt).toLocaleTimeString('id-ID')}` : 'Syncing...'}
+                            <span className="text-slate-300 text-[11px] font-bold uppercase tracking-wider">
+                                {metrics?.lastUpdatedAt ? `Sync: ${new Date(metrics.lastUpdatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'Syncing...'}
                             </span>
                         </div>
-                        <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
+                        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter drop-shadow-sm">
                             Revenue Command Center
                         </h1>
-                    </div>
+                    </motion.div>
 
-                    <div className="flex items-center gap-3">
-                        <Button size="icon" variant="ghost" className="text-white hover:bg-white/10 rounded-full relative">
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.2 }} className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="flex-1 md:flex-none bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-3 flex items-center justify-between md:justify-center gap-3 shadow-lg">
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex items-center justify-center w-3 h-3">
+                                    <div className={cn("w-2.5 h-2.5 rounded-full absolute", isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                                    <div className={cn("w-2.5 h-2.5 rounded-full absolute opacity-50", isConnected ? "bg-emerald-400 animate-ping" : "bg-amber-400")} />
+                                </div>
+                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                    {isConnected ? "WS Active" : "Connecting..."}
+                                </span>
+                            </div>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-12 w-12 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-2xl relative shadow-lg active:scale-95 transition-all">
                             <Bell className="w-5 h-5" />
                             {liveActivities.length > 0 && (
-                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-900" />
+                                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-slate-900 animate-pulse" />
                             )}
                         </Button>
-                        <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 flex items-center gap-3">
-                            <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
-                            <span className="text-xs font-medium text-white">
-                                {isConnected ? "WS Connected" : "Connecting..."}
-                            </span>
-                        </div>
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* 2. DYNAMIC CONTENT AREA */}
                 {loadingMetrics || !metrics ? (
                     <DashboardSkeleton />
                 ) : (
-                    <>
-                        <DashboardKpiCards revenue={metrics.revenue} users={metrics.users} />
+                    <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex flex-col gap-6 md:gap-8">
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
-                            {/* LEFT: Quick Actions & Chart */}
-                            <div className="lg:col-span-2 space-y-6">
-                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <Settings className="w-5 h-5 text-slate-500" />
-                                    Operational Controls
-                                </h3>
+                        {/* KPI Metrics */}
+                        <motion.div variants={itemVariants}>
+                            <DashboardKpiCards revenue={metrics.revenue} users={metrics.users} />
+                        </motion.div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <ActionCard icon={TrendingUp} label="Parameter" desc="Atur Inflasi & Bunga" onClick={() => router.push('/admin/settings')} color="blue" />
-                                    <ActionCard icon={CreditCard} label="Verifikasi" desc="Cek Bukti Bayar" onClick={() => router.push('/admin/verification')} color="emerald" badge={metrics.revenue.pendingValue > 0 ? "!" : null} />
-                                    <ActionCard icon={Users} label="User Data" desc="Edit Quota / Akses" onClick={() => router.push('/admin/users')} color="slate" />
-                                    <ActionCard icon={Activity} label="System Logs" desc="Audit Trail & Error" onClick={() => router.push('/admin/maintenance')} color="amber" />
-                                </div>
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-                                <FeatureUsageChart data={metrics.systemUsage.featureDistribution} />
+                            {/* LEFT COLUMN: Controls & Chart */}
+                            <div className="xl:col-span-2 space-y-6">
+                                <motion.div variants={itemVariants}>
+                                    <div className="flex items-center justify-between mb-4 px-1">
+                                        <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                                            <div className="p-1.5 bg-white/20 rounded-lg text-white">
+                                                <Settings className="w-4 h-4" />
+                                            </div>
+                                            Operational Controls
+                                        </h3>
+                                    </div>
+
+                                    {/* Action Cards Bento Grid */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+                                        <ActionCard icon={TrendingUp} label="Parameter" desc="Inflasi & Bunga" onClick={() => router.push('/admin/settings')} color="blue" />
+                                        <ActionCard icon={CreditCard} label="Verifikasi" desc="Bukti Bayar" onClick={() => router.push('/admin/verification')} color="emerald" badge={metrics.revenue.pendingValue > 0 ? "!" : null} />
+                                        <ActionCard icon={Users} label="Data User" desc="Kelola Akses" onClick={() => router.push('/admin/users')} color="indigo" />
+                                        <ActionCard icon={Activity} label="Sys Logs" desc="Audit & Error" onClick={() => router.push('/admin/maintenance/logs')} color="amber" />
+                                    </div>
+                                </motion.div>
+
+                                <motion.div variants={itemVariants}>
+                                    <FeatureUsageChart data={metrics.systemUsage.featureDistribution} />
+                                </motion.div>
                             </div>
 
-                            {/* RIGHT: Quick Action & LIVE AUDIT FEED */}
+                            {/* RIGHT COLUMN: Approvals & Live Feed */}
                             <div className="space-y-6">
-                                <PendingApprovalsWidget onActionComplete={handleActionCompleted} />
+                                <motion.div variants={itemVariants}>
+                                    <PendingApprovalsWidget onActionComplete={handleActionCompleted} />
+                                </motion.div>
 
-                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-0 flex flex-col overflow-hidden max-h-[400px]">
-                                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                        <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                                <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden max-h-[450px]">
+                                    <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                                        <h3 className="font-black text-slate-800 tracking-tight flex items-center gap-2 text-sm">
                                             <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
                                             Live Audit Feed
                                         </h3>
-                                        <Badge variant="outline" className="text-[10px] bg-rose-50 text-rose-600 border-rose-200">Real-time</Badge>
+                                        <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase bg-rose-50 text-rose-600 border-rose-200 shadow-sm">Real-time</Badge>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                    <div className="flex-1 overflow-y-auto p-5 space-y-4">
                                         {liveActivities.length === 0 ? (
-                                            <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2 py-8">
-                                                <Activity className="w-8 h-8 opacity-20" />
-                                                <p className="text-xs">Menunggu aktivitas baru...</p>
+                                            <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-10">
+                                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                                                    <Activity className="w-6 h-6 text-slate-300" />
+                                                </div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Menunggu Aktivitas...</p>
                                             </div>
                                         ) : (
-                                            liveActivities.map((log) => (
-                                                <div key={log.id} className="flex gap-3 animate-in slide-in-from-left-2">
-                                                    <div className="relative mt-1">
-                                                        <div className={cn(
-                                                            "w-2 h-2 rounded-full ring-4",
-                                                            log.type === 'success' ? "bg-emerald-500 ring-emerald-100" :
-                                                                log.type === 'error' ? "bg-red-500 ring-red-100" :
-                                                                    log.type === 'warning' ? "bg-amber-500 ring-amber-100" :
-                                                                        "bg-blue-500 ring-blue-100"
-                                                        )} />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <p className="text-xs font-bold text-slate-800">{log.title}</p>
-                                                        <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{log.description}</p>
-                                                        <p className="text-[9px] font-medium text-slate-400 mt-1">{log.timestamp}</p>
-                                                    </div>
-                                                </div>
-                                            ))
+                                            <AnimatePresence initial={false}>
+                                                {liveActivities.map((log) => (
+                                                    <motion.div
+                                                        key={log.id}
+                                                        initial={{ opacity: 0, height: 0, scale: 0.9 }}
+                                                        animate={{ opacity: 1, height: "auto", scale: 1 }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        transition={{ duration: 0.3 }}
+                                                        className="flex gap-4 group"
+                                                    >
+                                                        <div className="relative mt-1 flex flex-col items-center">
+                                                            <div className={cn(
+                                                                "w-2.5 h-2.5 rounded-full ring-4 z-10 shadow-sm",
+                                                                log.type === 'success' ? "bg-emerald-500 ring-emerald-50" :
+                                                                    log.type === 'error' ? "bg-rose-500 ring-rose-50" :
+                                                                        log.type === 'warning' ? "bg-amber-500 ring-amber-50" :
+                                                                            "bg-blue-500 ring-blue-50"
+                                                            )} />
+                                                            {/* Vertical Line for timeline effect */}
+                                                            <div className="w-px h-full bg-slate-100 absolute top-3 -bottom-4 group-last:hidden" />
+                                                        </div>
+                                                        <div className="flex-1 pb-4">
+                                                            <p className="text-[13px] font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">{log.title}</p>
+                                                            <p className="text-[11px] text-slate-500 leading-relaxed mt-1 font-medium">{log.description}</p>
+                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-2">{log.timestamp}</p>
+                                                        </div>
+                                                    </motion.div>
+                                                ))}
+                                            </AnimatePresence>
                                         )}
                                     </div>
-                                </div>
+                                </motion.div>
                             </div>
                         </div>
 
-                        {ledger && (
-                            <CashflowLedgerTable
-                                data={ledger.data}
-                                meta={ledger.meta}
-                                isLoading={loadingLedger}
-                                onPageChange={handlePageChange}
-                            />
-                        )}
-                    </>
+                        {/* Full Width Ledger */}
+                        <motion.div variants={itemVariants}>
+                            {ledger && (
+                                <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden p-1">
+                                    <CashflowLedgerTable
+                                        data={ledger.data}
+                                        meta={ledger.meta}
+                                        isLoading={loadingLedger}
+                                        onPageChange={handlePageChange}
+                                    />
+                                </div>
+                            )}
+                        </motion.div>
+
+                    </motion.div>
                 )}
             </div>
         </div>
     );
 }
 
+// --- Premium Action Card Component ---
 function ActionCard({ icon: Icon, label, desc, onClick, color, badge }: any) {
     const colorMap = {
-        blue: "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white",
-        emerald: "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white",
-        slate: "bg-slate-100 text-slate-600 group-hover:bg-slate-800 group-hover:text-white",
-        amber: "bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white",
+        blue: "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white shadow-blue-100/50",
+        emerald: "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white shadow-emerald-100/50",
+        slate: "bg-slate-100 text-slate-600 group-hover:bg-slate-800 group-hover:text-white shadow-slate-200/50",
+        amber: "bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white shadow-amber-100/50",
+        indigo: "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white shadow-indigo-100/50",
     };
+
     return (
-        <button onClick={onClick} className="group flex flex-col items-start p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative">
+        <button
+            onClick={onClick}
+            className="group flex flex-col items-start p-4 md:p-5 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm hover:shadow-xl hover:shadow-slate-200/40 hover:-translate-y-1 transition-all duration-300 relative active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
             {badge && (
-                <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm ring-2 ring-white animate-pulse">
+                <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-md ring-2 ring-white animate-pulse">
                     {badge}
                 </span>
             )}
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors duration-300", colorMap[color as keyof typeof colorMap])}>
-                <Icon className="w-5 h-5" />
+            <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-500 shadow-inner",
+                colorMap[color as keyof typeof colorMap]
+            )}>
+                <Icon className="w-5 h-5 md:w-6 md:h-6" />
             </div>
-            <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors text-left w-full">{label}</h4>
-            <p className="text-[10px] text-slate-400 font-medium text-left line-clamp-1">{desc}</p>
+            <h4 className="font-black text-slate-800 text-[13px] md:text-sm tracking-tight group-hover:text-blue-600 transition-colors text-left w-full">{label}</h4>
+            <p className="text-[10px] md:text-[11px] text-slate-500 font-medium text-left line-clamp-1 mt-0.5">{desc}</p>
         </button>
     );
 }
