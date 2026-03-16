@@ -1,4 +1,8 @@
 import api from '@/lib/axios';
+import {
+    DashboardMetricsResponse,
+    CashflowLedgerResponse
+} from '@/lib/types/dashboard';
 
 // Tipe Data User sesuai response Backend terbaru
 export interface User {
@@ -35,6 +39,28 @@ export interface CreateUserPayload {
 export interface UpdateUserPayload extends Partial<CreateUserPayload> { }
 
 export const adminService = {
+    // ========================================================================
+    // ANALYTICS & DASHBOARD METHODS (Phase 1)
+    // ========================================================================
+
+    // Get Analytics Metrics (Revenue, Users, Usage) - Cached via Redis
+    getDashboardMetrics: async () => {
+        const response = await api.get<DashboardMetricsResponse>('/admin/dashboard/metrics');
+        return response.data;
+    },
+
+    // Get Cashflow Ledger Table Data with Pagination
+    getCashflowLedger: async (page: number = 1, limit: number = 10) => {
+        const response = await api.get<CashflowLedgerResponse>('/admin/dashboard/cashflow', {
+            params: { page, limit }
+        });
+        return response.data;
+    },
+
+    // ========================================================================
+    // USER MANAGEMENT METHODS
+    // ========================================================================
+
     // Get List Users (Support Search & Filter Role)
     getUsers: async (params?: { search?: string; role?: string }) => {
         const response = await api.get<User[]>('/users', { params });

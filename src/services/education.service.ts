@@ -47,7 +47,8 @@ export const educationService = {
     },
 
     async updateCategory(id: string, payload: UpdateCategoryPayload) {
-        const response = await apiClient.put<EducationCategory>(`/admin/education/categories/${id}`, payload);
+        // REVISI: Penyesuaian ke PATCH untuk memenuhi kontrak routing @Patch(':id') pada EducationCategoryController
+        const response = await apiClient.patch<EducationCategory>(`/admin/education/categories/${id}`, payload);
         return response.data;
     },
 
@@ -83,7 +84,8 @@ export const educationService = {
     },
 
     async updateModule(id: string, payload: UpdateModulePayload) {
-        const response = await apiClient.put<EducationModule>(`/admin/education/modules/${id}`, payload);
+        // REVISI: Penyesuaian ke PATCH untuk memenuhi kontrak routing @Patch('modules/:id') pada AdminEducationController
+        const response = await apiClient.patch<EducationModule>(`/admin/education/modules/${id}`, payload);
         return response.data;
     },
 

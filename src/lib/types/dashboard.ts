@@ -7,6 +7,65 @@ import { UserRole } from "./auth";
 import { FinancialRecord, HealthAnalysisResult } from "./financial-checkup";
 
 // ============================================================================
+// [NEW] SAAS & ANALYTICS METRICS TYPES (Phase 1)
+// ============================================================================
+
+export interface RevenueMetrics {
+    grossVolume: number;
+    mrr: number;
+    pendingValue: number;
+}
+
+export interface UserMetrics {
+    totalUsers: number;
+    dau: number;
+    mau: number;
+    conversionRate: number;
+}
+
+export interface FeatureUsage {
+    featureName: string;
+    usageCount: number;
+    percentage: number;
+}
+
+export interface SystemUsageMetrics {
+    featureDistribution: FeatureUsage[];
+    averageFreeQuotaConsumption: number;
+}
+
+export interface DashboardMetricsResponse {
+    revenue: RevenueMetrics;
+    users: UserMetrics;
+    systemUsage: SystemUsageMetrics;
+    lastUpdatedAt: string; // ISO Date String
+}
+
+export type CashflowStatus = 'VERIFIED' | 'PENDING' | 'REJECTED';
+
+export interface CashflowLedgerItem {
+    transactionId: string;
+    transactionDate: string; // ISO Date String
+    planName: string;
+    amount: number;
+    status: CashflowStatus;
+    verifiedBy?: string;
+    userName: string;
+}
+
+export interface PaginationMeta {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface CashflowLedgerResponse {
+    data: CashflowLedgerItem[];
+    meta: PaginationMeta;
+}
+
+// ============================================================================
 // 6. ADMIN & SYSTEM DASHBOARD TYPES (Section 6 of Giant Types)
 // ============================================================================
 

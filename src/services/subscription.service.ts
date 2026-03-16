@@ -1,53 +1,56 @@
-import api from "@/lib/axios";
+import api from '@/lib/axios';
 
-// Sesuaikan dengan Model Prisma Backend
+// Interface pendukung
 export interface SubscriptionPlan {
     id: string;
     code: string;
     name: string;
-    description: string;
-    durationMonths: number;
     price: number;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
+    bonusQuota: number;
+    durationMonths: number;
 }
 
 export interface SubscriptionOrder {
     id: string;
-    plan: SubscriptionPlan;
-    proofImageUrl?: string; // Optional karena bisa nullable di DB
+    userId: string;
+    planId: string;
+    proofImageUrl: string;
     verificationStatus: 'PENDING' | 'VALID' | 'INVALID';
     snapshotPrice: number;
-    adminNotes?: string;
     createdAt: string;
 }
 
 export const subscriptionService = {
-    // Ambil daftar paket yang tersedia
+    // --- CLIENT SIDE METHODS (Existing) ---
     getPlans: async () => {
-        const response = await api.get<SubscriptionPlan[]>("/subscription/plans");
+        const response = await api.get<SubscriptionPlan[]>('/subscription/plans');
         return response.data;
     },
 
-    // Kirim bukti pembayaran (Create Order & Upload)
-    // Menggunakan FormData karena Backend mengharapkan Multipart File
     createOrder: async (planId: string, file: File) => {
         const formData = new FormData();
         formData.append('planId', planId);
-        formData.append('proofFile', file); // Key harus sesuai dengan @UseInterceptors(FileInterceptor('proofFile')) di Backend
+        formData.append('file', file);
 
-        const response = await api.post("/subscription/buy", formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
+        const response = await api.post('/subscription/order', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;
     },
 
-    // Ambil riwayat transaksi user
     getMyOrders: async () => {
-        const response = await api.get<SubscriptionOrder[]>("/subscription/orders");
+        const response = await api.get<SubscriptionOrder[]>('/subscription/my-orders');
+        return response.data;
+    },
+
+    // --- ADMIN SIDE METHODS (NEW - Fixes TS Error 2339) ---
+    getPendingOrders: async () => {
+        const response = await api.get('/admin/subscription/pending');
+        return response.data;
+    },
+
+    verifyOrder: async (payload: { orderId: string; status: 'VALID' | 'INVALID'; adminNotes: string }) => {
+        const response = await api.post('/admin/subscription/verify', payload);
         return response.data;
     }
 };
