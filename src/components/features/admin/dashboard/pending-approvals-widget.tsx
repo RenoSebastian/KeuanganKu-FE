@@ -1,4 +1,3 @@
-// File: src/components/features/admin/dashboard/pending-approvals-widget.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -26,21 +25,23 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
     const [totalQueueCount, setTotalQueueCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 
-    // State untuk Shared Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
 
     const fetchPendingOrders = async () => {
         try {
             setIsLoading(true);
-            // [TASK 3 - Paginasi]: Hanya menarik 5 data teratas untuk efisiensi Widget
             const response = await subscriptionService.getPendingOrders(1, 5);
-
             setOrders(response.data);
             setTotalQueueCount(response.meta.total);
 
-            // [TASK 2]: Kalkulasi Gross Revenue dari order yang pending (snapshotPrice)
-            const aggregateAmount = response.data.reduce((sum, order) => sum + Number(order.snapshotPrice), 0);
+            // Kalkulasi ulang Gross Pending menggunakan durasi tier (Information Expert)
+            const aggregateAmount = response.data.reduce((sum, order) => {
+                const basePrice = Number(order.plan.price);
+                const duration = order.plan.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
+                return sum + (basePrice * duration);
+            }, 0);
+
             setTotalPendingAmount(aggregateAmount);
 
         } catch (error) {
@@ -53,12 +54,10 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
 
     useEffect(() => {
         fetchPendingOrders();
-
         const handleRefresh = () => {
             fetchPendingOrders();
             onActionComplete();
         };
-
         window.addEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh);
         return () => { window.removeEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh); };
     }, [onActionComplete]);
@@ -72,11 +71,6 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
     const handleRowClick = (order: PendingOrder) => {
         setSelectedOrder(order);
         setIsModalOpen(true);
-    };
-
-    const handleVerificationSuccess = () => {
-        fetchPendingOrders();
-        onActionComplete();
     };
 
     return (
@@ -122,33 +116,40 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-100">
-                                {orders.map((order) => (
-                                    <div
-                                        key={order.id}
-                                        className="p-4 hover:bg-amber-50/50 transition-colors flex flex-col gap-3 cursor-pointer group"
-                                        onClick={() => handleRowClick(order)}
-                                    >
-                                        <div className="flex items-start justify-between">
-                                            <div>
-                                                <h4 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-amber-700 transition-colors">
-                                                    {order.user.fullName}
-                                                </h4>
-                                                <span className="text-[10px] font-medium text-slate-400">{formatLocalTime(order.createdAt)}</span>
+                                {orders.map((order) => {
+                                    // Dinamis Kalkulasi
+                                    const basePrice = Number(order.plan.price);
+                                    const duration = order.plan.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
+                                    const trueTotal = basePrice * duration;
+
+                                    return (
+                                        <div
+                                            key={order.id}
+                                            className="p-4 hover:bg-amber-50/50 transition-colors flex flex-col gap-3 cursor-pointer group"
+                                            onClick={() => handleRowClick(order)}
+                                        >
+                                            <div className="flex items-start justify-between">
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-amber-700 transition-colors">
+                                                        {order.user.fullName}
+                                                    </h4>
+                                                    <span className="text-[10px] font-medium text-slate-400">{formatLocalTime(order.createdAt)}</span>
+                                                </div>
+                                                <span className="text-sm font-black text-slate-700">
+                                                    {formatCurrency(trueTotal + Number(order.uniqueCode || 0))}
+                                                </span>
                                             </div>
-                                            <span className="text-sm font-black text-slate-700">
-                                                {formatCurrency(Number(order.snapshotPrice) + Number(order.uniqueCode))}
-                                            </span>
+                                            <div className="flex items-center justify-between mt-1">
+                                                <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-600 border-slate-200">
+                                                    {order.plan.name} ({duration} bln)
+                                                </Badge>
+                                                <span className="text-xs font-semibold text-amber-600 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    Verifikasi <ArrowRight className="w-3 h-3 ml-1" />
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center justify-between mt-1">
-                                            <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-600 border-slate-200">
-                                                {order.plan.name}
-                                            </Badge>
-                                            <span className="text-xs font-semibold text-amber-600 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                Verifikasi <ArrowRight className="w-3 h-3 ml-1" />
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </ScrollArea>
@@ -168,12 +169,11 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                 </CardContent>
             </Card>
 
-            {/* Injeksi Shared Modal dari Fase 2.1 */}
             <VerifyOrderModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 order={selectedOrder}
-                onSuccess={handleVerificationSuccess}
+                onSuccess={() => { fetchPendingOrders(); onActionComplete(); }}
             />
         </>
     );

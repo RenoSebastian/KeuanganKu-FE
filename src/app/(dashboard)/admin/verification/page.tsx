@@ -250,7 +250,7 @@ export default function VerificationPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-slate-600 text-sm">
-                                                {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: dateFnsId })}
+                                                {order.createdAt ? format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: dateFnsId }) : "-"}
                                             </TableCell>
                                             <TableCell className="font-mono text-slate-700 font-medium leading-tight">
                                                 <div className="flex flex-col">

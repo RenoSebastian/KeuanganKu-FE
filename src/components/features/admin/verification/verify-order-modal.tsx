@@ -1,13 +1,6 @@
-// File: src/components/features/admin/verification/verify-order-modal.tsx
-
 import React, { useState, useEffect } from 'react';
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,12 +9,12 @@ import { toast } from 'sonner';
 
 import { PendingOrder, VerificationStatus } from '@/lib/types/subscription';
 import { subscriptionService } from '@/services/subscription.service';
+import { getImageUrl } from '@/utils/image-resolver';
 
 interface VerifyOrderModalProps {
     isOpen: boolean;
     onClose: () => void;
     order: PendingOrder | null;
-    /** Callback yang dieksekusi ketika verifikasi sukses, agar Parent me-refetch data */
     onSuccess: () => void;
 }
 
@@ -29,17 +22,12 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
     const [isLoading, setIsLoading] = useState(false);
     const [adminNotes, setAdminNotes] = useState('');
 
-    // Reset catatan setiap kali modal dibuka untuk order yang berbeda
     useEffect(() => {
-        if (isOpen) {
-            setAdminNotes('');
-        }
+        if (isOpen) setAdminNotes('');
     }, [isOpen, order]);
 
     const handleVerify = async (status: VerificationStatus) => {
         if (!order) return;
-
-        // Validasi keamanan: Menolak wajib menyertakan alasan
         if (status === 'INVALID' && !adminNotes.trim()) {
             toast.error('Catatan admin wajib diisi sebagai alasan penolakan.');
             return;
@@ -54,12 +42,10 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
             });
 
             toast.success(`Pembayaran berhasil ${status === 'VALID' ? 'disetujui' : 'ditolak'}.`);
-            onSuccess(); // Trigger parent (Widget / Table) untuk refresh data
+            onSuccess();
             onClose();
         } catch (error: any) {
-            toast.error(
-                error.response?.data?.message || 'Terjadi kesalahan sistem saat memproses verifikasi.'
-            );
+            toast.error(error.response?.data?.message || 'Terjadi kesalahan sistem saat memproses verifikasi.');
         } finally {
             setIsLoading(false);
         }
@@ -67,8 +53,15 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
 
     if (!order) return null;
 
-    // Menghitung total mutasi yang harus dicek oleh admin di rekening
-    const expectedTransferAmount = Number(order.snapshotPrice) + Number(order.uniqueCode);
+    // [CORE LOGIC FIX] Kalkulasi Harga Berdasarkan Tier / Durasi secara Dinamis
+    const basePrice = Number(order.plan.price);
+    const duration = order.plan.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
+    const trueCalculatedPrice = basePrice * duration;
+
+    // Total yang harus dicek Admin di mutasi rekening
+    const expectedTransferAmount = trueCalculatedPrice + Number(order.uniqueCode || 0);
+
+    const safeImageUrl = getImageUrl(order.proofImageUrl);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !isLoading && !open && onClose()}>
@@ -81,12 +74,11 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                    {/* Left Column: Tampilan Bukti Transfer */}
                     <div className="flex flex-col space-y-3">
                         <h4 className="text-sm font-semibold text-slate-700">Bukti Transfer</h4>
                         <div className="relative w-full h-64 bg-slate-100 rounded-md border flex items-center justify-center overflow-hidden">
                             <img
-                                src={order.proofImageUrl}
+                                src={safeImageUrl}
                                 alt="Bukti Transfer"
                                 className="object-contain w-full h-full"
                                 onError={(e) => {
@@ -95,7 +87,7 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
                             />
                         </div>
                         <a
-                            href={order.proofImageUrl}
+                            href={safeImageUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline w-fit"
@@ -105,7 +97,6 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
                         </a>
                     </div>
 
-                    {/* Right Column: Rincian Order & Keputusan */}
                     <div className="flex flex-col space-y-4">
                         <div className="bg-slate-50 p-4 rounded-md border text-sm space-y-3">
                             <div className="flex justify-between border-b pb-2">
@@ -113,22 +104,22 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
                                 <span className="font-medium text-right">{order.user.fullName}</span>
                             </div>
                             <div className="flex justify-between border-b pb-2">
-                                <span className="text-slate-500">Email</span>
-                                <span className="font-medium text-right">{order.user.email}</span>
-                            </div>
-                            <div className="flex justify-between border-b pb-2">
                                 <span className="text-slate-500">Paket Akses</span>
                                 <span className="font-medium text-right">
-                                    {order.plan.name} <span className="text-slate-400">({order.plan.durationMonths} bln)</span>
+                                    {order.plan.name} <span className="text-slate-400">({duration} bln)</span>
                                 </span>
                             </div>
                             <div className="flex justify-between border-b pb-2">
-                                <span className="text-slate-500">Harga Paket (Total)</span>
-                                <span className="font-medium">Rp {Number(order.snapshotPrice).toLocaleString('id-ID')}</span>
+                                <span className="text-slate-500">Harga Base (Per Bulan)</span>
+                                <span className="font-medium">Rp {basePrice.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div className="flex justify-between border-b pb-2">
+                                <span className="text-slate-500">Total Harga Tier ({duration} bln)</span>
+                                <span className="font-medium text-indigo-700">Rp {trueCalculatedPrice.toLocaleString('id-ID')}</span>
                             </div>
                             <div className="flex justify-between border-b pb-2">
                                 <span className="text-slate-500">Kode Unik</span>
-                                <span className="font-medium text-orange-600">+{order.uniqueCode}</span>
+                                <span className="font-medium text-orange-600">+{order.uniqueCode || 0}</span>
                             </div>
                             <div className="flex justify-between pt-2 items-center">
                                 <span className="text-slate-700 font-bold">Harus Ditransfer</span>
