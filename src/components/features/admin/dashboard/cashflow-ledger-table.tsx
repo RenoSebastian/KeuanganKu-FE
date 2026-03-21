@@ -8,7 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, FileText, User as UserIcon, Inbox, Loader2, DownloadCloud } from 'lucide-react';
 import { CashflowLedgerItem, PaginationMeta, CashflowStatus } from '@/lib/types/dashboard';
-import { formatCurrency } from '@/lib/formatters';
+
+// [FIX] Mengimpor formatDateTime dari utilitas terpusat
+import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
 
@@ -27,14 +29,6 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
 }) => {
     // [TASK 1] State untuk memantau status generasi dokumen PDF
     const [isDownloading, setIsDownloading] = useState(false);
-
-    // --- Helper Format Waktu ---
-    const formatLocalTime = (isoString: string) => {
-        return new Date(isoString).toLocaleDateString('id-ID', {
-            day: '2-digit', month: 'short', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
 
     // --- Ekspor Dokumen Fisik (PDF) ---
     const handleDownloadPdf = async () => {
@@ -103,7 +97,7 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
                     </CardDescription>
                 </div>
 
-                {/* [NEW] Tombol Aksi Unduh */}
+                {/* Tombol Aksi Unduh */}
                 {data.length > 0 && (
                     <Button
                         variant="outline"
@@ -158,8 +152,9 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
                             ) : (
                                 data.map((item) => (
                                     <TableRow key={item.transactionId} className="hover:bg-blue-50/30 transition-colors duration-200 cursor-default">
+                                        {/* [FIX] Mendelegasikan format waktu ke Information Expert terpusat */}
                                         <TableCell className="whitespace-nowrap text-xs text-slate-500 font-medium py-4">
-                                            {formatLocalTime(item.transactionDate)}
+                                            {formatDateTime(item.transactionDate)}
                                         </TableCell>
                                         <TableCell className="font-bold text-slate-800 text-[13px]">
                                             {item.userName}
@@ -231,7 +226,8 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-[13px] font-black text-slate-800 line-clamp-1 tracking-tight">{item.userName}</span>
-                                            <span className="text-[10px] font-medium text-slate-500 mt-0.5">{formatLocalTime(item.transactionDate)}</span>
+                                            {/* [FIX] Mendelegasikan format waktu ke Information Expert terpusat */}
+                                            <span className="text-[10px] font-medium text-slate-500 mt-0.5">{formatDateTime(item.transactionDate)}</span>
                                         </div>
                                     </div>
                                     {renderStatusBadge(item.status)}
