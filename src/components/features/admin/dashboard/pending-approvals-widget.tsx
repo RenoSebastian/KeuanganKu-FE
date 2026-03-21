@@ -9,7 +9,8 @@ import { Inbox, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 
-import { formatCurrency } from "@/lib/formatters";
+// Mengimpor formatDateTime dari Information Expert untuk menerapkan pola Pure Fabrication
+import { formatCurrency, parseDecimal, formatDateTime } from "@/lib/formatters";
 import { subscriptionService } from "@/services/subscription.service";
 import { PendingOrder } from "@/lib/types/subscription";
 import { VerifyOrderModal } from "../verification/verify-order-modal";
@@ -35,10 +36,10 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
             setOrders(response.data);
             setTotalQueueCount(response.meta.total);
 
-            // Kalkulasi ulang Gross Pending menggunakan durasi tier (Information Expert)
+            // Kalkulasi menggunakan parseDecimal untuk mensterilkan objek Prisma
             const aggregateAmount = response.data.reduce((sum, order) => {
-                const basePrice = Number(order.plan.price);
-                const duration = order.plan.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
+                const basePrice = parseDecimal(order.plan?.price);
+                const duration = order.plan?.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
                 return sum + (basePrice * duration);
             }, 0);
 
@@ -61,12 +62,6 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
         window.addEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh);
         return () => { window.removeEventListener('REFRESH_ADMIN_DASHBOARD', handleRefresh); };
     }, [onActionComplete]);
-
-    const formatLocalTime = (isoString: string) => {
-        return new Date(isoString).toLocaleDateString('id-ID', {
-            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-        });
-    };
 
     const handleRowClick = (order: PendingOrder) => {
         setSelectedOrder(order);
@@ -117,10 +112,11 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                         ) : (
                             <div className="divide-y divide-slate-100">
                                 {orders.map((order) => {
-                                    // Dinamis Kalkulasi
-                                    const basePrice = Number(order.plan.price);
-                                    const duration = order.plan.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
+                                    // Proteksi kalkulasi dinamis untuk individual row
+                                    const basePrice = parseDecimal(order.plan?.price);
+                                    const duration = order.plan?.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
                                     const trueTotal = basePrice * duration;
+                                    const uniqueCodeAmount = parseDecimal(order.uniqueCode);
 
                                     return (
                                         <div
@@ -131,17 +127,20 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                                             <div className="flex items-start justify-between">
                                                 <div>
                                                     <h4 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-amber-700 transition-colors">
-                                                        {order.user.fullName}
+                                                        {order.user?.fullName || 'Pengguna Tidak Diketahui'}
                                                     </h4>
-                                                    <span className="text-[10px] font-medium text-slate-400">{formatLocalTime(order.createdAt)}</span>
+                                                    {/* Pendelegasian format waktu ke utilitas terpusat */}
+                                                    <span className="text-[10px] font-medium text-slate-400">
+                                                        {formatDateTime(order.createdAt)}
+                                                    </span>
                                                 </div>
                                                 <span className="text-sm font-black text-slate-700">
-                                                    {formatCurrency(trueTotal + Number(order.uniqueCode || 0))}
+                                                    {formatCurrency(trueTotal + uniqueCodeAmount)}
                                                 </span>
                                             </div>
                                             <div className="flex items-center justify-between mt-1">
                                                 <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-600 border-slate-200">
-                                                    {order.plan.name} ({duration} bln)
+                                                    {order.plan?.name || 'Paket Invalid'} ({duration} bln)
                                                 </Badge>
                                                 <span className="text-xs font-semibold text-amber-600 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                     Verifikasi <ArrowRight className="w-3 h-3 ml-1" />
