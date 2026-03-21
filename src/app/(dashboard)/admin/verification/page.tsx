@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { subscriptionService } from "@/services/subscription.service";
 import { PendingOrder } from "@/lib/types/subscription"; // [FIX] Menggunakan tipe data global
 import { VerifyOrderModal } from "@/components/features/admin/verification/verify-order-modal"; // [NEW] Import Shared Modal
+import { parseDecimal } from "@/lib/formatters"; // [NEW] Import utilitas parser Decimal
 
 import {
     Card,
@@ -250,11 +251,14 @@ export default function VerificationPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-slate-600 text-sm">
-                                                {order.createdAt ? format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: dateFnsId }) : "-"}
+                                                {order.createdAt && !isNaN(new Date(order.createdAt).getTime())
+                                                    ? format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: dateFnsId })
+                                                    : "-"}
                                             </TableCell>
                                             <TableCell className="font-mono text-slate-700 font-medium leading-tight">
                                                 <div className="flex flex-col">
-                                                    <span>Rp {(Number(order.snapshotPrice) + Number(order.uniqueCode || 0)).toLocaleString("id-ID")}</span>
+                                                    {/* [FIX] Gunakan parseDecimal untuk proteksi komputasi Prisma Decimal */}
+                                                    <span>Rp {(parseDecimal(order.snapshotPrice) + Number(order.uniqueCode || 0)).toLocaleString("id-ID")}</span>
                                                     <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
                                                         +{order.uniqueCode || 0} Kode Unik
                                                     </span>
@@ -336,12 +340,15 @@ export default function VerificationPage() {
                                                 {order.plan.name}
                                             </Badge>
                                             <span className="text-[11px] text-slate-500">
-                                                {format(new Date(order.createdAt), "dd MMM yy, HH:mm", { locale: dateFnsId })}
+                                                {order.createdAt && !isNaN(new Date(order.createdAt).getTime())
+                                                    ? format(new Date(order.createdAt), "dd MMM yy, HH:mm", { locale: dateFnsId })
+                                                    : "-"}
                                             </span>
                                         </div>
                                         <div className="text-right">
+                                            {/* [FIX] Gunakan parseDecimal untuk proteksi komputasi Prisma Decimal di Mobile View */}
                                             <span className="block font-mono font-bold text-slate-900 text-sm">
-                                                Rp {(Number(order.snapshotPrice) + Number(order.uniqueCode || 0)).toLocaleString("id-ID")}
+                                                Rp {(parseDecimal(order.snapshotPrice) + Number(order.uniqueCode || 0)).toLocaleString("id-ID")}
                                             </span>
                                             <span className="text-[9px] font-bold text-emerald-600 block mb-0.5">+{order.uniqueCode || 0} Kode Unik</span>
                                             <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-widest mt-0.5 block">PENDING</span>

@@ -89,10 +89,14 @@ export const LogDataTable: React.FC<LogDataTableProps> = ({ logs, isLoading, has
                                         <td className="px-6 py-4 align-top">
                                             <div className="flex flex-col gap-1">
                                                 <span className="font-bold text-slate-800 text-xs">
-                                                    {format(new Date(log.createdAt), "dd MMM yyyy", { locale: localeId })}
+                                                    {log.createdAt && !isNaN(new Date(log.createdAt).getTime())
+                                                        ? format(new Date(log.createdAt), "dd MMM yyyy", { locale: localeId })
+                                                        : "-"}
                                                 </span>
                                                 <span className="text-[10px] font-medium text-slate-500">
-                                                    {format(new Date(log.createdAt), "HH:mm:ss", { locale: localeId })}
+                                                    {log.createdAt && !isNaN(new Date(log.createdAt).getTime())
+                                                        ? format(new Date(log.createdAt), "HH:mm:ss", { locale: localeId })
+                                                        : "-"}
                                                 </span>
                                                 <span className="text-[9px] text-slate-400 font-mono mt-1 px-1.5 py-0.5 bg-slate-100 rounded w-fit">
                                                     {log.ipAddress || 'Unknown IP'}

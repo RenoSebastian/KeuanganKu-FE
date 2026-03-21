@@ -99,18 +99,18 @@ export const PendingApprovalsWidget: React.FC<PendingApprovalsWidgetProps> = ({ 
                 </div>
 
                 <CardContent className="p-0 flex-1 relative flex flex-col">
-                    <ScrollArea className="flex-1 min-h-[280px]">
+                    <ScrollArea className="flex-1 min-h-70">
                         {isLoading ? (
-                            <div className="p-5 flex justify-center items-center h-full text-slate-400 min-h-[200px]">
+                            <div className="p-5 flex justify-center items-center h-full text-slate-400 min-h-50">
                                 <Loader2 className="w-5 h-5 animate-spin mr-2" /> Memuat antrean...
                             </div>
                         ) : orders.length === 0 ? (
-                            <div className="p-8 flex flex-col items-center justify-center text-center h-full min-h-[200px]">
+                            <div className="p-8 flex flex-col items-center justify-center text-center h-full min-h-50">
                                 <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
                                     <Inbox className="w-6 h-6 text-emerald-500" />
                                 </div>
                                 <h4 className="text-sm font-bold text-slate-800">Clear!</h4>
-                                <p className="text-xs text-slate-500 mt-1 max-w-[200px]">
+                                <p className="text-xs text-slate-500 mt-1 max-w-50">
                                     Semua antrean pembayaran telah diverifikasi.
                                 </p>
                             </div>

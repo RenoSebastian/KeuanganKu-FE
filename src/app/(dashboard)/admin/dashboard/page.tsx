@@ -151,7 +151,7 @@ export default function AdminDashboardPage() {
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: Math.min((touchMove - touchStart) * 0.4, 60) }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-md shadow-xl border border-slate-100 rounded-full w-12 h-12"
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-100 flex items-center justify-center bg-white/90 backdrop-blur-md shadow-xl border border-slate-100 rounded-full w-12 h-12"
                     >
                         <RefreshCw className="w-5 h-5 text-blue-600 opacity-70" style={{ transform: `rotate(${touchMove - touchStart}deg)` }} />
                     </motion.div>
@@ -161,7 +161,7 @@ export default function AdminDashboardPage() {
                         initial={{ opacity: 0, scale: 0.5 }}
                         animate={{ opacity: 1, scale: 1, y: 50 }}
                         exit={{ opacity: 0, scale: 0.5 }}
-                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white shadow-2xl shadow-blue-900/20 border border-slate-100 rounded-full w-12 h-12"
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-100 flex items-center justify-center bg-white shadow-2xl shadow-blue-900/20 border border-slate-100 rounded-full w-12 h-12"
                     >
                         <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
                     </motion.div>
@@ -261,7 +261,7 @@ export default function AdminDashboardPage() {
                                     <PendingApprovalsWidget onActionComplete={handleActionCompleted} />
                                 </motion.div>
 
-                                <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden max-h-[450px]">
+                                <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden max-h-112.5">
                                     <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
                                         <div className="flex flex-col">
                                             <h3 className="font-black text-slate-800 tracking-tight flex items-center gap-2 text-sm uppercase">

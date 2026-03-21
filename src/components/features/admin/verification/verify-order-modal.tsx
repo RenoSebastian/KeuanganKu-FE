@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { PendingOrder, VerificationStatus } from '@/lib/types/subscription';
 import { subscriptionService } from '@/services/subscription.service';
 import { getImageUrl } from '@/utils/image-resolver';
+import { parseDecimal } from '@/lib/formatters';
 
 interface VerifyOrderModalProps {
     isOpen: boolean;
@@ -53,14 +54,11 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
 
     if (!order) return null;
 
-    // [CORE LOGIC FIX] Kalkulasi Harga Berdasarkan Tier / Durasi secara Dinamis
-    const basePrice = Number(order.plan.price);
-    const duration = order.plan.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
-    const trueCalculatedPrice = basePrice * duration;
-
-    // Total yang harus dicek Admin di mutasi rekening
+    // Kalkulasi Harga Berdasarkan Tier / Durasi secara Dinamis
+    const trueCalculatedPrice = parseDecimal(order.snapshotPrice);
+    const duration = order.plan?.durationMonths && order.plan.durationMonths > 0 ? order.plan.durationMonths : 1;
+    const basePrice = order.plan?.price ? parseDecimal(order.plan.price) : (trueCalculatedPrice / duration);
     const expectedTransferAmount = trueCalculatedPrice + Number(order.uniqueCode || 0);
-
     const safeImageUrl = getImageUrl(order.proofImageUrl);
 
     return (
