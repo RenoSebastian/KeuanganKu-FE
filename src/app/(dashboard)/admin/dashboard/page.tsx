@@ -1,8 +1,9 @@
+// File: src/app/(dashboard)/admin/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, Variants } from "framer-motion"; // Pastikan Variants ter-import
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
     Settings, ShieldCheck, CreditCard, Users, Activity, Bell,
     TrendingUp, RefreshCw, Radio
@@ -23,6 +24,7 @@ import { FeatureUsageChart } from "@/components/features/admin/dashboard/feature
 import { CashflowLedgerTable } from "@/components/features/admin/dashboard/cashflow-ledger-table";
 import { DashboardSkeleton } from "@/components/features/admin/dashboard/dashboard-skeleton";
 import { PendingApprovalsWidget } from "@/components/features/admin/dashboard/pending-approvals-widget";
+import { UserAnalyticsChart } from "@/components/features/admin/dashboard/user-analytics-chart"; // [NEW] Task 4 Chart
 
 interface AuditLogEvent {
     id: string;
@@ -33,7 +35,6 @@ interface AuditLogEvent {
 }
 
 // --- Framer Motion Variants ---
-// [FIX]: Menambahkan as const agar TypeScript mengerti ini adalah literal "spring"
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -45,7 +46,7 @@ const itemVariants: Variants = {
         opacity: 1,
         y: 0,
         transition: {
-            type: "spring" as const, // <--- KUNCI PERBAIKANNYA DI SINI
+            type: "spring" as const,
             stiffness: 300,
             damping: 24
         }
@@ -130,6 +131,12 @@ export default function AdminDashboardPage() {
         setTouchMove(0);
     };
 
+    const handleLogClick = (log: AuditLogEvent) => {
+        if (log.description.includes("subscription")) router.push('/admin/verification');
+        if (log.description.includes("parameter")) router.push('/admin/settings');
+        if (log.title.includes("User")) router.push(`/admin/users?search=${log.id}`);
+    };
+
     return (
         <div
             className="min-h-dvh bg-[#F8FAFC] relative overflow-hidden pb-24 md:pb-12"
@@ -144,7 +151,7 @@ export default function AdminDashboardPage() {
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: Math.min((touchMove - touchStart) * 0.4, 60) }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-md shadow-xl border border-slate-100 rounded-full w-12 h-12"
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-100 flex items-center justify-center bg-white/90 backdrop-blur-md shadow-xl border border-slate-100 rounded-full w-12 h-12"
                     >
                         <RefreshCw className="w-5 h-5 text-blue-600 opacity-70" style={{ transform: `rotate(${touchMove - touchStart}deg)` }} />
                     </motion.div>
@@ -154,7 +161,7 @@ export default function AdminDashboardPage() {
                         initial={{ opacity: 0, scale: 0.5 }}
                         animate={{ opacity: 1, scale: 1, y: 50 }}
                         exit={{ opacity: 0, scale: 0.5 }}
-                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center bg-white shadow-2xl shadow-blue-900/20 border border-slate-100 rounded-full w-12 h-12"
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-100 flex items-center justify-center bg-white shadow-2xl shadow-blue-900/20 border border-slate-100 rounded-full w-12 h-12"
                     >
                         <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
                     </motion.div>
@@ -254,48 +261,62 @@ export default function AdminDashboardPage() {
                                     <PendingApprovalsWidget onActionComplete={handleActionCompleted} />
                                 </motion.div>
 
-                                <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden max-h-[450px]">
+                                <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden max-h-112.5">
                                     <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-                                        <h3 className="font-black text-slate-800 tracking-tight flex items-center gap-2 text-sm">
-                                            <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
-                                            Live Audit Feed
-                                        </h3>
-                                        <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase bg-rose-50 text-rose-600 border-rose-200 shadow-sm">Real-time</Badge>
+                                        <div className="flex flex-col">
+                                            <h3 className="font-black text-slate-800 tracking-tight flex items-center gap-2 text-sm uppercase">
+                                                <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
+                                                Security Audit Trail
+                                            </h3>
+                                            <span className="text-[10px] text-slate-400 font-bold">MONITORING SYSTEM ACTIVITY</span>
+                                        </div>
+                                        <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase bg-rose-50 text-rose-600 border-rose-200 shadow-sm">
+                                            {isConnected ? 'LIVE' : 'OFFLINE'}
+                                        </Badge>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                                    <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-hide">
                                         {liveActivities.length === 0 ? (
-                                            <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-10">
-                                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
-                                                    <Activity className="w-6 h-6 text-slate-300" />
-                                                </div>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Menunggu Aktivitas...</p>
+                                            <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-10 opacity-50">
+                                                <Activity className="w-8 h-8 text-slate-200 animate-bounce" />
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Listening for system events...</p>
                                             </div>
                                         ) : (
                                             <AnimatePresence initial={false}>
                                                 {liveActivities.map((log) => (
                                                     <motion.div
                                                         key={log.id}
-                                                        initial={{ opacity: 0, height: 0, scale: 0.9 }}
-                                                        animate={{ opacity: 1, height: "auto", scale: 1 }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3 }}
-                                                        className="flex gap-4 group"
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.95 }}
+                                                        onClick={() => handleLogClick(log)}
+                                                        className="flex gap-4 group cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-all border border-transparent hover:border-slate-100"
                                                     >
                                                         <div className="relative mt-1 flex flex-col items-center">
                                                             <div className={cn(
-                                                                "w-2.5 h-2.5 rounded-full ring-4 z-10 shadow-sm",
-                                                                log.type === 'success' ? "bg-emerald-500 ring-emerald-50" :
-                                                                    log.type === 'error' ? "bg-rose-500 ring-rose-50" :
-                                                                        log.type === 'warning' ? "bg-amber-500 ring-amber-50" :
-                                                                            "bg-blue-500 ring-blue-50"
+                                                                "w-3 h-3 rounded-full ring-4 z-10 transition-transform group-hover:scale-125",
+                                                                log.type === 'success' ? "bg-emerald-500 ring-emerald-50 shadow-emerald-200" :
+                                                                    log.type === 'error' ? "bg-rose-500 ring-rose-50 shadow-rose-200" :
+                                                                        log.type === 'warning' ? "bg-amber-500 ring-amber-50 shadow-amber-200" :
+                                                                            "bg-blue-500 ring-blue-50 shadow-blue-200"
                                                             )} />
-                                                            {/* Vertical Line for timeline effect */}
                                                             <div className="w-px h-full bg-slate-100 absolute top-3 -bottom-4 group-last:hidden" />
                                                         </div>
-                                                        <div className="flex-1 pb-4">
-                                                            <p className="text-[13px] font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">{log.title}</p>
-                                                            <p className="text-[11px] text-slate-500 leading-relaxed mt-1 font-medium">{log.description}</p>
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-2">{log.timestamp}</p>
+                                                        <div className="flex-1 pb-2 min-w-0">
+                                                            <div className="flex justify-between items-start">
+                                                                <p className="text-[12px] font-black text-slate-800 leading-tight truncate pr-2 uppercase tracking-tighter">
+                                                                    {log.title}
+                                                                </p>
+                                                                <span className="text-[9px] font-black text-slate-400 whitespace-nowrap bg-slate-100 px-1.5 py-0.5 rounded">
+                                                                    {log.timestamp}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-500 leading-relaxed mt-1 font-medium italic line-clamp-2">
+                                                                "{log.description}"
+                                                            </p>
+                                                            <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <div className="w-1 h-1 bg-blue-600 rounded-full" />
+                                                                <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Klik untuk Investigasi</span>
+                                                            </div>
                                                         </div>
                                                     </motion.div>
                                                 ))}
@@ -305,6 +326,11 @@ export default function AdminDashboardPage() {
                                 </motion.div>
                             </div>
                         </div>
+
+                        {/* [NEW] Task 4 - User Analytics Chart (Full Width) */}
+                        <motion.div variants={itemVariants}>
+                            <UserAnalyticsChart />
+                        </motion.div>
 
                         {/* Full Width Ledger */}
                         <motion.div variants={itemVariants}>

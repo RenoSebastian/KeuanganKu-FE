@@ -334,7 +334,9 @@ export default function AdminUsersPage() {
 
                         {/* 4. JOINED DATE */}
                         <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                          {format(new Date(user.createdAt), "dd MMM yyyy", { locale: dateFnsId })}
+                          {user.createdAt && !isNaN(new Date(user.createdAt).getTime())
+                            ? format(new Date(user.createdAt), "dd MMM yyyy", { locale: dateFnsId })
+                            : "-"}
                         </td>
 
                         {/* 5. ACTIONS */}

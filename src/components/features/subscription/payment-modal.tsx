@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { subscriptionService, SubscriptionPlan } from "@/services/subscription.service";
 
+// [FIX] Mengimpor utilitas format uang terpusat
+import { formatCurrency } from "@/lib/formatters";
+
 interface PaymentModalProps {
     plan: SubscriptionPlan | null;
     uniqueCode: number;
@@ -42,16 +45,6 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
     if (plan.durationMonths === 6) discountLabel = "Hemat 20%";
     if (plan.durationMonths === 12) discountLabel = "Hemat 30%";
 
-    // Formatter Rupiah
-    const formatRupiah = (num: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(num);
-    };
-
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -59,7 +52,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                 toast.error("File terlalu besar", { description: "Maksimal ukuran file adalah 2MB." });
                 return;
             }
-            // [FIX] Validasi diselaraskan dengan backend: Hanya menerima image/jpeg, image/png, atau image/webp
+            // Validasi diselaraskan dengan backend: Hanya menerima image/jpeg, image/png, atau image/webp
             if (!file.type.match(/^image\/(jpeg|png|webp)$/i)) {
                 toast.error("Format tidak didukung", { description: "Harap unggah gambar (JPG, PNG, atau WEBP)." });
                 return;
@@ -81,7 +74,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
 
         setIsSubmitting(true);
         try {
-            await subscriptionService.createOrder(plan.id, fileObj);
+            await subscriptionService.createOrder(plan.id, uniqueCode, fileObj);
             toast.success("Bukti transfer terkirim!", {
                 description: "Status akun Anda akan segera aktif setelah verifikasi otomatis."
             });
@@ -174,7 +167,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                             {plan.durationMonths > 1 && (
                                 <div className="flex items-center gap-2 text-sm text-slate-500 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
                                     <TrendingDown size={16} className="text-emerald-500" />
-                                    <span>Setara dengan <b>{formatRupiah(plan.price)}</b> / bulan</span>
+                                    <span>Setara dengan <b>{formatCurrency(plan.price)}</b> / bulan</span>
                                 </div>
                             )}
                         </div>
@@ -182,8 +175,8 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                         {/* Bottom Section: Total Calculation */}
                         <div className="p-6 bg-white space-y-3">
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500 font-medium">Subtotal ({plan.durationMonths} x {formatRupiah(plan.price)})</span>
-                                <span className="font-bold text-slate-700">{formatRupiah(basePrice)}</span>
+                                <span className="text-slate-500 font-medium">Subtotal ({plan.durationMonths} x {formatCurrency(plan.price)})</span>
+                                <span className="font-bold text-slate-700">{formatCurrency(basePrice)}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-emerald-600 font-bold flex items-center gap-1">
@@ -197,7 +190,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                             <div className="flex justify-between items-center">
                                 <span className="text-xs font-black uppercase tracking-widest text-slate-400">Total Transfer</span>
                                 <span className="text-2xl font-black text-indigo-600 tracking-tighter">
-                                    {formatRupiah(totalTransfer)}
+                                    {formatCurrency(totalTransfer)}
                                 </span>
                             </div>
                         </div>
@@ -219,7 +212,8 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                 <div>
                                     <p className="text-[9px] text-slate-400 uppercase mb-1">Nominal Persis (Wajib)</p>
                                     <p className="text-2xl font-black text-emerald-400 font-mono tracking-wider">
-                                        {totalTransfer.toLocaleString('id-ID')}
+                                        {/* Menggunakan Intl.NumberFormat murni hanya untuk titik pemisah (tanpa Rp) agar mudah dicopy-paste ke m-banking */}
+                                        {new Intl.NumberFormat('id-ID').format(totalTransfer)}
                                     </p>
                                 </div>
                                 <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center group-hover/copy:bg-emerald-500 transition-colors">
@@ -281,7 +275,6 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                 id="proof-upload"
                                 type="file"
                                 hidden
-                                // [FIX] Selaraskan extension accept native browser ke format gambar saja
                                 accept="image/jpeg,image/png,image/webp"
                                 onChange={handleFileChange}
                             />

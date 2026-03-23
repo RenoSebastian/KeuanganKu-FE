@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, FileText, User as UserIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, User as UserIcon, Inbox, Loader2, DownloadCloud } from 'lucide-react';
 import { CashflowLedgerItem, PaginationMeta, CashflowStatus } from '@/lib/types/dashboard';
-import { formatCurrency } from '@/lib/formatters';
+
+// [FIX] Mengimpor formatDateTime dari utilitas terpusat
+import { formatCurrency, formatDateTime } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
+import { adminService } from '@/services/admin.service';
 
 interface CashflowLedgerTableProps {
     data: CashflowLedgerItem[];
@@ -22,81 +27,148 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
     isLoading = false,
     onPageChange
 }) => {
+    // [TASK 1] State untuk memantau status generasi dokumen PDF
+    const [isDownloading, setIsDownloading] = useState(false);
 
-    // Helper Format Waktu
-    const formatLocalTime = (isoString: string) => {
-        return new Date(isoString).toLocaleDateString('id-ID', {
-            day: '2-digit', month: 'short', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
+    // --- Ekspor Dokumen Fisik (PDF) ---
+    const handleDownloadPdf = async () => {
+        setIsDownloading(true);
+        const toastId = toast.loading('Sedang menyiapkan dokumen PDF...');
 
-    // Helper Visual Badge
-    const renderStatusBadge = (status: CashflowStatus) => {
-        switch (status) {
-            case 'VERIFIED': return <Badge variant="default" className="bg-emerald-600 border-none shadow-sm hover:bg-emerald-700">Verified</Badge>;
-            case 'PENDING': return <Badge variant="outline" className="text-amber-600 border-amber-600 bg-amber-50">Pending</Badge>;
-            case 'REJECTED': return <Badge variant="danger" className="bg-red-500 shadow-sm border-none">Rejected</Badge>;
-            default: return <Badge variant="secondary">{status}</Badge>;
+        try {
+            const blob = await adminService.downloadCashflowReport('Keseluruhan');
+
+            // Rekayasa Blob to Download Link
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Laporan_Arus_Kas_${new Date().getTime()}.pdf`);
+
+            // Simulasikan klik untuk memicu unduhan di browser
+            document.body.appendChild(link);
+            link.click();
+
+            // Bersihkan sisa DOM
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Dokumen berhasil diunduh.', { id: toastId });
+        } catch (error) {
+            console.error('Download failed:', error);
+            toast.error('Gagal mengunduh dokumen. Coba beberapa saat lagi.', { id: toastId });
+        } finally {
+            setIsDownloading(false);
         }
     };
 
-    return (
-        <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-            <CardHeader className="bg-white border-b border-slate-100 p-5">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                    <FileText className="w-5 h-5 text-slate-500" />
-                    Buku Besar Arus Kas (Ledger)
-                </CardTitle>
-                <CardDescription>Riwayat mutasi masuk transaksi paket berlangganan</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-5">
+    // --- Premium Status Badge Component ---
+    const renderStatusBadge = (status: CashflowStatus) => {
+        const config = {
+            VERIFIED: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500", label: "Terverifikasi" },
+            PENDING: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", dot: "bg-amber-500 animate-pulse", label: "Menunggu" },
+            REJECTED: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", dot: "bg-rose-500", label: "Ditolak" }
+        }[status] || { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200", dot: "bg-slate-400", label: status };
 
-                {/* [PHASE 4] DESKTOP VIEW: STANDARD TABLE */}
-                <div className="hidden md:block rounded-xl border border-slate-100 overflow-hidden">
+        return (
+            <span className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                config.bg, config.text, config.border
+            )}>
+                <span className={cn("w-1.5 h-1.5 rounded-full", config.dot)} />
+                {config.label}
+            </span>
+        );
+    };
+
+    return (
+        <Card className="border-none shadow-none bg-transparent sm:bg-white sm:border-slate-100 sm:shadow-sm rounded-none sm:rounded-[2rem] overflow-hidden flex flex-col h-full">
+
+            {/* Header Area with Download Button */}
+            <CardHeader className="bg-transparent sm:bg-white border-b border-slate-100 px-2 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <CardTitle className="flex items-center gap-3 text-xl font-black text-slate-800 tracking-tight">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-inner">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        Buku Besar Transaksi
+                    </CardTitle>
+                    <CardDescription className="font-medium text-slate-500 mt-1 pl-13 sm:pl-0">
+                        Riwayat mutasi masuk dan verifikasi langganan.
+                    </CardDescription>
+                </div>
+
+                {/* Tombol Aksi Unduh */}
+                {data.length > 0 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto self-start sm:self-center font-semibold border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+                        onClick={handleDownloadPdf}
+                        disabled={isDownloading || isLoading}
+                    >
+                        {isDownloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DownloadCloud className="w-4 h-4 mr-2" />}
+                        Unduh Laporan PDF
+                    </Button>
+                )}
+            </CardHeader>
+
+            <CardContent className="p-0 sm:p-6 flex-1 flex flex-col">
+
+                {/* =========================================
+                    [DESKTOP VIEW] PREMIUM DATA TABLE
+                ========================================= */}
+                <div className="hidden md:block rounded-[1.5rem] border border-slate-100 overflow-hidden shadow-sm flex-1">
                     <Table>
-                        <TableHeader className="bg-slate-50/80">
-                            <TableRow>
-                                <TableHead className="font-bold text-slate-600">Waktu Transaksi</TableHead>
-                                <TableHead className="font-bold text-slate-600">Pelanggan</TableHead>
-                                <TableHead className="font-bold text-slate-600">Paket</TableHead>
-                                <TableHead className="font-bold text-slate-600 text-center">Status</TableHead>
-                                <TableHead className="font-bold text-slate-600 text-center">PIC Admin</TableHead>
-                                <TableHead className="font-bold text-slate-600 text-right">Nominal</TableHead>
+                        <TableHeader className="bg-slate-50/80 border-b border-slate-100">
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Transaksi</TableHead>
+                                <TableHead className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pelanggan</TableHead>
+                                <TableHead className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Paket</TableHead>
+                                <TableHead className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</TableHead>
+                                <TableHead className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">PIC Admin</TableHead>
+                                <TableHead className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Nominal</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-slate-400">
-                                        Memuat data mutasi...
-                                    </TableCell>
-                                </TableRow>
+                                // Desktop Skeleton Loading
+                                Array.from({ length: 5 }).map((_, idx) => (
+                                    <TableRow key={idx}>
+                                        <TableCell colSpan={6} className="py-4">
+                                            <div className="h-6 w-full bg-slate-100 animate-pulse rounded-md" />
+                                        </TableCell>
+                                    </TableRow>
+                                ))
                             ) : data.length === 0 ? (
+                                // Desktop Empty State
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-slate-400">
-                                        Belum ada riwayat transaksi yang tercatat.
+                                    <TableCell colSpan={6} className="h-64">
+                                        <div className="flex flex-col items-center justify-center text-center opacity-60">
+                                            <Inbox className="w-12 h-12 text-slate-300 mb-3" />
+                                            <p className="text-sm font-bold text-slate-400">Belum Ada Transaksi</p>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 data.map((item) => (
-                                    <TableRow key={item.transactionId} className="hover:bg-slate-50 transition-colors">
-                                        <TableCell className="whitespace-nowrap text-xs text-slate-500 font-medium">
-                                            {formatLocalTime(item.transactionDate)}
+                                    <TableRow key={item.transactionId} className="hover:bg-blue-50/30 transition-colors duration-200 cursor-default">
+                                        {/* [FIX] Mendelegasikan format waktu ke Information Expert terpusat */}
+                                        <TableCell className="whitespace-nowrap text-xs text-slate-500 font-medium py-4">
+                                            {formatDateTime(item.transactionDate)}
                                         </TableCell>
-                                        <TableCell className="font-bold text-slate-800">
+                                        <TableCell className="font-bold text-slate-800 text-[13px]">
                                             {item.userName}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-600 border-slate-200 uppercase">
+                                            <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded-md uppercase tracking-wider">
                                                 {item.planName}
-                                            </Badge>
+                                            </span>
                                         </TableCell>
                                         <TableCell className="text-center">{renderStatusBadge(item.status)}</TableCell>
                                         <TableCell className="text-xs text-center text-slate-400 font-medium">
                                             {item.verifiedBy || '-'}
                                         </TableCell>
-                                        <TableCell className="text-right font-mono font-bold text-slate-800">
+                                        <TableCell className="text-right font-mono font-bold text-slate-900 text-sm">
                                             {formatCurrency(item.amount)}
                                         </TableCell>
                                     </TableRow>
@@ -106,60 +178,96 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
                     </Table>
                 </div>
 
-                {/* [PHASE 4] MOBILE VIEW: PWA CARD LIST */}
-                <div className="md:hidden flex flex-col divide-y divide-slate-100">
+                {/* =========================================
+                    [MOBILE VIEW] PWA BENTO LIST
+                ========================================= */}
+                <div className="md:hidden flex flex-col gap-4 mt-2 px-2">
                     {isLoading ? (
-                        <div className="p-8 text-center text-sm text-slate-400">Memuat data mutasi...</div>
+                        // Mobile Skeleton Loading
+                        Array.from({ length: 4 }).map((_, idx) => (
+                            <div key={idx} className="p-5 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm flex flex-col gap-4">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse" />
+                                        <div className="space-y-2">
+                                            <div className="w-24 h-4 bg-slate-100 animate-pulse rounded" />
+                                            <div className="w-16 h-3 bg-slate-100 animate-pulse rounded" />
+                                        </div>
+                                    </div>
+                                    <div className="w-20 h-6 bg-slate-100 animate-pulse rounded-full" />
+                                </div>
+                                <div className="w-full h-px bg-slate-50" />
+                                <div className="flex justify-between items-end">
+                                    <div className="w-16 h-4 bg-slate-100 animate-pulse rounded" />
+                                    <div className="w-24 h-5 bg-slate-100 animate-pulse rounded" />
+                                </div>
+                            </div>
+                        ))
                     ) : data.length === 0 ? (
-                        <div className="p-8 text-center text-sm text-slate-400">Belum ada riwayat transaksi.</div>
+                        // Mobile Empty State
+                        <div className="p-12 text-center flex flex-col items-center justify-center opacity-60 bg-white rounded-[2rem] border border-slate-100">
+                            <Inbox className="w-12 h-12 text-slate-300 mb-3" />
+                            <p className="text-sm font-bold text-slate-400">Riwayat Kosong</p>
+                        </div>
                     ) : (
-                        data.map((item) => (
-                            <div key={item.transactionId} className="p-4 bg-white active:bg-slate-50 transition-colors flex flex-col gap-3">
-                                {/* Top Row: Identity & Status */}
+                        data.map((item, i) => (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                                key={item.transactionId}
+                                className="p-5 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm hover:shadow-md active:scale-[0.98] transition-all flex flex-col gap-4"
+                            >
+                                {/* Top Section: User & Status */}
                                 <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                                            <UserIcon className="w-4 h-4 text-slate-500" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
+                                            <UserIcon className="w-4 h-4 text-blue-600" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-slate-800 line-clamp-1">{item.userName}</span>
-                                            <span className="text-[10px] font-medium text-slate-500">{formatLocalTime(item.transactionDate)}</span>
+                                            <span className="text-[13px] font-black text-slate-800 line-clamp-1 tracking-tight">{item.userName}</span>
+                                            {/* [FIX] Mendelegasikan format waktu ke Information Expert terpusat */}
+                                            <span className="text-[10px] font-medium text-slate-500 mt-0.5">{formatDateTime(item.transactionDate)}</span>
                                         </div>
                                     </div>
                                     {renderStatusBadge(item.status)}
                                 </div>
 
-                                {/* Bottom Row: Plan & Price */}
-                                <div className="flex items-end justify-between mt-1 border-t border-slate-50 pt-3">
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Plan / Paket</span>
-                                        <Badge variant="outline" className="w-fit text-[10px] bg-slate-50 text-slate-600 border-slate-200 uppercase">
+                                {/* Divider */}
+                                <div className="w-full border-t border-dashed border-slate-200" />
+
+                                {/* Bottom Section: Plan & Amount */}
+                                <div className="flex items-end justify-between">
+                                    <div className="flex flex-col gap-1.5">
+                                        <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest">Plan Paket</span>
+                                        <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md uppercase tracking-wider w-fit">
                                             {item.planName}
-                                        </Badge>
+                                        </span>
                                     </div>
-                                    <div className="flex flex-col items-end gap-0.5">
-                                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Nominal Tagihan</span>
-                                        <span className="font-mono font-bold text-slate-800 text-sm">
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest">Total Tagihan</span>
+                                        <span className="font-mono font-black text-slate-900 text-base tracking-tight">
                                             {formatCurrency(item.amount)}
                                         </span>
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))
                     )}
                 </div>
 
-                {/* Kontrol Paginasi (Unified for both Desktop & Mobile) */}
+                {/* =========================================
+                    MODERN PAGINATION CONTROLS
+                ========================================= */}
                 {meta && meta.totalPages > 1 && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between p-4 sm:p-0 sm:pt-4 border-t sm:border-t-0 border-slate-100 gap-4">
-                        <div className="text-xs font-medium text-slate-500 order-2 sm:order-1">
-                            Halaman <span className="font-bold text-slate-700">{meta.page}</span> dari {meta.totalPages} ({meta.total} transaksi)
+                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-slate-100 gap-4 px-2 sm:px-0">
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest order-2 sm:order-1">
+                            Page <span className="text-slate-800">{meta.page}</span> of {meta.totalPages} <span className="lowercase text-slate-400 font-medium ml-1">({meta.total} records)</span>
                         </div>
                         <div className="flex space-x-2 w-full sm:w-auto order-1 sm:order-2">
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="flex-1 sm:flex-none border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg h-9"
+                                className="flex-1 sm:flex-none border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl h-11 sm:h-10 font-bold shadow-sm transition-all active:scale-95"
                                 onClick={() => onPageChange(meta.page - 1)}
                                 disabled={meta.page <= 1 || isLoading}
                             >
@@ -167,8 +275,7 @@ export const CashflowLedgerTable: React.FC<CashflowLedgerTableProps> = ({
                             </Button>
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="flex-1 sm:flex-none border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg h-9"
+                                className="flex-1 sm:flex-none border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl h-11 sm:h-10 font-bold shadow-sm transition-all active:scale-95"
                                 onClick={() => onPageChange(meta.page + 1)}
                                 disabled={meta.page >= meta.totalPages || isLoading}
                             >

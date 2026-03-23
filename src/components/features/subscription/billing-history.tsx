@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SubscriptionOrder } from "@/services/subscription.service";
 
+// [FIX] Mengimpor utilitas pemformatan terpusat
+import { formatCurrency, formatDateTime } from "@/lib/formatters";
+
 interface BillingHistoryProps {
     orders: SubscriptionOrder[];
     variants: any;
@@ -17,17 +20,7 @@ interface BillingHistoryProps {
 
 export function BillingHistory({ orders, variants }: BillingHistoryProps) {
 
-    // 1. Helper Format Rupiah
-    const formatRupiah = (num: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(num);
-    };
-
-    // 2. Helper Status Config
+    // Helper Status Config
     const getStatusConfig = (status: string) => {
         switch (status) {
             case 'VALID':
@@ -99,7 +92,7 @@ export function BillingHistory({ orders, variants }: BillingHistoryProps) {
                         // Ambil durasi, default 1 bulan jika tidak ada data
                         const duration = order.plan?.durationMonths || 1;
                         // Jika durasi 0 (Lifetime), harga tetap. Jika > 0, dikali durasi.
-                        const totalBill = duration > 0 ? order.snapshotPrice * duration : order.snapshotPrice;
+                        const totalBill = duration > 0 ? order.snapshotPrice : order.snapshotPrice;
 
                         return (
                             <motion.div
@@ -123,7 +116,8 @@ export function BillingHistory({ orders, variants }: BillingHistoryProps) {
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
                                                 <Calendar size={10} />
-                                                {new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                                {/* [FIX] Mendelegasikan format waktu ke Information Expert terpusat */}
+                                                {formatDateTime(order.createdAt)}
                                             </span>
                                             <div className={cn("w-1 h-1 rounded-full", status.dot)} />
                                             <span className={cn("text-[9px] font-black uppercase tracking-tighter", status.color.split(' ')[0])}>
@@ -139,7 +133,8 @@ export function BillingHistory({ orders, variants }: BillingHistoryProps) {
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
                                                 <p className="text-xs font-black text-indigo-700 font-mono flex items-center gap-1">
-                                                    {formatRupiah(totalBill)}
+                                                    {/* [FIX] Mendelegasikan format uang ke Information Expert terpusat */}
+                                                    {formatCurrency(totalBill)}
                                                 </p>
                                             </div>
                                             <span className="text-[9px] font-bold text-slate-400">

@@ -1,6 +1,7 @@
 import api from '@/lib/axios';
+import { PaginatedPendingOrders, VerificationStatus } from '@/lib/types/subscription'; // [NEW] Import definisi baru
 
-// Interface pendukung
+// Interface pendukung (Legacy support)
 export interface SubscriptionPlan {
     id: string;
     code: string;
@@ -21,6 +22,7 @@ export interface SubscriptionOrder {
     proofImageUrl: string;
     verificationStatus: 'PENDING' | 'VALID' | 'INVALID';
     snapshotPrice: number;
+    uniqueCode: number;
     plan?: SubscriptionPlan;
     createdAt: string;
 }
@@ -32,9 +34,10 @@ export const subscriptionService = {
         return response.data;
     },
 
-    createOrder: async (planId: string, file: File) => {
+    createOrder: async (planId: string, uniqueCode: number, file: File) => {
         const formData = new FormData();
         formData.append('planId', planId);
+        formData.append('uniqueCode', uniqueCode.toString());
         formData.append('proofFile', file);
 
         const response = await api.post('/subscription/buy', formData, {
@@ -50,18 +53,21 @@ export const subscriptionService = {
 
     // --- ADMIN SIDE METHODS (PHASE 1 ENHANCED) ---
 
-    getPendingOrders: async () => {
-        const response = await api.get('/admin/subscription/pending');
+    // [MODIFIED] Mendukung paginasi untuk kebutuhan UI Widget (Task 3)
+    getPendingOrders: async (page: number = 1, limit: number = 10) => {
+        const response = await api.get<PaginatedPendingOrders>('/admin/subscription/pending', {
+            params: { page, limit }
+        });
         return response.data;
     },
 
-    verifyOrder: async (payload: { orderId: string; status: 'VALID' | 'INVALID'; adminNotes?: string }) => {
+    verifyOrder: async (payload: { orderId: string; status: VerificationStatus; adminNotes?: string }) => {
         const response = await api.patch('/admin/subscription/verify', payload);
         return response.data;
     },
 
     // [NEW] Bulk Verification
-    bulkVerifyOrders: async (payload: { orderIds: string[]; status: 'VALID' | 'INVALID'; adminNotes?: string }) => {
+    bulkVerifyOrders: async (payload: { orderIds: string[]; status: VerificationStatus; adminNotes?: string }) => {
         const response = await api.post('/admin/subscription/bulk-verify', payload);
         return response.data;
     },

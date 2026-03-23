@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SubscriptionPlan } from "@/services/subscription.service";
 
+// [FIX] Mengimpor Information Expert pemformatan uang yang kedap NaN
+import { formatCurrency } from "@/lib/formatters";
+
 interface PlanCardProps {
     plan: SubscriptionPlan;
     index: number;
@@ -23,14 +26,11 @@ export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: Pla
 
     // --- LOGIC HARGA & DISKON ---
 
-    // 1. Helper Format Ribuan (Rp 100.000)
-    const formatRibuan = (num: number) => num.toLocaleString('id-ID');
-
-    // 2. Total Payment (Harga DB * Durasi)
+    // Total Payment (Harga DB * Durasi)
     // Jika durasi 0 (Lifetime), kita anggap harga flat. Jika tidak, dikali durasi.
     const totalPayment = plan.durationMonths > 0 ? plan.price * plan.durationMonths : plan.price;
 
-    // 3. Deteksi Diskon (Hardcoded Logic sesuai Business Rule)
+    // Deteksi Diskon (Hardcoded Logic sesuai Business Rule)
     let discountLabel = null;
     if (plan.durationMonths === 6) discountLabel = "Hemat 20%";
     if (plan.durationMonths === 12) discountLabel = "Hemat 30%";
@@ -141,19 +141,19 @@ export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: Pla
 
             <div className="mt-auto relative z-10">
                 <div className="mb-6">
-                    {/* HARGA UTAMA (TOTAL) - Format Ribuan */}
+                    {/* HARGA UTAMA (TOTAL) - Delegasi ke utilitas terpusat formatCurrency */}
                     <div className="flex items-baseline gap-1">
                         <p className="text-4xl font-black text-slate-900 tracking-tighter">
-                            {plan.price === 0 ? "Free" : `Rp ${formatRibuan(totalPayment)}`}
+                            {plan.price === 0 ? "Free" : formatCurrency(totalPayment)}
                         </p>
                     </div>
 
-                    {/* PEMANIS HARGA BULANAN (SWEETENER) - Format Ribuan */}
+                    {/* PEMANIS HARGA BULANAN (SWEETENER) - Delegasi ke utilitas terpusat formatCurrency */}
                     {plan.durationMonths > 1 && (
                         <div className="flex items-center gap-1.5 mt-2 bg-emerald-50/50 p-2 rounded-xl w-fit border border-emerald-100">
                             <TrendingDown size={14} className="text-emerald-600" />
                             <p className="text-[10px] font-bold text-emerald-700">
-                                Setara <span className="font-black">Rp {formatRibuan(plan.price)}</span> / bulan
+                                Setara <span className="font-black">{formatCurrency(plan.price)}</span> / bulan
                             </p>
                         </div>
                     )}

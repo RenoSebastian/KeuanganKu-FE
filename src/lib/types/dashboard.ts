@@ -10,6 +10,15 @@ import { FinancialRecord, HealthAnalysisResult } from "./financial-checkup";
 // [NEW] SAAS & ANALYTICS METRICS TYPES (Phase 1)
 // ============================================================================
 
+// [NEW] Tipe data untuk resolusi grafik Investor
+export type AnalyticsResolution = 'daily' | 'weekly' | 'monthly';
+
+// [NEW] Interface tunggal untuk memetakan poin data pada Chart (Growth & Engagement)
+export interface TimeSeriesDataPoint {
+    period: string; // ISO Date String
+    count: number;
+}
+
 export interface RevenueMetrics {
     grossVolume: number;
     mrr: number;
