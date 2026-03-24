@@ -25,7 +25,7 @@ export default function EditUserPage({ params }: PageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form State (Bersih dari agencyId)
+  // Form State
   const [formData, setFormData] = useState({
     fullName: "",
     nip: "",
@@ -44,23 +44,38 @@ export default function EditUserPage({ params }: PageProps) {
       try {
         const userData = await adminService.getUserById(userId);
 
+        if (!userData) {
+          throw new Error("Payload userData kosong atau gagal diparsing oleh HTTP Client.");
+        }
+
         let formattedDob = "";
+
+        // [PERBAIKAN] Defensive Programming untuk Date Parsing
         if (userData.dateOfBirth) {
-          formattedDob = new Date(userData.dateOfBirth).toISOString().split('T')[0];
+          const parsedDate = new Date(userData.dateOfBirth);
+
+          // Validasi apakah hasil konversi adalah waktu yang valid
+          if (!isNaN(parsedDate.getTime())) {
+            formattedDob = parsedDate.toISOString().split('T')[0];
+          } else {
+            console.warn("⚠️ Anomali Data: Format tanggal lahir dari database tidak valid:", userData.dateOfBirth);
+            formattedDob = ""; // Fallback ke string kosong agar form tidak crash
+          }
         }
 
         setFormData({
-          fullName: userData.fullName,
+          fullName: userData.fullName || "",
           nip: userData.nip || "",
-          email: userData.email,
-          role: userData.role,
+          email: userData.email || "",
+          role: userData.role || "USER",
           agentLevel: userData.agentLevel || "",
           dateOfBirth: formattedDob,
           phoneNumber: userData.phoneNumber || "",
         });
 
-      } catch (error) {
-        toast.error("Gagal memuat data user.");
+      } catch (error: any) {
+        console.error("❌ UI State Error - Failed to initialize user data:", error);
+        toast.error("Gagal memuat data user. Silakan muat ulang halaman.");
         router.push("/admin/users");
       } finally {
         setIsLoading(false);
@@ -102,9 +117,12 @@ export default function EditUserPage({ params }: PageProps) {
 
       await adminService.updateUser(userId, payloadToSubmit);
       toast.success("Data user berhasil diperbarui!");
+
+      router.refresh();
       router.push("/admin/users");
+
     } catch (error: any) {
-      console.error(error);
+      console.error("❌ UI State Error - Failed to submit user update:", error);
       const msg = error.response?.data?.message || "Gagal update user";
       const displayMsg = Array.isArray(msg) ? msg[0] : msg;
       toast.error(displayMsg);
