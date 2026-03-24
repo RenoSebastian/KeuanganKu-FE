@@ -27,6 +27,7 @@ export const authService = {
           localStorage.setItem("refresh_token", data.refresh_token);
         }
         if (data.user) {
+          // JSON.stringify otomatis menyimpan objek nested 'computed'
           localStorage.setItem("user", JSON.stringify(data.user));
         }
       }
@@ -40,11 +41,7 @@ export const authService = {
     const deviceId = getOrCreateDeviceId();
     const payload: LoginDto = { ...data, deviceId };
 
-    // [MODIFIKASI] Endpoint ini sekarang hanya mengembalikan sinyal OTP terkirim,
-    // BUKAN JWT Token. Kita tangkap message dan emailnya.
     const response = await api.post<{ message: string; email: string; expiresIn: string }>("/auth/login", payload);
-
-    // Tidak ada penyimpanan token di sini (Deferred Session)
     return response.data;
   },
 
@@ -55,12 +52,8 @@ export const authService = {
     const deviceId = getOrCreateDeviceId();
     const payload: VerifyOtpDto = { ...data, deviceId };
 
-    // Menembak endpoint baru khusus verifikasi login
     const response = await api.post<AuthResponse>("/auth/login/verify", payload);
-
-    // Setelah OTP valid, BE memberikan JWT. Kita simpan menggunakan helper.
     authService._saveSession(response.data);
-
     return response.data;
   },
 
@@ -88,10 +81,7 @@ export const authService = {
     const payload: VerifyOtpDto = { ...data, deviceId };
 
     const response = await api.post<AuthResponse>("/auth/verify-otp", payload);
-
-    // Menggunakan helper untuk menyimpan token hasil registrasi
     authService._saveSession(response.data);
-
     return response.data;
   },
 
@@ -115,7 +105,6 @@ export const authService = {
     if (!refreshToken) throw new Error("No refresh token available");
 
     const payload: RefreshTokenDto = { refreshToken, deviceId };
-
     const response = await api.post<AuthResponse>("/auth/refresh", payload);
 
     if (response.data.access_token) {
@@ -149,9 +138,11 @@ export const authService = {
   // =================================================================
   getMe: async () => {
     try {
+      // Mengambil profil tersinkronisasi termasuk properti 'computed' dari Backend
       const response = await api.get<User>("/users/me");
 
       if (response.data && typeof window !== "undefined") {
+        // Me-replace cache lama dengan object mutasi baru dari database
         localStorage.setItem("user", JSON.stringify(response.data));
       }
 
@@ -169,6 +160,7 @@ export const authService = {
       const response = await api.patch<User>("/users/me", data);
 
       if (response.data && typeof window !== "undefined") {
+        // Sinkronisasi status state lokal seketika (mengatasi Ghost Error UI)
         localStorage.setItem("user", JSON.stringify(response.data));
       }
 
@@ -199,7 +191,7 @@ export const authService = {
       const userStr = localStorage.getItem("user");
       if (userStr) {
         try {
-          return JSON.parse(userStr);
+          return JSON.parse(userStr) as User; // Parsing mengembalikan kontrak tipe User yang utuh
         } catch (e) {
           console.error("Gagal parsing user data:", e);
           return null;

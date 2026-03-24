@@ -6,48 +6,13 @@ import {
     TimeSeriesDataPoint
 } from '@/lib/types/dashboard';
 
+// [REFACTOR ARCHITECTURE] Mengimpor entitas User murni dari Single Point of Truth
+// Hal ini memastikan objek "computed" yang baru ditambahkan otomatis terbaca di layanan Admin.
+import { User } from '@/lib/types/auth';
+
 // ============================================================================
-// [REFACTORED] DATA CONTRACTS (SEJALAN DENGAN BACKEND SCHEMA)
+// DATA CONTRACTS (SEJALAN DENGAN BACKEND SCHEMA)
 // ============================================================================
-
-export interface User {
-    id: string;
-    email: string;
-    fullName: string;
-    role: 'USER' | 'ADMIN' | 'DIRECTOR';
-
-    nip?: string;
-    // [NEW] Fase 1: Penambahan phoneNumber untuk fitur penagihan WA
-    phoneNumber?: string | null;
-
-    // [CLEANUP] Mengganti unitKerja menjadi agency
-    agencyId?: string | null;
-    agency?: {
-        id: string;
-        code: string;
-        name: string;
-    } | null;
-
-    dateOfBirth?: string | null;
-    gender?: string | null;
-    address?: string | null;
-    agentLevel?: string | null;
-    companyName?: string | null;
-    goals?: string | null;
-    dependentCount?: number;
-
-    createdAt: string;
-    updatedAt: string;
-
-    // Relasi yang mungkin dikembalikan oleh GET /admin/users
-    subscription?: {
-        status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'GRACE_PERIOD';
-        endDate: string;
-        plan: {
-            name: string;
-        };
-    } | null;
-}
 
 export interface CreateUserPayload {
     fullName: string;
@@ -166,6 +131,8 @@ export const adminService = {
     // ------------------------------------------------------------------------
 
     getUsers: async (params?: PaginationParams) => {
+        // Karena AdminUsersResponse sekarang menggunakan User dari auth.ts,
+        // TypeScript otomatis mengetahui bahwa list user ini membawa objek `computed`.
         const response = await api.get<AdminUsersResponse>('/admin/users', { params });
         return response.data;
     },

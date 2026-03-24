@@ -67,7 +67,7 @@ export interface AuthResponse {
 }
 
 // ============================================================================
-// SUBSCRIPTION & USAGE
+// SUBSCRIPTION, USAGE, & COMPUTED METRICS (FE-BE SYNC)
 // ============================================================================
 
 export interface UserSubscription {
@@ -86,6 +86,24 @@ export interface UserSubscription {
 export interface UserUsage {
     simulationQuota: number;
     totalUsed: number;
+}
+
+// [NEW ARCHITECTURE] API Contract untuk data hasil kalkulasi murni dari BE
+export interface ComputedSubscription {
+    remainingDays: number;
+    isActive: boolean;
+    derivedStatus: string;
+}
+
+export interface ComputedUsageAnalytics {
+    isUnlimited: boolean;
+    healthStatus: string; // 'NORMAL' | 'WARNING' | 'CRITICAL' | 'DEPLETED'
+    totalUsage: number;
+}
+
+export interface ComputedMetrics {
+    subscription: ComputedSubscription;
+    usageAnalytics: ComputedUsageAnalytics;
 }
 
 // ============================================================================
@@ -113,6 +131,9 @@ export interface User {
 
     subscription?: UserSubscription;
     usage?: UserUsage;
+
+    // [NEW ARCHITECTURE] Penambahan properti computed untuk menampung metrik dinamis dari BE
+    computed?: ComputedMetrics;
 
     _count?: {
         simulationLogs: number;

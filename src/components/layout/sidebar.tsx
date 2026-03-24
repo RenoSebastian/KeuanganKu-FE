@@ -24,8 +24,17 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   const pathname = usePathname();
   const router = useRouter();
 
-  // [HOOK] Smart Data Fetcher
-  const { user, isPro, quota, isLoading, refreshUser } = useAuthUser();
+  // [FASE 3] Smart Data Fetcher: Mengonsumsi Derived State
+  const {
+    user,
+    isPro,
+    isUnlimited,
+    remainingDays,
+    healthStatus,
+    quota,
+    isLoading,
+    refreshUser
+  } = useAuthUser();
 
   // Derived State
   const isAdmin = user?.role === 'ADMIN';
@@ -48,14 +57,13 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
     setInternalCollapse(isCollapsed);
   }, [isCollapsed]);
 
-  // [NEW] REALTIME LISTENER
+  // REALTIME LISTENER
   // Sidebar akan mendengarkan sinyal 'refresh_user_data' dari komponen lain (misal: Payment Modal)
   useEffect(() => {
     const handleGlobalRefresh = () => {
       refreshUser();
     };
 
-    // Pasang telinga (Listener)
     window.addEventListener('refresh_user_data', handleGlobalRefresh);
 
     return () => {
@@ -82,7 +90,6 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   // --- COMPONENT: NAV LINK ---
   const NavLink = ({ item, variant = "default" }: { item: any, variant?: "default" | "admin" | "exec" }) => {
     let isActive = false;
-    // Logic active state yang support nested routes
     if (item.href === "/finance") {
       isActive = pathname === "/finance" || (pathname.startsWith("/finance/") && !pathname.startsWith("/finance/checkup"));
     } else if (item.href === "/dashboard") {
@@ -168,14 +175,14 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
     if (isLoading) return <div className="mx-4 h-16 bg-slate-50 animate-pulse rounded-xl mb-4" />;
     if (isAdmin || isDirector) return null;
 
-    // Hitung persentase kuota (asumsi max 3 token untuk FREE)
+    // Hitung persentase kuota untuk progress bar (Base visual max 10 Token)
     const maxQuota = 10;
     const percentage = Math.min((quota / maxQuota) * 100, 100);
 
     if (internalCollapse) {
       return (
         <div className="mx-auto mb-4 w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 relative group transition-transform duration-300 hover:scale-110">
-          {isPro ? (
+          {isUnlimited ? (
             <Crown className="w-5 h-5 text-amber-500 drop-shadow-sm fill-amber-500/20" />
           ) : (
             <>
@@ -184,7 +191,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
             </>
           )}
           <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity shadow-lg">
-            {isPro ? "PRO Active" : `Sisa Kuota: ${quota}`}
+            {isUnlimited ? "PRO Active" : `Sisa Kuota: ${quota}`}
           </div>
         </div>
       );
@@ -222,10 +229,35 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
             )}
           </div>
 
-          {isPro ? (
+          {/* Conditional Rendering: Unlimited vs Free Quota */}
+          {isUnlimited ? (
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-bold text-slate-700">Unlimited Access</p>
-              <p className="text-[10px] text-slate-500 leading-tight">Bebas akses semua fitur tanpa batas kuota.</p>
+              <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                Unlimited Access
+                {/* Visual Feedback FUP / Analytics Alert */}
+                {(healthStatus === 'WARNING' || healthStatus === 'CRITICAL') && (
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-500 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-[10px] font-semibold bg-slate-900 text-white">
+                        Penggunaan Anda cukup tinggi bulan ini.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </p>
+              <p className="text-[10px] text-slate-500 leading-tight">Bebas akses fitur tanpa batas kuota.</p>
+
+              {/* Subscription Countdown */}
+              {remainingDays > 0 && (
+                <div className="mt-1.5 pt-2 border-t border-amber-100/50">
+                  <p className="text-[9px] text-amber-600 font-bold tracking-widest uppercase">
+                    Masa Aktif: <span className="font-black text-amber-700">{remainingDays} HARI</span>
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -253,7 +285,8 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
             </div>
           )}
 
-          {!isPro && (
+          {/* Sembunyikan Tombol Upgrade jika pengguna sudah Unlimited */}
+          {!isUnlimited && (
             <Link
               href="/subscription"
               className="mt-3 block w-full py-1.5 text-center text-[10px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-700 transition-all shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95"
@@ -293,7 +326,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
                 src="/images/logokeuanganku.png"
                 alt="Logo KeuanganKu"
                 fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Tambahkan ini
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-contain"
               />
             </div>

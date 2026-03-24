@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   User, Briefcase, LogOut, Camera, Pencil, ShieldCheck,
-  Building2, BadgeCheck, Sparkles, Phone, Mail, Calendar,
+  Building2, BadgeCheck, Sparkles, Phone, Calendar,
   Globe, Zap, CreditCard, Award, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,9 @@ export default function ProfilePage() {
     simulationQuota: 0,
     tier: "FREE",
     isPro: false,
+    // [FASE 3] Integrasi properti computed dari Backend
+    isUnlimited: false,
+    remainingDays: 0,
   });
 
   const [formData, setFormData] = useState({
@@ -53,6 +56,8 @@ export default function ProfilePage() {
     companyName: "",
     agentLevel: "",
     goals: "",
+    // Menyimpan foreign key state agar tidak ter-drop saat PATCH
+    agencyId: "",
   });
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -65,7 +70,12 @@ export default function ProfilePage() {
       const response = await api.get("/users/me");
       const user = response.data;
 
-      const isPro = user.subscription?.status === 'ACTIVE';
+      // [FASE 3] Single Source of Truth: Menarik logika in-memory langsung dari BE
+      const computed = user.computed || {};
+      const isPro = computed.subscription?.isActive ?? (user.subscription?.status === 'ACTIVE');
+      const isUnlimited = computed.usageAnalytics?.isUnlimited ?? false;
+      const remainingDays = computed.subscription?.remainingDays ?? 0;
+
       const tierName = isPro ? user.subscription?.plan?.name || "PRO ACCOUNT" : "FREE ACCOUNT";
 
       setUserData({
@@ -73,23 +83,23 @@ export default function ProfilePage() {
         nip: user.nip || "-",
         email: user.email || "",
         role: user.role || "USER",
-        unitKerja: user.unitKerja?.namaUnit || "Unit Kerja Tidak Diketahui",
-        joinDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : "01 Agustus 2015",
+        unitKerja: user.agency?.name || user.agencyName || "Independen",
+        joinDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : "-",
         avatar: user.avatar || "",
         goals: user.goals || "",
         simulationQuota: user.usage?.simulationQuota || 0,
         tier: tierName,
         isPro: isPro,
+        isUnlimited: isUnlimited,
+        remainingDays: remainingDays,
       });
 
-      // [FASE 1] Defensive Programming: Validasi Tanggal untuk mencegah RangeError (Invalid Time Value)
+      // [FASE 1] Defensive Programming: Validasi Tanggal
       let dob = "";
       if (user.dateOfBirth) {
         const parsedDate = new Date(user.dateOfBirth);
         if (!isNaN(parsedDate.getTime())) {
           dob = parsedDate.toISOString().split('T')[0];
-        } else {
-          console.warn("⚠️ Anomali Data: Format tanggal lahir dari database tidak valid:", user.dateOfBirth);
         }
       }
 
@@ -105,6 +115,7 @@ export default function ProfilePage() {
         agentLevel: user.agentLevel || "",
         goals: user.goals || "",
         avatar: user.avatar || "",
+        agencyId: user.agencyId || "",
       });
       setPreviewImage(user.avatar || null);
 
@@ -169,17 +180,22 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // [FASE 1 & 2] Sanitasi Payload Pre-flight (Membersihkan spasi tersembunyi pada endpoint vital)
+      // [FASE 1 & 2] Sanitasi Payload Pre-flight
+      // Memastikan string murni yang kosong dikirim sebagai "", yang mana akan ditangkap 
+      // oleh class-transformer DTO di Backend menjadi 'null' (disconnect).
       const payloadToSubmit = {
         ...formData,
+        fullName: formData.fullName.trim(),
         phoneNumber: formData.phoneNumber.trim(),
         goals: formData.goals.trim(),
+        companyName: formData.companyName.trim(),
+        agencyName: formData.agencyName.trim(),
+        agentLevel: formData.agentLevel.trim(),
       };
 
       await api.patch("/users/me", payloadToSubmit);
 
       // [FASE 3] Single Source of Truth Synchronization
-      // Tidak lagi menggunakan state manipulatif, langsung tarik data fresh dari DB
       await fetchProfile(true);
 
       setIsEditing(false);
@@ -297,6 +313,12 @@ export default function ProfilePage() {
                     {userData.tier}
                     {userData.isPro && <Sparkles size={20} className="text-yellow-400 animate-pulse" />}
                   </h4>
+                  {/* Dynamic Frontend Render: Sisa hari langganan dikonsumsi langsung dari state */}
+                  {userData.isPro && userData.remainingDays > 0 && (
+                    <p className="text-[10px] text-white/80 font-bold tracking-widest">
+                      SISA MASA AKTIF: <span className="text-yellow-400">{userData.remainingDays} HARI</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="bg-white/10 rounded-3xl p-5 backdrop-blur-xs border border-white/10">
@@ -304,7 +326,7 @@ export default function ProfilePage() {
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Sisa Kuota Simulasi</p>
                       <p className="text-3xl font-black tracking-tighter">
-                        {userData.isPro ? "UNLIMITED" : `${userData.simulationQuota} Token`}
+                        {userData.isUnlimited ? "UNLIMITED" : `${userData.simulationQuota} Token`}
                       </p>
                     </div>
                     {!userData.isPro && (
@@ -365,7 +387,10 @@ export default function ProfilePage() {
                   </Button>
                 ) : (
                   <div className="flex gap-2 w-full md:w-auto">
-                    <Button onClick={() => setIsEditing(false)} variant="outline" className="flex-1 md:flex-none rounded-2xl border-slate-200 text-slate-600 font-bold h-12 transition-all">Batal</Button>
+                    <Button onClick={() => {
+                      setIsEditing(false);
+                      fetchProfile(true); // Re-sync untuk membatalkan un-saved changes
+                    }} variant="outline" className="flex-1 md:flex-none rounded-2xl border-slate-200 text-slate-600 font-bold h-12 transition-all">Batal</Button>
                     <Button onClick={handleSave} disabled={isSaving} className="flex-1 md:flex-none bg-slate-950 hover:bg-black text-white rounded-2xl px-8 h-12 font-black shadow-xl transition-all">
                       {isSaving ? "Sinkronisasi..." : "Simpan"}
                     </Button>
