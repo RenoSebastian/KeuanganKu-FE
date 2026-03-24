@@ -391,9 +391,11 @@ export default function AdminUsersPage() {
                                 </DropdownMenuItem>
                               )}
 
-                              <DropdownMenuItem onClick={() => router.push(`/admin/users/${user.id}/edit`)}>
-                                <UserIcon className="w-4 h-4 mr-2" /> Edit Details
-                              </DropdownMenuItem>
+                              <Link href={`/admin/users/${user.id}/edit`} className="w-full">
+                                <DropdownMenuItem className="cursor-pointer">
+                                  <UserIcon className="w-4 h-4 mr-2" /> Edit Details
+                                </DropdownMenuItem>
+                              </Link>
                               <DropdownMenuItem onClick={() => handleAction('inject', user)}>
                                 <Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Quota
                               </DropdownMenuItem>
@@ -497,9 +499,11 @@ export default function AdminUsersPage() {
                           </DropdownMenuItem>
                         )}
 
-                        <DropdownMenuItem onClick={() => router.push(`/admin/users/${user.id}/edit`)}>
-                          <UserIcon className="w-4 h-4 mr-2" /> Edit Details
-                        </DropdownMenuItem>
+                        <Link href={`/admin/users/${user.id}/edit`} className="w-full">
+                          <DropdownMenuItem className="cursor-pointer">
+                            <UserIcon className="w-4 h-4 mr-2" /> Edit Details
+                          </DropdownMenuItem>
+                        </Link>
                         <DropdownMenuItem onClick={() => handleAction('inject', user)}>
                           <Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Quota
                         </DropdownMenuItem>

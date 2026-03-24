@@ -4,14 +4,13 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Save, Building2, User, Calendar, Phone,
-  Loader2, Mail, Briefcase, Shield, UserCheck, AlertTriangle
+  Loader2, Mail, Briefcase, Shield
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { adminService } from "@/services/admin.service";
-import { masterDataService, UnitKerja } from "@/services/master-data.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,14 +24,12 @@ export default function EditUserPage({ params }: PageProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [units, setUnits] = useState<UnitKerja[]>([]);
 
-  // [FIX] Form State: Menggunakan agentLevel dan agencyId sesuai kontrak baru
+  // Form State (Bersih dari agencyId)
   const [formData, setFormData] = useState({
     fullName: "",
     nip: "",
     email: "",
-    agencyId: "",
     role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
     agentLevel: "",
     dateOfBirth: "",
@@ -45,24 +42,17 @@ export default function EditUserPage({ params }: PageProps) {
     const initData = async () => {
       setIsLoading(true);
       try {
-        const [userData, unitsData] = await Promise.all([
-          adminService.getUserById(userId),
-          masterDataService.getAllUnits()
-        ]);
-
-        setUnits(unitsData);
+        const userData = await adminService.getUserById(userId);
 
         let formattedDob = "";
         if (userData.dateOfBirth) {
           formattedDob = new Date(userData.dateOfBirth).toISOString().split('T')[0];
         }
 
-        // [FIX] Mengakses properti yang valid dari userData (agency dan agentLevel)
         setFormData({
           fullName: userData.fullName,
           nip: userData.nip || "",
           email: userData.email,
-          agencyId: userData.agencyId || userData.agency?.id || "",
           role: userData.role,
           agentLevel: userData.agentLevel || "",
           dateOfBirth: formattedDob,
@@ -85,10 +75,8 @@ export default function EditUserPage({ params }: PageProps) {
     if (!formData.fullName) newErrors.fullName = "Nama Lengkap wajib diisi";
     if (!formData.nip) newErrors.nip = "NIP wajib diisi";
     if (!formData.email) newErrors.email = "Email wajib diisi";
-    if (!formData.agencyId) newErrors.agencyId = "Unit Kerja wajib dipilih";
     if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi";
 
-    // Validasi opsional nomor WA
     if (formData.phoneNumber && formData.phoneNumber.trim() !== "" && !/^[0-9+-\s]+$/.test(formData.phoneNumber)) {
       newErrors.phoneNumber = "Format nomor telepon tidak valid";
     }
@@ -148,7 +136,7 @@ export default function EditUserPage({ params }: PageProps) {
             </div>
             <div className="text-white">
               <h1 className="text-2xl md:text-3xl font-black">Edit Data Karyawan</h1>
-              <p className="text-brand-100 text-sm opacity-90 mt-1">Perbarui informasi jabatan, kontak, unit kerja, atau hak akses.</p>
+              <p className="text-brand-100 text-sm opacity-90 mt-1">Perbarui informasi jabatan, kontak, atau hak akses.</p>
             </div>
           </div>
         </div>
@@ -230,7 +218,6 @@ export default function EditUserPage({ params }: PageProps) {
                   <Label>Level / Jabatan</Label>
                   <Input
                     placeholder="Contoh: Senior Agent"
-                    // [FIX] Mengubah dari jobTitle menjadi agentLevel di UI binding
                     value={formData.agentLevel}
                     onChange={e => setFormData({ ...formData, agentLevel: e.target.value })}
                   />
@@ -242,42 +229,28 @@ export default function EditUserPage({ params }: PageProps) {
             <div className="space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Shield className="w-5 h-5" /></div>
-                <h3 className="font-bold text-slate-800 text-lg">Mutasi & Hak Akses</h3>
+                <h3 className="font-bold text-slate-800 text-lg">Hak Akses Sistem</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label>Unit Kerja</Label>
-                  <select
-                    className={cn("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm", errors.agencyId && "border-rose-500")}
-                    value={formData.agencyId}
-                    onChange={e => setFormData({ ...formData, agencyId: e.target.value })}
-                  >
-                    <option value="">-- Pilih Unit Kerja --</option>
-                    {units.map(unit => (
-                      <option key={unit.id} value={unit.id}>{unit.namaUnit} ({unit.kodeUnit})</option>
-                    ))}
-                  </select>
-                  {errors.agencyId && <p className="text-[10px] text-rose-500 font-bold">{errors.agencyId}</p>}
-                </div>
-
+              <div className="grid grid-cols-1 gap-8">
                 <div className="space-y-3">
                   <Label>Role Aplikasi</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 max-w-lg">
                     {["USER", "DIRECTOR", "ADMIN"].map((role) => (
                       <button
                         key={role}
                         type="button"
                         onClick={() => setFormData({ ...formData, role: role as any })}
                         className={cn(
-                          "text-xs font-bold py-2 px-2 rounded-md border transition-all",
-                          formData.role === role ? "bg-brand-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
+                          "text-xs font-bold py-3 px-2 rounded-md border transition-all",
+                          formData.role === role ? "bg-brand-600 text-white shadow-md" : "bg-white text-slate-500 hover:bg-slate-50"
                         )}
                       >
                         {role}
                       </button>
                     ))}
                   </div>
+                  <p className="text-[10px] text-slate-500">Catatan: Pengaturan Unit Kerja / Agency dikelola langsung oleh pengguna terkait.</p>
                 </div>
               </div>
             </div>

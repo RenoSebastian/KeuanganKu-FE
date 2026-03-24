@@ -1,62 +1,45 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
    ArrowLeft, Save, UserPlus,
-   Building2, Lock, Calendar, Phone, // [NEW] Icon Phone
-   User, Mail, BadgeCheck, Briefcase, UserCheck, AlertTriangle, Loader2
+   Building2, Calendar, Phone,
+   User, Mail, Loader2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { adminService } from "@/services/admin.service";
-import { masterDataService, UnitKerja } from "@/services/master-data.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function CreateUserPage() {
    const router = useRouter();
    const [loading, setLoading] = useState(false);
-   const [units, setUnits] = useState<UnitKerja[]>([]);
 
-   // Form State
+   // Form State (Bersih dari agencyId)
    const [formData, setFormData] = useState({
       fullName: "",
       nip: "",
       email: "",
       password: "Maxipro123!",
-      agencyId: "",
       role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
-      jobTitle: "",
+      agentLevel: "",
       dateOfBirth: "",
-      phoneNumber: "", // [NEW] Field Nomor WA
+      phoneNumber: "",
    });
 
    const [errors, setErrors] = useState<Record<string, string>>({});
-
-   useEffect(() => {
-      const fetchUnits = async () => {
-         try {
-            const data = await masterDataService.getAllUnits();
-            setUnits(data);
-         } catch (error) {
-            toast.error("Gagal memuat daftar unit kerja");
-         }
-      };
-      fetchUnits();
-   }, []);
 
    const validate = () => {
       const newErrors: Record<string, string> = {};
       if (!formData.fullName) newErrors.fullName = "Nama Lengkap wajib diisi";
       if (!formData.nip) newErrors.nip = "NIP wajib diisi";
       if (!formData.email) newErrors.email = "Email wajib diisi";
-      if (!formData.agencyId) newErrors.agencyId = "Unit Kerja wajib dipilih";
       if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi";
 
-      // [NEW] Validasi opsional nomor WA
       if (formData.phoneNumber && !/^[0-9+-\s]+$/.test(formData.phoneNumber)) {
          newErrors.phoneNumber = "Format nomor telepon tidak valid";
       }
@@ -75,7 +58,6 @@ export default function CreateUserPage() {
       setLoading(true);
 
       try {
-         // Sanitasi manual sebelum dikirim agar payload bersih dari string kosong
          const payloadToSubmit = {
             ...formData,
             phoneNumber: formData.phoneNumber.trim() === "" ? undefined : formData.phoneNumber.trim()
@@ -161,7 +143,6 @@ export default function CreateUserPage() {
                            {errors.email && <p className="text-[10px] text-rose-500 font-bold">{errors.email}</p>}
                         </div>
 
-                        {/* [NEW] KOLOM TANGGAL LAHIR */}
                         <div className="space-y-2">
                            <Label>Tanggal Lahir</Label>
                            <div className="relative">
@@ -176,7 +157,6 @@ export default function CreateUserPage() {
                            {errors.dateOfBirth && <p className="text-[10px] text-rose-500 font-bold">{errors.dateOfBirth}</p>}
                         </div>
 
-                        {/* [NEW] KOLOM NOMOR WA */}
                         <div className="space-y-2">
                            <Label>Nomor WhatsApp / HP (Opsional)</Label>
                            <div className="relative">
@@ -193,11 +173,11 @@ export default function CreateUserPage() {
                         </div>
 
                         <div className="space-y-2">
-                           <Label>Jabatan (Opsional)</Label>
+                           <Label>Level / Jabatan (Opsional)</Label>
                            <Input
-                              placeholder="Contoh: Staff IT"
-                              value={formData.jobTitle}
-                              onChange={e => setFormData({ ...formData, jobTitle: e.target.value })}
+                              placeholder="Contoh: Senior Agent"
+                              value={formData.agentLevel}
+                              onChange={e => setFormData({ ...formData, agentLevel: e.target.value })}
                            />
                         </div>
                      </div>
@@ -207,42 +187,28 @@ export default function CreateUserPage() {
                   <div className="space-y-5">
                      <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                         <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Building2 className="w-5 h-5" /></div>
-                        <h3 className="font-bold text-slate-800 text-lg">Organisasi & Hak Akses</h3>
+                        <h3 className="font-bold text-slate-800 text-lg">Hak Akses Sistem</h3>
                      </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-3">
-                           <Label>Unit Kerja</Label>
-                           <select
-                              className={cn("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm", errors.agencyId && "border-rose-500")}
-                              value={formData.agencyId}
-                              onChange={e => setFormData({ ...formData, agencyId: e.target.value })}
-                           >
-                              <option value="">-- Pilih Unit Kerja --</option>
-                              {units.map(unit => (
-                                 <option key={unit.id} value={unit.id}>{unit.namaUnit} ({unit.kodeUnit})</option>
-                              ))}
-                           </select>
-                           {errors.agencyId && <p className="text-[10px] text-rose-500 font-bold">{errors.agencyId}</p>}
-                        </div>
-
+                     <div className="grid grid-cols-1 gap-8">
                         <div className="space-y-3">
                            <Label>Role Aplikasi</Label>
-                           <div className="grid grid-cols-3 gap-2">
+                           <div className="grid grid-cols-3 gap-2 max-w-lg">
                               {["USER", "DIRECTOR", "ADMIN"].map((role) => (
                                  <button
                                     key={role}
                                     type="button"
                                     onClick={() => setFormData({ ...formData, role: role as any })}
                                     className={cn(
-                                       "text-xs font-bold py-2 px-2 rounded-md border transition-all",
-                                       formData.role === role ? "bg-brand-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
+                                       "text-xs font-bold py-3 px-2 rounded-md border transition-all",
+                                       formData.role === role ? "bg-brand-600 text-white shadow-md" : "bg-white text-slate-500 hover:bg-slate-50"
                                     )}
                                  >
                                     {role}
                                  </button>
                               ))}
                            </div>
+                           <p className="text-[10px] text-slate-500">Catatan: Pengaturan Unit Kerja / Agency dikelola langsung oleh pengguna terkait.</p>
                         </div>
                      </div>
                   </div>
