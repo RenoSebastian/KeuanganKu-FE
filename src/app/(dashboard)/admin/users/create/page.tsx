@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
    ArrowLeft, Save, UserPlus,
-   Building2, Lock, Calendar, // [NEW] Icon Calendar
+   Building2, Lock, Calendar, Phone, // [NEW] Icon Phone
    User, Mail, BadgeCheck, Briefcase, UserCheck, AlertTriangle, Loader2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -30,7 +30,8 @@ export default function CreateUserPage() {
       agencyId: "",
       role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
       jobTitle: "",
-      dateOfBirth: "", // [NEW] Field Tanggal Lahir
+      dateOfBirth: "",
+      phoneNumber: "", // [NEW] Field Nomor WA
    });
 
    const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,7 +54,12 @@ export default function CreateUserPage() {
       if (!formData.nip) newErrors.nip = "NIP wajib diisi";
       if (!formData.email) newErrors.email = "Email wajib diisi";
       if (!formData.agencyId) newErrors.agencyId = "Unit Kerja wajib dipilih";
-      if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi"; // [NEW] Validasi
+      if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi";
+
+      // [NEW] Validasi opsional nomor WA
+      if (formData.phoneNumber && !/^[0-9+-\s]+$/.test(formData.phoneNumber)) {
+         newErrors.phoneNumber = "Format nomor telepon tidak valid";
+      }
 
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
@@ -62,22 +68,25 @@ export default function CreateUserPage() {
    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!validate()) {
-         toast.warning("Mohon lengkapi data yang wajib diisi");
+         toast.warning("Mohon periksa kembali form pengisian");
          return;
       }
 
       setLoading(true);
 
       try {
-         // Backend mengharapkan ISO Date string, input type="date" sudah format YYYY-MM-DD
-         // yang bisa langsung diterima Prisma sebagai Date
-         await adminService.createUser(formData);
+         // Sanitasi manual sebelum dikirim agar payload bersih dari string kosong
+         const payloadToSubmit = {
+            ...formData,
+            phoneNumber: formData.phoneNumber.trim() === "" ? undefined : formData.phoneNumber.trim()
+         };
+
+         await adminService.createUser(payloadToSubmit);
          toast.success(`User ${formData.fullName} berhasil didaftarkan!`);
          router.push("/admin/users");
       } catch (error: any) {
          console.error(error);
          const msg = error.response?.data?.message || "Gagal menyimpan user";
-         // Handle error array dari class-validator backend
          const displayMsg = Array.isArray(msg) ? msg[0] : msg;
          toast.error(displayMsg);
       } finally {
@@ -167,7 +176,23 @@ export default function CreateUserPage() {
                            {errors.dateOfBirth && <p className="text-[10px] text-rose-500 font-bold">{errors.dateOfBirth}</p>}
                         </div>
 
-                        <div className="space-y-2 md:col-span-2">
+                        {/* [NEW] KOLOM NOMOR WA */}
+                        <div className="space-y-2">
+                           <Label>Nomor WhatsApp / HP (Opsional)</Label>
+                           <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                              <Input
+                                 type="tel"
+                                 placeholder="Contoh: 08123456789"
+                                 value={formData.phoneNumber}
+                                 onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
+                                 className={cn("pl-10", errors.phoneNumber && "border-rose-500")}
+                              />
+                           </div>
+                           {errors.phoneNumber && <p className="text-[10px] text-rose-500 font-bold">{errors.phoneNumber}</p>}
+                        </div>
+
+                        <div className="space-y-2">
                            <Label>Jabatan (Opsional)</Label>
                            <Input
                               placeholder="Contoh: Staff IT"

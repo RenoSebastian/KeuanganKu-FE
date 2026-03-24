@@ -42,7 +42,7 @@ export function ImageLightbox({
 
     return (
         <div
-            className="fixed inset-0 z-[110] bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300"
+            className="fixed inset-0 z-110 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300"
             aria-modal="true"
             role="dialog"
         >
@@ -63,7 +63,7 @@ export function ImageLightbox({
                     <React.Fragment>
 
                         {/* 1. Container Gambar Interaktif */}
-                        <div className="absolute inset-0 z-[111] flex items-center justify-center cursor-move">
+                        <div className="absolute inset-0 z-111 flex items-center justify-center cursor-move">
                             <TransformComponent
                                 wrapperClass="!w-full !h-full"
                                 contentClass="!w-full !h-full flex items-center justify-center"
@@ -81,7 +81,7 @@ export function ImageLightbox({
                         </div>
 
                         {/* 2. Contextual HUD (Floating Bar Bawah) */}
-                        <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 z-[112] w-[90%] md:w-fit pointer-events-none">
+                        <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 z-112 w-[90%] md:w-fit pointer-events-none">
                             <div className="flex flex-col md:flex-row items-center gap-3 md:gap-8 px-6 py-4 rounded-2xl bg-slate-900/90 backdrop-blur-lg border border-slate-700/50 shadow-xl pointer-events-auto">
                                 <div className="flex flex-col items-center md:items-start">
                                     <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Pengirim Struk</span>
@@ -100,7 +100,7 @@ export function ImageLightbox({
                         </div>
 
                         {/* 3. Tombol Aksi Pojok Kanan Atas */}
-                        <div className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-2 z-[120] pointer-events-none">
+                        <div className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-2 z-120 pointer-events-none">
 
                             {/* Kontrol Zoom UI yang Terhubung dengan Library */}
                             <div className="hidden md:flex items-center gap-1.5 p-1.5 rounded-full bg-slate-800/80 backdrop-blur-sm border border-slate-700/50 shadow-lg text-slate-300 pointer-events-auto">

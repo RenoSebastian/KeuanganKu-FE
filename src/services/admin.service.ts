@@ -2,35 +2,69 @@ import api from '@/lib/axios';
 import {
     DashboardMetricsResponse,
     CashflowLedgerResponse,
-    AnalyticsResolution, // [NEW] Import dari DTO
-    TimeSeriesDataPoint  // [NEW] Import dari DTO
+    AnalyticsResolution,
+    TimeSeriesDataPoint
 } from '@/lib/types/dashboard';
 
-// Tipe Data User sesuai response Backend terbaru
+// ============================================================================
+// [REFACTORED] DATA CONTRACTS (SEJALAN DENGAN BACKEND SCHEMA)
+// ============================================================================
+
 export interface User {
-    dateOfBirth: any;
     id: string;
-    nip: string;
-    fullName: string;
     email: string;
+    fullName: string;
     role: 'USER' | 'ADMIN' | 'DIRECTOR';
-    unitKerja?: {
+
+    nip?: string;
+    // [NEW] Fase 1: Penambahan phoneNumber untuk fitur penagihan WA
+    phoneNumber?: string | null;
+
+    // [CLEANUP] Mengganti unitKerja menjadi agency
+    agencyId?: string | null;
+    agency?: {
         id: string;
-        namaUnit: string;
-    };
-    jobTitle?: string;
+        code: string;
+        name: string;
+    } | null;
+
+    dateOfBirth?: string | null;
+    gender?: string | null;
+    address?: string | null;
+    agentLevel?: string | null;
+    companyName?: string | null;
+    goals?: string | null;
+    dependentCount?: number;
+
     createdAt: string;
+    updatedAt: string;
+
+    // Relasi yang mungkin dikembalikan oleh GET /admin/users
+    subscription?: {
+        status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'GRACE_PERIOD';
+        endDate: string;
+        plan: {
+            name: string;
+        };
+    } | null;
 }
 
 export interface CreateUserPayload {
     fullName: string;
     email: string;
-    nip: string;
     password: string;
     role: 'USER' | 'ADMIN' | 'DIRECTOR';
-    agencyId: string;
 
-    jobTitle?: string;
+    nip?: string;
+    // [NEW] Fase 1: Membuka gerbang agar Admin bisa input nomor HP saat Create User
+    phoneNumber?: string;
+
+    agencyId?: string;
+    companyName?: string;
+    agentLevel?: string;
+    goals?: string;
+    address?: string;
+    gender?: string;
     dateOfBirth?: string;
     dependentCount?: number;
 }
@@ -50,13 +84,16 @@ export interface AdminUsersResponse {
         total: number;
         page: number;
         limit: number;
-        totalPages: number;
+        lastPage: number; // Disinkronkan dengan response BE yang mengirim 'lastPage'
     };
 }
 
 export interface UserDetailResponse extends User { }
 
-// [PHASE 3 ENHANCEMENT] Kontrak API untuk System Logs (Cursor Paginated)
+// ============================================================================
+// SYSTEM LOGS CONTRACT
+// ============================================================================
+
 export interface SystemLog {
     id: string;
     actionType: string;
@@ -81,10 +118,14 @@ export interface SystemLogResponse {
     };
 }
 
+// ============================================================================
+// ADMIN SERVICE API METHODS
+// ============================================================================
+
 export const adminService = {
-    // ========================================================================
-    // ANALYTICS & DASHBOARD METHODS (Phase 1)
-    // ========================================================================
+    // ------------------------------------------------------------------------
+    // ANALYTICS & DASHBOARD METHODS
+    // ------------------------------------------------------------------------
 
     getDashboardMetrics: async () => {
         const response = await api.get<DashboardMetricsResponse>('/admin/dashboard/metrics');
@@ -98,16 +139,14 @@ export const adminService = {
         return response.data;
     },
 
-    // [NEW] Fitur Unduh PDF (Task 1) - Menggunakan tipe kembalian Blob
     downloadCashflowReport: async (period: string = 'Keseluruhan'): Promise<Blob> => {
         const response = await api.get('/admin/dashboard/cashflow/export', {
             params: { period },
-            responseType: 'blob' // SANGAT PENTING: Mencegah korupsi binary PDF
+            responseType: 'blob'
         });
         return response.data;
     },
 
-    // [NEW] Analitik Kinerja / Akuisisi Pengguna (Task 4)
     getGrowthAnalytics: async (startDate: string, endDate: string, resolution: AnalyticsResolution) => {
         const response = await api.get<TimeSeriesDataPoint[]>('/admin/dashboard/analytics/growth', {
             params: { startDate, endDate, resolution }
@@ -115,7 +154,6 @@ export const adminService = {
         return response.data;
     },
 
-    // [NEW] Analitik Keterlibatan / Login Pengguna (Task 4)
     getEngagementAnalytics: async (startDate: string, endDate: string, resolution: AnalyticsResolution) => {
         const response = await api.get<TimeSeriesDataPoint[]>('/admin/dashboard/analytics/engagement', {
             params: { startDate, endDate, resolution }
@@ -123,9 +161,9 @@ export const adminService = {
         return response.data;
     },
 
-    // ========================================================================
+    // ------------------------------------------------------------------------
     // USER MANAGEMENT METHODS
-    // ========================================================================
+    // ------------------------------------------------------------------------
 
     getUsers: async (params?: PaginationParams) => {
         const response = await api.get<AdminUsersResponse>('/admin/users', { params });
@@ -152,9 +190,9 @@ export const adminService = {
         return response.data;
     },
 
-    // ========================================================================
-    // SYSTEM AUDIT LOGS (Phase 3)
-    // ========================================================================
+    // ------------------------------------------------------------------------
+    // SYSTEM AUDIT LOGS
+    // ------------------------------------------------------------------------
 
     getSystemLogs: async (params?: { cursor?: string; take?: number; action?: string }) => {
         const response = await api.get<SystemLogResponse>('/admin/audit/logs', { params });

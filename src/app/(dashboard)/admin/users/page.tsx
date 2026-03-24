@@ -8,7 +8,8 @@ import {
   Search, Plus, MoreHorizontal,
   User as UserIcon, Shield, CreditCard,
   Loader2, AlertCircle, Mail, Filter,
-  CheckCircle2, XCircle, Zap, Crown
+  CheckCircle2, XCircle, Zap, Crown,
+  MessageCircle // [NEW] Icon WhatsApp
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,8 +36,9 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { toast } from "sonner";
 import { adminService } from "@/services/admin.service";
-import api from "@/lib/axios"; // Digunakan untuk memanggil endpoint spesifik inject quota
+import api from "@/lib/axios";
 import { cn } from "@/lib/utils";
+import router from "next/router";
 
 // --- INTERFACE MENYESUAIKAN RESPONSE BACKEND PHASE 2 ---
 interface AgentUser {
@@ -44,6 +46,7 @@ interface AgentUser {
   fullName: string;
   email: string;
   role: string;
+  phoneNumber?: string | null; // [NEW] Diperlukan untuk fitur WA
   agency?: { name: string; code: string };
   usage?: { simulationQuota: number; totalUsed: number };
   subscription?: { status: string; endDate: string; plan?: { name: string } };
@@ -75,15 +78,12 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // Panggil API Backend (yang sudah dioptimasi dengan pg_trgm di Phase 2)
-      const queryParams: any = { search: debouncedSearch, limit: 50 }; // Ambil 50 data untuk view ini
+      const queryParams: any = { search: debouncedSearch, limit: 50 };
       if (filterRole !== "ALL") {
         queryParams.role = filterRole;
       }
 
       const response: any = await adminService.getUsers(queryParams);
-
-      // Mengatasi struktur balikan: bisa array langsung atau object { data, meta }
       const dataList = response.data ? response.data : response;
       setUsers(dataList);
     } catch (error) {
@@ -133,7 +133,6 @@ export default function AdminUsersPage() {
 
     setIsInjecting(true);
     try {
-      // Memanggil endpoint baru Fase 2
       await api.patch(`/admin/subscription/users/${selectedUser.id}/quota`, {
         amount: Number(injectAmount),
         reason: injectReason
@@ -141,7 +140,7 @@ export default function AdminUsersPage() {
 
       toast.success(`Berhasil menambahkan ${injectAmount} token ke ${selectedUser.fullName}`);
       setIsInjectModalOpen(false);
-      fetchUsers(); // Refresh data untuk melihat perubahan limit
+      fetchUsers();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Gagal melakukan injeksi kuota");
     } finally {
@@ -149,12 +148,38 @@ export default function AdminUsersPage() {
     }
   };
 
+  // ====================================================================
+  // [NEW] FASE 3: LOGIKA PEMANGGIL WHATSAPP (ACTION HANDLER)
+  // ====================================================================
+  const handleWhatsAppBilling = (user: AgentUser) => {
+    // 1. Guard Clause
+    if (!user.phoneNumber || user.phoneNumber.trim() === "") {
+      toast.error(`Nomor WhatsApp untuk ${user.fullName} belum diisi.`);
+      return;
+    }
+
+    // 2. Rakit template dinamis
+    const planName = user.subscription?.plan?.name || "Premium";
+    const message = `Halo Bapak/Ibu *${user.fullName}*,\n\nKami dari KeuanganKu ingin menginformasikan bahwa masa berlaku langganan Anda untuk paket *${planName}* telah habis/perlu diperbarui.\n\nYuk perpanjang sekarang agar bisa terus menggunakan fitur kalkulator finansial kami tanpa gangguan! Silakan hubungi kami untuk info perpanjangan.\n\nTerima Kasih,\nTim KeuanganKu`;
+
+    // 3. URL Encoding
+    const encodedText = encodeURIComponent(message);
+
+    // 4. Sanitasi fallback (jika diperlukan)
+    let phone = user.phoneNumber;
+    if (phone.startsWith("0")) phone = "62" + phone.substring(1);
+    else if (phone.startsWith("+")) phone = phone.substring(1);
+
+    // 5. Eksekusi Deep Link
+    window.open(`https://wa.me/${phone}?text=${encodedText}`, "_blank");
+  };
+  // ====================================================================
+
   return (
     <div className="min-h-screen w-full bg-slate-50/50 pb-24 md:pb-12">
 
       {/* --- HEADER (SaaS Style) --- */}
       <div className="bg-slate-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-xl rounded-b-[2.5rem]">
-        {/* Abstract Tech Patterns */}
         <div className="absolute top-0 right-0 w-125 h-125 bg-blue-600/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4" />
         <div className="absolute bottom-0 left-0 w-75 h-75 bg-emerald-500/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4" />
         <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-10 mix-blend-overlay"></div>
@@ -193,7 +218,7 @@ export default function AdminUsersPage() {
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder="Fuzzy Search by name, email, agency, nip..."
+              placeholder="Fuzzy Search by name, email, agency, nip, phone..."
               className="pl-10 h-11 bg-transparent border-transparent focus:bg-slate-50 rounded-xl text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -201,7 +226,6 @@ export default function AdminUsersPage() {
           </div>
           <div className="h-8 w-px bg-slate-200 hidden md:block my-auto" />
 
-          {/* Menggunakan Role Filtering sesuai dukungan Backend */}
           <div className="flex gap-2 p-1 overflow-x-auto">
             {["ALL", "USER", "ADMIN", "DIRECTOR"].map((role) => (
               <button
@@ -271,6 +295,12 @@ export default function AdminUsersPage() {
                               <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                                 <Mail className="w-3 h-3" /> {user.email}
                               </div>
+                              {/* [NEW] Menampilkan nomor WA di UI */}
+                              {user.phoneNumber && (
+                                <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-mono mt-0.5">
+                                  <MessageCircle className="w-3 h-3" /> {user.phoneNumber}
+                                </div>
+                              )}
                               {user.agency && (
                                 <div className="text-[10px] font-medium text-slate-400 mt-0.5">
                                   {user.agency.name}
@@ -311,7 +341,7 @@ export default function AdminUsersPage() {
 
                         {/* 3. USAGE QUOTA */}
                         <td className="px-6 py-4">
-                          <div className="w-full max-w-[140px]">
+                          <div className="w-full max-w-35">
                             <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
                               <span>{quotaUsed} used</span>
                               <span>{quotaLimit} limit</span>
@@ -350,7 +380,18 @@ export default function AdminUsersPage() {
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuLabel>User Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleAction('edit', user)}>
+
+                              {/* [NEW] FASE 4: TOMBOL TAGIH VIA WHATSAPP BERDASARKAN KONDISI */}
+                              {(!isPro) && (
+                                <DropdownMenuItem
+                                  className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 font-medium"
+                                  onClick={() => handleWhatsAppBilling(user)}
+                                >
+                                  <MessageCircle className="mr-2 h-4 w-4" /> Tagih via WA
+                                </DropdownMenuItem>
+                              )}
+
+                              <DropdownMenuItem onClick={() => router.push(`/admin/users/${user.id}/edit`)}>
                                 <UserIcon className="w-4 h-4 mr-2" /> Edit Details
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleAction('inject', user)}>
@@ -445,7 +486,18 @@ export default function AdminUsersPage() {
                       <DropdownMenuContent align="end" className="w-48 z-50">
                         <DropdownMenuLabel>User Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleAction('edit', user)}>
+
+                        {/* [NEW] FASE 4: TOMBOL TAGIH VIA WHATSAPP (Mobile) */}
+                        {(!isPro) && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 font-medium"
+                            onClick={() => handleWhatsAppBilling(user)}
+                          >
+                            <MessageCircle className="mr-2 h-4 w-4" /> Tagih via WA
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuItem onClick={() => router.push(`/admin/users/${user.id}/edit`)}>
                           <UserIcon className="w-4 h-4 mr-2" /> Edit Details
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleAction('inject', user)}>
@@ -522,7 +574,7 @@ export default function AdminUsersPage() {
 
       {/* --- INJECT QUOTA MODAL / DIALOG --- */}
       <Dialog open={isInjectModalOpen} onOpenChange={(open) => !open && setIsInjectModalOpen(false)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>Inject Token Kuota</DialogTitle>
             <DialogDescription>

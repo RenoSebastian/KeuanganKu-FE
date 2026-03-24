@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Save, Building2, User, Calendar, // [NEW] Icon
+  ArrowLeft, Save, Building2, User, Calendar, Phone,
   Loader2, Mail, Briefcase, Shield, UserCheck, AlertTriangle
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -20,7 +20,6 @@ interface PageProps {
 }
 
 export default function EditUserPage({ params }: PageProps) {
-  // Unwrap params menggunakan 'use'
   const { id: userId } = use(params);
   const router = useRouter();
 
@@ -28,14 +27,16 @@ export default function EditUserPage({ params }: PageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [units, setUnits] = useState<UnitKerja[]>([]);
 
+  // [FIX] Form State: Menggunakan agentLevel dan agencyId sesuai kontrak baru
   const [formData, setFormData] = useState({
     fullName: "",
     nip: "",
     email: "",
     agencyId: "",
     role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
-    jobTitle: "",
-    dateOfBirth: "", // [NEW]
+    agentLevel: "",
+    dateOfBirth: "",
+    phoneNumber: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -51,21 +52,21 @@ export default function EditUserPage({ params }: PageProps) {
 
         setUnits(unitsData);
 
-        // [FIX] Convert ISO Date to YYYY-MM-DD for input type="date"
         let formattedDob = "";
         if (userData.dateOfBirth) {
-          // Ambil bagian tanggalnya saja (YYYY-MM-DD)
           formattedDob = new Date(userData.dateOfBirth).toISOString().split('T')[0];
         }
 
+        // [FIX] Mengakses properti yang valid dari userData (agency dan agentLevel)
         setFormData({
           fullName: userData.fullName,
           nip: userData.nip || "",
           email: userData.email,
-          agencyId: userData.unitKerja?.id || "",
+          agencyId: userData.agencyId || userData.agency?.id || "",
           role: userData.role,
-          jobTitle: userData.jobTitle || "",
-          dateOfBirth: formattedDob, // [NEW] Pre-fill date
+          agentLevel: userData.agentLevel || "",
+          dateOfBirth: formattedDob,
+          phoneNumber: userData.phoneNumber || "",
         });
 
       } catch (error) {
@@ -85,7 +86,12 @@ export default function EditUserPage({ params }: PageProps) {
     if (!formData.nip) newErrors.nip = "NIP wajib diisi";
     if (!formData.email) newErrors.email = "Email wajib diisi";
     if (!formData.agencyId) newErrors.agencyId = "Unit Kerja wajib dipilih";
-    if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi"; // [NEW] Validasi
+    if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi";
+
+    // Validasi opsional nomor WA
+    if (formData.phoneNumber && formData.phoneNumber.trim() !== "" && !/^[0-9+-\s]+$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = "Format nomor telepon tidak valid";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -101,7 +107,12 @@ export default function EditUserPage({ params }: PageProps) {
     setIsSaving(true);
 
     try {
-      await adminService.updateUser(userId, formData);
+      const payloadToSubmit = {
+        ...formData,
+        phoneNumber: formData.phoneNumber.trim()
+      };
+
+      await adminService.updateUser(userId, payloadToSubmit);
       toast.success("Data user berhasil diperbarui!");
       router.push("/admin/users");
     } catch (error: any) {
@@ -137,7 +148,7 @@ export default function EditUserPage({ params }: PageProps) {
             </div>
             <div className="text-white">
               <h1 className="text-2xl md:text-3xl font-black">Edit Data Karyawan</h1>
-              <p className="text-brand-100 text-sm opacity-90 mt-1">Perbarui informasi jabatan, unit kerja, atau hak akses.</p>
+              <p className="text-brand-100 text-sm opacity-90 mt-1">Perbarui informasi jabatan, kontak, unit kerja, atau hak akses.</p>
             </div>
           </div>
         </div>
@@ -147,7 +158,7 @@ export default function EditUserPage({ params }: PageProps) {
         <Card className="p-6 md:p-8 rounded-[1.5rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-8">
 
-            {/* SECTION 1 */}
+            {/* SECTION 1: Identitas & Kontak */}
             <div className="space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-brand-50 rounded-lg text-brand-600"><User className="w-5 h-5" /></div>
@@ -162,6 +173,7 @@ export default function EditUserPage({ params }: PageProps) {
                     onChange={e => setFormData({ ...formData, fullName: e.target.value })}
                     className={cn(errors.fullName && "border-rose-500")}
                   />
+                  {errors.fullName && <p className="text-[10px] text-rose-500 font-bold">{errors.fullName}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -171,6 +183,7 @@ export default function EditUserPage({ params }: PageProps) {
                     onChange={e => setFormData({ ...formData, nip: e.target.value })}
                     className={cn("font-mono", errors.nip && "border-rose-500")}
                   />
+                  {errors.nip && <p className="text-[10px] text-rose-500 font-bold">{errors.nip}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -181,9 +194,9 @@ export default function EditUserPage({ params }: PageProps) {
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     className={cn(errors.email && "border-rose-500")}
                   />
+                  {errors.email && <p className="text-[10px] text-rose-500 font-bold">{errors.email}</p>}
                 </div>
 
-                {/* [NEW] KOLOM TANGGAL LAHIR */}
                 <div className="space-y-2">
                   <Label>Tanggal Lahir</Label>
                   <div className="relative">
@@ -198,23 +211,38 @@ export default function EditUserPage({ params }: PageProps) {
                   {errors.dateOfBirth && <p className="text-[10px] text-rose-500 font-bold">{errors.dateOfBirth}</p>}
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Jabatan</Label>
+                <div className="space-y-2">
+                  <Label>Nomor WhatsApp / HP</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <Input
+                      type="tel"
+                      placeholder="Contoh: 08123456789 (Kosongkan jika hapus)"
+                      value={formData.phoneNumber}
+                      onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
+                      className={cn("pl-10", errors.phoneNumber && "border-rose-500")}
+                    />
+                  </div>
+                  {errors.phoneNumber && <p className="text-[10px] text-rose-500 font-bold">{errors.phoneNumber}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Level / Jabatan</Label>
                   <Input
-                    value={formData.jobTitle}
-                    onChange={e => setFormData({ ...formData, jobTitle: e.target.value })}
+                    placeholder="Contoh: Senior Agent"
+                    // [FIX] Mengubah dari jobTitle menjadi agentLevel di UI binding
+                    value={formData.agentLevel}
+                    onChange={e => setFormData({ ...formData, agentLevel: e.target.value })}
                   />
                 </div>
               </div>
             </div>
 
-            {/* SECTION 2 */}
+            {/* SECTION 2: Organisasi & Hak Akses */}
             <div className="space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Shield className="w-5 h-5" /></div>
-                  <h3 className="font-bold text-slate-800 text-lg">Mutasi & Hak Akses</h3>
-                </div>
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Shield className="w-5 h-5" /></div>
+                <h3 className="font-bold text-slate-800 text-lg">Mutasi & Hak Akses</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -256,8 +284,8 @@ export default function EditUserPage({ params }: PageProps) {
 
             <div className="pt-6 flex gap-4 border-t border-slate-100">
               <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()} disabled={isSaving}>Batal</Button>
-              <Button type="submit" disabled={isSaving} variant="default" className="flex-2">
-                {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</> : "Simpan Perubahan"}
+              <Button type="submit" disabled={isSaving} variant="default" className="flex-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</> : <><Save className="w-4 h-4 mr-2" /> Simpan Perubahan</>}
               </Button>
             </div>
           </form>
