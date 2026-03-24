@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { id as dateFnsId } from "date-fns/locale";
@@ -9,7 +9,7 @@ import {
   User as UserIcon, Shield, CreditCard,
   Loader2, AlertCircle, Mail, Filter,
   CheckCircle2, XCircle, Zap, Crown,
-  MessageCircle // [NEW] Icon WhatsApp
+  MessageCircle
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,13 +40,16 @@ import api from "@/lib/axios";
 import { cn } from "@/lib/utils";
 import router from "next/router";
 
+// [FASE 3] Import hook socket untuk mengaktifkan Observer Pattern di sisi Admin
+import { useSocket } from "@/providers/socket-provider";
+
 // --- INTERFACE MENYESUAIKAN RESPONSE BACKEND PHASE 2 ---
 interface AgentUser {
   id: string;
   fullName: string;
   email: string;
   role: string;
-  phoneNumber?: string | null; // [NEW] Diperlukan untuk fitur WA
+  phoneNumber?: string | null;
   agency?: { name: string; code: string };
   usage?: { simulationQuota: number; totalUsed: number };
   subscription?: { status: string; endDate: string; plan?: { name: string } };
@@ -54,6 +57,9 @@ interface AgentUser {
 }
 
 export default function AdminUsersPage() {
+  // [FASE 3] Inisialisasi socket instance
+  const { socket } = useSocket();
+
   // --- STATE ---
   const [users, setUsers] = useState<AgentUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,29 +81,51 @@ export default function AdminUsersPage() {
   }, [search]);
 
   // --- FETCH DATA ---
-  const fetchUsers = async () => {
-    setIsLoading(true);
+  // [FASE 3] Refaktor menggunakan useCallback dan parameter isSilentRefetch
+  const fetchUsers = useCallback(async (isSilentRefetch = false) => {
+    if (!isSilentRefetch) setIsLoading(true);
     try {
       const queryParams: any = { search: debouncedSearch, limit: 50 };
       if (filterRole !== "ALL") {
         queryParams.role = filterRole;
       }
 
-      const response: any = await adminService.getUsers(queryParams);
+      // Memaksa Network Bypass jika ini adalah pembaruan reaktif
+      const bypassCache = isSilentRefetch ? `&_t=${Date.now()}` : "";
+      const response: any = await adminService.getUsers(queryParams); // Idealnya parameter cache busting dimasukkan ke dalam service logic
+
       const dataList = response.data ? response.data : response;
       setUsers(dataList);
     } catch (error) {
-      console.error(error);
+      console.error("❌ Failed to fetch users:", error);
       toast.error("Gagal memuat data pengguna");
     } finally {
-      setIsLoading(false);
+      if (!isSilentRefetch) setIsLoading(false);
     }
-  };
+  }, [debouncedSearch, filterRole]);
 
   useEffect(() => {
-    fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, filterRole]);
+    fetchUsers(false);
+  }, [fetchUsers]);
+
+  // [FASE 3] Event-Driven Data Synchronization (Observer Pattern)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleProfileMutated = (payload: any) => {
+      // Jika Admin sedang memantau, perbarui tabel secara senyap agar data nama/nomor HP/role selalu up-to-date
+      console.log("🔄 Background Sync: User profile mutated", payload);
+      fetchUsers(true);
+    };
+
+    // Listen to global mutations broadcasted to ADMIN_MONITOR_ROOM (jika backend diatur mem-broadcast ke admin)
+    // Atau listen ke event umum jika backend menyiarkan secara global
+    socket.on('USER_PROFILE_MUTATED', handleProfileMutated);
+
+    return () => {
+      socket.off('USER_PROFILE_MUTATED', handleProfileMutated);
+    };
+  }, [socket, fetchUsers]);
 
   // --- HANDLERS ---
   const handleAction = async (action: string, user: AgentUser) => {
@@ -149,28 +177,23 @@ export default function AdminUsersPage() {
   };
 
   // ====================================================================
-  // [NEW] FASE 3: LOGIKA PEMANGGIL WHATSAPP (ACTION HANDLER)
+  // LOGIKA PEMANGGIL WHATSAPP (ACTION HANDLER)
   // ====================================================================
   const handleWhatsAppBilling = (user: AgentUser) => {
-    // 1. Guard Clause
     if (!user.phoneNumber || user.phoneNumber.trim() === "") {
       toast.error(`Nomor WhatsApp untuk ${user.fullName} belum diisi.`);
       return;
     }
 
-    // 2. Rakit template dinamis
     const planName = user.subscription?.plan?.name || "Premium";
     const message = `Halo Bapak/Ibu *${user.fullName}*,\n\nKami dari KeuanganKu ingin menginformasikan bahwa masa berlaku langganan Anda untuk paket *${planName}* telah habis/perlu diperbarui.\n\nYuk perpanjang sekarang agar bisa terus menggunakan fitur kalkulator finansial kami tanpa gangguan! Silakan hubungi kami untuk info perpanjangan.\n\nTerima Kasih,\nTim KeuanganKu`;
 
-    // 3. URL Encoding
     const encodedText = encodeURIComponent(message);
 
-    // 4. Sanitasi fallback (jika diperlukan)
     let phone = user.phoneNumber;
     if (phone.startsWith("0")) phone = "62" + phone.substring(1);
     else if (phone.startsWith("+")) phone = phone.substring(1);
 
-    // 5. Eksekusi Deep Link
     window.open(`https://wa.me/${phone}?text=${encodedText}`, "_blank");
   };
   // ====================================================================
@@ -295,7 +318,6 @@ export default function AdminUsersPage() {
                               <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                                 <Mail className="w-3 h-3" /> {user.email}
                               </div>
-                              {/* [NEW] Menampilkan nomor WA di UI */}
                               {user.phoneNumber && (
                                 <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-mono mt-0.5">
                                   <MessageCircle className="w-3 h-3" /> {user.phoneNumber}
@@ -381,7 +403,6 @@ export default function AdminUsersPage() {
                               <DropdownMenuLabel>User Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
 
-                              {/* [NEW] FASE 4: TOMBOL TAGIH VIA WHATSAPP BERDASARKAN KONDISI */}
                               {(!isPro) && (
                                 <DropdownMenuItem
                                   className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 font-medium"
@@ -489,7 +510,6 @@ export default function AdminUsersPage() {
                         <DropdownMenuLabel>User Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
 
-                        {/* [NEW] FASE 4: TOMBOL TAGIH VIA WHATSAPP (Mobile) */}
                         {(!isPro) && (
                           <DropdownMenuItem
                             className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 font-medium"

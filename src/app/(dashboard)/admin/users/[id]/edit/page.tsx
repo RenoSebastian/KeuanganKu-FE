@@ -3,8 +3,8 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Save, Building2, User, Calendar, Phone,
-  Loader2, Mail, Briefcase, Shield
+  ArrowLeft, Save, User, Calendar, Phone,
+  Loader2, Briefcase, Shield
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,6 @@ export default function EditUserPage({ params }: PageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form State
   const [formData, setFormData] = useState({
     fullName: "",
     nip: "",
@@ -50,16 +49,15 @@ export default function EditUserPage({ params }: PageProps) {
 
         let formattedDob = "";
 
-        // [PERBAIKAN] Defensive Programming untuk Date Parsing
+        // [FASE 3] Defensive Programming untuk Date Parsing agar tidak RangeError
         if (userData.dateOfBirth) {
           const parsedDate = new Date(userData.dateOfBirth);
 
-          // Validasi apakah hasil konversi adalah waktu yang valid
           if (!isNaN(parsedDate.getTime())) {
             formattedDob = parsedDate.toISOString().split('T')[0];
           } else {
-            console.warn("⚠️ Anomali Data: Format tanggal lahir dari database tidak valid:", userData.dateOfBirth);
-            formattedDob = ""; // Fallback ke string kosong agar form tidak crash
+            console.warn("⚠️ Anomali Data: Format tanggal lahir tidak valid:", userData.dateOfBirth);
+            formattedDob = "";
           }
         }
 
@@ -74,6 +72,7 @@ export default function EditUserPage({ params }: PageProps) {
         });
 
       } catch (error: any) {
+        // [FASE 3] Error Visibility (Anti-Ghost Error)
         console.error("❌ UI State Error - Failed to initialize user data:", error);
         toast.error("Gagal memuat data user. Silakan muat ulang halaman.");
         router.push("/admin/users");
@@ -118,11 +117,12 @@ export default function EditUserPage({ params }: PageProps) {
       await adminService.updateUser(userId, payloadToSubmit);
       toast.success("Data user berhasil diperbarui!");
 
+      // [FASE 3] Cache Invalidation: Memaksa router refresh sebelum navigasi
       router.refresh();
       router.push("/admin/users");
 
     } catch (error: any) {
-      console.error("❌ UI State Error - Failed to submit user update:", error);
+      console.error("❌ UI State Error - Failed to submit update:", error);
       const msg = error.response?.data?.message || "Gagal update user";
       const displayMsg = Array.isArray(msg) ? msg[0] : msg;
       toast.error(displayMsg);
@@ -163,8 +163,6 @@ export default function EditUserPage({ params }: PageProps) {
       <div className="relative z-20 max-w-4xl mx-auto px-5 -mt-20">
         <Card className="p-6 md:p-8 rounded-[1.5rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-8">
-
-            {/* SECTION 1: Identitas & Kontak */}
             <div className="space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-brand-50 rounded-lg text-brand-600"><User className="w-5 h-5" /></div>
@@ -223,7 +221,7 @@ export default function EditUserPage({ params }: PageProps) {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <Input
                       type="tel"
-                      placeholder="Contoh: 08123456789 (Kosongkan jika hapus)"
+                      placeholder="08123..."
                       value={formData.phoneNumber}
                       onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
                       className={cn("pl-10", errors.phoneNumber && "border-rose-500")}
@@ -243,7 +241,6 @@ export default function EditUserPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* SECTION 2: Organisasi & Hak Akses */}
             <div className="space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Shield className="w-5 h-5" /></div>
@@ -268,7 +265,6 @@ export default function EditUserPage({ params }: PageProps) {
                       </button>
                     ))}
                   </div>
-                  <p className="text-[10px] text-slate-500">Catatan: Pengaturan Unit Kerja / Agency dikelola langsung oleh pengguna terkait.</p>
                 </div>
               </div>
             </div>
