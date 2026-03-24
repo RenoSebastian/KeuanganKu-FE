@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +13,15 @@ import api from "@/lib/axios";
 import Image from "next/image";
 import { toast } from "sonner";
 
+// Import hook socket untuk mengaktifkan Observer Pattern
+import { useSocket } from "@/providers/socket-provider";
+
 export default function ProfilePage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Inisialisasi socket instance
+  const { socket } = useSocket();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -30,7 +36,6 @@ export default function ProfilePage() {
     joinDate: "",
     avatar: "",
     goals: "",
-    // [NEW FIELD]
     simulationQuota: 0,
     tier: "FREE",
     isPro: false,
@@ -41,7 +46,7 @@ export default function ProfilePage() {
     dateOfBirth: "",
     gender: "Laki-laki",
     address: "",
-    noWa: "",
+    phoneNumber: "", // Tersinkronisasi dengan DTO Backend
     email: "",
     avatar: "",
     agencyName: "",
@@ -52,56 +57,85 @@ export default function ProfilePage() {
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await api.get("/users/me");
-        const user = response.data;
+  // Refaktor fetchProfile menggunakan useCallback agar bisa dipanggil ulang (Re-fetchable)
+  const fetchProfile = useCallback(async (isSilentRefetch = false) => {
+    if (!isSilentRefetch) setIsLoading(true);
 
-        // [LOGIC] Tentukan status subscription
-        const isPro = user.subscription?.status === 'ACTIVE';
-        const tierName = isPro ? user.subscription?.plan?.name || "PRO ACCOUNT" : "FREE ACCOUNT";
+    try {
+      const response = await api.get("/users/me");
+      const user = response.data;
 
-        setUserData({
-          fullName: user.fullName || "",
-          nip: user.nip || "-",
-          email: user.email || "",
-          role: user.role || "USER",
-          unitKerja: user.unitKerja?.namaUnit || "Unit Kerja Tidak Diketahui",
-          joinDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : "01 Agustus 2015",
-          avatar: user.avatar || "",
-          goals: user.goals || "",
-          // [MAPPING DATA BARU]
-          simulationQuota: user.usage?.simulationQuota || 0,
-          tier: tierName,
-          isPro: isPro,
-        });
+      const isPro = user.subscription?.status === 'ACTIVE';
+      const tierName = isPro ? user.subscription?.plan?.name || "PRO ACCOUNT" : "FREE ACCOUNT";
 
-        const dob = user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "";
+      setUserData({
+        fullName: user.fullName || "",
+        nip: user.nip || "-",
+        email: user.email || "",
+        role: user.role || "USER",
+        unitKerja: user.unitKerja?.namaUnit || "Unit Kerja Tidak Diketahui",
+        joinDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : "01 Agustus 2015",
+        avatar: user.avatar || "",
+        goals: user.goals || "",
+        simulationQuota: user.usage?.simulationQuota || 0,
+        tier: tierName,
+        isPro: isPro,
+      });
 
-        setFormData({
-          fullName: user.fullName || "",
-          dateOfBirth: dob,
-          gender: user.gender || "Laki-laki",
-          address: user.address || "",
-          noWa: user.noWa || "",
-          email: user.email || "",
-          agencyName: user.agencyName || "",
-          companyName: user.companyName || "",
-          agentLevel: user.agentLevel || "",
-          goals: user.goals || "",
-          avatar: user.avatar || "",
-        });
-        setPreviewImage(user.avatar || null);
-
-      } catch (error) {
-        toast.error("Gagal memuat profil");
-      } finally {
-        setIsLoading(false);
+      // [FASE 1] Defensive Programming: Validasi Tanggal untuk mencegah RangeError (Invalid Time Value)
+      let dob = "";
+      if (user.dateOfBirth) {
+        const parsedDate = new Date(user.dateOfBirth);
+        if (!isNaN(parsedDate.getTime())) {
+          dob = parsedDate.toISOString().split('T')[0];
+        } else {
+          console.warn("⚠️ Anomali Data: Format tanggal lahir dari database tidak valid:", user.dateOfBirth);
+        }
       }
-    };
-    fetchProfile();
+
+      setFormData({
+        fullName: user.fullName || "",
+        dateOfBirth: dob,
+        gender: user.gender || "Laki-laki",
+        address: user.address || "",
+        phoneNumber: user.phoneNumber || "",
+        email: user.email || "",
+        agencyName: user.agencyName || "",
+        companyName: user.companyName || "",
+        agentLevel: user.agentLevel || "",
+        goals: user.goals || "",
+        avatar: user.avatar || "",
+      });
+      setPreviewImage(user.avatar || null);
+
+    } catch (error) {
+      toast.error("Gagal memuat profil");
+    } finally {
+      if (!isSilentRefetch) setIsLoading(false);
+    }
   }, []);
+
+  // Initial Fetch pada saat komponen dimuat
+  useEffect(() => {
+    fetchProfile(false);
+  }, [fetchProfile]);
+
+  // Observer Listener: Melakukan background re-fetch saat ada mutasi eksternal
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleProfileMutated = () => {
+      // Memanggil API ulang secara diam-diam tanpa memicu layar loading penuh
+      fetchProfile(true);
+    };
+
+    socket.on('USER_PROFILE_MUTATED', handleProfileMutated);
+
+    return () => {
+      // Cleanup memory leak
+      socket.off('USER_PROFILE_MUTATED', handleProfileMutated);
+    };
+  }, [socket, fetchProfile]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -135,16 +169,23 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await api.patch("/users/me", formData);
-      setUserData((prev: any) => ({
-        ...prev,
-        fullName: formData.fullName,
-        avatar: formData.avatar,
-        goals: formData.goals
-      }));
+      // [FASE 1 & 2] Sanitasi Payload Pre-flight (Membersihkan spasi tersembunyi pada endpoint vital)
+      const payloadToSubmit = {
+        ...formData,
+        phoneNumber: formData.phoneNumber.trim(),
+        goals: formData.goals.trim(),
+      };
+
+      await api.patch("/users/me", payloadToSubmit);
+
+      // [FASE 3] Single Source of Truth Synchronization
+      // Tidak lagi menggunakan state manipulatif, langsung tarik data fresh dari DB
+      await fetchProfile(true);
+
       setIsEditing(false);
       toast.success("Profil berhasil diperbarui");
-    } catch (error) {
+    } catch (error: any) {
+      console.error("❌ Profile Update Error:", error);
       toast.error("Gagal menyimpan perubahan");
     } finally {
       setIsSaving(false);
@@ -214,7 +255,6 @@ export default function ProfilePage() {
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
                   {formData.fullName || "Professional Agent"}
                 </h2>
-                
               </div>
 
               {/* Company Info */}
@@ -230,7 +270,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* [NEW] SUBSCRIPTION & LIMIT CARD */}
+            {/* SUBSCRIPTION & LIMIT CARD */}
             <div className={cn(
               "rounded-[2.5rem] p-8 text-white overflow-hidden relative group shadow-2xl transition-all duration-500",
               userData.isPro
@@ -352,9 +392,9 @@ export default function ProfilePage() {
                     <input
                       type="tel"
                       disabled={!isEditing}
-                      value={formData.noWa}
+                      value={formData.phoneNumber}
                       placeholder="62812..."
-                      onChange={(e) => setFormData({ ...formData, noWa: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                       className={cn(
                         "w-full px-6 py-4 rounded-[1.2rem] font-bold transition-all outline-none border text-slate-700",
                         isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 focus:border-blue-500" : "bg-slate-50 border-slate-100"

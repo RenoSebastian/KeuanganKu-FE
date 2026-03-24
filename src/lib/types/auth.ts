@@ -17,6 +17,8 @@ export interface RegisterDto {
     fullName: string;
     email: string;
     password: string;
+    // [NEW] Fase 1: Sinkronisasi dengan Backend untuk form registrasi
+    phoneNumber?: string;
     // role, nip, dan unitKerja telah dibersihkan sesuai arsitektur SaaS baru
 }
 
@@ -100,7 +102,10 @@ export interface User {
     avatar?: string;
     gender?: string;
     address?: string;
-    noWa?: string;
+
+    // [REFACTORED] Mengubah noWa menjadi phoneNumber agar selaras 100% dengan Prisma Schema
+    phoneNumber?: string | null;
+
     agencyName?: string;
     agentLevel?: string;
     companyName?: string;

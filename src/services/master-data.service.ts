@@ -1,5 +1,19 @@
 import api from '@/lib/axios';
 
+// ============================================================================
+// DATA CONTRACTS
+// ============================================================================
+
+export interface GlobalMarketSettings {
+    id: string;
+    inflationRate: number;
+    interestRate: number;
+    riskFreeRate: number;
+    goldPrice: number;
+    updatedAt: string;
+}
+
+// [REFACTORED] Kita pertahankan nama interface agar UI tidak error
 export interface UnitKerja {
     id: string;
     kodeUnit: string;
@@ -19,27 +33,84 @@ export interface UpdateUnitPayload {
 }
 
 export const masterDataService = {
-    // Ambil semua unit kerja (untuk Dropdown & Table)
-    getAllUnits: async () => {
-        const response = await api.get<UnitKerja[]>('/master-data/units');
-        return response.data;
+    // ========================================================================
+    // GLOBAL MARKET SETTINGS
+    // ========================================================================
+    getMarketSettings: async () => {
+        // [FIXED] Menyesuaikan URL dengan Controller Backend
+        const response = await api.get<{ data: GlobalMarketSettings }>('/admin/master-data/settings');
+        return response.data.data || response.data;
     },
 
-    // Tambah Unit Kerja Baru
-    createUnit: async (data: CreateUnitPayload) => {
-        const response = await api.post<UnitKerja>('/master-data/units', data);
-        return response.data;
+    updateMarketSettings: async (data: Partial<GlobalMarketSettings>) => {
+        // [FIXED] Menyesuaikan URL dengan Controller Backend
+        const response = await api.patch<{ message: string; data: GlobalMarketSettings }>('/admin/master-data/settings', data);
+        return response.data.data || response.data;
     },
 
-    // Update Unit Kerja
-    updateUnit: async (id: string, data: UpdateUnitPayload) => {
-        const response = await api.patch<UnitKerja>(`/master-data/units/${id}`, data);
-        return response.data;
+    // ========================================================================
+    // AGENCIES (UNIT KERJA) - ADAPTER PATTERN
+    // ========================================================================
+
+    getAllUnits: async (): Promise<UnitKerja[]> => {
+        try {
+            // [FIXED] Menggunakan path lengkap sesuai controller: /admin/master-data/agencies
+            const response = await api.get('/admin/master-data/agencies');
+            const agencies = response.data?.data || response.data || [];
+
+            return agencies.map((agency: any) => ({
+                id: agency.id,
+                kodeUnit: agency.code,
+                namaUnit: agency.name,
+                createdAt: agency.createdAt,
+                updatedAt: agency.updatedAt
+            }));
+        } catch (error) {
+            console.error("Gagal mengambil data agency:", error);
+            return [];
+        }
     },
 
-    // Hapus Unit Kerja
+    createUnit: async (data: CreateUnitPayload): Promise<UnitKerja> => {
+        const backendPayload = {
+            code: data.kodeUnit,
+            name: data.namaUnit
+        };
+
+        // [FIXED] Path disesuaikan
+        const response = await api.post('/admin/master-data/agencies', backendPayload);
+        const agency = response.data?.data || response.data;
+
+        return {
+            id: agency.id,
+            kodeUnit: agency.code,
+            namaUnit: agency.name,
+            createdAt: agency.createdAt,
+            updatedAt: agency.updatedAt
+        };
+    },
+
+    updateUnit: async (id: string, data: UpdateUnitPayload): Promise<UnitKerja> => {
+        const backendPayload: Record<string, string> = {};
+        if (data.kodeUnit) backendPayload.code = data.kodeUnit;
+        if (data.namaUnit) backendPayload.name = data.namaUnit;
+
+        // [FIXED] Path disesuaikan
+        const response = await api.patch(`/admin/master-data/agencies/${id}`, backendPayload);
+        const agency = response.data?.data || response.data;
+
+        return {
+            id: agency.id,
+            kodeUnit: agency.code,
+            namaUnit: agency.name,
+            createdAt: agency.createdAt,
+            updatedAt: agency.updatedAt
+        };
+    },
+
     deleteUnit: async (id: string) => {
-        const response = await api.delete<{ message: string; id: string }>(`/master-data/units/${id}`);
+        // [FIXED] Path disesuaikan
+        const response = await api.delete<{ message: string; id: string }>(`/admin/master-data/agencies/${id}`);
         return response.data;
     },
 };

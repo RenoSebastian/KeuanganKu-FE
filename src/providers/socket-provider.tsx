@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
-import { BellRing, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { BellRing, CheckCircle2, AlertTriangle, XCircle, Info, RefreshCw } from 'lucide-react';
 
 interface SocketContextType {
     socket: Socket | null;
@@ -21,8 +21,8 @@ export const useSocket = () => {
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { useNotificationStore, NotificationItem } from '@/hooks/use-notification-store';
 import { STORAGE_KEYS } from '@/lib/constants';
-import { useSystemStore } from '@/hooks/use-system-store'; // [NEW] Import System Store
-import { authService } from '@/services/auth.service'; // [NEW] For Heartbeat
+import { useSystemStore } from '@/hooks/use-system-store';
+import { authService } from '@/services/auth.service';
 
 const getToastIcon = (type: string) => {
     switch (type) {
@@ -37,7 +37,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const { user, refreshUser, forceLogout } = useAuthUser();
     const { addNotification, setConnectionStatus } = useNotificationStore();
 
-    // [NEW] Tarik tuas circuit breaker langsung dari WSS
+    // Tarik tuas circuit breaker langsung dari WSS
     const { triggerSessionTermination } = useSystemStore();
 
     const socketRef = useRef<Socket | null>(null);
@@ -64,7 +64,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             const socketUrl = apiUrl.replace('/api', '');
 
             socketRef.current = io(socketUrl, {
-                auth: { token: token }, // ✅ FIX: Kirim raw token saja tanpa 'Bearer '
+                auth: { token: token }, // Kirim raw token saja tanpa 'Bearer '
                 reconnectionAttempts: 5,
                 reconnectionDelay: 2000,
                 transports: ['websocket'],
@@ -90,7 +90,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
             // --- BUSINESS LOGIC EVENTS ---
 
-            // [MODIFIED] EVENT C: SINGLE CONCURRENT SESSION KICK-OUT
+            // EVENT C: SINGLE CONCURRENT SESSION KICK-OUT
             socketRef.current.on('force_logout', (data: any) => {
                 console.warn('🚨 WSS KICK-OUT SIGNAL RECEIVED:', data);
 
@@ -98,14 +98,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 socketRef.current?.disconnect();
                 setConnectionStatus(false);
 
-                // 2. [CRITICAL] Aktifkan Circuit Breaker FE agar semua sisa request API (seperti pooling) terputus.
+                // 2. Aktifkan Circuit Breaker FE agar semua sisa request API terputus.
                 triggerSessionTermination();
 
-                // 3. Bersihkan memori residu dengan memanggil fungsi hook tanpa trigger redirect
+                // 3. Bersihkan memori residu dengan memanggil fungsi hook
                 forceLogout('kicked');
-
-                // Catatan: UX Modal "Account in Use" (Fase 3) sekarang otomatis terpicu
-                // karena ia memantau state isSessionTerminated dari triggerSessionTermination().
             });
 
             // EVENT A: Notifikasi Baru Masuk
@@ -127,20 +124,35 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 refreshUser();
             });
 
-            // [NEW] EVENT: Admin Dashboard Real-time Metrics (Pembayaran Baru)
+            // [FASE 2 NEW] EVENT D: State Synchronization from Admin Mutation
+            socketRef.current.on('USER_PROFILE_MUTATED', (data: any) => {
+                console.log('🔄 Sinyal Sinkronisasi Profil Diterima:', data);
+
+                // Memicu silent re-fetch di background
+                refreshUser();
+
+                // Jika event dipicu oleh admin, berikan feedback ke user
+                if (data?.triggerBy === 'ADMIN') {
+                    toast.success("Profil Diperbarui Admin", {
+                        description: "Data profil Anda baru saja disinkronkan oleh Administrator sistem.",
+                        icon: <RefreshCw className="w-4 h-4 text-blue-500 animate-spin-slow" />,
+                        duration: 4000,
+                    });
+                }
+            });
+
+            // EVENT: Admin Dashboard Real-time Metrics (Pembayaran Baru)
             socketRef.current.on('NEW_PAYMENT_ORDER', (data: any) => {
                 toast("Pesanan Baru Masuk!", {
                     description: `${data.planName} - Rp ${data.snapshotPrice.toLocaleString('id-ID')}`,
                     icon: <BellRing className="w-5 h-5 text-indigo-500" />,
                     duration: 5000,
                 });
-                // Broadcast custom event for widgets to pick up
                 window.dispatchEvent(new CustomEvent('REFRESH_ADMIN_DASHBOARD'));
             });
 
-            // [NEW] EVENT: Admin Dashboard Real-time Metrics (Pembayaran Diproses admin lain)
+            // EVENT: Admin Dashboard Real-time Metrics (Pembayaran Diproses admin lain)
             socketRef.current.on('PAYMENT_ORDER_PROCESSED', (data: any) => {
-                // Broadcast custom event for widgets to pick up
                 window.dispatchEvent(new CustomEvent('REFRESH_ADMIN_DASHBOARD'));
             });
         }
@@ -150,6 +162,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 socketRef.current.off('notification_new');
                 socketRef.current.off('force_refresh_user');
                 socketRef.current.off('force_logout');
+                socketRef.current.off('USER_PROFILE_MUTATED'); // Cleanup listener baru
                 socketRef.current.off('NEW_PAYMENT_ORDER');
                 socketRef.current.off('PAYMENT_ORDER_PROCESSED');
                 socketRef.current.disconnect();
@@ -168,16 +181,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
         const startHeartbeat = () => {
             if (heartbeatInterval) return;
-            
-            // Tembak sekali saat fungsi dipanggil pertama kali
+
             authService.sendHeartbeat();
-            
-            // Tembak berkala setiap 45 detik (Redis TTL 60s)
+
             heartbeatInterval = setInterval(() => {
                 if (document.visibilityState === 'visible') {
                     authService.sendHeartbeat();
                 }
-            }, 45000); 
+            }, 45000);
         };
 
         const stopHeartbeat = () => {
@@ -192,7 +203,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                 const { isSessionTerminated } = useSystemStore.getState();
 
-                // [FIX] Jika status aplikasi sudah ditendang, jangan coba apa-apa saat layar menyala
                 if (isSessionTerminated) {
                     stopHeartbeat();
                     return;
@@ -211,14 +221,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                     refreshUser();
                 }
 
-                // Resume heartbeat monitoring once back online
                 if (token) {
                     startHeartbeat();
                 }
             } else {
-                // Pause heartbeat to save battery/bandwidth strictly when sleeping 
-                // However, depending on product requirement, you may want to keep it alive via Service Worker instead.
-                // For this scenario we pause it, eventually Redis TTL will evict the session, showing user as 'offline' when away.
                 stopHeartbeat();
             }
         };
@@ -226,8 +232,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined') {
             document.addEventListener('visibilitychange', handleVisibilityChange);
             window.addEventListener('focus', handleVisibilityChange);
-            
-            // Kickstart directly if we already have a token and page is currently active
+
             const token = localStorage.getItem('token');
             if (token && document.visibilityState === 'visible' && !useSystemStore.getState().isSessionTerminated) {
                 startHeartbeat();
@@ -243,7 +248,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         };
     }, [forceLogout, refreshUser]);
 
-    // Retrieve connection status to provide via context
     const connectionStatus = useNotificationStore(state => state.isConnected);
 
     return (

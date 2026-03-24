@@ -3,15 +3,14 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Save, Building2, User, Calendar, // [NEW] Icon
-  Loader2, Mail, Briefcase, Shield, UserCheck, AlertTriangle
+  ArrowLeft, Save, User, Calendar, Phone,
+  Loader2, Briefcase, Shield
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { adminService } from "@/services/admin.service";
-import { masterDataService, UnitKerja } from "@/services/master-data.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -20,22 +19,20 @@ interface PageProps {
 }
 
 export default function EditUserPage({ params }: PageProps) {
-  // Unwrap params menggunakan 'use'
   const { id: userId } = use(params);
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [units, setUnits] = useState<UnitKerja[]>([]);
 
   const [formData, setFormData] = useState({
     fullName: "",
     nip: "",
     email: "",
-    agencyId: "",
     role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
-    jobTitle: "",
-    dateOfBirth: "", // [NEW]
+    agentLevel: "",
+    dateOfBirth: "",
+    phoneNumber: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -44,32 +41,40 @@ export default function EditUserPage({ params }: PageProps) {
     const initData = async () => {
       setIsLoading(true);
       try {
-        const [userData, unitsData] = await Promise.all([
-          adminService.getUserById(userId),
-          masterDataService.getAllUnits()
-        ]);
+        const userData = await adminService.getUserById(userId);
 
-        setUnits(unitsData);
+        if (!userData) {
+          throw new Error("Payload userData kosong atau gagal diparsing oleh HTTP Client.");
+        }
 
-        // [FIX] Convert ISO Date to YYYY-MM-DD for input type="date"
         let formattedDob = "";
+
+        // [FASE 3] Defensive Programming untuk Date Parsing agar tidak RangeError
         if (userData.dateOfBirth) {
-          // Ambil bagian tanggalnya saja (YYYY-MM-DD)
-          formattedDob = new Date(userData.dateOfBirth).toISOString().split('T')[0];
+          const parsedDate = new Date(userData.dateOfBirth);
+
+          if (!isNaN(parsedDate.getTime())) {
+            formattedDob = parsedDate.toISOString().split('T')[0];
+          } else {
+            console.warn("⚠️ Anomali Data: Format tanggal lahir tidak valid:", userData.dateOfBirth);
+            formattedDob = "";
+          }
         }
 
         setFormData({
-          fullName: userData.fullName,
+          fullName: userData.fullName || "",
           nip: userData.nip || "",
-          email: userData.email,
-          agencyId: userData.unitKerja?.id || "",
-          role: userData.role,
-          jobTitle: userData.jobTitle || "",
-          dateOfBirth: formattedDob, // [NEW] Pre-fill date
+          email: userData.email || "",
+          role: userData.role || "USER",
+          agentLevel: userData.agentLevel || "",
+          dateOfBirth: formattedDob,
+          phoneNumber: userData.phoneNumber || "",
         });
 
-      } catch (error) {
-        toast.error("Gagal memuat data user.");
+      } catch (error: any) {
+        // [FASE 3] Error Visibility (Anti-Ghost Error)
+        console.error("❌ UI State Error - Failed to initialize user data:", error);
+        toast.error("Gagal memuat data user. Silakan muat ulang halaman.");
         router.push("/admin/users");
       } finally {
         setIsLoading(false);
@@ -84,8 +89,11 @@ export default function EditUserPage({ params }: PageProps) {
     if (!formData.fullName) newErrors.fullName = "Nama Lengkap wajib diisi";
     if (!formData.nip) newErrors.nip = "NIP wajib diisi";
     if (!formData.email) newErrors.email = "Email wajib diisi";
-    if (!formData.agencyId) newErrors.agencyId = "Unit Kerja wajib dipilih";
-    if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi"; // [NEW] Validasi
+    if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi";
+
+    if (formData.phoneNumber && formData.phoneNumber.trim() !== "" && !/^[0-9+-\s]+$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = "Format nomor telepon tidak valid";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -101,11 +109,20 @@ export default function EditUserPage({ params }: PageProps) {
     setIsSaving(true);
 
     try {
-      await adminService.updateUser(userId, formData);
+      const payloadToSubmit = {
+        ...formData,
+        phoneNumber: formData.phoneNumber.trim()
+      };
+
+      await adminService.updateUser(userId, payloadToSubmit);
       toast.success("Data user berhasil diperbarui!");
+
+      // [FASE 3] Cache Invalidation: Memaksa router refresh sebelum navigasi
+      router.refresh();
       router.push("/admin/users");
+
     } catch (error: any) {
-      console.error(error);
+      console.error("❌ UI State Error - Failed to submit update:", error);
       const msg = error.response?.data?.message || "Gagal update user";
       const displayMsg = Array.isArray(msg) ? msg[0] : msg;
       toast.error(displayMsg);
@@ -137,7 +154,7 @@ export default function EditUserPage({ params }: PageProps) {
             </div>
             <div className="text-white">
               <h1 className="text-2xl md:text-3xl font-black">Edit Data Karyawan</h1>
-              <p className="text-brand-100 text-sm opacity-90 mt-1">Perbarui informasi jabatan, unit kerja, atau hak akses.</p>
+              <p className="text-brand-100 text-sm opacity-90 mt-1">Perbarui informasi jabatan, kontak, atau hak akses.</p>
             </div>
           </div>
         </div>
@@ -146,8 +163,6 @@ export default function EditUserPage({ params }: PageProps) {
       <div className="relative z-20 max-w-4xl mx-auto px-5 -mt-20">
         <Card className="p-6 md:p-8 rounded-[1.5rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-8">
-
-            {/* SECTION 1 */}
             <div className="space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-brand-50 rounded-lg text-brand-600"><User className="w-5 h-5" /></div>
@@ -162,6 +177,7 @@ export default function EditUserPage({ params }: PageProps) {
                     onChange={e => setFormData({ ...formData, fullName: e.target.value })}
                     className={cn(errors.fullName && "border-rose-500")}
                   />
+                  {errors.fullName && <p className="text-[10px] text-rose-500 font-bold">{errors.fullName}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -171,6 +187,7 @@ export default function EditUserPage({ params }: PageProps) {
                     onChange={e => setFormData({ ...formData, nip: e.target.value })}
                     className={cn("font-mono", errors.nip && "border-rose-500")}
                   />
+                  {errors.nip && <p className="text-[10px] text-rose-500 font-bold">{errors.nip}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -181,9 +198,9 @@ export default function EditUserPage({ params }: PageProps) {
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     className={cn(errors.email && "border-rose-500")}
                   />
+                  {errors.email && <p className="text-[10px] text-rose-500 font-bold">{errors.email}</p>}
                 </div>
 
-                {/* [NEW] KOLOM TANGGAL LAHIR */}
                 <div className="space-y-2">
                   <Label>Tanggal Lahir</Label>
                   <div className="relative">
@@ -198,52 +215,50 @@ export default function EditUserPage({ params }: PageProps) {
                   {errors.dateOfBirth && <p className="text-[10px] text-rose-500 font-bold">{errors.dateOfBirth}</p>}
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Jabatan</Label>
+                <div className="space-y-2">
+                  <Label>Nomor WhatsApp / HP</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <Input
+                      type="tel"
+                      placeholder="08123..."
+                      value={formData.phoneNumber}
+                      onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
+                      className={cn("pl-10", errors.phoneNumber && "border-rose-500")}
+                    />
+                  </div>
+                  {errors.phoneNumber && <p className="text-[10px] text-rose-500 font-bold">{errors.phoneNumber}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Level / Jabatan</Label>
                   <Input
-                    value={formData.jobTitle}
-                    onChange={e => setFormData({ ...formData, jobTitle: e.target.value })}
+                    placeholder="Contoh: Senior Agent"
+                    value={formData.agentLevel}
+                    onChange={e => setFormData({ ...formData, agentLevel: e.target.value })}
                   />
                 </div>
               </div>
             </div>
 
-            {/* SECTION 2 */}
             <div className="space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Shield className="w-5 h-5" /></div>
-                  <h3 className="font-bold text-slate-800 text-lg">Mutasi & Hak Akses</h3>
-                </div>
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Shield className="w-5 h-5" /></div>
+                <h3 className="font-bold text-slate-800 text-lg">Hak Akses Sistem</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label>Unit Kerja</Label>
-                  <select
-                    className={cn("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm", errors.agencyId && "border-rose-500")}
-                    value={formData.agencyId}
-                    onChange={e => setFormData({ ...formData, agencyId: e.target.value })}
-                  >
-                    <option value="">-- Pilih Unit Kerja --</option>
-                    {units.map(unit => (
-                      <option key={unit.id} value={unit.id}>{unit.namaUnit} ({unit.kodeUnit})</option>
-                    ))}
-                  </select>
-                  {errors.agencyId && <p className="text-[10px] text-rose-500 font-bold">{errors.agencyId}</p>}
-                </div>
-
+              <div className="grid grid-cols-1 gap-8">
                 <div className="space-y-3">
                   <Label>Role Aplikasi</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 max-w-lg">
                     {["USER", "DIRECTOR", "ADMIN"].map((role) => (
                       <button
                         key={role}
                         type="button"
                         onClick={() => setFormData({ ...formData, role: role as any })}
                         className={cn(
-                          "text-xs font-bold py-2 px-2 rounded-md border transition-all",
-                          formData.role === role ? "bg-brand-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
+                          "text-xs font-bold py-3 px-2 rounded-md border transition-all",
+                          formData.role === role ? "bg-brand-600 text-white shadow-md" : "bg-white text-slate-500 hover:bg-slate-50"
                         )}
                       >
                         {role}
@@ -256,8 +271,8 @@ export default function EditUserPage({ params }: PageProps) {
 
             <div className="pt-6 flex gap-4 border-t border-slate-100">
               <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()} disabled={isSaving}>Batal</Button>
-              <Button type="submit" disabled={isSaving} variant="default" className="flex-2">
-                {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</> : "Simpan Perubahan"}
+              <Button type="submit" disabled={isSaving} variant="default" className="flex-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</> : <><Save className="w-4 h-4 mr-2" /> Simpan Perubahan</>}
               </Button>
             </div>
           </form>
