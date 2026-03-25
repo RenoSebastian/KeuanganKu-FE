@@ -25,41 +25,50 @@ export function useMutationToast() {
             errorMessage, // Jika kosong, akan mengekstrak message dari Backend
         } = options;
 
+        // Inisiasi ID Toast untuk melacak dan menghentikan loading nanti
         const toastId = toast.loading(loadingMessage);
 
         try {
             const result = await promise;
+            // Hentikan loading, ubah menjadi success
             toast.success(successMessage, { id: toastId });
             return result;
         } catch (error: any) {
             console.error("❌ Mutation Error Captured:", error);
 
             // Logika Ekstraksi Pesan Error (Anti Ghost Error)
-            let finalErrorMessage = "Terjadi kesalahan pada sistem.";
+            let finalErrorMessage = "Terjadi kesalahan tidak terduga pada sistem.";
 
             if (error instanceof AxiosError) {
-                const backendData = error.response?.data;
+                // [FIXED] Fallback Network Error: Menangani kondisi server mati, timeout, atau CORS
+                if (!error.response) {
+                    finalErrorMessage = "Koneksi ke peladen terputus. Periksa jaringan internet Anda.";
+                } else {
+                    const backendData = error.response.data;
 
-                // Cek apakah ada message dari backend (bisa string atau array dari ValidationPipe NestJS)
-                const rawMessage = backendData?.message;
+                    // Cek apakah ada message dari backend (bisa string atau array dari ValidationPipe NestJS)
+                    const rawMessage = backendData?.message;
 
-                if (Array.isArray(rawMessage)) {
-                    finalErrorMessage = rawMessage[0]; // Ambil pesan validasi pertama
-                } else if (typeof rawMessage === "string" && rawMessage.length > 0) {
-                    finalErrorMessage = rawMessage;
-                } else if (error.message) {
-                    finalErrorMessage = error.message; // Fallback ke pesan Axios
+                    if (Array.isArray(rawMessage) && rawMessage.length > 0) {
+                        finalErrorMessage = rawMessage[0]; // Ambil pesan validasi pertama agar rapi di UI
+                    } else if (typeof rawMessage === "string" && rawMessage.trim() !== "") {
+                        finalErrorMessage = rawMessage;
+                    } else if (error.message) {
+                        finalErrorMessage = error.message; // Fallback ke pesan bawaan Axios
+                    }
                 }
             } else if (error instanceof Error) {
                 finalErrorMessage = error.message;
             }
 
+            // Hentikan loading, ubah menjadi error
             toast.error(errorMessage || finalErrorMessage, {
                 id: toastId,
-                duration: 5000, // Error ditampilkan lebih lama agar terbaca
+                duration: 5000, // Error ditampilkan lebih lama agar terbaca oleh user
             });
 
-            throw error; // Lempar kembali agar komponen pemanggil bisa menangani state lokal (misal: setIsSaving(false))
+            // Lempar kembali eksepsi agar komponen pemanggil dapat menjalankan blok `finally` (misal: setInternalLoading(false))
+            throw error;
         }
     };
 

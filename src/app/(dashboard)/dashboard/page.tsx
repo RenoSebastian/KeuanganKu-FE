@@ -79,7 +79,7 @@ export default function DashboardPage() {
         <DashboardHeader
           userData={userData}
           currentDate={currentDate}
-          onAddClient={() => router.push('/finance/checkup')}
+          onAddClient={() => router.push('/finance')}
         />
 
         {/* 2. MAIN GRID LAYOUT */}

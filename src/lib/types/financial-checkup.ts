@@ -142,8 +142,10 @@ export interface CheckupSimulationResult {
  */
 export interface CheckupSimulationResponse {
     pdfBuffer?: { type: string; data: number[] };
-    mgcToken: string;
-    filename: string;
+
+    // [FIXED] Dibuat opsional karena BE decoupled checkup mereturn string kosong
+    mgcToken?: string;
+    filename?: string;
 
     // Core Data Wrapper
     data: {
@@ -151,6 +153,12 @@ export interface CheckupSimulationResponse {
         spouse?: any;
         financial: FinancialAnnualState;
         result: CheckupSimulationResult;
+    };
+
+    // [FIXED] Sinkronisasi struktur objek baru dari Controller Backend
+    meta?: {
+        simulationId: string;
+        [key: string]: any;
     };
 }
 
@@ -257,7 +265,8 @@ export interface CreateCheckupSimulationDto extends FinancialAnnualState {
 
 export interface SimulationApiResponse {
     pdfBuffer: { type: "Buffer"; data: number[] };
-    mgcToken: string;
-    filename: string;
+    mgcToken?: string; // [FIXED] Disesuaikan dengan CheckupSimulationResponse
+    filename?: string; // [FIXED] Disesuaikan dengan CheckupSimulationResponse
     data: CheckupSimulationResponse['data'];
+    meta?: CheckupSimulationResponse['meta']; // [FIXED] Propagasi metadata
 }

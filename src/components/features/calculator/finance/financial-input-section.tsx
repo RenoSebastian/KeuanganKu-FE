@@ -27,10 +27,12 @@ import { toast } from "sonner";
 // TYPES & PROPS
 // ============================================================================
 
+// Ubah definisi ini:
 interface FinancialInputProps {
     data: FinancialAnnualState;
     onUpdate: (field: keyof FinancialAnnualState, value: number) => void;
-    onComplete: () => void;
+    // onComplete: () => void;  <-- UBAH BARIS INI MENJADI:
+    onComplete: (latestData?: FinancialAnnualState) => void;
     onBack: () => void;
     isLoading?: boolean;
 }
@@ -655,7 +657,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         </Button>
                     ) : (
                         <Button
-                            onClick={onComplete}
+                            onClick={() => onComplete(data)}
                             disabled={isLoading}
                             className="h-12 px-6 md:px-8 bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-black shadow-lg shadow-emerald-500/30 active:scale-95 transition-all"
                         >

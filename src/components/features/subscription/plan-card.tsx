@@ -8,9 +8,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { SubscriptionPlan } from "@/services/subscription.service";
+import { SubscriptionPlan } from "@/lib/types/subscription"; // Pastikan path ini mengarah ke tipe data yang baru kita update
 
-// [FIX] Mengimpor Information Expert pemformatan uang yang kedap NaN
+// Mengimpor Information Expert pemformatan uang yang kedap NaN
 import { formatCurrency } from "@/lib/formatters";
 
 interface PlanCardProps {
@@ -24,16 +24,16 @@ interface PlanCardProps {
 export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: PlanCardProps) {
     const isActive = plan.id === currentPlanId;
 
-    // --- LOGIC HARGA & DISKON ---
+    // --- LOGIC HARGA & DISKON (UPDATED DARI DB) ---
 
-    // Total Payment (Harga DB * Durasi)
-    // Jika durasi 0 (Lifetime), kita anggap harga flat. Jika tidak, dikali durasi.
-    const totalPayment = plan.durationMonths > 0 ? plan.price * plan.durationMonths : plan.price;
+    // Total Payment adalah nilai mutlak dari harga paket di DB (karena sudah bundling)
+    const totalPayment = plan.price;
 
-    // Deteksi Diskon (Hardcoded Logic sesuai Business Rule)
-    let discountLabel = null;
-    if (plan.durationMonths === 6) discountLabel = "Hemat 20%";
-    if (plan.durationMonths === 12) discountLabel = "Hemat 30%";
+    // Ekuivalensi Bulanan (Harga DB dibagi durasi)
+    const monthlyEquivalent = plan.durationMonths > 0 ? plan.price / plan.durationMonths : plan.price;
+
+    // Label Diskon dinamis dari Backend
+    const discountLabel = plan.discountNote;
 
     // Konfigurasi Tier (4-Tier Matrix)
     const tierConfig = [
@@ -110,7 +110,7 @@ export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: Pla
                         {plan.durationMonths === 0 ? "Lifetime Access" : `${plan.durationMonths} Bulan`}
                     </p>
                     {discountLabel && (
-                        <Badge className="bg-rose-100 text-rose-600 border border-rose-200 text-[9px] font-black px-2 py-0 h-5">
+                        <Badge className="bg-rose-100 text-rose-600 border border-rose-200 text-[9px] font-black px-2 py-0 h-5 shadow-sm">
                             {discountLabel}
                         </Badge>
                     )}
@@ -140,25 +140,34 @@ export function PlanCard({ plan, index, currentPlanId, onSelect, variants }: Pla
             </div>
 
             <div className="mt-auto relative z-10">
-                <div className="mb-6">
-                    {/* HARGA UTAMA (TOTAL) - Delegasi ke utilitas terpusat formatCurrency */}
+                <div className="mb-6 flex flex-col justify-center min-h-25">
+                    {/* HARGA CORET (Jika Ada) */}
+                    {plan.originalPrice ? (
+                        <p className="text-sm font-black text-slate-500 line-through decoration-red-500/80 decoration-[3px] mb-1">
+                            {formatCurrency(plan.originalPrice)}
+                        </p>
+                    ) : (
+                        <div className="h-5"></div>
+                    )}
+
+                    {/* HARGA UTAMA (TOTAL) */}
                     <div className="flex items-baseline gap-1">
                         <p className="text-4xl font-black text-slate-900 tracking-tighter">
-                            {plan.price === 0 ? "Free" : formatCurrency(totalPayment)}
+                            {plan.price === 0 ? "Gratis" : formatCurrency(totalPayment)}
                         </p>
                     </div>
 
-                    {/* PEMANIS HARGA BULANAN (SWEETENER) - Delegasi ke utilitas terpusat formatCurrency */}
+                    {/* PEMANIS HARGA BULANAN (SWEETENER) */}
                     {plan.durationMonths > 1 && (
-                        <div className="flex items-center gap-1.5 mt-2 bg-emerald-50/50 p-2 rounded-xl w-fit border border-emerald-100">
+                        <div className="flex items-center gap-1.5 mt-3 bg-emerald-50/50 p-2 rounded-xl w-fit border border-emerald-100">
                             <TrendingDown size={14} className="text-emerald-600" />
                             <p className="text-[10px] font-bold text-emerald-700">
-                                Setara <span className="font-black">{formatCurrency(plan.price)}</span> / bulan
+                                Jatuhnya hanya <span className="font-black">{formatCurrency(monthlyEquivalent)}</span> / bulan
                             </p>
                         </div>
                     )}
 
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-3 italic">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-4 italic">
                         {plan.price === 0 ? "Selamanya tanpa biaya" : "Sekali bayar untuk akses penuh"}
                     </p>
                 </div>

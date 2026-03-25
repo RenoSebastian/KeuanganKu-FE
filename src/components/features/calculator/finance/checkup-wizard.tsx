@@ -141,8 +141,15 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                     setCurrentStep("RESULT");
                     toast.success("Import Berhasil!", { id: toastId, description: "Data siap dianalisa ulang." });
                 } catch (err: any) {
-                    toast.error("Dekripsi Gagal", { id: toastId, description: "Token MGC rusak atau tidak valid." });
+                    // [FIXED - Tahap 2] Standardisasi Parsing Error
+                    const beMessage = err.response?.data?.message;
+                    let finalMessage = "Token MGC rusak atau tidak valid.";
+                    if (Array.isArray(beMessage)) finalMessage = beMessage[0];
+                    else if (typeof beMessage === "string") finalMessage = beMessage;
+
+                    toast.error("Dekripsi Gagal", { id: toastId, description: finalMessage });
                 } finally {
+                    // Absolut Finally untuk memastikan loading berhenti
                     setInternalLoading(false);
                 }
             };
@@ -171,24 +178,25 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const onFinancialSubmit = async () => {
+    // [FIXED - Tahap 1] Menggunakan parameter eksplisit untuk mencegah penggunaan stale state
+    const onFinancialSubmit = async (latestFinancialData?: FinancialFormState) => {
         if (!clientData) {
             toast.error("Integritas Data Hilang", { description: "Profil klien tidak ditemukan. Harap isi identitas." });
             setCurrentStep("IDENTITY");
             return;
         }
 
-        // [FIXED] Generate UUID Session ID untuk validasi Backend & Ledger Kuota
+        // Prioritaskan latestFinancialData dari input child, fallback ke local state jika tidak diberikan
+        const dataToSubmit = latestFinancialData || financialRecord;
+
         const sessionId = crypto.randomUUID();
 
-        // [FIXED] Include sessionId ke dalam payload
         const payload = {
-            ...financialRecord,
+            ...dataToSubmit,
             ...clientData,
             sessionId: sessionId
         };
 
-        // Prioritaskan onComplete dari parent (legacy support/controller terpisah)
         if (onComplete) {
             await onComplete(payload);
             return;
@@ -199,15 +207,25 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         const toastId = toast.loading("Memproses Kalkulasi...", { description: "Menganalisis matriks kesehatan finansial..." });
 
         try {
-            // Service akan menerima payload dengan sessionId
             const response = await financialService.simulateAgentCheckup(payload);
 
             setSimulationData(response);
             setCurrentStep("RESULT");
             toast.success("Analisis Selesai", { id: toastId, description: "Laporan rasio kesehatan siap dicetak." });
         } catch (error: any) {
-            const message = error.response?.data?.message || "Gagal memproses kalkulasi mesin.";
-            toast.error(Array.isArray(message) ? message[0] : message, { id: toastId });
+            // [FIXED - Tahap 2] Standardisasi Parsing Error
+            let finalMessage = "Gagal memproses kalkulasi mesin.";
+
+            // Periksa jika server down / tidak ada response
+            if (!error.response) {
+                finalMessage = "Koneksi ke peladen terputus. Periksa jaringan Anda.";
+            } else {
+                const beMessage = error.response?.data?.message;
+                if (Array.isArray(beMessage)) finalMessage = beMessage[0];
+                else if (typeof beMessage === "string") finalMessage = beMessage;
+            }
+
+            toast.error("Kalkulasi Gagal", { id: toastId, description: finalMessage });
         } finally {
             setInternalLoading(false);
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -322,7 +340,10 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                 <FinancialInputSection
                                     data={financialRecord}
                                     onUpdate={handleFinancialUpdate}
-                                    onComplete={onFinancialSubmit}
+                                    // [FIXED] Tambahkan tipe & bungkus dengan {} agar me-return void (bukan Promise)
+                                    onComplete={(latestData?: FinancialFormState) => {
+                                        onFinancialSubmit(latestData);
+                                    }}
                                     onBack={() => setCurrentStep("IDENTITY")}
                                     isLoading={isProcessing}
                                 />

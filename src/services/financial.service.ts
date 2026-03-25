@@ -50,20 +50,31 @@ import { generateSimulationFilename } from "@/lib/formatters";
 /**
  * Mengonversi Annual State (UI) -> Monthly Payload (API)
  * Memisahkan data finansial dari data klien, mengonversi angka, lalu menggabungkan kembali.
- * [UPDATED] Menambahkan dukungan untuk sessionId agar tidak hilang saat konversi.
+ * [FIXED - Tahap 1 & 3] Menambahkan sanitasi Data FE dan mencegah hilangnya properti laten (destructuring bug).
  */
 function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: any, sessionId: string }): any {
-  // 1. Konversi Angka Finansial (Annual -> Monthly)
-  const monthlyFinancial = convertRecordToMonthly(data);
+  // 1. Ekstraksi eksplisit data non-finansial
+  const { client, spouse, sessionId, ...rawFinancials } = data as any;
 
-  // 2. Pertahankan Data Non-Finansial (Client, Spouse, dll)
-  // Kita ambil properti lain yang mungkin ada di object data
-  const { client, spouse, sessionId, ...rest } = data as any;
+  // 2. Sanitasi data finansial murni (Mencegah string kosong "" atau NaN terkirim ke BE)
+  const sanitizedFinancials: any = {};
+  for (const key in rawFinancials) {
+    const val = rawFinancials[key];
+    // Jika nilai kosong, null, undefined, atau tidak bisa di-cast ke angka, paksa jadi 0 mutlak
+    if (val === undefined || val === null || val === "" || Number.isNaN(Number(val))) {
+      sanitizedFinancials[key] = 0;
+    } else {
+      sanitizedFinancials[key] = Number(val);
+    }
+  }
 
-  // 3. Gabungkan kembali (Flat Object untuk dikirim ke Backend)
-  // Backend menerima object flat yang berisi field finansial + field client + sessionId
+  // 3. Konversi Angka Finansial yang sudah bersih (Annual -> Monthly)
+  const monthlyFinancial = convertRecordToMonthly(sanitizedFinancials);
+
+  // 4. Gabungkan kembali secara utuh (tidak ada properti laten yang terbuang)
   return {
-    ...monthlyFinancial,
+    ...sanitizedFinancials, // Fallback mempertahankan properti yang mungkin tidak ikut dikonversi oleh util
+    ...monthlyFinancial,    // Timpa dengan hasil konversi bulanan
     client,
     spouse,
     sessionId, // [CRITICAL] Wajib ada untuk sistem kuota BE
@@ -183,14 +194,17 @@ export const financialService = {
   calculateInsurance: async (data: CreateInsuranceDto) => {
     const response = await api.post<{ plan: InsurancePlanData, calculation: any }>("/financial/calculator/insurance", data);
     const raw = response.data;
+
+    // [FIXED] Parsing aman: Tetap pertahankan null/undefined jika memang dikembalikan oleh BE (Information Expert)
     if (raw.calculation) {
+      const safeNumber = (val: any) => (val === null || val === undefined) ? undefined : Number(val);
       raw.calculation = {
         ...raw.calculation,
-        incomeReplacementValue: Number(raw.calculation.incomeReplacementValue || 0),
-        debtClearanceValue: Number(raw.calculation.debtClearanceValue || 0),
-        otherNeeds: Number(raw.calculation.otherNeeds || 0),
-        totalNeeded: Number(raw.calculation.totalNeeded || 0),
-        coverageGap: Number(raw.calculation.coverageGap || 0),
+        incomeReplacementValue: safeNumber(raw.calculation.incomeReplacementValue),
+        debtClearanceValue: safeNumber(raw.calculation.debtClearanceValue),
+        otherNeeds: safeNumber(raw.calculation.otherNeeds),
+        totalNeeded: safeNumber(raw.calculation.totalNeeded),
+        coverageGap: safeNumber(raw.calculation.coverageGap),
       };
     }
     return raw;
@@ -359,7 +373,8 @@ export const financialService = {
   // [UPDATED] Checkup Simulation using new Adapter Logic
   simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<CheckupSimulationResponse> => {
     const apiPayload = toMonthlyPayload(data);
-    const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup", apiPayload);
+    // [FIX] Tambahkan '/calculate' di akhir URL agar sesuai dengan Backend
+    const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup/calculate", apiPayload);
     return response.data;
   },
 
@@ -459,6 +474,8 @@ export const financialService = {
         window.URL.revokeObjectURL(tokenUrl);
       } catch (e) {
         console.error("Gagal memproses token simulasi (.mgc):", e);
+        // [FIXED - Tahap 2] Lempar exception agar UI bisa menangkap kegagalan dan tidak loading selamanya
+        throw new Error("Gagal mengunduh file token MGC. Pastikan peramban tidak memblokir unduhan otomatis.");
       }
     }
   }

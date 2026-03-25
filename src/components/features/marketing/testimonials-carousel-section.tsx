@@ -2,83 +2,96 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Star, ChevronLeft, ChevronRight, Quote, Hand } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Quote,
+    Hand,
+    Lightbulb,
+    GraduationCap,
+    HeartHandshake,
+    ShieldCheck,
+    Zap,
+    Target,
+    TrendingUp,
+    PieChart
+} from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const testimonials = [
+// Total ada 8 Card (Best Practice maksimal untuk Carousel edukasi)
+const insights = [
     {
-        name: "Mira Indrawati",
-        role: "Top Performer Agent",
-        content: "Sejak pakai KeuanganKu, prospek klien saya naik 2x lipat! Analisisnya tajam, closing jadi jauh lebih cepat. Ini senjata rahasia saya.",
-        avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop",
-        rating: 5
+        category: "MINDSET",
+        icon: Lightbulb,
+        title: "Kompetensi > Penampilan",
+        content: "Penampilan menarik memang membuka pintu. Namun, akurasi perhitungan dan validitas datalah yang akhirnya memenangkan kepercayaan nasabah hingga tahap closing.",
+        footerTip: "💡 Profesionalisme sejati diukur dari ketepatan solusi.",
+        image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=800&auto=format&fit=crop",
     },
     {
-        name: "Rudi Hartono",
-        role: "Senior Partner",
-        content: "Dulu data berantakan, sekarang saya memegang kendali penuh atas bisnis saya. Target bukan lagi wacana, tapi rutinitas bulanan.",
-        avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=800&auto=format&fit=crop",
-        rating: 5
+        category: "EDUKASI",
+        icon: GraduationCap,
+        title: "Kekuatan 'Needs Approach'",
+        content: "Sesuai standar CFP, pendekatan kebutuhan adalah metode paling objektif. Nasabah mendapatkan proteksi yang pas, tanpa merasa terbebani oleh premi yang berlebihan.",
+        footerTip: "📚 Edukasi nasabah dengan perhitungan yang transparan.",
+        image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=800&auto=format&fit=crop",
     },
     {
-        name: "Citra Lestari",
-        role: "Rising Star Agent",
-        content: "Aplikasi ini membuat saya terlihat jauh lebih profesional di depan klien. Kepercayaan diri saya meningkat pesat saat presentasi.",
-        avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=800&auto=format&fit=crop",
-        rating: 4
+        category: "PROSPEKTING", // BARU
+        icon: Target,
+        title: "Pintu Masuk Percakapan",
+        content: "Jangan tawarkan asuransi di awal. Tanyakan apa impian terbesar mereka untuk keluarga, lalu gunakan data untuk menunjukkan cara memastikannya terwujud.",
+        footerTip: "🎯 Jadikan kalkulator sebagai alat ice breaking yang elegan.",
+        image: "https://images.unsplash.com/photo-1573164713988-8665fc963095?q=80&w=800&auto=format&fit=crop", // Coffee shop meeting
     },
     {
-        name: "Agus Salim",
-        role: "Agency Director",
-        content: "Produktivitas tim adalah segalanya. Dengan tools ini, monitoring dan mentoring agen jadi sangat efisien dan berbasis data.",
-        avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=800&auto=format&fit=crop",
-        rating: 5
+        category: "STRATEGI",
+        icon: HeartHandshake,
+        title: "Juallah Sebuah Kepastian",
+        content: "Nasabah tidak sekadar membeli angka 1 Miliar. Mereka membeli jaminan bahwa biaya hidup dan pendidikan anak tetap aman meski pencari nafkah tiada.",
+        footerTip: "🗣️ Ubah bahasa nominal menjadi bahasa perlindungan keluarga.",
+        image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=800&auto=format&fit=crop",
     },
     {
-        name: "Budi Santoso",
-        role: "Executive Financial Advisor",
-        content: "Simulasi proteksi dan visualisasi budgeting-nya sangat intuitif. Klien yang tadinya menolak karena merasa tidak butuh, langsung paham dan setuju buka polis setelah melihat datanya.",
-        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=800&auto=format&fit=crop",
-        rating: 5
+        category: "OBJECTION", // BARU
+        icon: TrendingUp,
+        title: "Patahkan Mitos dengan Fakta",
+        content: "'Asuransi itu rugi' adalah mitos dari ketidaktahuan. Saat Anda menyajikan proyeksi inflasi medis dan pendidikan yang presisi, keraguan itu akan gugur dengan sendirinya.",
+        footerTip: "🛡️ Data yang valid adalah perisai dari penolakan (objection).",
+        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop", // Graph/chart presentation
     },
     {
-        name: "Diana Putri",
-        role: "Rookie Agent",
-        content: "Sebagai agen baru, saya sering bingung menyusun proposal yang pas. KeuanganKu memberikan roadmap yang jelas, bikin saya berani jualan ke ring satu dari bulan pertama!",
-        avatar: "https://images.unsplash.com/photo-1598550874175-4d0ef436c909?q=80&w=800&auto=format&fit=crop",
-        rating: 5
+        category: "INTEGRITAS",
+        icon: ShieldCheck,
+        title: "Agen vs Penasihat",
+        content: "Sales biasa sibuk mengejar target komisi bulanan. Penasihat profesional fokus memberikan solusi nyata untuk membangun reputasi dan relasi seumur hidup.",
+        footerTip: "⭐ Kepercayaan nasabah adalah aset jangka panjang Anda.",
+        image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop",
     },
     {
-        name: "Hendrik Wijaya",
-        role: "Wealth Manager",
-        content: "Fitur kalkulator pensiun dan Human Life Value-nya luar biasa detail. Ini bukan sekadar alat jualan biasa, tapi benar-benar financial conversation tool yang elegan untuk klien VVIP saya.",
-        avatar: "https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?q=80&w=800&auto=format&fit=crop",
-        rating: 5
+        category: "VISUALISASI", // BARU
+        icon: PieChart,
+        title: "Melihat Berarti Percaya",
+        content: "Otak manusia memproses visual jauh lebih cepat daripada deretan angka. Tampilkan grafik proteksi secara langsung di depan nasabah untuk efek 'Aha!' yang instan.",
+        footerTip: "👁️ Visualisasi yang baik mempercepat keputusan pembelian.",
+        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop", // iPad/Tablet showing data
     },
     {
-        name: "Siti Aminah",
-        role: "Unit Manager",
-        content: "Memantau aktivitas agen di tim saya kini semudah membuka satu dashboard. Kinerja tim meningkat tajam karena evaluasi didasarkan pada metrik yang riil.",
-        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=800&auto=format&fit=crop",
-        rating: 4
-    },
-    {
-        name: "Tirta Kusuma",
-        role: "Independent Broker",
-        content: "Sistemnya sangat agnostik. Saya bisa memetakan berbagai skenario risiko klien secara transparan. KeuanganKu benar-benar menaikkan standar profesionalisme industri asuransi.",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop",
-        rating: 5
+        category: "EFISIENSI",
+        icon: Zap,
+        title: "Biarkan Sistem Bekerja",
+        content: "Menghitung rumus finansial secara manual sangat menyita waktu. Gunakan energi Anda untuk berempati pada nasabah, biarkan aplikasi yang menyelesaikan angkanya.",
+        footerTip: "⚡ Waktu Anda terlalu berharga untuk sekadar menghitung manual.",
+        image: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=800&auto=format&fit=crop", // Laptop typing/analytics
     }
 ];
 
-const TestimonialsCarouselSection = () => {
+const ProInsightsCarouselSection = () => {
     const [emblaRef, emblaApi] = useEmblaCarousel({
         loop: true,
         align: 'center',
         breakpoints: {
-            // Pada mode loop, lebih stabil menggunakan 'center' untuk semua breakpoint 
-            // agar jarak kloningan Embla tidak asimetris di ujung layar.
             '(min-width: 768px)': { align: 'center' }
         }
     });
@@ -103,26 +116,25 @@ const TestimonialsCarouselSection = () => {
     }, [emblaApi, onSelect]);
 
     return (
-        <section id="testimonials-carousel" className="py-20 relative z-10 overflow-hidden">
+        <section id="pro-insights-carousel" className="py-20 relative z-10 overflow-hidden">
 
-            {/* BAGIAN 1: HEADER */}
+            {/* HEADER SECTION */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 mb-12 lg:mb-16">
                 <div className="flex flex-col items-center justify-center text-center gap-4">
                     <Badge
                         variant="outline"
                         className="mb-2 border-blue-400/30 text-blue-600 bg-blue-500/10 px-4 py-1.5 uppercase tracking-[0.3em] text-[10px] font-black backdrop-blur-md shadow-sm"
                     >
-                        Ulasan
+                        Pro Insights
                     </Badge>
 
                     <h2 className="text-4xl lg:text-5xl font-[1000] text-slate-900 tracking-tighter leading-[1.1]">
-                        Apa Kata Mereka <br className="hidden md:block" />
+                        Inspirasi Agen <br className="hidden md:block" />
                         <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600">
-                            Tentang Aplikasi Kami
+                            Profesional
                         </span>
                     </h2>
 
-                    {/* Instruksi Geser untuk Mobile */}
                     <div className="md:hidden flex items-center justify-center gap-2 text-slate-500 mt-2 bg-slate-200/50 px-4 py-2 rounded-full border border-slate-300 shadow-sm">
                         <Hand size={14} className="animate-bounce text-blue-600" />
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Geser untuk melihat</span>
@@ -130,13 +142,13 @@ const TestimonialsCarouselSection = () => {
                 </div>
             </div>
 
-            {/* BAGIAN 2: CAROUSEL WRAPPER WITH FLOATING NAVIGATION */}
+            {/* CAROUSEL WRAPPER */}
             <div
                 className="relative w-full max-w-[100vw]"
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                {/* Navigasi Kiri */}
+                {/* NAV LEFT */}
                 <button
                     onClick={scrollPrev}
                     disabled={!prevBtnEnabled}
@@ -155,72 +167,79 @@ const TestimonialsCarouselSection = () => {
                 </button>
 
                 <div className="embla overflow-hidden" ref={emblaRef}>
-                    {/* PERBAIKAN GAP ASIMETRIS: 
-                        1. Hapus px dinamis (px-4 md:px-8 dst) dari container ini yang merusak sambungan loop.
-                        2. Biarkan container membentang penuh tanpa margin aneh.
-                        3. Jarak antar kartu dikendalikan murni oleh `pl-4 md:pl-6` di dalam setiap slide.
-                    */}
                     <div className="embla__container flex touch-pan-y py-4">
-                        {testimonials.map((t, i) => (
-                            // Jarak gap sekarang diletakkan sebagai padding left (pl) pada setiap slide.
-                            // Ini adalah trik Embla standar untuk memastikan loop yang mulus tanpa patah.
-                            <div key={i} className="embla__slide pl-4 md:pl-6 flex-[0_0_85%] sm:flex-[0_0_45%] lg:flex-[0_0_30%] min-w-0 relative">
+                        {insights.map((insight, i) => {
+                            const IconComponent = insight.icon;
+                            return (
+                                <div key={i} className="embla__slide pl-4 md:pl-6 flex-[0_0_85%] sm:flex-[0_0_45%] lg:flex-[0_0_30%] min-w-0 relative">
 
-                                {/* CARD UTAMA */}
-                                <div className="relative h-104 md:h-128 w-full rounded-3xl overflow-hidden group/card cursor-grab active:cursor-grabbing shadow-[0_15px_40px_rgb(0,0,0,0.1)] hover:shadow-[0_20px_50px_rgb(37,99,235,0.2)] border border-white/60 transition-all duration-500 hover:-translate-y-2">
+                                    {/* MAIN CARD */}
+                                    <div className="relative h-104 md:h-128 w-full rounded-3xl overflow-hidden group/card cursor-grab active:cursor-grabbing shadow-[0_15px_40px_rgb(0,0,0,0.1)] hover:shadow-[0_20px_50px_rgb(37,99,235,0.2)] border border-white/60 transition-all duration-500 hover:-translate-y-2 bg-slate-900">
 
-                                    <div className="absolute inset-0 w-full h-full">
-                                        <img
-                                            src={t.avatar}
-                                            alt={t.name}
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 filter brightness-[0.75] group-hover/card:brightness-[0.85] pointer-events-none"
-                                        />
-                                    </div>
-
-                                    <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/70 to-transparent opacity-95 pointer-events-none" />
-
-                                    <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end pointer-events-none">
-                                        <div className="absolute top-6 right-6 text-white/10 group-hover/card:text-blue-400/30 transition-colors duration-500 transform group-hover/card:rotate-12">
-                                            <Quote size={64} fill="currentColor" />
+                                        {/* Background Image */}
+                                        <div className="absolute inset-0 w-full h-full bg-slate-800">
+                                            <img
+                                                src={insight.image}
+                                                alt={insight.category}
+                                                loading="lazy"
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 pointer-events-none"
+                                            />
                                         </div>
 
-                                        <div className="relative z-10 translate-y-4 transition-transform duration-500 group-hover/card:translate-y-0">
-                                            <div className="flex gap-1 mb-4">
-                                                {[...Array(5)].map((_, index) => (
-                                                    <Star
-                                                        key={index}
-                                                        size={14}
-                                                        fill={index < t.rating ? "#fbbf24" : "transparent"}
-                                                        className={index < t.rating ? "text-amber-400 drop-shadow-sm" : "text-slate-600/50"}
-                                                    />
-                                                ))}
+                                        {/* 1. Gradient Atas */}
+                                        <div className="absolute top-0 inset-x-0 h-32 bg-linear-to-b from-slate-950/70 to-transparent opacity-90 pointer-events-none" />
+
+                                        {/* 2. Gradient Bawah */}
+                                        <div className="absolute bottom-0 inset-x-0 h-[60%] bg-linear-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none" />
+
+                                        {/* Content Area */}
+                                        <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-between pointer-events-none">
+
+                                            {/* Top: Category Badge & Quote */}
+                                            <div className="flex justify-between items-start w-full">
+                                                <div className="flex items-center gap-2 bg-blue-600/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-blue-400/50 shadow-sm">
+                                                    <IconComponent size={14} className="text-white" />
+                                                    <span className="text-[10px] md:text-xs font-bold text-white uppercase tracking-widest">
+                                                        {insight.category}
+                                                    </span>
+                                                </div>
+                                                <div className="text-white/30 group-hover/card:text-blue-400/50 transition-colors duration-500 transform group-hover/card:rotate-12 drop-shadow-md">
+                                                    <Quote size={48} fill="currentColor" />
+                                                </div>
                                             </div>
 
-                                            <div className="mb-6 border-l-[3px] border-blue-500 pl-4">
-                                                <p className="text-[15px] md:text-base text-slate-200 font-medium leading-relaxed italic drop-shadow-md line-clamp-4">
-                                                    "{t.content}"
-                                                </p>
-                                            </div>
+                                            {/* Bottom: Text Content */}
+                                            <div className="relative z-10 translate-y-2 transition-transform duration-500 group-hover/card:translate-y-0">
 
-                                            <div className="h-px w-full bg-linear-to-r from-white/30 to-transparent mb-5" />
+                                                <div className="mb-5 md:mb-6">
+                                                    <h4 className="text-xl md:text-2xl font-black text-white leading-tight mb-3 drop-shadow-lg">
+                                                        {insight.title}
+                                                    </h4>
+                                                    <div className="border-l-[3px] border-blue-500 pl-4">
+                                                        <p className="text-sm md:text-[15px] text-slate-200 font-medium leading-relaxed drop-shadow-md line-clamp-4">
+                                                            "{insight.content}"
+                                                        </p>
+                                                    </div>
+                                                </div>
 
-                                            <div>
-                                                <h4 className="text-lg md:text-xl font-black text-white uppercase tracking-wide truncate">
-                                                    {t.name}
-                                                </h4>
-                                                <p className="text-[10px] md:text-xs font-black text-blue-400 tracking-[0.2em] mt-1.5 uppercase drop-shadow-sm truncate">
-                                                    {t.role}
-                                                </p>
+                                                <div className="h-px w-full bg-linear-to-r from-blue-500/50 to-transparent mb-4" />
+
+                                                <div>
+                                                    <p className="text-[11px] md:text-xs font-semibold text-blue-300 leading-snug drop-shadow-sm">
+                                                        {insight.footerTip}
+                                                    </p>
+                                                </div>
+
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Navigasi Kanan */}
+                {/* NAV RIGHT */}
                 <button
                     onClick={scrollNext}
                     disabled={!nextBtnEnabled}
@@ -239,9 +258,10 @@ const TestimonialsCarouselSection = () => {
                 </button>
             </div>
 
-            {/* Mobile Progress Bar (Opsional tapi sangat Best Practice) */}
+            {/* Mobile Progress Bar */}
             <div className="flex md:hidden items-center justify-center gap-2 mt-6">
-                {[0, 1, 2].map((_, i) => (
+                {/* Agar tidak terlalu panjang di mobile, kita batasi indikator dot-nya jadi 5 saja meskipun card ada 8 */}
+                {[...Array(Math.min(insights.length, 5))].map((_, i) => (
                     <div key={i} className={cn("h-1.5 rounded-full transition-all duration-300", i === 0 ? "w-6 bg-blue-600" : "w-1.5 bg-slate-300")} />
                 ))}
             </div>
@@ -250,4 +270,4 @@ const TestimonialsCarouselSection = () => {
     );
 };
 
-export default TestimonialsCarouselSection;
+export default ProInsightsCarouselSection;

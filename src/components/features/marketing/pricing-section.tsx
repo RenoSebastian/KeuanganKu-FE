@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { cn } from "@/lib/utils";
 
 const PricingSection = () => {
-    // DATA DI-BOOST: Disesuaikan dengan arahan bos (Per bulan, disc 20%, disc 30%)
+    // DATA DI-BOOST: Disesuaikan dengan skema harga baru Fin.Cal
     const pricingData = [
         {
             duration: "Free Trial",
@@ -23,35 +23,35 @@ const PricingSection = () => {
         },
         {
             duration: "1 Bulan",
-            price: 175000,
+            price: 150000,
             originalPrice: null,
-            monthlyBreakdown: 175000,
+            monthlyBreakdown: 150000,
             savings: null,
             isPopular: false,
             tag: "⚡ FLEKSIBEL",
-            description: "Bebas komitmen, bayar hanya saat Anda butuh.",
+            description: "Akses penuh fitur kalkulator finansial selama 1 bulan.",
             billingText: "Per Bulan"
         },
         {
             duration: "6 Bulan",
-            price: 840000,
-            originalPrice: 1050000, // 175rb x 6
-            monthlyBreakdown: 140000,
-            savings: "(disc 20%)",
+            price: 750000,
+            originalPrice: 900000, // 150.000 x 6
+            monthlyBreakdown: 125000, // 750.000 / 6
+            savings: "Hemat Rp 150.000",
             isPopular: false,
             tag: "🚀 SEMESTERAN",
-            description: "Akselerasi performa dengan harga lebih rasional.",
+            description: "Bayar 5 bulan dapat 6 bulan. Solusi tepat perencanaan menengah.",
             billingText: "Per 6 Bulan"
         },
         {
-            duration: "1 Tahun",
-            price: 1470000,
-            originalPrice: 2100000, // 175rb x 12
-            monthlyBreakdown: 122500,
-            savings: "🔥 (disc 30%)",
+            duration: "12 Bulan",
+            price: 1350000,
+            originalPrice: 1800000, // 150.000 x 12
+            monthlyBreakdown: 112500, // 1.350.000 / 12
+            savings: "🔥 Hemat Rp 450.000",
             isPopular: true,
             tag: "💎 INVESTASI CERDAS",
-            description: "Komitmen penuh untuk ledakan omset maksimal.",
+            description: "Bayar 9 bulan dapat 12 bulan. Pilihan paling hemat akses setahun.",
             billingText: "Per 12 Bulan"
         }
     ];
@@ -159,7 +159,7 @@ const PricingSection = () => {
                                             </span>
                                         </div>
 
-                                        {/* SUBTEXT DURASI (Sesuai arahan Bos) */}
+                                        {/* SUBTEXT DURASI */}
                                         {!item.isFree && (
                                             <span className={cn(
                                                 "text-[12px] font-black uppercase tracking-widest mt-1",

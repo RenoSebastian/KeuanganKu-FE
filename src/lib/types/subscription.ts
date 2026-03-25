@@ -14,6 +14,9 @@ export interface SubscriptionPlan {
     description?: string;
     durationMonths: number;
     price: number;
+    // [NEW] Penyelarasan dengan DTO Backend untuk mendukung fitur Harga Coret & Label Hemat
+    originalPrice?: number;
+    discountNote?: string;
     bonusQuota: number;
     isActive: boolean;
     createdAt: string;
@@ -28,7 +31,7 @@ export interface SubscriptionOrder {
     verificationStatus: VerificationStatus;
     adminNotes?: string;
     uniqueCode: number;
-    // [NEW] Nilai aktual transaksi setelah (price * duration) dari Master Data
+    // Nilai aktual transaksi setelah (price * duration) dari Master Data
     snapshotPrice: number;
     createdAt: string;
     updatedAt: string;
@@ -45,7 +48,7 @@ export interface PendingOrder extends SubscriptionOrder {
     plan: SubscriptionPlan;
 }
 
-// [NEW] Wrapper paginasi untuk kebutuhan tabel / widget
+// Wrapper paginasi untuk kebutuhan tabel / widget
 export interface PaginatedPendingOrders {
     data: PendingOrder[];
     meta: PaginationMeta;

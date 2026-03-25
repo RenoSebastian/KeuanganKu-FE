@@ -40,7 +40,9 @@ interface CheckupResultProps {
 // ============================================================================
 function AnimatedNumber({ value, className, isSurplus = false, isCurrency = true }: { value: number, className?: string, isSurplus?: boolean, isCurrency?: boolean }) {
     const formatValue = (val: number) => {
-        const absVal = Math.abs(val);
+        // Pelindung jika NaN masuk
+        const safeVal = Number.isNaN(val) ? 0 : val;
+        const absVal = Math.abs(safeVal);
 
         if (isCurrency) {
             const formatted = new Intl.NumberFormat("id-ID", {
@@ -48,10 +50,10 @@ function AnimatedNumber({ value, className, isSurplus = false, isCurrency = true
                 currency: "IDR",
                 maximumFractionDigits: 0
             }).format(absVal);
-            return isSurplus && val >= 0 ? `+${formatted}` : (val < 0 ? `-${formatted}` : formatted);
+            return isSurplus && safeVal >= 0 ? `+${formatted}` : (safeVal < 0 ? `-${formatted}` : formatted);
         }
 
-        return Math.round(val).toString();
+        return Math.round(safeVal).toString();
     };
 
     const [displayVal, setDisplayVal] = useState(0);
@@ -59,18 +61,19 @@ function AnimatedNumber({ value, className, isSurplus = false, isCurrency = true
     useEffect(() => {
         let start = 0;
         const duration = 1500;
+        const safeValue = Number.isNaN(value) ? 0 : value;
 
-        if (value === 0) {
+        if (safeValue === 0) {
             setDisplayVal(0);
             return;
         }
 
-        const increment = value / (duration / 16);
+        const increment = safeValue / (duration / 16);
 
         const timer = setInterval(() => {
             start += increment;
-            if ((increment > 0 && start >= value) || (increment < 0 && start <= value)) {
-                setDisplayVal(value);
+            if ((increment > 0 && start >= safeValue) || (increment < 0 && start <= safeValue)) {
+                setDisplayVal(safeValue);
                 clearInterval(timer);
             } else {
                 setDisplayVal(start);
@@ -108,23 +111,25 @@ export function CheckupResult({
     const isReadOnly = mode === "DIRECTOR_VIEW";
     const isAgentMode = mode === "AGENT_SIMULATION";
 
-    // --- DATA NORMALIZATION ---
+    // --- DATA NORMALIZATION (Safe Parsing) ---
     let payload: CheckupSimulationResult | HealthAnalysisResult | null = null;
     let clientInfo: any = null;
 
+    // Optional chaining untuk menghindari error `Cannot read properties of undefined`
     if (data?.data?.result) {
         payload = data.data.result;
-        clientInfo = data.data.client; // Extract client info from new structure
+        clientInfo = data.data.client;
     } else if (data?.result) {
         payload = data.result;
-        clientInfo = data.client || (data as any).userProfile;
+        clientInfo = data.client || data?.userProfile;
     } else {
         payload = data;
-        clientInfo = (data as any).client || (data as any).userProfile;
+        clientInfo = data?.client || data?.userProfile;
     }
 
     // Helper untuk Status Pernikahan
-    const getMaritalStatusLabel = (status: string) => {
+    const getMaritalStatusLabel = (status?: string) => {
+        if (!status) return "-";
         const map: Record<string, string> = {
             SINGLE: "Belum Menikah",
             MARRIED: "Menikah",
@@ -134,7 +139,8 @@ export function CheckupResult({
         return map[status] || status || "-";
     };
 
-    if (!payload || (!payload.ratios && !(payload as any).ratiosDetails)) {
+    // Pengecekan aman eksistensi payload
+    if (!payload || (!payload?.ratios && !(payload as any)?.ratiosDetails)) {
         return (
             <div className="flex flex-col justify-center items-center p-12 bg-white/50 backdrop-blur-md rounded-3xl border border-slate-100 min-h-[40vh] shadow-inner">
                 <div className="relative w-16 h-16 mb-4">
@@ -147,12 +153,16 @@ export function CheckupResult({
         );
     }
 
-    const rawRatios = payload.ratios || (payload as any).ratiosDetails || {};
-    const ratios = Array.isArray(rawRatios) ? rawRatios : Object.values(rawRatios);
+    // [FIXED] Array type safety (Empty Array Guard)
+    const rawRatios = payload?.ratios || (payload as any)?.ratiosDetails || [];
+    const ratios = Array.isArray(rawRatios) ? rawRatios : Object.values(rawRatios || {});
+    // [FIXED] Tambahkan anotasi tipe eksplisit : any[] atau : RatioDetail[]
+    const safeRatios: any[] = Array.isArray(ratios) ? ratios : [];
 
-    const score = payload.score ?? (payload as any).healthScore ?? 0;
-    const netWorth = payload.netWorth ?? (payload as any).totalNetWorth ?? 0;
-    const monthlySurplus = payload.surplusDeficit ?? 0;
+    // [FIXED] Mathematical Fallbacks
+    const score = Number(payload?.score ?? (payload as any)?.healthScore ?? 0) || 0;
+    const netWorth = Number(payload?.netWorth ?? (payload as any)?.totalNetWorth ?? 0) || 0;
+    const monthlySurplus = Number(payload?.surplusDeficit ?? 0) || 0;
     const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
 
     // --- HANDLERS ---
@@ -165,7 +175,6 @@ export function CheckupResult({
         }
         try {
             setIsDownloadingMgc(true);
-            // [PERBAIKAN] Ambil nama klien dan teruskan ke service MGC
             const clientName = clientInfo?.name || "Klien";
             await financialService.downloadSimulationFiles(data, clientName);
         } catch (error) {
@@ -181,7 +190,6 @@ export function CheckupResult({
 
         try {
             setLocalPdfLoading(true);
-            // [PERBAIKAN] Ekstrak nama klien dari variabel lokalisasi yang sudah ada
             const clientName = clientInfo?.name || "Klien";
 
             if (isAgentMode) {
@@ -193,7 +201,6 @@ export function CheckupResult({
                     const link = document.createElement('a');
                     link.href = url;
 
-                    // [PERBAIKAN] Gunakan utilitas standar penamaan untuk buffer internal
                     const filenamePdf = generateSimulationFilename("Financial Checkup", clientName, "pdf");
                     link.setAttribute('download', filenamePdf);
 
@@ -204,12 +211,11 @@ export function CheckupResult({
                     alert("Buffer PDF tidak ditemukan di data respons. Hubungi Admin.");
                 }
             } else {
-                const recordId = (payload as any).id || (rawData as any)?.id;
+                const recordId = (payload as any)?.id || (rawData as any)?.id;
                 if (!recordId) {
                     alert("ID Laporan tidak ditemukan. Mohon simpan data terlebih dahulu.");
                     return;
                 }
-                // [PERBAIKAN] Teruskan nama klien ke service
                 await financialService.downloadCheckupPdf(recordId, clientName);
             }
         } catch (error) {
@@ -222,7 +228,10 @@ export function CheckupResult({
 
     // --- THEME ENGINE ---
     const getThemeConfig = (val: number) => {
-        if (val >= 80) return {
+        // Pengaman jika score adalah NaN
+        const safeVal = Number.isNaN(val) ? 0 : val;
+
+        if (safeVal >= 80) return {
             gradient: "from-emerald-900 via-emerald-800 to-teal-900",
             accent: "text-emerald-400",
             bgSoft: "bg-emerald-500/10 border-emerald-500/20",
@@ -230,7 +239,7 @@ export function CheckupResult({
             stroke: "#10b981",
             icon: CheckCircle2
         };
-        if (val >= 50) return {
+        if (safeVal >= 50) return {
             gradient: "from-slate-900 via-slate-800 to-amber-950",
             accent: "text-amber-400",
             bgSoft: "bg-amber-500/10 border-amber-500/20",
@@ -251,11 +260,11 @@ export function CheckupResult({
     const theme = getThemeConfig(score);
     const StatusIcon = theme.icon;
 
-    const safeRatios = ratios as any[];
-    const healthyCount = safeRatios.filter((r) => r.statusColor === "GREEN_DARK" || r.statusColor === "GREEN_LIGHT").length;
-    const priorityFix = safeRatios.find((r) => r.statusColor === "RED" || r.statusColor === "YELLOW")?.label || "Pertumbuhan Aset";
-
-    return (
+    // Baris 263-264 sekarang bisa ditulis lebih bersih seperti ini:
+    const healthyCount = safeRatios?.filter((r) => r?.statusColor === "GREEN_DARK" || r?.statusColor === "GREEN_LIGHT").length || 0;
+    const priorityFix = safeRatios?.find((r) => r?.statusColor === "RED" || r?.statusColor === "YELLOW")?.label || "Pertumbuhan Aset";
+    
+        return (
         <div className="flex flex-col gap-6 md:gap-8 pb-8 animate-in fade-in zoom-in-95 duration-700">
             <PdfLoadingModal isOpen={localPdfLoading || isDownloading} />
 
@@ -356,10 +365,10 @@ export function CheckupResult({
                                 <motion.circle
                                     cx="50" cy="50" r="42" fill="none"
                                     stroke={theme.stroke} strokeWidth="12"
-                                    strokeDasharray={`${score * 2.638} 263.8`}
+                                    strokeDasharray={`${(score >= 0 ? score : 0) * 2.638} 263.8`}
                                     strokeLinecap="round"
                                     initial={{ strokeDasharray: `0 263.8` }}
-                                    animate={{ strokeDasharray: `${score * 2.638} 263.8` }}
+                                    animate={{ strokeDasharray: `${(score >= 0 ? score : 0) * 2.638} 263.8` }}
                                     transition={{ duration: 2, ease: "easeOut" }}
                                     className="drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]"
                                 />
@@ -367,7 +376,7 @@ export function CheckupResult({
 
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter leading-none flex items-center">
-                                    <AnimatedNumber value={score} isCurrency={false} className="font-sans tracking-tighter" />
+                                    <AnimatedNumber value={score >= 0 ? score : 0} isCurrency={false} className="font-sans tracking-tighter" />
                                     <span className="text-2xl lg:text-3xl text-white/50 ml-1 mb-2">%</span>
                                 </span>
                                 <span className="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-widest mt-2">Health Score</span>
@@ -418,19 +427,19 @@ export function CheckupResult({
                         <div className="grid grid-cols-2 gap-y-2 text-xs text-slate-600">
                             <div className="flex flex-col">
                                 <span className="text-slate-400">Nama</span>
-                                <span className="font-semibold">{clientInfo.name}</span>
+                                <span className="font-semibold">{clientInfo?.name || "-"}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-slate-400">Status</span>
-                                <span className="font-semibold">{getMaritalStatusLabel(clientInfo.maritalStatus)}</span>
+                                <span className="font-semibold">{getMaritalStatusLabel(clientInfo?.maritalStatus)}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-slate-400">Pekerjaan</span>
-                                <span className="font-semibold">{clientInfo.occupation || clientInfo.job || "-"}</span>
+                                <span className="font-semibold">{clientInfo?.occupation || clientInfo?.job || "-"}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-slate-400">Domisili</span>
-                                <span className="font-semibold">{clientInfo.city || "-"}</span>
+                                <span className="font-semibold">{clientInfo?.city || "-"}</span>
                             </div>
                         </div>
                     </motion.div>
@@ -452,97 +461,108 @@ export function CheckupResult({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    {ratios.map((ratio: any, index: number) => {
-                        const isExpanded = expandedCard === ratio.id;
+                    {/* [FIXED] Pengecekan Aman jika Ratios Kosong (Empty State Guardian) */}
+                    {safeRatios.length > 0 ? (
+                        safeRatios.map((ratio: any, index: number) => {
+                            const isExpanded = expandedCard === ratio?.id;
 
-                        let statusColor = "bg-slate-100 text-slate-500 border-slate-200";
-                        let progressColor = "bg-slate-300";
-                        if (ratio.statusColor === "GREEN_DARK" || ratio.statusColor === "GREEN_LIGHT") {
-                            statusColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
-                            progressColor = "bg-emerald-500";
-                        } else if (ratio.statusColor === "YELLOW") {
-                            statusColor = "bg-amber-50 text-amber-700 border-amber-100";
-                            progressColor = "bg-amber-500";
-                        } else if (ratio.statusColor === "RED") {
-                            statusColor = "bg-rose-50 text-rose-700 border-rose-100";
-                            progressColor = "bg-rose-500";
-                        }
+                            let statusColor = "bg-slate-100 text-slate-500 border-slate-200";
+                            let progressColor = "bg-slate-300";
+                            if (ratio?.statusColor === "GREEN_DARK" || ratio?.statusColor === "GREEN_LIGHT") {
+                                statusColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
+                                progressColor = "bg-emerald-500";
+                            } else if (ratio?.statusColor === "YELLOW") {
+                                statusColor = "bg-amber-50 text-amber-700 border-amber-100";
+                                progressColor = "bg-amber-500";
+                            } else if (ratio?.statusColor === "RED") {
+                                statusColor = "bg-rose-50 text-rose-700 border-rose-100";
+                                progressColor = "bg-rose-500";
+                            }
 
-                        const isPercentage = ["liq_networth", "saving_ratio", "debt_asset_ratio", "debt_service_ratio", "consumptive_ratio", "invest_asset_ratio", "solvency_ratio"].includes(ratio.id);
-                        const displayVal = isPercentage ? `${ratio.value}%` : `${ratio.value}x`;
-                        const targetVal = isPercentage ? `${ratio.benchmark}` : `${ratio.benchmark}`;
+                            const isPercentage = ["liq_networth", "saving_ratio", "debt_asset_ratio", "debt_service_ratio", "consumptive_ratio", "invest_asset_ratio", "solvency_ratio"].includes(ratio?.id);
 
-                        return (
-                            <motion.div
-                                key={ratio.id}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.1 * index }}
-                                className="bg-white border border-slate-200 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all overflow-hidden"
-                            >
-                                <div
-                                    className="p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer group"
-                                    onClick={() => setExpandedCard(isExpanded ? null : ratio.id)}
+                            // Pelindung jika ratio.value is undefined
+                            const valNum = Number(ratio?.value) || 0;
+                            const displayVal = isPercentage ? `${valNum}%` : `${valNum}x`;
+                            const targetVal = `${ratio?.benchmark || "-"}`;
+
+                            return (
+                                <motion.div
+                                    key={ratio?.id || index}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.1 * index }}
+                                    className="bg-white border border-slate-200 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all overflow-hidden"
                                 >
-                                    <div className="flex items-center gap-4 flex-1">
-                                        <div className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shrink-0", statusColor)}>
-                                            {ratio.statusColor === "GREEN_DARK" ? "Sangat Sehat" : ratio.statusColor === "GREEN_LIGHT" ? "Sehat" : ratio.statusColor === "YELLOW" ? "Waspada" : "Bahaya"}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-sm md:text-base text-slate-800 group-hover:text-indigo-600 transition-colors">{ratio.label}</h4>
-                                            <p className="text-xs text-slate-500 font-medium">Target rasio ideal: {targetVal}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between md:justify-end gap-6 md:w-auto w-full border-t border-slate-100 md:border-0 pt-3 md:pt-0">
-                                        <div className="text-xl md:text-2xl font-black text-slate-800">
-                                            {displayVal}
-                                        </div>
-                                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
-                                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className={cn(
-                                    "grid transition-all duration-300 ease-in-out bg-slate-50 border-t border-slate-100",
-                                    isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                                )}>
-                                    <div className="overflow-hidden">
-                                        <div className="p-4 md:p-6 flex flex-col md:flex-row gap-6">
-                                            <div className="flex-1">
-                                                <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                                    <FileText className="w-3 h-3" /> Rekomendasi Ahli
-                                                </h5>
-                                                <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                                                    {ratio.recommendation}
-                                                </p>
+                                    <div
+                                        className="p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer group"
+                                        onClick={() => setExpandedCard(isExpanded ? null : ratio?.id)}
+                                    >
+                                        <div className="flex items-center gap-4 flex-1">
+                                            <div className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shrink-0", statusColor)}>
+                                                {ratio?.statusColor === "GREEN_DARK" ? "Sangat Sehat" : ratio?.statusColor === "GREEN_LIGHT" ? "Sehat" : ratio?.statusColor === "YELLOW" ? "Waspada" : "Bahaya"}
                                             </div>
-                                            <div className="w-full md:w-48 shrink-0 flex flex-col justify-center">
-                                                <div className="flex justify-between text-xs font-bold mb-2">
-                                                    <span className="text-slate-500">Nilai Anda</span>
-                                                    <span className={cn(statusColor.split(" ")[1])}>{displayVal}</span>
-                                                </div>
-                                                <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                                                    <motion.div
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: isExpanded ? (isPercentage ? `${Math.min(ratio.value, 100)}%` : '50%') : 0 }}
-                                                        transition={{ duration: 1, delay: 0.2 }}
-                                                        className={cn("h-full rounded-full", progressColor)}
-                                                    />
-                                                </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm md:text-base text-slate-800 group-hover:text-indigo-600 transition-colors">{ratio?.label || "Rasio Keuangan"}</h4>
+                                                <p className="text-xs text-slate-500 font-medium">Target rasio ideal: {targetVal}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between md:justify-end gap-6 md:w-auto w-full border-t border-slate-100 md:border-0 pt-3 md:pt-0">
+                                            <div className="text-xl md:text-2xl font-black text-slate-800">
+                                                {displayVal}
+                                            </div>
+                                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
+                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+
+                                    <div className={cn(
+                                        "grid transition-all duration-300 ease-in-out bg-slate-50 border-t border-slate-100",
+                                        isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                                    )}>
+                                        <div className="overflow-hidden">
+                                            <div className="p-4 md:p-6 flex flex-col md:flex-row gap-6">
+                                                <div className="flex-1">
+                                                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                                        <FileText className="w-3 h-3" /> Rekomendasi Ahli
+                                                    </h5>
+                                                    <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                                                        {ratio?.recommendation || "Tidak ada rekomendasi khusus saat ini."}
+                                                    </p>
+                                                </div>
+                                                <div className="w-full md:w-48 shrink-0 flex flex-col justify-center">
+                                                    <div className="flex justify-between text-xs font-bold mb-2">
+                                                        <span className="text-slate-500">Nilai Anda</span>
+                                                        <span className={cn(statusColor.split(" ")[1])}>{displayVal}</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                                                        <motion.div
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: isExpanded ? (isPercentage ? `${Math.min(valNum, 100)}%` : '50%') : 0 }}
+                                                            transition={{ duration: 1, delay: 0.2 }}
+                                                            className={cn("h-full rounded-full", progressColor)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })
+                    ) : (
+                        <div className="p-8 flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-2xl">
+                            <Activity className="w-8 h-8 text-slate-300 mb-3" />
+                            <p className="text-slate-500 font-medium text-sm">Data detail rasio tidak tersedia.</p>
+                        </div>
+                    )}
                 </div>
             </motion.div>
 
             {/* =========================================
-                4. IN-FLOW ACTION BAR (SEMPURNA)
+                4. IN-FLOW ACTION BAR
                 ========================================= */}
             {!isReadOnly && (
                 <motion.div
@@ -576,7 +596,6 @@ export function CheckupResult({
                             </Button>
                         )}
 
-                        {/* [FIXED] Tombol Reset: Membersihkan Data Lama via Parent Function */}
                         <Button
                             variant="outline"
                             onClick={onReset}
@@ -587,7 +606,6 @@ export function CheckupResult({
                             Mulai Sesi Baru
                         </Button>
 
-                        {/* Tombol Khusus Agen: Download .mgc (Backup Data) */}
                         {isAgentMode && (
                             <Button
                                 onClick={handleAgentDownloadMgc}
@@ -602,7 +620,6 @@ export function CheckupResult({
                             </Button>
                         )}
 
-                        {/* Tombol Utama: Cetak Laporan PDF (Bisa Klien / Agen) */}
                         <Button
                             onClick={handleDownloadPdf}
                             disabled={localPdfLoading || isDownloading}

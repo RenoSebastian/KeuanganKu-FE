@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { subscriptionService, SubscriptionPlan } from "@/services/subscription.service";
 
-// [FIX] Mengimpor utilitas format uang terpusat
+// Mengimpor utilitas format uang terpusat
 import { formatCurrency } from "@/lib/formatters";
 
 interface PaymentModalProps {
@@ -33,17 +33,16 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
     // Safety Guard
     if (!plan) return null;
 
-    // --- LOGIC PERHITUNGAN HARGA ---
-    // 1. Base Price (Harga x Durasi)
-    const basePrice = plan.durationMonths > 0 ? plan.price * plan.durationMonths : plan.price;
+    // --- LOGIC PERHITUNGAN HARGA (UPDATED) ---
+    // 1. Base Price: Mengambil harga mutlak dari DB (sudah merupakan harga bundling)
+    const basePrice = plan.price;
 
     // 2. Total Transfer (Base Price + Kode Unik)
     const totalTransfer = basePrice + uniqueCode;
 
-    // 3. Logic Diskon & Badge (Hardcoded sesuai Business Logic Anda: 6 bln = 20%, 12 bln = 30%)
-    let discountLabel = null;
-    if (plan.durationMonths === 6) discountLabel = "Hemat 20%";
-    if (plan.durationMonths === 12) discountLabel = "Hemat 30%";
+    // 3. Logic Diskon & Ekuivalensi Bulanan (Dinamis dari Master Data)
+    const discountLabel = plan.discountNote;
+    const monthlyEquivalent = plan.durationMonths > 0 ? plan.price / plan.durationMonths : plan.price;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -141,7 +140,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                 {/* SCROLLABLE BODY */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
 
-                    {/* INVOICE SUMMARY CARD (NEW DESIGN) */}
+                    {/* INVOICE SUMMARY CARD */}
                     <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm">
                         {/* Top Section: Plan Info */}
                         <div className="p-6 bg-slate-50 border-b border-slate-100">
@@ -151,7 +150,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                     <h4 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
                                         {plan.name}
                                         {discountLabel && (
-                                            <Badge className="bg-rose-100 text-rose-600 border-rose-200 text-[9px] px-2 h-5">
+                                            <Badge className="bg-rose-100 text-rose-600 border-rose-200 text-[9px] px-2 h-5 shadow-sm">
                                                 {discountLabel}
                                             </Badge>
                                         )}
@@ -159,7 +158,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Durasi</p>
-                                    <p className="font-bold text-slate-700">{plan.durationMonths} Bulan</p>
+                                    <p className="font-bold text-slate-700">{plan.durationMonths > 0 ? `${plan.durationMonths} Bulan` : "Lifetime"}</p>
                                 </div>
                             </div>
 
@@ -167,15 +166,21 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                             {plan.durationMonths > 1 && (
                                 <div className="flex items-center gap-2 text-sm text-slate-500 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
                                     <TrendingDown size={16} className="text-emerald-500" />
-                                    <span>Setara dengan <b>{formatCurrency(plan.price)}</b> / bulan</span>
+                                    <span>Setara dengan <b>{formatCurrency(monthlyEquivalent)}</b> / bulan</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Bottom Section: Total Calculation */}
                         <div className="p-6 bg-white space-y-3">
+                            {plan.originalPrice && (
+                                <div className="flex justify-between items-center text-sm mb-1">
+                                    <span className="text-slate-400 font-medium">Harga Normal</span>
+                                    <span className="font-bold text-slate-400 line-through decoration-red-400 decoration-2">{formatCurrency(plan.originalPrice)}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500 font-medium">Subtotal ({plan.durationMonths} x {formatCurrency(plan.price)})</span>
+                                <span className="text-slate-500 font-medium">Subtotal (Paket {plan.durationMonths > 0 ? `${plan.durationMonths} Bulan` : 'Lifetime'})</span>
                                 <span className="font-bold text-slate-700">{formatCurrency(basePrice)}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
@@ -212,7 +217,6 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                 <div>
                                     <p className="text-[9px] text-slate-400 uppercase mb-1">Nominal Persis (Wajib)</p>
                                     <p className="text-2xl font-black text-emerald-400 font-mono tracking-wider">
-                                        {/* Menggunakan Intl.NumberFormat murni hanya untuk titik pemisah (tanpa Rp) agar mudah dicopy-paste ke m-banking */}
                                         {new Intl.NumberFormat('id-ID').format(totalTransfer)}
                                     </p>
                                 </div>
