@@ -48,7 +48,7 @@ const SupportSection = () => {
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest mb-1">Kemitraan Strategis</h4>
-                                        <p className="text-xl font-black text-white tracking-tight group-hover:text-blue-300 transition-colors">admin@geocitra.id</p>
+                                        <p className="text-xl font-black text-white tracking-tight group-hover:text-blue-300 transition-colors">hello@keuanganku.id</p>
                                     </div>
                                 </div>
                             </div>
