@@ -114,6 +114,8 @@ export function CheckupResult({
     // --- DATA NORMALIZATION (Safe Parsing) ---
     let payload: CheckupSimulationResult | HealthAnalysisResult | null = null;
     let clientInfo: any = null;
+    // [FIX] Ekstraksi MGC Token dengan fallback mapping yang lebih aman
+    const mgcToken = data?.mgcToken || data?.data?.mgcToken;
 
     // Optional chaining untuk menghindari error `Cannot read properties of undefined`
     if (data?.data?.result) {
@@ -169,11 +171,13 @@ export function CheckupResult({
 
     const handleAgentDownloadMgc = async () => {
         if (isDownloadingMgc) return;
-        // [FIXED] Pengecekan disederhanakan: pastikan mgcToken eksis
-        if (!data || !data.mgcToken) {
+
+        // [FIXED] Pengecekan disederhanakan dan diperkuat dengan fallback variabel `mgcToken`
+        if (!mgcToken) {
             alert("Data simulasi tidak valid atau token MGC belum digenerate oleh server.");
             return;
         }
+
         try {
             setIsDownloadingMgc(true);
             const clientName = clientInfo?.name || "Klien";

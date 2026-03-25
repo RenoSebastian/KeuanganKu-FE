@@ -373,9 +373,17 @@ export const financialService = {
   // [UPDATED] Checkup Simulation using new Adapter Logic
   simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<CheckupSimulationResponse> => {
     const apiPayload = toMonthlyPayload(data);
-    // [FIX] Tambahkan '/calculate' di akhir URL agar sesuai dengan Backend
     const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup/calculate", apiPayload);
-    return response.data;
+
+    const responseData = response.data as any;
+
+    // [Adapter Pattern] Pengecekan absolut: Jika response dibungkus interceptor (data.data),
+    // kita secara eksplisit mengangkat mgcToken ke root agar kontrak dengan komponen CheckupResult.tsx tidak patah.
+    if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
+      responseData.mgcToken = responseData.data.mgcToken;
+    }
+
+    return responseData;
   },
 
   /**
@@ -420,7 +428,15 @@ export const financialService = {
    */
   simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
     const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
-    return response.data;
+
+    const responseData = response.data as any;
+
+    // [Adapter Pattern] Standardisasi fallback untuk Education agar setara dengan Checkup
+    if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
+      responseData.mgcToken = responseData.data.mgcToken;
+    }
+
+    return responseData;
   },
 
   /**
@@ -486,13 +502,16 @@ export const financialService = {
   downloadSimulationFiles: (simulationResult: any, clientName: string = "Klien") => {
     const { mgcToken, filename } = simulationResult;
 
+    // [FIX] Proteksi Adapter: Mengekstrak token secara aman, mengantisipasi re-wrap payload oleh Axios interceptor
+    const actualToken = mgcToken || simulationResult?.data?.mgcToken;
+
     // Jika filename dari parameter exist, kita gunakan base name-nya, jika tidak pakai formatter
     const fallbackFilename = generateSimulationFilename("Simulation", clientName, "mgc");
     const baseFilename = filename || fallbackFilename;
 
-    if (mgcToken) {
+    if (actualToken) {
       try {
-        const tokenBlob = new Blob([mgcToken], { type: 'text/plain' });
+        const tokenBlob = new Blob([actualToken], { type: 'text/plain' });
         const tokenUrl = window.URL.createObjectURL(tokenBlob);
         const link = document.createElement('a');
         link.href = tokenUrl;
@@ -510,6 +529,8 @@ export const financialService = {
         // [FIXED - Tahap 2] Lempar exception agar UI bisa menangkap kegagalan dan tidak loading selamanya
         throw new Error("Gagal mengunduh file token MGC. Pastikan peramban tidak memblokir unduhan otomatis.");
       }
+    } else {
+      throw new Error("Token MGC tidak ditemukan pada payload balasan server.");
     }
   }
 };

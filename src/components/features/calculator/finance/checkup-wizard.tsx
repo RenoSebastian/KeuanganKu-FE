@@ -92,7 +92,11 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         (restoredClient, restoredInput, restoredStep, restoredResult) => {
             if (restoredClient) setClientData(restoredClient);
             if (restoredInput) setFinancialRecord(restoredInput);
-            if (restoredResult) setSimulationData(restoredResult);
+
+            // [FIX] Validasi keamanan Hydration, pastikan token MGC ikut di-restore jika ada Result
+            if (restoredResult) {
+                setSimulationData(restoredResult);
+            }
 
             if (restoredStep === 2 && restoredResult) setCurrentStep("RESULT");
             else if (restoredStep === 1 && restoredClient) setCurrentStep("FINANCIAL");
@@ -130,18 +134,18 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                     if (decoded.client) setClientData(decoded.client);
                     if (decoded.financial) setFinancialRecord(decoded.financial);
 
+                    // Menyusun ulang Standardized Response Contract secara absolut
                     const standardizedData: CheckupSimulationResponse = {
-                        data: decoded,
-                        mgcToken: tokenString,
+                        ...decoded, // Extrak semua root properties (meta, dll)
+                        data: decoded, // Bungkus untuk kompatibilitas CheckupResult component
+                        mgcToken: tokenString, // Token diinjeksi eksplisit di root
                         filename: file.name,
-                        pdfBuffer: undefined
                     };
 
                     setSimulationData(standardizedData);
                     setCurrentStep("RESULT");
                     toast.success("Import Berhasil!", { id: toastId, description: "Data siap dianalisa ulang." });
                 } catch (err: any) {
-                    // [FIXED - Tahap 2] Standardisasi Parsing Error
                     const beMessage = err.response?.data?.message;
                     let finalMessage = "Token MGC rusak atau tidak valid.";
                     if (Array.isArray(beMessage)) finalMessage = beMessage[0];
@@ -149,7 +153,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
 
                     toast.error("Dekripsi Gagal", { id: toastId, description: finalMessage });
                 } finally {
-                    // Absolut Finally untuk memastikan loading berhenti
                     setInternalLoading(false);
                 }
             };
@@ -178,7 +181,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // [FIXED - Tahap 1] Menggunakan parameter eksplisit untuk mencegah penggunaan stale state
     const onFinancialSubmit = async (latestFinancialData?: FinancialFormState) => {
         if (!clientData) {
             toast.error("Integritas Data Hilang", { description: "Profil klien tidak ditemukan. Harap isi identitas." });
@@ -186,9 +188,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             return;
         }
 
-        // Prioritaskan latestFinancialData dari input child, fallback ke local state jika tidak diberikan
         const dataToSubmit = latestFinancialData || financialRecord;
-
         const sessionId = crypto.randomUUID();
 
         const payload = {
@@ -202,21 +202,19 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             return;
         }
 
-        // --- Logika Fallback Jika Tidak Ada Controller Parent ---
         setInternalLoading(true);
         const toastId = toast.loading("Memproses Kalkulasi...", { description: "Menganalisis matriks kesehatan finansial..." });
 
         try {
             const response = await financialService.simulateAgentCheckup(payload);
 
+            // Response dari Adapter Layer sudah terjamin memiliki .mgcToken di Root
             setSimulationData(response);
             setCurrentStep("RESULT");
             toast.success("Analisis Selesai", { id: toastId, description: "Laporan rasio kesehatan siap dicetak." });
         } catch (error: any) {
-            // [FIXED - Tahap 2] Standardisasi Parsing Error
             let finalMessage = "Gagal memproses kalkulasi mesin.";
 
-            // Periksa jika server down / tidak ada response
             if (!error.response) {
                 finalMessage = "Koneksi ke peladen terputus. Periksa jaringan Anda.";
             } else {
@@ -340,7 +338,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                 <FinancialInputSection
                                     data={financialRecord}
                                     onUpdate={handleFinancialUpdate}
-                                    // [FIXED] Tambahkan tipe & bungkus dengan {} agar me-return void (bukan Promise)
                                     onComplete={(latestData?: FinancialFormState) => {
                                         onFinancialSubmit(latestData);
                                     }}
