@@ -30,59 +30,65 @@ export function useSecureExport(
                 cutoffDate: query.cutoffDate,
             });
 
+            // Endpoint ini sekarang mengembalikan application/octet-stream (binary blob)
             const response = await api.get(`/admin/retention/export?${params.toString()}`, {
-                responseType: "blob", // Response diperlakukan sebagai File (Binary/Blob)
+                responseType: "blob", // [CRITICAL] Memaksa Axios untuk menerima aliran biner ke RAM
                 timeout: 60000,
             });
 
-            // 3. Validasi Cerdas (Smart Content-Type Check) [PERBAIKAN DISINI]
-            const contentType = response.headers["content-type"];
+            // 3. Validasi Cerdas (Smart Content-Type Check & Error Handling)
+            // Meskipun kita berharap octet-stream, jika terjadi error (misal 404/400),
+            // NestJS akan mengembalikan JSON message yang terbungkus dalam tipe blob.
+            const contentType = response.headers["content-type"] || "";
 
-            if (contentType && contentType.includes("application/json") && response.data.type === "application/json") {
-                // Backend mengirim JSON. Kita harus intip isinya:
-                // Apakah ini JSON Data (Success) atau JSON Error Message (Fail)?
+            if (contentType.includes("application/json")) {
+                // Konversi blob yang berisi error message kembali menjadi teks JSON
                 const textData = await response.data.text();
-
                 try {
                     const jsonBody = JSON.parse(textData);
-
-                    // Logic Guard: Jika tidak ada 'records' dan ada 'message', kemungkinan besar Error.
-                    // Jika ada 'records' atau 'metadata', berarti ini FILE EXPORT yang valid.
-                    if (!jsonBody.records && !jsonBody.metadata && jsonBody.message) {
-                        throw new Error(jsonBody.message);
-                    }
-
-                    // Jika lolos check di atas, berarti ini adalah file JSON yang valid. 
-                    // Biarkan kode lanjut ke Step 5 (Download).
+                    // Lempar pesan error dari server agar ditangkap oleh block catch
+                    throw new Error(jsonBody.message || "Gagal melakukan export data.");
                 } catch (e) {
-                    // Jika gagal parse atau memang error message, lempar ke catch block utama
-                    if (e instanceof Error) throw e;
+                    throw new Error("Terjadi kesalahan format response dari server.");
                 }
             }
 
-            // 4. Penamaan File
+            // 4. Penamaan File & Restorasi Ekstensi Asli
+            // Kita mengambil nama asli dari Content-Disposition yang telah diekspos server
             const disposition = response.headers["content-disposition"];
-            let filename = `secure-archive-${query.entityType.toLowerCase()}-${query.cutoffDate}.json`;
+
+            // Default nama file jika header tidak terbaca (Sistem kompensasi)
+            let filename = `secure-archive-${query.entityType.toLowerCase()}-${query.cutoffDate}.mgc`;
 
             if (disposition && disposition.indexOf("attachment") !== -1) {
                 const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
                 const matches = filenameRegex.exec(disposition);
                 if (matches != null && matches[1]) {
+                    // Membersihkan tanda kutip dari nama file hasil RegExp
                     filename = matches[1].replace(/['"]/g, "");
                 }
             }
 
-            // 5. Trigger Browser Download
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            // 5. Trigger Browser Download (Blob Transformation)
+            // Bypass mekanisme DownloadManager Android dengan menulis blob ke Local Storage System
+            const blob = new Blob([response.data], { type: 'application/octet-stream' });
+            const url = window.URL.createObjectURL(blob);
+
             const link = document.createElement("a");
+            link.style.display = 'none'; // Sembunyikan elemen bayangan
             link.href = url;
-            link.setAttribute("download", filename);
+            link.setAttribute("download", filename); // Paksa menggunakan ekstensi .mgc dari server
+
+            // Append ke DOM diperlukan untuk kompatibilitas browser/WebView tertentu
             document.body.appendChild(link);
             link.click();
 
-            // 6. Cleanup
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(url);
+            // 6. Cleanup (Memori Management)
+            // Menghapus elemen link dan membebaskan RAM dari URL object
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 100);
 
             if (onSuccess) onSuccess();
 
@@ -92,8 +98,9 @@ export function useSecureExport(
 
             if (error instanceof AxiosError) {
                 if (error.response?.status === 404) message = "Data tidak ditemukan untuk periode tersebut.";
-                if (error.response?.status === 403) message = "Anda tidak memiliki izin akses.";
-                if (error.code === 'ECONNABORTED') message = "Koneksi timeout. Data terlalu besar.";
+                else if (error.response?.status === 403) message = "Anda tidak memiliki izin akses.";
+                else if (error.code === 'ECONNABORTED') message = "Koneksi timeout. Data terlalu besar.";
+                // Jika error.response ada tapi bukan json (misal HTML timeout nginx), gunakan pesan default
             } else if (error instanceof Error) {
                 message = error.message;
             }

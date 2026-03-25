@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, AlertTriangle, Calendar, FileJson } from "lucide-react";
+import { Download, AlertTriangle, Calendar, FileArchive, ShieldCheck } from "lucide-react";
 import { format, startOfMonth, isBefore, subMonths } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -37,10 +37,11 @@ export function ExportControl({
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     // --- HOOK INTEGRATION ---
+    // Hook ini sekarang memproduksi Blob memory biner alih-alih navigasi unduhan standar
     const { isLoading, triggerExport } = useSecureExport(
         // Success Callback
         () => {
-            setSuccessMsg("File berhasil diunduh! Simpan file ini baik-baik.");
+            setSuccessMsg("Berkas .mgc (Magic Secure Archive) berhasil diunduh! Simpan file ini sebagai otorisasi penghapusan.");
             setErrorMsg(null);
             // Trigger prop ke parent untuk membuka Verification Zone
             onExportSuccess();
@@ -108,10 +109,10 @@ export function ExportControl({
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-slate-800">
                     <Download className="h-5 w-5 text-blue-500" />
-                    Secure Data Export
+                    Secure Binary Export
                 </CardTitle>
                 <CardDescription>
-                    Langkah 1: Unduh data historis ke perangkat lokal Anda sebelum melakukan penghapusan.
+                    Langkah 1: Unduh data historis ke dalam format aman (.mgc) sebelum melakukan Pruning.
                 </CardDescription>
             </CardHeader>
 
@@ -126,9 +127,9 @@ export function ExportControl({
                 )}
 
                 {successMsg && (
-                    <Alert className="bg-green-50 border-green-200 text-green-800 animate-in fade-in">
-                        <FileJson className="h-4 w-4 text-green-600" />
-                        <AlertTitle className="text-green-800">Export Berhasil</AlertTitle>
+                    <Alert className="bg-emerald-50 border-emerald-200 text-emerald-800 animate-in fade-in">
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                        <AlertTitle className="text-emerald-800">Enkapsulasi Berhasil</AlertTitle>
                         <AlertDescription>{successMsg}</AlertDescription>
                     </Alert>
                 )}
@@ -172,7 +173,7 @@ export function ExportControl({
                             <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
                         </div>
                         <p className="text-xs text-slate-500">
-                            *Data yang dibuat <b>sebelum</b> tanggal ini akan ditarik.
+                            *Data yang dibuat <b>sebelum</b> tanggal ini akan ditarik ke dalam .mgc stream.
                             <br />
                             Saran: Gunakan tanggal {defaultSuggestion} (1 Tahun lalu).
                         </p>
@@ -190,11 +191,11 @@ export function ExportControl({
                         {isLoading ? (
                             <>
                                 <span className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-                                Downloading Stream...
+                                Generating Binary Stream...
                             </>
                         ) : (
                             <>
-                                <Download className="mr-2 h-4 w-4" />
+                                <FileArchive className="mr-2 h-4 w-4" />
                                 Start Secure Export
                             </>
                         )}

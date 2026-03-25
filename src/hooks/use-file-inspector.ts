@@ -1,24 +1,24 @@
 import { useState, useCallback } from "react";
-import { inspectArchiveFile } from "@/lib/stream-validator"; // Utility dari Fase 1
+import { inspectArchiveFile } from "@/lib/stream-validator";
 import { RetentionEntityType, StreamMetadata } from "@/lib/types/retention";
 
 interface UseFileInspectorProps {
-    expectedEntityType: RetentionEntityType; // e.g., 'EDUCATION'
-    expectedCutoffDate: string; // YYYY-MM-DD
+    expectedEntityType: RetentionEntityType | string;
+    expectedCutoffDate: string;
     onVerificationSuccess: (token: string, metadata: StreamMetadata) => void;
     onVerificationFailed: () => void;
 }
 
 interface InspectionState {
     isScanning: boolean;
-    progress: number; // 0 - 100 (Simulasi visual karena stream slicing sangat cepat)
+    progress: number;
     error: string | null;
     fileData: StreamMetadata | null;
 }
 
 /**
- * Custom Hook untuk menangani logika inspeksi file arsip secara Client-Side.
- * Menerapkan "Matching Logic" untuk memastikan file yang diupload sesuai konteks.
+ * Custom Hook untuk menangani kontrol alur inspeksi file secara Client-Side.
+ * Mengadopsi prinsip High Cohesion dengan mendelegasikan parsing biner ke stream-validator.
  */
 export function useFileInspector({
     expectedEntityType,
@@ -35,59 +35,54 @@ export function useFileInspector({
     });
 
     const inspectFile = useCallback(async (file: File) => {
-        // 1. Reset State
+        // 1. Reset State & Kunci Otorisasi
         setState({ isScanning: true, progress: 10, error: null, fileData: null });
-        onVerificationFailed(); // Reset parent state dulu
+        onVerificationFailed();
 
         try {
-            // 2. Simulasi Progress (UX Feedback)
-            // Karena inspectArchiveFile menggunakan slicing (O(1)), prosesnya instan (<50ms).
-            // Kita beri sedikit delay buatan agar user "merasakan" proses scanning.
+            // 2. Pre-flight Extension Check (Protected Variations)
+            const fileName = file.name.toLowerCase();
+            const isValidExtension = fileName.endsWith('.mgc') || fileName.endsWith('.mgc.txt') || fileName.endsWith('.txt');
+
+            if (!isValidExtension) {
+                throw new Error("Format file ditolak. Sistem hanya menerima berkas .mgc atau kompensasi teks PWA.");
+            }
+
+            // 3. Simulasi Progress (UX Feedback Loop)
             const progressInterval = setInterval(() => {
                 setState((prev) => ({ ...prev, progress: Math.min(prev.progress + 20, 90) }));
             }, 100);
 
-            // 3. EXECUTE CORE LOGIC (Stream Validator)
+            // 4. Delegasi ke Information Expert untuk O(1) Memory Validation
             const result = await inspectArchiveFile(file);
 
             clearInterval(progressInterval);
 
-            // 4. INTEGRITY CHECK (Result dari Validator)
+            // 5. Assert Integrity
             if (!result.isValid || !result.metadata || !result.pruneToken) {
-                throw new Error(result.error || "File rusak, tidak valid, atau bukan file arsip yang benar.");
+                throw new Error(result.error || "Integritas struktural file rusak atau Magic Signature tidak ditemukan.");
             }
 
-            // 5. MATCHING CHECK (Context Validation)
-            // [UPDATED Logic] - Flexible Entity Check
-            // Mengambil entityType dan module (jika ada) dari metadata
-            const { entityType, module } = result.metadata;
+            // 6. Contextual Matching Logic (Domain Validation)
+            // [FIX] Menerapkan Type Intersection untuk menjembatani perbedaan properti BE (entity) dan FE (entityType/module)
+            const meta = result.metadata as StreamMetadata & { entity?: string; entityType?: string; module?: string };
+            const detectedEntity = meta.entity || meta.entityType || meta.module;
+            const cutoffDate = result.metadata.cutoffDate;
 
-            // Logic Baru: Valid jika entityType cocok ATAU module cocok (untuk kompatibilitas Token Simulasi)
-            // Kita melakukan casting ke string untuk perbandingan aman
-            const isValidEntity =
-                (entityType === expectedEntityType) ||
-                (module === expectedEntityType);
-
-            if (!isValidEntity) {
-                // Tentukan label yang terbaca untuk pesan error
-                const detectedType = entityType || module || 'Unknown Type';
-
+            if (detectedEntity !== expectedEntityType) {
                 throw new Error(
-                    `Mismatch Entity: File ini berisi data '${detectedType}', tapi Anda sedang memproses '${expectedEntityType}'.`
+                    `Mismatch Domain: File payload ini berisi arsitektur '${detectedEntity || 'Unknown'}', sedangkan Anda mencoba memproses '${expectedEntityType}'.`
                 );
             }
 
-            // Cek Tanggal Cutoff (Optional: Strict check)
-            // Catatan: Jika token simulasi tidak memiliki cutoffDate, pastikan expectedCutoffDate disesuaikan
-            // atau logic ini dilonggarkan. Untuk saat ini kita biarkan strict sesuai original, 
-            // asumsinya file simulasi memiliki field cutoffDate atau logic pemanggil menyesuaikannya.
-            if (result.metadata.cutoffDate && result.metadata.cutoffDate !== expectedCutoffDate) {
+            // Strict temporal validation untuk mencegah human error saat import
+            if (cutoffDate && cutoffDate !== expectedCutoffDate) {
                 throw new Error(
-                    `Mismatch Date: File ini untuk cutoff '${result.metadata.cutoffDate}', tidak cocok dengan pilihan Anda '${expectedCutoffDate}'.`
+                    `Mismatch Temporal: Snapshot direkam pada '${cutoffDate}', tidak sinkron dengan parameter eksekusi '${expectedCutoffDate}'.`
                 );
             }
 
-            // 6. Success State
+            // 7. State Resolusi Sukses
             setState({
                 isScanning: false,
                 progress: 100,
@@ -95,7 +90,7 @@ export function useFileInspector({
                 fileData: result.metadata,
             });
 
-            // Kembalikan Token Aman ke Parent Component untuk membuka kunci tombol Prune / Load Data
+            // Handshake token otorisasi ke Parent Component
             onVerificationSuccess(result.pruneToken, result.metadata);
 
         } catch (err: any) {
@@ -103,7 +98,7 @@ export function useFileInspector({
                 ...prev,
                 isScanning: false,
                 progress: 0,
-                error: err.message || "Gagal memverifikasi file.",
+                error: err.message || "Kesalahan I/O tidak teridentifikasi saat memverifikasi aliran data.",
             }));
             onVerificationFailed();
         }

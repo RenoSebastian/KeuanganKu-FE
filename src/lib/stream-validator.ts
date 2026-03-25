@@ -1,8 +1,12 @@
 import { StreamMetadata, StreamSecurity } from './types/retention';
 
-// Ukuran chunk untuk sampling (dalam bytes)
-const HEADER_SAMPLE_SIZE = 1024; // 1KB pertama untuk metadata
-const FOOTER_SAMPLE_SIZE = 2048; // 2KB terakhir untuk security token
+// [ARCHITECTURE] Konstanta Signature untuk Smart File Recognition (Agnostik Ekstensi)
+const MGC_MAGIC_SIGNATURE = 'MGC_SECURE_V1';
+
+// Ukuran chunk sampel disesuaikan (dalam bytes)
+// 4KB sudah cukup aman untuk mengakomodasi Signature + Metadata + Security object di awal file
+const HEADER_SAMPLE_SIZE = 4096;
+const FOOTER_SAMPLE_SIZE = 1024;
 
 interface ValidationResult {
     isValid: boolean;
@@ -12,87 +16,81 @@ interface ValidationResult {
 }
 
 /**
- * Membaca header file JSON untuk mengekstrak Metadata.
- * Menggunakan File.slice untuk efisiensi memori (tidak load full file).
+ * Membaca header file untuk memvalidasi Magic Signature,
+ * serta mengekstrak Metadata dan Security Token sekaligus.
+ * Menggunakan File.slice untuk memori efisien (O(1) Memory usage).
  */
-async function readMetadata(file: File): Promise<StreamMetadata> {
+async function readHeaderData(file: File) {
     const startChunk = file.slice(0, HEADER_SAMPLE_SIZE);
     const text = await startChunk.text();
 
-    // Mencari pattern: "metadata": { ... }
-    // Kita gunakan regex non-greedy untuk menangkap objek metadata
-    const match = text.match(/"metadata"\s*:\s*({[^}]+})/);
+    // 1. Validasi Smart File Recognition (Bypass Ekstensi OS)
+    const signatureMatch = text.match(/"_mgc_signature"\s*:\s*"([^"]+)"/);
+    if (!signatureMatch || signatureMatch[1] !== MGC_MAGIC_SIGNATURE) {
+        throw new Error('File ditolak. Magic signature MGC tidak ditemukan atau file telah dimanipulasi.');
+    }
 
-    if (!match || !match[1]) {
-        throw new Error('Header file tidak valid atau metadata tidak ditemukan.');
+    // 2. Ekstraksi Metadata menggunakan non-greedy regex
+    const metadataMatch = text.match(/"metadata"\s*:\s*({[^}]+})/);
+    if (!metadataMatch || !metadataMatch[1]) {
+        throw new Error('Header file tidak valid: struktur metadata tidak ditemukan.');
+    }
+
+    // 3. Ekstraksi Security Token 
+    // Berada di header chunk karena posisinya sebelum array data yang masif
+    const securityMatch = text.match(/"security"\s*:\s*({[^}]+})/);
+    if (!securityMatch || !securityMatch[1]) {
+        throw new Error('Security header tidak ditemukan. Struktur file MGC mungkin korup.');
     }
 
     try {
-        return JSON.parse(match[1]) as StreamMetadata;
+        return {
+            metadata: JSON.parse(metadataMatch[1]) as StreamMetadata,
+            security: JSON.parse(securityMatch[1]) as StreamSecurity
+        };
     } catch (e) {
-        throw new Error('Gagal mem-parsing metadata JSON.');
+        throw new Error('Gagal mem-parsing objek JSON dari buffer header.');
     }
 }
 
 /**
- * Membaca footer file JSON untuk mengekstrak Security Token.
- * Memastikan file tidak terpotong (broken stream).
+ * Membaca footer untuk memverifikasi integritas fisik file (End Of File).
+ * Mencegah file yang terpotong saat proses download diproses oleh aplikasi.
  */
-async function readSecurityToken(file: File): Promise<StreamSecurity> {
-    // Ambil 2KB terakhir
+async function verifyStreamIntegrity(file: File): Promise<void> {
     const startByte = Math.max(0, file.size - FOOTER_SAMPLE_SIZE);
     const endChunk = file.slice(startByte, file.size);
     const text = await endChunk.text();
 
-    // 1. Cek Integritas Fisik: File harus diakhiri dengan '}'
-    // Trim whitespace di akhir
-    if (!text.trim().endsWith('}')) {
-        throw new Error('Integritas File Rusak: File JSON tidak tertutup sempurna (Missing closing brace).');
-    }
-
-    // 2. Mencari pattern: "security": { ... } di akhir file
-    // Regex mencari object security sebelum penutup array/object utama
-    const match = text.match(/"security"\s*:\s*({[^}]+})\s*}/);
-
-    if (!match || !match[1]) {
-        throw new Error('Security Footer hilang. File mungkin korup atau hasil export tidak lengkap.');
-    }
-
-    try {
-        const security = JSON.parse(match[1]) as StreamSecurity;
-
-        // Verifikasi flag integrity dari BE
-        if (security.integrity !== 'END_OF_STREAM_OK') {
-            throw new Error('Flag integritas stream tidak valid.');
-        }
-
-        return security;
-    } catch (e) {
-        throw new Error('Gagal mem-parsing security token.');
+    // Regex memastikan file diakhiri dengan '}' mengabaikan trailing whitespaces/newlines
+    if (!/}\s*$/.test(text)) {
+        throw new Error('Integritas File Rusak: Format MGC tidak tertutup sempurna (Stream terpotong).');
     }
 }
 
 /**
  * FUNGSI UTAMA: INSPECTOR
  * Memvalidasi integritas file arsip secara Client-Side (Offline).
- * Time Complexity: O(1) - Konstan, tidak tergantung ukuran file.
+ * Time Complexity: O(1) - Evaluasi konstan pada bit array awal dan akhir, mengabaikan ukuran array data.
  */
 export async function inspectArchiveFile(file: File): Promise<ValidationResult> {
-    // Guard: File size minimal (Metadata + [] + Security ~ 200 bytes min)
+    // Guard: Batas bawah rasional ukuran file MGC (Signature + Metadata + Empty Data array ~200 bytes)
     if (file.size < 200) {
-        return { isValid: false, error: 'Ukuran file terlalu kecil untuk menjadi arsip valid.' };
+        return { isValid: false, error: 'Ukuran file tidak masuk akal untuk format MGC yang valid.' };
     }
 
     try {
-        // Parallel Read: Baca Header dan Footer sekaligus
-        const [metadata, security] = await Promise.all([
-            readMetadata(file),
-            readSecurityToken(file)
+        // Parallel I/O: Eksekusi evaluasi header dan cek EOF secara serentak
+        const [headerData] = await Promise.all([
+            readHeaderData(file),
+            verifyStreamIntegrity(file)
         ]);
 
-        // Cross-Check: Pastikan token ada
+        const { metadata, security } = headerData;
+
+        // Cross-Check ketersediaan token untuk keperluan otorisasi Prune
         if (!security.pruneToken) {
-            return { isValid: false, error: 'Security Token kosong.' };
+            return { isValid: false, error: 'Security Token (Prune Token) tidak ditemukan dalam payload.' };
         }
 
         return {
@@ -104,7 +102,7 @@ export async function inspectArchiveFile(file: File): Promise<ValidationResult> 
     } catch (error) {
         return {
             isValid: false,
-            error: error instanceof Error ? error.message : 'Kesalahan validasi tidak dikenal.'
+            error: error instanceof Error ? error.message : 'Kesalahan I/O saat melakukan inspeksi file.'
         };
     }
 }
