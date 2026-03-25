@@ -379,6 +379,39 @@ export const financialService = {
   },
 
   /**
+   * [NEW - STEP 2] Fetcher untuk On-Demand PDF Download Khusus Checkup Agen
+   */
+  downloadAgentCheckupPdf: async (simulationId: string, clientName: string = "Klien") => {
+    const response = await api.get(`/financial/simulation/checkup/${simulationId}/pdf`, {
+      responseType: 'blob',
+      timeout: 60000, // 1 Menit batas wajar render PDF kompleks
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Deteksi nama file dari Header (opsional), fallback ke formatter terstandar
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = generateSimulationFilename("Checkup Simulation", clientName, "pdf");
+
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (fileNameMatch && fileNameMatch.length === 2) {
+        // filename = fileNameMatch[1]; 
+      }
+    }
+
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup memori browser
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  /**
    * [SCENARIO B] simulateAgentEducation
    * ----------------------------------------
    * 1. Request Kalkulasi (JSON)

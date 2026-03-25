@@ -153,13 +153,13 @@ export function CheckupResult({
         );
     }
 
-    // [FIXED] Array type safety (Empty Array Guard)
+    // Array type safety (Empty Array Guard)
     const rawRatios = payload?.ratios || (payload as any)?.ratiosDetails || [];
     const ratios = Array.isArray(rawRatios) ? rawRatios : Object.values(rawRatios || {});
-    // [FIXED] Tambahkan anotasi tipe eksplisit : any[] atau : RatioDetail[]
+    // Tambahkan anotasi tipe eksplisit : any[] atau : RatioDetail[]
     const safeRatios: any[] = Array.isArray(ratios) ? ratios : [];
 
-    // [FIXED] Mathematical Fallbacks
+    // Mathematical Fallbacks
     const score = Number(payload?.score ?? (payload as any)?.healthScore ?? 0) || 0;
     const netWorth = Number(payload?.netWorth ?? (payload as any)?.totalNetWorth ?? 0) || 0;
     const monthlySurplus = Number(payload?.surplusDeficit ?? 0) || 0;
@@ -169,8 +169,9 @@ export function CheckupResult({
 
     const handleAgentDownloadMgc = async () => {
         if (isDownloadingMgc) return;
-        if (!data || (!data.mgcToken && !data.pdfBuffer)) {
-            alert("Data simulasi tidak valid atau token hilang.");
+        // [FIXED] Pengecekan disederhanakan: pastikan mgcToken eksis
+        if (!data || !data.mgcToken) {
+            alert("Data simulasi tidak valid atau token MGC belum digenerate oleh server.");
             return;
         }
         try {
@@ -195,7 +196,11 @@ export function CheckupResult({
             if (isAgentMode) {
                 if (onDownloadPdf) {
                     onDownloadPdf();
+                } else if (data?.meta?.simulationId) {
+                    // [FIXED] Gunakan On-Demand Fetcher karena kita di arsitektur Decoupled Checkup
+                    await financialService.downloadAgentCheckupPdf(data.meta.simulationId, clientName);
                 } else if (data?.pdfBuffer) {
+                    // Fallback untuk modul Kalkulator lain (Legacy Stateless Streaming) yang mungkin meminjam komponen ini
                     const blob = new Blob([new Uint8Array(data.pdfBuffer.data)], { type: 'application/pdf' });
                     const url = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -208,10 +213,11 @@ export function CheckupResult({
                     link.click();
                     link.parentNode?.removeChild(link);
                 } else {
-                    alert("Buffer PDF tidak ditemukan di data respons. Hubungi Admin.");
+                    alert("ID Simulasi tidak ditemukan di respons server. PDF tidak dapat dicetak.");
                 }
             } else {
-                const recordId = (payload as any)?.id || (rawData as any)?.id;
+                // Di User Mode / Personal Mode
+                const recordId = (payload as any)?.id || (rawData as any)?.id || data?.meta?.simulationId;
                 if (!recordId) {
                     alert("ID Laporan tidak ditemukan. Mohon simpan data terlebih dahulu.");
                     return;
@@ -260,11 +266,10 @@ export function CheckupResult({
     const theme = getThemeConfig(score);
     const StatusIcon = theme.icon;
 
-    // Baris 263-264 sekarang bisa ditulis lebih bersih seperti ini:
     const healthyCount = safeRatios?.filter((r) => r?.statusColor === "GREEN_DARK" || r?.statusColor === "GREEN_LIGHT").length || 0;
     const priorityFix = safeRatios?.find((r) => r?.statusColor === "RED" || r?.statusColor === "YELLOW")?.label || "Pertumbuhan Aset";
-    
-        return (
+
+    return (
         <div className="flex flex-col gap-6 md:gap-8 pb-8 animate-in fade-in zoom-in-95 duration-700">
             <PdfLoadingModal isOpen={localPdfLoading || isDownloading} />
 
@@ -461,7 +466,7 @@ export function CheckupResult({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    {/* [FIXED] Pengecekan Aman jika Ratios Kosong (Empty State Guardian) */}
+                    {/* Pengecekan Aman jika Ratios Kosong (Empty State Guardian) */}
                     {safeRatios.length > 0 ? (
                         safeRatios.map((ratio: any, index: number) => {
                             const isExpanded = expandedCard === ratio?.id;
