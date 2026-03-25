@@ -22,12 +22,21 @@ import { cn } from "@/lib/utils";
 // Total ada 8 Card (Best Practice maksimal untuk Carousel edukasi)
 const insights = [
     {
+        category: "INTEGRITAS",
+        icon: ShieldCheck,
+        title: "Agen vs Penasihat",
+        content: "Sales biasa sibuk mengejar target komisi bulanan. Penasihat profesional fokus memberikan solusi nyata untuk membangun reputasi dan relasi seumur hidup.",
+        footerTip: "⭐ Kepercayaan nasabah adalah aset jangka panjang Anda.",
+        image: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800&auto=format&fit=crop",
+    },
+
+    {
         category: "MINDSET",
         icon: Lightbulb,
         title: "Kompetensi > Penampilan",
         content: "Penampilan menarik memang membuka pintu. Namun, akurasi perhitungan dan validitas datalah yang akhirnya memenangkan kepercayaan nasabah hingga tahap closing.",
         footerTip: "💡 Profesionalisme sejati diukur dari ketepatan solusi.",
-        image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=800&auto=format&fit=crop",
+        image: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "EDUKASI",
@@ -43,7 +52,7 @@ const insights = [
         title: "Pintu Masuk Percakapan",
         content: "Jangan tawarkan asuransi di awal. Tanyakan apa impian terbesar mereka untuk keluarga, lalu gunakan data untuk menunjukkan cara memastikannya terwujud.",
         footerTip: "🎯 Jadikan kalkulator sebagai alat ice breaking yang elegan.",
-        image: "https://images.unsplash.com/photo-1573164713988-8665fc963095?q=80&w=800&auto=format&fit=crop", // Coffee shop meeting
+        image: "https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?q=80&w=800&auto=format&fit=crop", // Coffee shop meeting
     },
     {
         category: "STRATEGI",
@@ -60,14 +69,6 @@ const insights = [
         content: "'Asuransi itu rugi' adalah mitos dari ketidaktahuan. Saat Anda menyajikan proyeksi inflasi medis dan pendidikan yang presisi, keraguan itu akan gugur dengan sendirinya.",
         footerTip: "🛡️ Data yang valid adalah perisai dari penolakan (objection).",
         image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop", // Graph/chart presentation
-    },
-    {
-        category: "INTEGRITAS",
-        icon: ShieldCheck,
-        title: "Agen vs Penasihat",
-        content: "Sales biasa sibuk mengejar target komisi bulanan. Penasihat profesional fokus memberikan solusi nyata untuk membangun reputasi dan relasi seumur hidup.",
-        footerTip: "⭐ Kepercayaan nasabah adalah aset jangka panjang Anda.",
-        image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "VISUALISASI", // BARU
