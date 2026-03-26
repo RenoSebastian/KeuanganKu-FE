@@ -94,37 +94,32 @@ export const authService = {
   },
 
   // =================================================================
-  // [NEW] 7. FORGOT PASSWORD: FASE 1 (REQUEST OTP)
+  // [REFACTORED] 7. FORGOT PASSWORD: INITIATION (MAGIC LINK)
   // =================================================================
   requestPasswordReset: async (data: { email: string }) => {
+    // Meminta Backend menghasilkan tautan URL pemulihan berbasis CSPRNG
     const response = await api.post<{ message: string }>("/auth/forgot-password", data);
     return response.data;
   },
 
   // =================================================================
-  // [NEW] 8. FORGOT PASSWORD: FASE 2 (VERIFY OTP)
+  // [NEW] 8. FORGOT PASSWORD: PRE-FLIGHT CHECK
   // =================================================================
-  verifyPasswordResetOtp: async (data: { email: string; otp: string }) => {
-    // API akan mengembalikan 'reset_token' berupa Scoped-JWT jika OTP valid
-    const response = await api.post<{ message: string; reset_token: string }>("/auth/verify-password-otp", data);
+  verifyResetLink: async (token: string) => {
+    // Mengecek validitas token tanpa merusaknya (burn-on-read prevention)
+    const response = await api.get<{ valid: boolean; message: string }>(`/auth/verify-reset-link?token=${token}`);
     return response.data;
   },
 
   // =================================================================
-  // [NEW] 9. FORGOT PASSWORD: FASE 3 (EXECUTE RESET)
+  // [REFACTORED] 9. FORGOT PASSWORD: EXECUTE RESET
   // =================================================================
   executePasswordReset: async (resetToken: string, data: { newPassword: string }) => {
-    // SECURITY ENFORCEMENT: 
-    // Kita menimpa (override) header Authorization Axios untuk spesifik mem-bypass 
-    // Access Token reguler dan murni menggunakan Scoped-JWT pemulihan.
+    // Token tidak lagi dikirim via Header Authorization, 
+    // melainkan lewat URL Query untuk diproses oleh logika Burn-on-Write di Backend
     const response = await api.post<{ message: string }>(
-      "/auth/reset-password",
-      data,
-      {
-        headers: {
-          Authorization: `Bearer ${resetToken}`,
-        },
-      }
+      `/auth/reset-password?token=${resetToken}`,
+      data
     );
     return response.data;
   },

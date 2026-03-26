@@ -9,7 +9,7 @@ import {
   User as UserIcon, Shield, CreditCard,
   Loader2, AlertCircle, Mail, Filter,
   CheckCircle2, XCircle, Zap, Crown,
-  MessageCircle, Clock, Calendar, LockKeyhole
+  MessageCircle, Clock, Calendar, LockKeyhole, Link as LinkIcon // [CHANGED] Menambahkan LinkIcon
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -347,9 +347,9 @@ export default function AdminUsersPage() {
                             <Link href={`/admin/users/${user.id}/edit`}><DropdownMenuItem><UserIcon className="w-4 h-4 mr-2" /> Edit Profil</DropdownMenuItem></Link>
                             <DropdownMenuItem onClick={() => handleAction('inject', user)}><Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Token</DropdownMenuItem>
 
-                            {/* [NEW] FASE 5: Trigger Email OTP Sandi */}
-                            <DropdownMenuItem className="text-amber-700 font-bold focus:bg-amber-50" onClick={() => handleAction('reset_password', user)}>
-                              <LockKeyhole className="w-4 h-4 mr-2" /> Kirim Instruksi Sandi
+                            {/* [REFACTORED] Trigger Email Magic Link Sandi (Menyesuaikan Roadmap Tahap 4) */}
+                            <DropdownMenuItem className="text-blue-600 font-bold focus:bg-blue-50" onClick={() => handleAction('reset_password', user)}>
+                              <LinkIcon className="w-4 h-4 mr-2" /> Kirim Tautan Pemulihan
                             </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
@@ -400,9 +400,9 @@ export default function AdminUsersPage() {
                 <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase" onClick={() => handleWhatsAppBilling(user)}>
                   <MessageCircle className="w-3 h-3 mr-2" /> Hubungi
                 </Button>
-                {/* [NEW] Mobile Trigger OTP */}
-                <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase text-amber-700 border-amber-200 hover:bg-amber-50" onClick={() => handleAction('reset_password', user)}>
-                  <LockKeyhole className="w-3 h-3 mr-2" /> Reset Sandi
+                {/* [REFACTORED] Mobile Trigger Magic Link */}
+                <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => handleAction('reset_password', user)}>
+                  <LinkIcon className="w-3 h-3 mr-2" /> Kirim Tautan
                 </Button>
               </div>
             </Card>
