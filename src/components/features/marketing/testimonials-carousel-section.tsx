@@ -24,59 +24,58 @@ const insights = [
     {
         category: "INTEGRITAS",
         icon: ShieldCheck,
-        title: "Agen vs Penasihat",
-        content: "Sales biasa sibuk mengejar target komisi bulanan. Penasihat profesional fokus memberikan solusi nyata untuk membangun reputasi dan relasi seumur hidup.",
+        title: "Agen sebagai Financial Consultant",
+        content: "Sebagai financial konsultan, agen mengubah data menjadi kebutuhan. Keputusan financial yang terjadi, akan meningkatkan kualitas polis menjadi Big Case yang sesuai",
         footerTip: "⭐ Kepercayaan nasabah adalah aset jangka panjang Anda.",
         image: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800&auto=format&fit=crop",
     },
-
     {
         category: "MINDSET",
         icon: Lightbulb,
-        title: "Kompetensi > Penampilan",
-        content: "Penampilan menarik memang membuka pintu. Namun, akurasi perhitungan dan validitas datalah yang akhirnya memenangkan kepercayaan nasabah hingga tahap closing.",
+        title: "Kompetensi vs Penampilan",
+        content: "Penampilan (appearance) yang diikuti dengan kompetensi akan meningkatkan kredibilitas. Akurasi perhitungan dan validitas data akan memenangkan emosi dan logis dari klien Anda",
         footerTip: "💡 Profesionalisme sejati diukur dari ketepatan solusi.",
         image: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "EDUKASI",
         icon: GraduationCap,
-        title: "Kekuatan 'Needs Approach'",
-        content: "Sesuai standar CFP, pendekatan kebutuhan adalah metode paling objektif. Nasabah mendapatkan proteksi yang pas, tanpa merasa terbebani oleh premi yang berlebihan.",
+        title: "Needs Approach",
+        content: "Sesuai standar CFP, pendekatan kebutuhan merupakan metode yang paling sesuai untuk melindungi pengeluaran keluarga yang berkelanjutan setelah kepastian tiba.",
         footerTip: "📚 Edukasi nasabah dengan perhitungan yang transparan.",
         image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=800&auto=format&fit=crop",
     },
     {
-        category: "PROSPEKTING", // BARU
+        category: "PROSPEKTING",
         icon: Target,
-        title: "Pintu Masuk Percakapan",
-        content: "Jangan tawarkan asuransi di awal. Tanyakan apa impian terbesar mereka untuk keluarga, lalu gunakan data untuk menunjukkan cara memastikannya terwujud.",
+        title: "Life's Goal",
+        content: "Setiap orang memiliki tujuan hidup / life's goal . Berbicara mengenai hal ini akan membuka percakapan sekaligus fact finding mengenai skala prioritas nasabah",
         footerTip: "🎯 Jadikan kalkulator sebagai alat ice breaking yang elegan.",
-        image: "https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?q=80&w=800&auto=format&fit=crop", // Coffee shop meeting
+        image: "https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "STRATEGI",
         icon: HeartHandshake,
-        title: "Juallah Sebuah Kepastian",
-        content: "Nasabah tidak sekadar membeli angka 1 Miliar. Mereka membeli jaminan bahwa biaya hidup dan pendidikan anak tetap aman meski pencari nafkah tiada.",
+        title: "Menjual Kepastian Likuiditas",
+        content: "UP 1 M adalah sebuah angka yang menjamin keluarga nasabah Anda memiliki likuiditas untuk melanjutkan hidup dan mencapai tujuan walaupun terjadi risiko",
         footerTip: "🗣️ Ubah bahasa nominal menjadi bahasa perlindungan keluarga.",
         image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=800&auto=format&fit=crop",
     },
     {
-        category: "OBJECTION", // BARU
+        category: "OBJECTION",
         icon: TrendingUp,
         title: "Patahkan Mitos dengan Fakta",
         content: "'Asuransi itu rugi' adalah mitos dari ketidaktahuan. Saat Anda menyajikan proyeksi inflasi medis dan pendidikan yang presisi, keraguan itu akan gugur dengan sendirinya.",
         footerTip: "🛡️ Data yang valid adalah perisai dari penolakan (objection).",
-        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop", // Graph/chart presentation
+        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop",
     },
     {
-        category: "VISUALISASI", // BARU
+        category: "VISUALISASI",
         icon: PieChart,
         title: "Melihat Berarti Percaya",
         content: "Otak manusia memproses visual jauh lebih cepat daripada deretan angka. Tampilkan grafik proteksi secara langsung di depan nasabah untuk efek 'Aha!' yang instan.",
         footerTip: "👁️ Visualisasi yang baik mempercepat keputusan pembelian.",
-        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop", // iPad/Tablet showing data
+        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "EFISIENSI",
@@ -84,7 +83,7 @@ const insights = [
         title: "Biarkan Sistem Bekerja",
         content: "Menghitung rumus finansial secara manual sangat menyita waktu. Gunakan energi Anda untuk berempati pada nasabah, biarkan aplikasi yang menyelesaikan angkanya.",
         footerTip: "⚡ Waktu Anda terlalu berharga untuk sekadar menghitung manual.",
-        image: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=800&auto=format&fit=crop", // Laptop typing/analytics
+        image: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=800&auto=format&fit=crop",
     }
 ];
 
