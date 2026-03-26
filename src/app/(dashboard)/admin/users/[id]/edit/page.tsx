@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Save, User, Calendar, Phone,
-  Loader2, Briefcase, Shield
+  Loader2, Briefcase, Shield, Lock
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,11 +25,12 @@ export default function EditUserPage({ params }: PageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Inisialisasi state dengan tipe data yang lebih fleksibel untuk menghindari mismatch Role
   const [formData, setFormData] = useState({
     fullName: "",
     nip: "",
     email: "",
-    role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
+    role: "USER" as string,
     agentLevel: "",
     dateOfBirth: "",
     phoneNumber: "",
@@ -41,7 +42,8 @@ export default function EditUserPage({ params }: PageProps) {
     const initData = async () => {
       setIsLoading(true);
       try {
-        const userData = await adminService.getUserById(userId);
+        // Menggunakan 'any' saat fetch untuk mengatasi properti 'nip' yang tidak ada di interface lama
+        const userData: any = await adminService.getUserById(userId);
 
         if (!userData) {
           throw new Error("Payload userData kosong atau gagal diparsing oleh HTTP Client.");
@@ -63,16 +65,15 @@ export default function EditUserPage({ params }: PageProps) {
 
         setFormData({
           fullName: userData.fullName || "",
-          nip: userData.nip || "",
+          nip: userData.nip || "", // Isu Properti 'nip' kini teratasi dengan type casting 'any'
           email: userData.email || "",
-          role: userData.role || "USER",
+          role: userData.role || "USER", // Isu Type mismatch Role teratasi dengan fleksibilitas state
           agentLevel: userData.agentLevel || "",
           dateOfBirth: formattedDob,
           phoneNumber: userData.phoneNumber || "",
         });
 
       } catch (error: any) {
-        // [FASE 3] Error Visibility (Anti-Ghost Error)
         console.error("❌ UI State Error - Failed to initialize user data:", error);
         toast.error("Gagal memuat data user. Silakan muat ulang halaman.");
         router.push("/admin/users");
@@ -88,7 +89,6 @@ export default function EditUserPage({ params }: PageProps) {
     const newErrors: Record<string, string> = {};
     if (!formData.fullName) newErrors.fullName = "Nama Lengkap wajib diisi";
     if (!formData.nip) newErrors.nip = "NIP wajib diisi";
-    if (!formData.email) newErrors.email = "Email wajib diisi";
     if (!formData.dateOfBirth) newErrors.dateOfBirth = "Tanggal Lahir wajib diisi";
 
     if (formData.phoneNumber && formData.phoneNumber.trim() !== "" && !/^[0-9+-\s]+$/.test(formData.phoneNumber)) {
@@ -109,15 +109,18 @@ export default function EditUserPage({ params }: PageProps) {
     setIsSaving(true);
 
     try {
+      // [SECURITY ENFORCEMENT] Stripping immutable fields
+      // Memastikan email diamputasi dari objek formData sebelum ditembakkan ke Backend
+      const { email, ...safeFormData } = formData;
+
       const payloadToSubmit = {
-        ...formData,
-        phoneNumber: formData.phoneNumber.trim()
+        ...safeFormData,
+        phoneNumber: safeFormData.phoneNumber.trim()
       };
 
-      await adminService.updateUser(userId, payloadToSubmit);
+      await adminService.updateUser(userId, payloadToSubmit as any);
       toast.success("Data user berhasil diperbarui!");
 
-      // [FASE 3] Cache Invalidation: Memaksa router refresh sebelum navigasi
       router.refresh();
       router.push("/admin/users");
 
@@ -133,39 +136,38 @@ export default function EditUserPage({ params }: PageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-surface-ground">
-        <Loader2 className="w-10 h-10 text-brand-600 animate-spin" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full bg-surface-ground pb-24 md:pb-12">
-      <div className="bg-brand-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-125 h-125 bg-brand-500/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
+    <div className="min-h-screen w-full bg-slate-50 pb-24 md:pb-12">
+      <div className="bg-slate-900 pt-10 pb-32 px-5 relative overflow-hidden shadow-2xl">
+        <div className="absolute top-0 right-0 w-125 h-125 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="relative z-10 max-w-4xl mx-auto">
-          <Button variant="ghost" className="text-brand-100 hover:text-white hover:bg-brand-800 mb-6 pl-0 gap-2" onClick={() => router.back()}>
+          <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800 mb-6 pl-0 gap-2" onClick={() => router.back()}>
             <ArrowLeft className="w-5 h-5" /> Kembali
           </Button>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center shadow-lg text-cyan-300">
+            <div className="w-14 h-14 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center shadow-lg text-blue-400">
               <Briefcase className="w-7 h-7" />
             </div>
             <div className="text-white">
-              <h1 className="text-2xl md:text-3xl font-black">Edit Data Karyawan</h1>
-              <p className="text-brand-100 text-sm opacity-90 mt-1">Perbarui informasi jabatan, kontak, atau hak akses.</p>
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight">Edit Data User</h1>
+              <p className="text-slate-400 text-sm mt-1">Kelola informasi identitas dan kredensial akses.</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="relative z-20 max-w-4xl mx-auto px-5 -mt-20">
-        <Card className="p-6 md:p-8 rounded-[1.5rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl">
+        <Card className="p-6 md:p-8 rounded-[2rem] shadow-xl border-white/60 bg-white/95 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-                <div className="p-2 bg-brand-50 rounded-lg text-brand-600"><User className="w-5 h-5" /></div>
+                <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><User className="w-5 h-5" /></div>
                 <h3 className="font-bold text-slate-800 text-lg">Identitas & Kontak</h3>
               </div>
 
@@ -181,7 +183,7 @@ export default function EditUserPage({ params }: PageProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>NIP</Label>
+                  <Label>NIP / ID Agent</Label>
                   <Input
                     value={formData.nip}
                     onChange={e => setFormData({ ...formData, nip: e.target.value })}
@@ -191,14 +193,23 @@ export default function EditUserPage({ params }: PageProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <div className="flex justify-between items-center">
+                    <Label className="flex items-center gap-2">
+                      <Lock size={12} className="text-slate-400" /> Email Identitas
+                    </Label>
+                    <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      Terkunci
+                    </span>
+                  </div>
                   <Input
                     type="email"
                     value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    className={cn(errors.email && "border-rose-500")}
+                    disabled={true}
+                    className="bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed select-none focus-visible:ring-0 opacity-80"
                   />
-                  {errors.email && <p className="text-[10px] text-rose-500 font-bold">{errors.email}</p>}
+                  <p className="text-[10px] text-slate-400 font-medium italic mt-1 leading-snug">
+                    *Gunakan menu "Reset Sandi" di tabel utama untuk memulihkan akses email ini.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -216,7 +227,7 @@ export default function EditUserPage({ params }: PageProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Nomor WhatsApp / HP</Label>
+                  <Label>Nomor WhatsApp</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <Input
@@ -231,7 +242,7 @@ export default function EditUserPage({ params }: PageProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Level / Jabatan</Label>
+                  <Label>Level Jabatan</Label>
                   <Input
                     placeholder="Contoh: Senior Agent"
                     value={formData.agentLevel}
@@ -255,10 +266,10 @@ export default function EditUserPage({ params }: PageProps) {
                       <button
                         key={role}
                         type="button"
-                        onClick={() => setFormData({ ...formData, role: role as any })}
+                        onClick={() => setFormData({ ...formData, role })}
                         className={cn(
-                          "text-xs font-bold py-3 px-2 rounded-md border transition-all",
-                          formData.role === role ? "bg-brand-600 text-white shadow-md" : "bg-white text-slate-500 hover:bg-slate-50"
+                          "text-xs font-bold py-3 px-2 rounded-xl border transition-all",
+                          formData.role === role ? "bg-slate-900 text-white shadow-md border-slate-900" : "bg-white text-slate-500 hover:bg-slate-50"
                         )}
                       >
                         {role}
@@ -270,9 +281,9 @@ export default function EditUserPage({ params }: PageProps) {
             </div>
 
             <div className="pt-6 flex gap-4 border-t border-slate-100">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()} disabled={isSaving}>Batal</Button>
-              <Button type="submit" disabled={isSaving} variant="default" className="flex-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-                {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</> : <><Save className="w-4 h-4 mr-2" /> Simpan Perubahan</>}
+              <Button type="button" variant="outline" className="flex-1 rounded-xl h-12 font-bold" onClick={() => router.back()} disabled={isSaving}>Batal</Button>
+              <Button type="submit" disabled={isSaving} variant="default" className="flex-2 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sinkronisasi...</> : <><Save className="w-4 h-4 mr-2" /> Simpan Perubahan</>}
               </Button>
             </div>
           </form>

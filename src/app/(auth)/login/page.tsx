@@ -140,7 +140,17 @@ function LoginForm() {
 
                     {/* Password */}
                     <div className="space-y-2.5">
-                      <Label htmlFor="password" className="text-slate-600 font-bold text-[13px] ml-1 uppercase tracking-wider">Kata Sandi</Label>
+                      <div className="flex justify-between items-center ml-1">
+                        <Label htmlFor="password" className="text-slate-600 font-bold text-[13px] uppercase tracking-wider">Kata Sandi</Label>
+                        {/* [NEW] Navigasi ke Forgot Password */}
+                        <Link
+                          href="/forgot-password"
+                          className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider"
+                          tabIndex={-1}
+                        >
+                          Lupa Sandi?
+                        </Link>
+                      </div>
                       <div className="relative group">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 group-focus-within:bg-blue-600 group-focus-within:text-white transition-all duration-300">
                           <Lock size={18} />

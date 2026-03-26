@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   User, Briefcase, LogOut, Camera, Pencil, ShieldCheck,
   Building2, BadgeCheck, Sparkles, Phone, Calendar,
-  Globe, Zap, CreditCard, Award, ChevronRight
+  Globe, Zap, CreditCard, Award, ChevronRight, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
@@ -180,22 +180,24 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // [FASE 1 & 2] Sanitasi Payload Pre-flight
-      // Memastikan string murni yang kosong dikirim sebagai "", yang mana akan ditangkap 
-      // oleh class-transformer DTO di Backend menjadi 'null' (disconnect).
+      // [SECURITY LAYER] Immutability Constraint
+      // Destructure 'email' untuk memastikan payload update tidak membawa kredensial
+      const { email, ...safeFormData } = formData;
+
+      // Sanitasi Payload Pre-flight
       const payloadToSubmit = {
-        ...formData,
-        fullName: formData.fullName.trim(),
-        phoneNumber: formData.phoneNumber.trim(),
-        goals: formData.goals.trim(),
-        companyName: formData.companyName.trim(),
-        agencyName: formData.agencyName.trim(),
-        agentLevel: formData.agentLevel.trim(),
+        ...safeFormData,
+        fullName: safeFormData.fullName.trim(),
+        phoneNumber: safeFormData.phoneNumber.trim(),
+        goals: safeFormData.goals.trim(),
+        companyName: safeFormData.companyName.trim(),
+        agencyName: safeFormData.agencyName.trim(),
+        agentLevel: safeFormData.agentLevel.trim(),
       };
 
       await api.patch("/users/me", payloadToSubmit);
 
-      // [FASE 3] Single Source of Truth Synchronization
+      // Single Source of Truth Synchronization
       await fetchProfile(true);
 
       setIsEditing(false);
@@ -400,6 +402,29 @@ export default function ProfilePage() {
 
               {/* Form Section */}
               <div className="p-8 md:p-10 space-y-10">
+
+                {/* [NEW] CREDENTIAL LOCK: Bagian Email Immutability UX */}
+                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 relative overflow-hidden">
+                  <div className="absolute right-0 top-0 w-24 h-24 bg-slate-200/50 rounded-full blur-xl -mr-10 -mt-10"></div>
+                  <div className="space-y-3 relative z-10">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] flex items-center gap-2">
+                        <Lock size={12} className="text-slate-400" /> Email Identitas Login
+                      </label>
+                      <span className="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Terkunci</span>
+                    </div>
+                    <input
+                      type="text"
+                      disabled={true} // Constraint Immutability Absolut
+                      value={formData.email}
+                      className="w-full px-6 py-4 rounded-[1.2rem] font-bold outline-none border border-slate-200 bg-slate-200/50 text-slate-400 cursor-not-allowed select-none"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium italic mt-2">
+                      *Email digunakan sebagai pengenal utama (*identifier*) dan tidak dapat diubah demi alasan keamanan transaksi asuransi.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <InputGroup label="Nama Lengkap & Gelar" value={formData.fullName} editing={isEditing} icon={<User size={14} />} onChange={(v) => setFormData({ ...formData, fullName: v })} />
                   <InputGroup label="Level Keagenan" value={formData.agentLevel} editing={isEditing} icon={<Award size={14} />} onChange={(v) => setFormData({ ...formData, agentLevel: v })} />

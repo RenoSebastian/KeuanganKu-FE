@@ -9,7 +9,7 @@ import {
   User as UserIcon, Shield, CreditCard,
   Loader2, AlertCircle, Mail, Filter,
   CheckCircle2, XCircle, Zap, Crown,
-  MessageCircle, Clock, Calendar
+  MessageCircle, Clock, Calendar, LockKeyhole
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,9 @@ import { cn } from "@/lib/utils";
 
 // [FASE 3] Import hook socket untuk mengaktifkan Observer Pattern di sisi Admin
 import { useSocket } from "@/providers/socket-provider";
+
+// [NEW] FASE 5: Import Komponen Zero-Knowledge Password Reset
+import TriggerResetModal from "@/components/features/admin/users/trigger-reset-modal";
 
 // --- INTERFACE MENYESUAIKAN RESPONSE BACKEND DENGAN COMPUTED METRICS ---
 interface AgentUser {
@@ -87,6 +90,10 @@ export default function AdminUsersPage() {
   const [injectAmount, setInjectAmount] = useState<number | string>("");
   const [injectReason, setInjectReason] = useState("");
   const [isInjecting, setIsInjecting] = useState(false);
+
+  // [NEW] FASE 5: State untuk Trigger Reset Modal
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [selectedUserForReset, setSelectedUserForReset] = useState<AgentUser | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
@@ -138,6 +145,10 @@ export default function AdminUsersPage() {
       setInjectAmount("");
       setInjectReason("");
       setIsInjectModalOpen(true);
+    } else if (action === "reset_password") {
+      // [NEW] Memicu modal reset sandi
+      setSelectedUserForReset(user);
+      setIsResetModalOpen(true);
     }
   };
 
@@ -261,7 +272,6 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
 
-                      {/* --- MODIFIKASI: SUBSCRIPTION TRACKING --- */}
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
@@ -286,7 +296,6 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
 
-                      {/* --- MODIFIKASI: USAGE HEALTH (FUP) --- */}
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
                           <div className="flex justify-between items-center w-32 mb-1">
@@ -337,6 +346,12 @@ export default function AdminUsersPage() {
                             )}
                             <Link href={`/admin/users/${user.id}/edit`}><DropdownMenuItem><UserIcon className="w-4 h-4 mr-2" /> Edit Profil</DropdownMenuItem></Link>
                             <DropdownMenuItem onClick={() => handleAction('inject', user)}><Zap className="w-4 h-4 mr-2 text-amber-500" /> Inject Token</DropdownMenuItem>
+
+                            {/* [NEW] FASE 5: Trigger Email OTP Sandi */}
+                            <DropdownMenuItem className="text-amber-700 font-bold focus:bg-amber-50" onClick={() => handleAction('reset_password', user)}>
+                              <LockKeyhole className="w-4 h-4 mr-2" /> Kirim Instruksi Sandi
+                            </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-red-600" onClick={() => handleAction('delete', user)}><XCircle className="w-4 h-4 mr-2" /> Deactivate</DropdownMenuItem>
                           </DropdownMenuContent>
@@ -381,9 +396,15 @@ export default function AdminUsersPage() {
                   </p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase" onClick={() => handleWhatsAppBilling(user)}>
-                <MessageCircle className="w-3 h-3 mr-2" /> Hubungi via WhatsApp
-              </Button>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase" onClick={() => handleWhatsAppBilling(user)}>
+                  <MessageCircle className="w-3 h-3 mr-2" /> Hubungi
+                </Button>
+                {/* [NEW] Mobile Trigger OTP */}
+                <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase text-amber-700 border-amber-200 hover:bg-amber-50" onClick={() => handleAction('reset_password', user)}>
+                  <LockKeyhole className="w-3 h-3 mr-2" /> Reset Sandi
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
@@ -414,6 +435,17 @@ export default function AdminUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* --- [NEW] FASE 5: TRIGGER RESET MODAL --- */}
+      {selectedUserForReset && (
+        <TriggerResetModal
+          isOpen={isResetModalOpen}
+          onClose={() => setIsResetModalOpen(false)}
+          userId={selectedUserForReset.id}
+          userEmail={selectedUserForReset.email}
+          userName={selectedUserForReset.fullName}
+        />
+      )}
     </div>
   );
 }

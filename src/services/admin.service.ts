@@ -157,6 +157,16 @@ export const adminService = {
         return response.data;
     },
 
+    // =================================================================
+    // [NEW] FASE 5: ZERO-KNOWLEDGE PASSWORD RECOVERY TRIGGER
+    // =================================================================
+    triggerPasswordResetAction: async (userId: string) => {
+        // Hanya mengirimkan sinyal POST tanpa body rahasia ke backend.
+        // Semua logika hashing, validasi email, dan pengiriman berada di Backend.
+        const response = await api.post<{ message: string }>(`/admin/users/${userId}/trigger-reset`);
+        return response.data;
+    },
+
     // ------------------------------------------------------------------------
     // SYSTEM AUDIT LOGS
     // ------------------------------------------------------------------------

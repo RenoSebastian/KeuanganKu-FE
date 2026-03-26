@@ -94,7 +94,43 @@ export const authService = {
   },
 
   // =================================================================
-  // 7. REFRESH TOKEN (Silent Rotation)
+  // [NEW] 7. FORGOT PASSWORD: FASE 1 (REQUEST OTP)
+  // =================================================================
+  requestPasswordReset: async (data: { email: string }) => {
+    const response = await api.post<{ message: string }>("/auth/forgot-password", data);
+    return response.data;
+  },
+
+  // =================================================================
+  // [NEW] 8. FORGOT PASSWORD: FASE 2 (VERIFY OTP)
+  // =================================================================
+  verifyPasswordResetOtp: async (data: { email: string; otp: string }) => {
+    // API akan mengembalikan 'reset_token' berupa Scoped-JWT jika OTP valid
+    const response = await api.post<{ message: string; reset_token: string }>("/auth/verify-password-otp", data);
+    return response.data;
+  },
+
+  // =================================================================
+  // [NEW] 9. FORGOT PASSWORD: FASE 3 (EXECUTE RESET)
+  // =================================================================
+  executePasswordReset: async (resetToken: string, data: { newPassword: string }) => {
+    // SECURITY ENFORCEMENT: 
+    // Kita menimpa (override) header Authorization Axios untuk spesifik mem-bypass 
+    // Access Token reguler dan murni menggunakan Scoped-JWT pemulihan.
+    const response = await api.post<{ message: string }>(
+      "/auth/reset-password",
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${resetToken}`,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  // =================================================================
+  // 10. REFRESH TOKEN (Silent Rotation)
   // =================================================================
   refreshTokens: async () => {
     if (typeof window === "undefined") return null;
@@ -120,7 +156,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 8. LOGOUT
+  // 11. LOGOUT
   // =================================================================
   logout: () => {
     Cookies.remove("token", { path: '/' });
@@ -134,7 +170,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 9. GET ME (SYNC PROFILE)
+  // 12. GET ME (SYNC PROFILE)
   // =================================================================
   getMe: async () => {
     try {
@@ -153,7 +189,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 10. UPDATE PROFILE
+  // 13. UPDATE PROFILE
   // =================================================================
   updateProfile: async (data: Partial<User>) => {
     try {
@@ -172,7 +208,7 @@ export const authService = {
   },
 
   // =================================================================
-  // 11. SUBMIT HEARTBEAT (REDIS TRACKING)
+  // 14. SUBMIT HEARTBEAT (REDIS TRACKING)
   // =================================================================
   sendHeartbeat: async () => {
     try {
