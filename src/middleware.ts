@@ -145,6 +145,6 @@ export const config = {
     // [FIX 2] Tambahkan 'auth' ke pengecualian matcher.
     // [TAHAP 3 FIX] Modifikasi regex untuk meloloskan semua file PWA (sw.js, manifest.webmanifest, dan script worker)
     // Hal ini mencegah error "SecurityError: Failed to register a ServiceWorker" & "Unexpected token '<'"
-    '/((?!api|auth|_next/static|_next/image|favicon.ico|images|icons|sw\\.js|manifest\\.webmanifest|.*\\.js|.*\\.json).*)',
+    '/((?!api|auth|_next/static|_next/image|favicon.ico|images|icons|sw\\.js|manifest\\.webmanifest|.*\\.js|.*\\.json|(?!.*\\..*)).*)',
   ],
 };
