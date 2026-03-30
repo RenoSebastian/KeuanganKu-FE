@@ -14,9 +14,10 @@ import {
     FileCode,
     Check,
     Copy,
-    X
+    X,
+    AlertCircle
 } from "lucide-react";
-import { cn } from "@/lib/utils"; // Utilitas Tailwind
+import { cn } from "@/lib/utils";
 
 export interface DownloadResultData {
     file: File;
@@ -33,23 +34,52 @@ interface PostDownloadActionProps {
 export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadActionProps) {
     const [isSharing, setIsSharing] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [shareError, setShareError] = useState<string | null>(null);
+
+    // ====================================================================
+    // [TAHAP 1] ENKAPSULASI GARBAGE COLLECTION (Memory Management)
+    // ====================================================================
+    useEffect(() => {
+        // Membersihkan Blob URL dari RAM setiap kali modal ditutup atau file berubah
+        // Ini memastikan tidak ada Memory Leak di PWA/Browser tanpa bergantung pada parent component
+        return () => {
+            if (fileData?.url) {
+                window.URL.revokeObjectURL(fileData.url);
+            }
+        };
+    }, [fileData?.url]); // Hanya re-run jika URL pointer berubah
 
     if (!fileData) return null;
 
     const isPdf = fileData.filename.toLowerCase().endsWith('.pdf');
     const fileSize = (fileData.file.size / 1024).toFixed(1) + " KB";
 
+    // ====================================================================
+    // [TAHAP 3] FILTRASI EXCEPTION PADA WEB SHARE API
+    // ====================================================================
     const handleShare = async () => {
         setIsSharing(true);
+        setShareError(null);
+
         try {
             if (navigator.share && navigator.canShare({ files: [fileData.file] })) {
                 await navigator.share({
-                    title: 'Simpan Dokumen',
+                    title: 'Simpan Dokumen KeuanganKu',
                     files: [fileData.file],
                 });
+            } else {
+                setShareError("Perangkat Anda tidak mendukung fitur berbagi file langsung.");
             }
-        } catch (error) {
-            console.log("Share cancelled or failed");
+        } catch (error: any) {
+            // Abaikan jika user secara sadar menekan 'Cancel' / 'Back' pada sistem operasi
+            if (error.name === 'AbortError') {
+                console.log("Share operation was cancelled by user (Normal behavior).");
+                return;
+            }
+
+            // Catat error sungguhan dan tampilkan ke layar
+            console.error("Web Share API Failed:", error);
+            setShareError("Terjadi kendala saat membuka menu berbagi sistem.");
         } finally {
             setIsSharing(false);
         }
@@ -61,11 +91,38 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
         setTimeout(() => setCopied(false), 2000);
     };
 
+    // ====================================================================
+    // [TAHAP 2] HARDENING DOM MANIPULATION (Legacy Download)
+    // ====================================================================
+    const handleLegacyDownload = () => {
+        // 1. Buat elemen
+        const link = document.createElement('a');
+
+        // 2. Sembunyikan secara CSS agar aman (Hidden DOM)
+        link.style.display = 'none';
+
+        // 3. Set atribut
+        link.href = fileData.url;
+        link.setAttribute('download', fileData.filename);
+
+        // 4. Inject ke dokumen untuk mematuhi aturan strict security policy browser tertentu
+        document.body.appendChild(link);
+
+        // 5. Eksekusi klik simulasi
+        link.click();
+
+        // 6. Cleanup instan (Menghapus node)
+        document.body.removeChild(link);
+
+        // Catatan: revokeObjectURL kita delegasikan ke useEffect() agar tidak bentrok 
+        // jika user belum selesai mengekstrak file namun RAM sudah keburu dihapus.
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="sm:max-w-100 p-0 overflow-hidden border-none bg-transparent shadow-none">
                 {/* Container Utama dengan Efek Glassmorphism di Mobile/Desktop */}
-                <div className="bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-[24px] p-6 pb-8 animate-in slide-in-from-bottom-10 duration-300">
+                <div className="bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-[24px] p-6 pb-8 animate-in slide-in-from-bottom-10 duration-300 shadow-2xl">
 
                     {/* Handle Bar untuk Mobile Look */}
                     <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6 sm:hidden" />
@@ -82,6 +139,14 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
                             <X className="w-5 h-5 text-slate-400" />
                         </button>
                     </div>
+
+                    {/* Alert Banner for Share Error */}
+                    {shareError && (
+                        <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-medium mb-6">
+                            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                            <p>{shareError}</p>
+                        </div>
+                    )}
 
                     {/* Visual File Card (Immersive UI) */}
                     <div className="relative group mb-8">
@@ -119,12 +184,12 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
                             {isSharing ? (
                                 <span className="flex items-center gap-2">
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Menghubungkan...
+                                    Membuka Sistem...
                                 </span>
                             ) : (
                                 <span className="flex items-center gap-2">
                                     <Share2 className="w-5 h-5" />
-                                    Bagikan Sekarang
+                                    Bagikan / Simpan ke Perangkat
                                 </span>
                             )}
                         </Button>
@@ -138,18 +203,13 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
                                     className="h-12 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-50"
                                 >
                                     <ExternalLink className="mr-2 w-4 h-4" />
-                                    Pratinjau
+                                    Buka Langsung
                                 </Button>
                             )}
 
                             {/* Secondary: Browser Download */}
                             <Button
-                                onClick={() => {
-                                    const a = document.createElement('a');
-                                    a.href = fileData.url;
-                                    a.download = fileData.filename;
-                                    a.click();
-                                }}
+                                onClick={handleLegacyDownload}
                                 variant="outline"
                                 className={cn(
                                     "h-12 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-50",
@@ -157,14 +217,14 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
                                 )}
                             >
                                 <Download className="mr-2 w-4 h-4" />
-                                Simpan Folder
+                                Unduh (Browser)
                             </Button>
                         </div>
                     </div>
 
                     {/* Hint Footer */}
                     <p className="text-[11px] text-slate-400 text-center mt-6 leading-relaxed">
-                        Gunakan <span className="font-bold text-slate-500">Bagikan</span> untuk mengirim langsung ke WhatsApp <br /> atau menyimpan ke Cloud Storage Anda.
+                        Gunakan <strong className="text-slate-500">"Bagikan / Simpan"</strong> untuk menghindari <br /> hilangnya file jika Anda membuka aplikasi ini dari Layar Utama.
                     </p>
                 </div>
             </DialogContent>
