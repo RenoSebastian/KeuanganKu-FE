@@ -18,6 +18,7 @@ const PUBLIC_ROUTES = [
   '/auth/login',
   '/auth/register',
   '/pricing',
+  '/images',
 ];
 
 export function middleware(request: NextRequest) {
