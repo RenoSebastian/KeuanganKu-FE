@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, FileJson, CheckCircle2, AlertCircle } from "lucide-react";
+import { Share2, FileJson, CheckCircle2, AlertCircle } from "lucide-react"; // [MODIFIED] Download -> Share2
 import { PensionTimelineCard } from "./pension-timeline-card";
 import { PensionSolutionCard } from "./pension-solution-card";
 import { PensionRealityCard } from "./pension-reality-card";
@@ -27,7 +27,7 @@ export function PensionResultSection({
 }: PensionResultSectionProps) {
     return (
         <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
-            {/* 1. DOWNLOAD CENTER */}
+            {/* 1. DOWNLOAD CENTER (Refactored untuk Fase 2 Web Share API UI) */}
             {generatedFiles && (
                 <Card className="bg-emerald-50 border-emerald-200 p-4 rounded-xl flex flex-col items-center gap-4 shadow-sm">
                     <div className="flex items-center gap-3 w-full">
@@ -36,14 +36,24 @@ export function PensionResultSection({
                         </div>
                         <div className="grow">
                             <h4 className="font-bold text-emerald-800 text-sm">Analisa Selesai</h4>
-                            <p className="text-xs text-emerald-600">Dokumen siap diunduh.</p>
+                            <p className="text-xs text-emerald-600">Sistem telah merakit dokumen. Silakan simpan atau bagikan.</p>
                         </div>
                     </div>
                     <div className="flex gap-2 w-full">
-                        <Button size="sm" onClick={() => onDownload('PDF')} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-lg">
-                            <Download className="w-4 h-4 mr-2" /> Download PDF
+                        <Button
+                            size="sm"
+                            onClick={() => onDownload('PDF')}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-lg transition-all"
+                        >
+                            <Share2 className="w-4 h-4 mr-2" /> Simpan / Bagikan PDF
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => onDownload('MGC')} className="w-12 h-10 border-emerald-300 text-emerald-700 bg-white">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onDownload('MGC')}
+                            className="w-12 h-10 border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-100 transition-all"
+                            title="Simpan Backup Data Aman (.mgc)"
+                        >
                             <FileJson className="w-4 h-4" />
                         </Button>
                     </div>

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { motion, Variants } from "framer-motion";
-import { Download, RefreshCw, AlertCircle, ShieldCheck, RotateCcw, FileText, CheckCircle2, Target, Zap } from "lucide-react";
+import { Share2, RefreshCw, AlertCircle, ShieldCheck, RotateCcw, FileText, CheckCircle2, Target, Zap } from "lucide-react"; // [MODIFIED] Download -> Share2
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -391,7 +391,7 @@ export function AnalysisResult({
                         {(showPdfModal || isDownloading) ? (
                             <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Memproses...</>
                         ) : (
-                            <><Download className="w-5 h-5 mr-2" /> Unduh Laporan PDF</>
+                            <><Share2 className="w-5 h-5 mr-2" /> Simpan / Bagikan Laporan PDF</> // [MODIFIED] Teks & Ikon menyesuaikan Fase 2
                         )}
                     </Button>
                 </div>

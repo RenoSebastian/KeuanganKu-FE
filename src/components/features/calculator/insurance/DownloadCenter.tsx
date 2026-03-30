@@ -1,11 +1,13 @@
+"use client";
+
 import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Download, FileJson } from "lucide-react";
+import { CheckCircle2, Share2, FileJson } from "lucide-react";
 
 interface DownloadCenterProps {
-    pdfUrl: string | null;
-    mgcToken: string | null;
+    pdfUrl: string | null; // Bertindak sebagai flag ketersediaan data PDF dari Parent
+    mgcToken: string | null; // Bertindak sebagai flag ketersediaan data MGC dari Parent
     filenamePdf: string | null;
     filenameMgc: string | null;
     onDownload: (type: 'PDF' | 'MGC') => void;
@@ -18,7 +20,7 @@ export const DownloadCenter = ({
     filenameMgc,
     onDownload
 }: DownloadCenterProps) => {
-    // Jangan render apa pun jika tidak ada file yang digenerate
+    // Jangan render apa pun jika tidak ada flag indikasi bahwa file siap
     if (!pdfUrl && !mgcToken) return null;
 
     return (
@@ -29,7 +31,9 @@ export const DownloadCenter = ({
                 </div>
                 <div className="grow">
                     <h4 className="font-bold text-emerald-800 text-sm">Analisa Selesai</h4>
-                    <p className="text-xs text-emerald-600">Dokumen siap diunduh.</p>
+                    <p className="text-xs text-emerald-600">
+                        Sistem telah merakit dokumen. Silakan simpan atau bagikan.
+                    </p>
                 </div>
             </div>
 
@@ -37,17 +41,17 @@ export const DownloadCenter = ({
                 <Button
                     size="sm"
                     onClick={() => onDownload('PDF')}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-10 rounded-lg"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-10 rounded-lg transition-all"
                     disabled={!pdfUrl}
                 >
-                    <Download className="w-4 h-4 mr-2" /> Download Laporan PDF
+                    <Share2 className="w-4 h-4 mr-2" /> Simpan / Bagikan PDF
                 </Button>
                 <Button
                     size="sm"
                     variant="outline"
                     onClick={() => onDownload('MGC')}
-                    className="w-12 h-10 border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-100 rounded-lg"
-                    title="Simpan Backup Data (.mgc)"
+                    className="w-12 h-10 border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-100 rounded-lg transition-all"
+                    title="Simpan Backup Data Aman (.mgc)"
                     disabled={!mgcToken}
                 >
                     <FileJson className="w-4 h-4" />

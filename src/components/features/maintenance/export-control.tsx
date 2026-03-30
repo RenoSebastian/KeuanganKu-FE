@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, AlertTriangle, Calendar, FileArchive, ShieldCheck } from "lucide-react";
+import { Download, AlertTriangle, Calendar, FileArchive } from "lucide-react";
 import { format, startOfMonth, isBefore, subMonths } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -12,9 +12,15 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-// Logic
+// Logic & Types
 import { useSecureExport } from "@/hooks/use-secure-export";
 import { EntityLabels, RetentionEntityType } from "@/lib/types/retention";
+
+// Fase 2: Import komponen Post-Download Action
+import {
+    PostDownloadAction,
+    DownloadResultData
+} from "@/components/features/shared/post-download-action";
 
 /**
  * Interface Props Kontrak
@@ -33,23 +39,24 @@ export function ExportControl({
     // --- STATE ---
     const [entityType, setEntityType] = useState<RetentionEntityType>(RetentionEntityType.FINANCIAL_CHECKUP);
     const [cutoffDate, setCutoffDate] = useState<string>("");
-    const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+    // State baru untuk integrasi PostDownloadAction (Fase 2)
+    const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
     // --- HOOK INTEGRATION ---
-    // Hook ini sekarang memproduksi Blob memory biner alih-alih navigasi unduhan standar
+    // Hook ini sekarang memproduksi objek File biner alih-alih navigasi unduhan standar
     const { isLoading, triggerExport } = useSecureExport(
         // Success Callback
         () => {
-            setSuccessMsg("Berkas .mgc (Magic Secure Archive) berhasil diunduh! Simpan file ini sebagai otorisasi penghapusan.");
             setErrorMsg(null);
-            // Trigger prop ke parent untuk membuka Verification Zone
+            // Trigger prop ke parent untuk membuka Verification Zone di latar belakang
             onExportSuccess();
         },
         // Error Callback
         (msg) => {
             setErrorMsg(msg);
-            setSuccessMsg(null);
         }
     );
 
@@ -76,10 +83,9 @@ export function ExportControl({
     };
 
     /**
-     * Handler tombol Export
+     * Handler tombol Export (Diubah menjadi Async untuk menangkap return data File)
      */
-    const handleExport = () => {
-        setSuccessMsg(null);
+    const handleExport = async () => {
         setErrorMsg(null);
 
         // 1. Validasi Input
@@ -97,112 +103,131 @@ export function ExportControl({
             return;
         }
 
-        // 3. Eksekusi
-        triggerExport({
+        // 3. Eksekusi Export & Tangkap Hasil (Integrasi Fase 1 ke Fase 2)
+        const result = await triggerExport({
             entityType,
             cutoffDate,
         });
+
+        // 4. Buka Modal Interaksi jika berhasil
+        if (result) {
+            setDownloadData(result);
+            setIsModalOpen(true);
+        }
+    };
+
+    /**
+     * Handler untuk menutup modal dan membersihkan RAM (Garbage Collection)
+     */
+    const handleCloseModal = () => {
+        if (downloadData?.url) {
+            window.URL.revokeObjectURL(downloadData.url); // Mencegah memory leak
+        }
+        setIsModalOpen(false);
+        // Delay sedikit sebelum mengosongkan state agar animasi close modal berjalan mulus
+        setTimeout(() => setDownloadData(null), 300);
     };
 
     return (
-        <Card className="h-full flex flex-col border-l-4 border-l-blue-500 shadow-sm">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-slate-800">
-                    <Download className="h-5 w-5 text-blue-500" />
-                    Secure Binary Export
-                </CardTitle>
-                <CardDescription>
-                    Langkah 1: Unduh data historis ke dalam format aman (.mgc) sebelum melakukan Pruning.
-                </CardDescription>
-            </CardHeader>
+        <>
+            <Card className="h-full flex flex-col border-l-4 border-l-blue-500 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-slate-800">
+                        <Download className="h-5 w-5 text-blue-500" />
+                        Secure Binary Export
+                    </CardTitle>
+                    <CardDescription>
+                        Langkah 1: Unduh data historis ke dalam format aman (.mgc) sebelum melakukan Pruning.
+                    </CardDescription>
+                </CardHeader>
 
-            <CardContent className="space-y-6 flex-1">
-                {/* ALERT AREA */}
-                {errorMsg && (
-                    <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Gagal Export</AlertTitle>
-                        <AlertDescription>{errorMsg}</AlertDescription>
-                    </Alert>
-                )}
+                <CardContent className="space-y-6 flex-1">
+                    {/* ALERT AREA */}
+                    {errorMsg && (
+                        <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Gagal Export</AlertTitle>
+                            <AlertDescription>{errorMsg}</AlertDescription>
+                        </Alert>
+                    )}
 
-                {successMsg && (
-                    <Alert className="bg-emerald-50 border-emerald-200 text-emerald-800 animate-in fade-in">
-                        <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                        <AlertTitle className="text-emerald-800">Enkapsulasi Berhasil</AlertTitle>
-                        <AlertDescription>{successMsg}</AlertDescription>
-                    </Alert>
-                )}
+                    {/* FORM INPUTS */}
+                    <div className="space-y-4">
 
-                {/* FORM INPUTS */}
-                <div className="space-y-4">
-
-                    {/* 1. Entity Selection */}
-                    <div className="space-y-2">
-                        <Label htmlFor="entity-select">Pilih Data Entitas</Label>
-                        <select
-                            id="entity-select"
-                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-                            value={entityType}
-                            onChange={handleEntityChange}
-                            disabled={isLoading}
-                        >
-                            {Object.entries(EntityLabels).map(([key, label]) => (
-                                <option key={key} value={key}>
-                                    {label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* 2. Date Picker */}
-                    <div className="space-y-2">
-                        <Label htmlFor="cutoff-date">
-                            Batas Tanggal Retensi (Cutoff)
-                        </Label>
-                        <div className="relative">
-                            <Input
-                                id="cutoff-date"
-                                type="date"
-                                value={cutoffDate}
-                                onChange={handleDateChange}
-                                max={format(subMonths(startOfCurrentMonth, 1), "yyyy-MM-dd")}
+                        {/* 1. Entity Selection */}
+                        <div className="space-y-2">
+                            <Label htmlFor="entity-select">Pilih Data Entitas</Label>
+                            <select
+                                id="entity-select"
+                                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={entityType}
+                                onChange={handleEntityChange}
                                 disabled={isLoading}
-                                className="pl-10"
-                            />
-                            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                            >
+                                {Object.entries(EntityLabels).map(([key, label]) => (
+                                    <option key={key} value={key}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <p className="text-xs text-slate-500">
-                            *Data yang dibuat <b>sebelum</b> tanggal ini akan ditarik ke dalam .mgc stream.
-                            <br />
-                            Saran: Gunakan tanggal {defaultSuggestion} (1 Tahun lalu).
-                        </p>
+
+                        {/* 2. Date Picker */}
+                        <div className="space-y-2">
+                            <Label htmlFor="cutoff-date">
+                                Batas Tanggal Retensi (Cutoff)
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="cutoff-date"
+                                    type="date"
+                                    value={cutoffDate}
+                                    onChange={handleDateChange}
+                                    max={format(subMonths(startOfCurrentMonth, 1), "yyyy-MM-dd")}
+                                    disabled={isLoading}
+                                    className="pl-10"
+                                />
+                                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                            </div>
+                            <p className="text-xs text-slate-500">
+                                *Data yang dibuat <b>sebelum</b> tanggal ini akan ditarik ke dalam .mgc stream.
+                                <br />
+                                Saran: Gunakan tanggal {defaultSuggestion} (1 Tahun lalu).
+                            </p>
+                        </div>
+
                     </div>
 
-                </div>
+                    {/* FOOTER ACTIONS */}
+                    <div className="pt-4">
+                        <Button
+                            className="w-full bg-blue-600 hover:bg-blue-700 transition-all"
+                            onClick={handleExport}
+                            disabled={isLoading || !cutoffDate}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <span className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                                    Generating Binary Stream...
+                                </>
+                            ) : (
+                                <>
+                                    <FileArchive className="mr-2 h-4 w-4" />
+                                    Start Secure Export
+                                </>
+                            )}
+                        </Button>
+                    </div>
 
-                {/* FOOTER ACTIONS */}
-                <div className="pt-4">
-                    <Button
-                        className="w-full bg-blue-600 hover:bg-blue-700 transition-all"
-                        onClick={handleExport}
-                        disabled={isLoading || !cutoffDate}
-                    >
-                        {isLoading ? (
-                            <>
-                                <span className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-                                Generating Binary Stream...
-                            </>
-                        ) : (
-                            <>
-                                <FileArchive className="mr-2 h-4 w-4" />
-                                Start Secure Export
-                            </>
-                        )}
-                    </Button>
-                </div>
+                </CardContent>
+            </Card>
 
-            </CardContent>
-        </Card>
+            {/* Fase 2: Dialog Modal Post-Download (Render secara dinamis) */}
+            <PostDownloadAction
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                fileData={downloadData}
+            />
+        </>
     );
 }
