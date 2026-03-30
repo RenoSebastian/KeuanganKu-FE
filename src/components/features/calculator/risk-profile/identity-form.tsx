@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { User, Calendar, ArrowRight, ShieldCheck, MapPin, Briefcase, Phone, LockKeyhole, Heart } from "lucide-react";
-// FIX 1: Import Variants dari framer-motion
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -16,20 +15,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 // --- VALIDATION SCHEMA ---
-// --- VALIDATION SCHEMA ---
 const identitySchema = z.object({
     name: z.string().min(2, "Nama wajib diisi"),
     dob: z.string().min(1, "Tanggal lahir wajib diisi"),
     gender: z.enum(["L", "P"]).optional(),
-
-    // Hapus validasi .min() dan jadikan opsional agar sejalan dengan label UI
     city: z.string().optional(),
-    address: z.string().optional(), // Tidak ada di UI, wajib dibuat opsional agar tidak memblokir submit
+    address: z.string().optional(),
     phone: z.string().optional(),
     email: z.union([z.literal(""), z.string().email("Email tidak valid")]).optional(),
     occupation: z.string().optional(),
-
-    // Field legacy/bawaan dari form lain kita amankan
     religion: z.string().optional(),
     maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED"]).optional(),
     childrenCount: z.number().min(0).optional(),
@@ -41,21 +35,11 @@ const identitySchema = z.object({
 
 type IdentityFormValues = z.infer<typeof identitySchema>;
 
-// Interface Data Identitas
-interface ClientIdentity {
-    name: string;
-    dob: string; // YYYY-MM-DD
-    phone?: string;
-    job?: string;
-    city?: string;
-}
-
 interface IdentityFormProps {
     initialData?: any;
     onSubmit: (data: any) => void;
 }
 
-// Komponen Mikro untuk Header Bagian (Section Header)
 function SectionTitle({ icon: Icon, title, desc, colorClass }: { icon: any, title: string, desc: string, colorClass: string }) {
     return (
         <div className="flex items-start gap-4 mb-6">
@@ -99,14 +83,14 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
             form.reset({
                 name: initialData.name || "",
                 dob: initialData.dob || "",
-                gender: "L", // Berikan default value karena tidak ada di interface ClientIdentity
+                gender: "L",
                 city: initialData.city || "",
                 address: "",
                 phone: initialData.phone || "",
                 email: "",
-                occupation: initialData.job || "", // Ambil dari key 'job' bukan 'occupation'
+                occupation: initialData.job || "",
                 religion: "Islam",
-                maritalStatus: "SINGLE", // Default aman
+                maritalStatus: "SINGLE",
                 childrenCount: 0,
                 dependentParents: 0,
                 spouseName: "",
@@ -116,7 +100,6 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
         }
     }, [initialData, form]);
 
-    const maritalStatus = form.watch("maritalStatus");
     const nameWatch = form.watch("name");
     const dobWatch = form.watch("dob");
 
@@ -140,20 +123,17 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
 
         setError(null);
 
-        // --- ADAPTER MAPPING ---
-        // Format ulang menjadi objek flat sesuai interface ClientIdentity di Wizard
         const flatIdentityData = {
             name: values.name,
             dob: values.dob,
             phone: values.phone,
-            job: values.occupation, // Mapping dari 'occupation' form ke 'job' wizard
+            job: values.occupation,
             city: values.city
         };
 
         onSubmit(flatIdentityData);
     };
 
-    // FIX 2: Terapkan antarmuka Variants dan buang tipe string eksplisit (type: "spring")
     const containerVariants: Variants = {
         hidden: { opacity: 0 },
         visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -165,62 +145,65 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
     };
 
     return (
-        <div className="w-full max-w-xl mx-auto pb-6 md:pb-2">
+        // PERBAIKAN: max-w-5xl agar lebar di desktop mengikuti container utama
+        <div className="w-full max-w-5xl mx-auto pb-6 md:pb-2 px-2 md:px-4">
             <motion.div
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
                 className="space-y-6"
             >
-                {/* =========================================
-                    1. EXECUTIVE HEADER (PWA Style)
-                    ========================================= */}
-                <motion.div variants={itemVariants} className="bg-slate-900 rounded-[2rem] p-6 md:p-8 relative overflow-hidden shadow-2xl">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-40 h-40 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none" />
+                {/* 1. EXECUTIVE HEADER (DITAMBAHKAN MARGIN TOP AGAR TIDAK MEPET) */}
+                <motion.div
+                    variants={itemVariants}
+                    className="mt-6 md:mt-10 bg-slate-900 rounded-[2.5rem] p-8 md:p-10 relative overflow-hidden shadow-2xl border border-slate-800"
+                >
+                    {/* Efek Cahaya Latar */}
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-60 h-60 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
 
-                    <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <ShieldCheck className="w-5 h-5 text-indigo-400" />
-                                <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Langkah 1: Identifikasi</span>
+                    <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                        <div className="max-w-2xl">
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="bg-indigo-500/20 p-1.5 rounded-lg border border-indigo-500/30">
+                                    <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                                </div>
+                                <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">Tahap 1: Identifikasi</span>
                             </div>
-                            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-1">Profil Nasabah</h2>
-                            <p className="text-xs md:text-sm text-slate-400 font-medium">Lengkapi identitas klien untuk memulai penyusunan profil risiko investasi.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter mb-2">Profil Nasabah</h2>
+                            <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">Masukkan detail identitas klien untuk mengaktifkan mesin analisis profil risiko investasi.</p>
                         </div>
                     </div>
                 </motion.div>
 
-                {/* =========================================
-                    2. THE BENTO FORM
-                    ========================================= */}
-                <motion.div variants={itemVariants} className="bg-white rounded-[2rem] p-5 md:p-8 border border-slate-100 shadow-xl shadow-slate-200/50">
+                {/* 2. THE MAIN FORM CONTAINER */}
+                <motion.div variants={itemVariants} className="bg-white rounded-[2.5rem] p-6 md:p-12 border border-slate-100 shadow-2xl shadow-slate-200/40 relative">
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6 md:space-y-8">
+                        <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-10">
 
                             {/* Section: Identitas Utama */}
                             <div>
                                 <SectionTitle
                                     icon={User}
                                     title="Identitas Utama"
-                                    desc="Informasi pribadi klien yang akan dianalisa."
+                                    desc="Informasi primer yang digunakan untuk kalkulasi demografis."
                                     colorClass="text-indigo-600 bg-indigo-50 border-indigo-100"
                                 />
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 mt-6">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-8">
                                     <FormField
                                         control={form.control}
                                         name="name"
                                         render={({ field }) => (
-                                            <FormItem className="group md:col-span-2">
-                                                <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Nama Sesuai KTP <span className="text-rose-500">*</span></FormLabel>
+                                            <FormItem className="group md:col-span-12">
+                                                <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Nama Lengkap Sesuai Identitas <span className="text-rose-500">*</span></FormLabel>
                                                 <FormControl>
-                                                    <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
-                                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                                        <Input className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white font-black text-lg text-slate-800 transition-all shadow-sm" placeholder="Cth: Budi Santoso" {...field} autoFocus />
+                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-600 transition-colors z-10" />
+                                                        <Input className="pl-14 h-16 rounded-[1.25rem] bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-xl text-slate-800 transition-all shadow-inner" placeholder="Cth: Budi Santoso" {...field} autoFocus />
                                                     </div>
                                                 </FormControl>
-                                                <FormMessage className="text-[10px]" />
+                                                <FormMessage className="text-[10px] font-bold" />
                                             </FormItem>
                                         )}
                                     />
@@ -229,15 +212,15 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                         control={form.control}
                                         name="dob"
                                         render={({ field }) => (
-                                            <FormItem className="group">
+                                            <FormItem className="group md:col-span-7">
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Tanggal Lahir <span className="text-rose-500">*</span></FormLabel>
                                                 <FormControl>
-                                                    <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
-                                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                                        <Input type="date" className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white font-black text-base md:text-lg text-slate-700 transition-all shadow-sm block w-full" {...field} max={new Date().toISOString().split("T")[0]} />
+                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                        <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-600 transition-colors z-10" />
+                                                        <Input type="date" className="pl-14 h-16 rounded-[1.25rem] bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-lg text-slate-700 transition-all shadow-inner block w-full" {...field} max={new Date().toISOString().split("T")[0]} />
                                                     </div>
                                                 </FormControl>
-                                                <FormMessage className="text-[10px]" />
+                                                <FormMessage className="text-[10px] font-bold" />
                                             </FormItem>
                                         )}
                                     />
@@ -246,22 +229,21 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                         control={form.control}
                                         name="gender"
                                         render={({ field }) => (
-                                            <FormItem className="group">
+                                            <FormItem className="group md:col-span-5">
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Gender</FormLabel>
                                                 <Select onValueChange={field.onChange} value={field.value}>
                                                     <FormControl>
-                                                        <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
-                                                            <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white font-black text-base text-slate-800 transition-all shadow-sm">
+                                                        <div className="transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                            <SelectTrigger className="h-16 rounded-[1.25rem] bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-lg text-slate-800 transition-all shadow-inner">
                                                                 <SelectValue placeholder="Pilih Gender" />
                                                             </SelectTrigger>
                                                         </div>
                                                     </FormControl>
-                                                    <SelectContent className="rounded-xl border-slate-100 shadow-xl">
-                                                        <SelectItem value="L" className="font-bold cursor-pointer">Laki-laki</SelectItem>
-                                                        <SelectItem value="P" className="font-bold cursor-pointer">Perempuan</SelectItem>
+                                                    <SelectContent className="rounded-2xl border-slate-100 shadow-2xl p-2">
+                                                        <SelectItem value="L" className="font-bold cursor-pointer rounded-xl h-11">Laki-laki</SelectItem>
+                                                        <SelectItem value="P" className="font-bold cursor-pointer rounded-xl h-11">Perempuan</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                                <FormMessage className="text-[10px]" />
                                             </FormItem>
                                         )}
                                     />
@@ -270,93 +252,104 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
 
                             <div className="border-t border-dashed border-slate-200" />
 
-                            {/* Section: Pekerjaan & Domisili */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
-                                <FormField
-                                    control={form.control}
-                                    name="occupation"
-                                    render={({ field }) => (
-                                        <FormItem className="group">
-                                            <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Profesi <span className="text-[9px] font-normal lowercase">(Opsional)</span></FormLabel>
-                                            <FormControl>
-                                                <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
-                                                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                                    <Input className="pl-11 h-12 rounded-xl bg-slate-50 border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white font-bold text-sm text-slate-800 transition-all shadow-sm" placeholder="Karyawan / Wiraswasta" {...field} />
-                                                </div>
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
+                            {/* Section: Kontak & Lokasi */}
+                            <div>
+                                <SectionTitle
+                                    icon={MapPin}
+                                    title="Kontak & Domisili"
+                                    desc="Opsional, untuk melengkapi dokumen laporan akhir."
+                                    colorClass="text-emerald-600 bg-emerald-50 border-emerald-100"
                                 />
 
-                                <FormField
-                                    control={form.control}
-                                    name="city"
-                                    render={({ field }) => (
-                                        <FormItem className="group">
-                                            <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Kota <span className="text-[9px] font-normal lowercase">(Opsional)</span></FormLabel>
-                                            <FormControl>
-                                                <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
-                                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                                    <Input className="pl-11 h-12 rounded-xl bg-slate-50 border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white font-bold text-sm text-slate-800 transition-all shadow-sm" placeholder="Jakarta Selatan" {...field} />
-                                                </div>
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                                    <FormField
+                                        control={form.control}
+                                        name="occupation"
+                                        render={({ field }) => (
+                                            <FormItem className="group">
+                                                <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Profesi / Pekerjaan</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                        <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-600 transition-colors z-10" />
+                                                        <Input className="pl-14 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-emerald-500/5 focus:border-emerald-400 focus:bg-white font-bold text-base text-slate-800 transition-all shadow-inner" placeholder="Karyawan Swasta" {...field} />
+                                                    </div>
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
 
-                                <FormField
-                                    control={form.control}
-                                    name="phone"
-                                    render={({ field }) => (
-                                        <FormItem className="group sm:col-span-2">
-                                            <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">No. Handphone <span className="text-[9px] font-normal lowercase">(Opsional)</span></FormLabel>
-                                            <FormControl>
-                                                <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
-                                                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                                    <Input type="tel" inputMode="numeric" className="pl-11 h-12 rounded-xl bg-slate-50 border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white font-bold text-sm text-slate-800 transition-all shadow-sm" placeholder="0812..." {...field} />
-                                                </div>
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
+                                    <FormField
+                                        control={form.control}
+                                        name="city"
+                                        render={({ field }) => (
+                                            <FormItem className="group">
+                                                <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Kota Domisili</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                        <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-600 transition-colors z-10" />
+                                                        <Input className="pl-14 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-emerald-500/5 focus:border-emerald-400 focus:bg-white font-bold text-base text-slate-800 transition-all shadow-inner" placeholder="Jakarta Pusat" {...field} />
+                                                    </div>
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="phone"
+                                        render={({ field }) => (
+                                            <FormItem className="group md:col-span-2">
+                                                <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Nomor WhatsApp</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                        <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-600 transition-colors z-10" />
+                                                        <Input type="tel" inputMode="numeric" className="pl-14 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-emerald-500/5 focus:border-emerald-400 focus:bg-white font-bold text-base text-slate-800 transition-all shadow-inner" placeholder="08123456789" {...field} />
+                                                    </div>
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                             </div>
 
-                            {/* Error Message */}
+                            {/* Error Alert Box */}
                             <AnimatePresence>
                                 {error && (
                                     <motion.div
-                                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                        animate={{ opacity: 1, height: "auto", marginTop: 16 }}
-                                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                        className="overflow-hidden"
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="text-sm text-rose-600 font-bold bg-rose-50 p-4 rounded-2xl border border-rose-100 flex items-center gap-3 shadow-sm"
                                     >
-                                        <div className="text-[11px] md:text-xs text-rose-600 font-bold bg-rose-50 p-3 rounded-xl border border-rose-100 flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0 animate-pulse" />
-                                            {error}
-                                        </div>
+                                        <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+                                        {error}
                                     </motion.div>
                                 )}
                             </AnimatePresence>
 
-                            {/* =========================================
-                                3. ACTION FOOTER 
-                                ========================================= */}
-                            <div className="pt-6 mt-6 border-t border-slate-100">
+                            {/* 3. SUBMIT SECTION */}
+                            <div className="pt-4">
                                 <Button
                                     type="submit"
                                     className={cn(
-                                        "w-full h-14 md:h-16 text-base md:text-lg bg-indigo-600 hover:bg-indigo-700 font-black tracking-wide rounded-2xl shadow-[0_8px_30px_-4px_rgba(79,70,229,0.3)] transition-all flex items-center justify-center gap-2",
-                                        (!nameWatch || !dobWatch) ? "opacity-50 cursor-not-allowed scale-100" : "hover:-translate-y-1 active:scale-[0.98]"
+                                        "w-full h-16 md:h-20 text-lg md:text-xl bg-slate-900 hover:bg-indigo-600 text-white font-black tracking-wide rounded-[1.5rem] shadow-2xl transition-all duration-500 flex items-center justify-center gap-3 group",
+                                        (!nameWatch || !dobWatch) ? "opacity-50 grayscale cursor-not-allowed" : "hover:translate-y-[-4px] active:scale-[0.98]"
                                     )}
                                     disabled={!nameWatch || !dobWatch}
                                 >
-                                    Mulai Kuesioner <ArrowRight className="w-5 h-5 ml-1" />
+                                    Lanjut ke Kuesioner <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform duration-300" />
                                 </Button>
 
-                                <div className="text-center pt-4">
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1.5">
-                                        <LockKeyhole className="w-3 h-3 text-emerald-500" /> Enkripsi End-to-End
-                                    </p>
+                                <div className="flex items-center justify-center gap-4 mt-8 opacity-40">
+                                    <div className="flex items-center gap-1.5">
+                                        <LockKeyhole className="w-3 h-3 text-emerald-600" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em]">Privacy Secured</span>
+                                    </div>
+                                    <div className="w-1 h-1 bg-slate-400 rounded-full" />
+                                    <div className="flex items-center gap-1.5">
+                                        <Heart className="w-3 h-3 text-rose-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em]">Financial Advisor Tool</span>
+                                    </div>
                                 </div>
                             </div>
 

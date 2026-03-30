@@ -23,11 +23,11 @@ export default function RiskProfilePage() {
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-200/40 blur-[120px] pointer-events-none" />
             <div className="absolute top-[20%] right-[-10%] w-[30%] h-[50%] rounded-full bg-cyan-200/30 blur-[100px] pointer-events-none" />
 
-            {/* 2. PWA SAFE CONTAINER (JEBOL PENJARA: max-w-6xl edge-to-edge) */}
-            <div className="container mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-10 max-w-6xl space-y-8 relative z-10">
+            {/* 2. MAIN LAYOUT (DIPERBAIKI: Menghapus class 'container' yang membawa default padding 2rem, ganti dengan w-full max-w-7xl) */}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 space-y-8 relative z-10">
 
                 {/* --- HEADER SECTION --- */}
-                <div className="space-y-5 md:space-y-6 animate-in fade-in slide-in-from-top-4 duration-700 max-w-4xl mx-auto">
+                <div className="space-y-5 md:space-y-6 animate-in fade-in slide-in-from-top-4 duration-700 max-w-5xl mx-auto">
 
                     {/* Eyebrow Label */}
                     <div className="flex items-center gap-2">
@@ -68,7 +68,7 @@ export default function RiskProfilePage() {
 
                 {/* --- QUOTA CHECK ALERT --- */}
                 {!isLoading && !hasAccess ? (
-                    <div className="max-w-4xl mx-auto animate-in fade-in zoom-in-95 duration-500">
+                    <div className="max-w-5xl mx-auto animate-in fade-in zoom-in-95 duration-500">
                         <Card className="p-8 rounded-[2rem] bg-red-50 border-red-200 text-center shadow-lg">
                             <div className="flex flex-col items-center gap-4">
                                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2 animate-pulse">
@@ -91,7 +91,7 @@ export default function RiskProfilePage() {
                 ) : (
                     <>
                         {/* --- INSTRUKSI AGEN --- */}
-                        <div className="animate-in fade-in duration-700 delay-150 flex items-start md:items-center gap-3 px-5 py-3 bg-slate-800 rounded-2xl text-[11px] md:text-xs text-slate-300 font-medium shadow-md max-w-4xl mx-auto">
+                        <div className="animate-in fade-in duration-700 delay-150 flex items-start md:items-center gap-3 px-5 py-3 bg-slate-800 rounded-2xl text-[11px] md:text-xs text-slate-300 font-medium shadow-md max-w-5xl mx-auto">
                             <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
                             <p className="leading-relaxed">
                                 <span className="font-bold text-white uppercase tracking-wider mr-1">Instruksi Agen:</span>
@@ -99,17 +99,12 @@ export default function RiskProfilePage() {
                             </p>
                         </div>
 
-                        <Separator className="bg-slate-200/60 my-2 max-w-4xl mx-auto" />
+                        <Separator className="bg-slate-200/60 my-6 max-w-5xl mx-auto" />
 
-                        {/* --- WIZARD CONTAINER --- */}
-                        <div className="mt-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 relative w-full">
-                            {/* WIZARD RENDERER */}
-                            <div className="bg-white/80 backdrop-blur-md rounded-[2rem] md:rounded-[2.5rem] border border-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] overflow-visible relative z-10 w-full p-4 md:p-6">
-                                <div className="absolute inset-0 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100/50 pointer-events-none" />
-
-                                {/* Komponen Wizard Inti */}
-                                <RiskProfileWizard />
-                            </div>
+                        {/* --- WIZARD RENDERER (DIPERBAIKI) --- */}
+                        {/* Kita menghapus div pembungkus w-full yang berlebih dan membiarkan Wizard merender ukurannya secara bebas */}
+                        <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 relative z-10">
+                            <RiskProfileWizard />
                         </div>
                     </>
                 )}

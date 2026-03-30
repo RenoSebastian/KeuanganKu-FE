@@ -309,7 +309,7 @@ export default function EducationCalculatorPage() {
   };
 
   return (
-    <div className="container max-w-5xl py-10 pb-32 space-y-10 animate-in fade-in duration-1000">
+    <div className="container mx-auto max-w-5xl py-10 pb-32 space-y-10 animate-in fade-in duration-1000">
 
       {/* HEADER AREA */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
