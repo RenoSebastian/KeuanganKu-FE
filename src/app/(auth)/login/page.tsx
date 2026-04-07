@@ -269,10 +269,11 @@ export default function LoginPage() {
             <Image
               src="/images/logokeuanganku.png"
               alt="Logo KeuanganKu"
-              width={80}
-              height={60}
+              width={240}  // Ditingkatkan (aslinya tampil 80px, kita kasih 240px agar tajam)
+              height={180} // Sesuaikan rasio
               className="object-contain w-auto h-20 sm:h-16"
               priority
+              quality={100} // Tambahkan ini agar kompresi tidak terlalu tinggi
             />
           </motion.div>
 
