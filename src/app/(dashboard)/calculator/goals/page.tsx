@@ -21,6 +21,10 @@ import { GoalInputForm } from "@/components/features/calculator/goals/goal-input
 import { GoalResults } from "@/components/features/calculator/goals/goal-results";
 import { generateSimulationFilename } from "@/lib/formatters";
 
+// [NEW IMPORTS] Untuk Integrasi PWA Handoff
+import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
+import { downloadMgcFile } from "@/lib/utils";
+
 // --- KONFIGURASI PILIHAN ---
 const GOAL_OPTIONS = [
     { id: "IBADAH", label: "Ibadah", icon: Star, desc: "Haji, Umrah, Ziarah" },
@@ -37,6 +41,10 @@ export default function GoalsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     // [NEW] Idempotency Key untuk mencegah pemotongan kuota ganda saat edit
     const sessionId = useRef(uuidv4());
+
+    // --- [NEW STATES] PWA DOWNLOAD HANDOFF ---
+    const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const [clientData, setClientData] = useState({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
     const [selectedGoal, setSelectedGoal] = useState<string>("LAINNYA");
@@ -126,6 +134,7 @@ export default function GoalsPage() {
             }
 
             const token = response.headers['x-mgc-token'];
+            const disposition = response.headers['content-disposition'];
             if (!token) throw new Error("Token data tidak ditemukan.");
 
             const payloadBase64 = token.split('.')[0];
@@ -134,17 +143,31 @@ export default function GoalsPage() {
 
             setResult(decodedData.result);
 
+            // Ekstraksi Nama File Secara Akurat dari Header
+            let pdfFilename = generateSimulationFilename("Rencana Khusus", clientData.clientName, "pdf");
+            if (disposition) {
+                const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
+            }
+
+            // [INTEGRASI PWA] Transformasi Blob menjadi File Object untuk PostDownloadAction
             const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
-            const pdfUrl = window.URL.createObjectURL(pdfBlob);
-            const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Klien';
+            const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
+            const pdfUrl = window.URL.createObjectURL(pdfFile);
+
+            setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
 
             setGeneratedFiles({
                 pdfUrl, mgcToken: token,
                 filenameMgc: generateSimulationFilename("Rencana Khusus", clientData.clientName, "mgc"),
-                filenamePdf: generateSimulationFilename("Rencana Khusus", clientData.clientName, "pdf")
+                filenamePdf: pdfFilename
             });
 
             toast.success("Analisa Selesai", { description: "Sistem telah menemukan strategi terbaik untuk klien Anda." });
+
+            // Memicu modal PostDownloadAction secara otomatis
+            setIsModalOpen(true);
+
         } catch (error: any) {
             console.error(error);
             if (error.response?.status === 403) {
@@ -165,20 +188,16 @@ export default function GoalsPage() {
 
     const handleDownloadFile = (type: 'PDF' | 'MGC') => {
         if (!generatedFiles) return;
-        if (type === 'PDF' && generatedFiles.pdfUrl) {
-            const link = document.createElement('a');
-            link.href = generatedFiles.pdfUrl;
-            link.setAttribute('download', generatedFiles.filenamePdf || "Laporan_Goal.pdf");
-            document.body.appendChild(link); link.click(); link.remove();
-            toast.success("Download File Berhasil");
+
+        if (type === 'PDF') {
+            // PDF menggunakan alur PWA Handoff (Share Sheet)
+            setIsModalOpen(true);
         } else if (type === 'MGC' && generatedFiles.mgcToken) {
-            const blob = new Blob([generatedFiles.mgcToken], { type: 'text/plain' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = generatedFiles.filenameMgc || "Backup_Goal.mgc";
-            a.click(); window.URL.revokeObjectURL(url);
-            toast.info("Backup Data Disimpan");
+            // MGC menggunakan utilitas eksternal adaptif
+            downloadMgcFile(
+                generatedFiles.filenameMgc || "Backup_Goal.mgc",
+                generatedFiles.mgcToken
+            );
         }
     };
 
@@ -298,6 +317,13 @@ export default function GoalsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* [PWA FEEDBACK MODAL] Handoff Area */}
+            <PostDownloadAction
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                fileData={downloadData}
+            />
         </div>
     );
 }

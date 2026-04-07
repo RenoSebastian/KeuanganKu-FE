@@ -13,7 +13,7 @@ import {
     ChevronDown,
     Sparkles,
     ChevronLeft,
-    Share2, // [MODIFIED] Mengganti ikon Download menjadi Share2 untuk merepresentasikan Web Share API
+    Share2,
     FileJson
 } from "lucide-react";
 import { formatCurrency, generateSimulationFilename } from "@/lib/formatters";
@@ -21,7 +21,9 @@ import { toast } from "sonner";
 import { financialService } from "@/services/financial.service";
 import { cn } from "@/lib/utils";
 
-// [ADDED] Fase 2: Import komponen Post-Download Action
+// [ADDED] Fase 3: Integrasi Utilitas Download Cerdas
+import { downloadMgcFile } from "@/lib/utils";
+
 import {
     PostDownloadAction,
     DownloadResultData
@@ -35,19 +37,15 @@ interface SimulationResultStepProps {
 
 export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset, onBack }) => {
     const [isDownloading, setIsDownloading] = useState(false);
-    const [isDownloadingMgc, setIsDownloadingMgc] = useState(false);
     const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
-    // [ADDED] State baru untuk integrasi PostDownloadAction (Fase 2)
     const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
     // [VALIDATION & AGGREGATION]
-    // Kita membaca 'childrenPlans' langsung dari 'result.data'.
     const simulationData = result?.data;
     const children = simulationData?.childrenPlans || [];
 
-    // [ROBUSTNESS FIX] Hitung Grand Total secara real-time dari array children.
     const { grandTotalMonthlySaving, grandTotalFutureCost } = useMemo(() => {
         let saving = 0;
         let cost = 0;
@@ -68,34 +66,28 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         setOpenItems(prev => ({ ...prev, [index]: !prev[index] }));
     };
 
-    // [MODIFIED] Handler untuk mengunduh MGC (Backup Sesi) yang kini mendukung WebView Memory Isolation
+    // [MODIFIED] Handler MGC yang terisolasi untuk utilitas adaptif (Fase 3)
     const handleDownloadMgc = async () => {
         if (!result.mgcToken) {
             toast.error("Token sesi tidak ditemukan. Backup dibatalkan.");
             return;
         }
 
-        setIsDownloadingMgc(true);
         try {
             const clientName = simulationData?.clientName || "Klien";
             const filenameMgc = generateSimulationFilename("Education Plan", clientName, "mgc");
 
-            // Konversi dari string payload/token menjadi entitas File biner
-            const blob = new Blob([result.mgcToken], { type: "text/plain;charset=utf-8" });
-            const file = new File([blob], filenameMgc, { type: 'text/plain', lastModified: Date.now() });
-            const url = window.URL.createObjectURL(file);
+            // Menggunakan fungsi eksternal untuk melompati bug Share Sheet PWA pada format custom
+            await downloadMgcFile(filenameMgc, result.mgcToken);
+            toast.success("Backup MGC berhasil diamankan");
 
-            setDownloadData({ file, url, filename: filenameMgc });
-            setIsModalOpen(true);
         } catch (error) {
             console.error("Gagal menyusun MGC:", error);
             toast.error("Terjadi galat komputasi saat mengekstraksi berkas.");
-        } finally {
-            setIsDownloadingMgc(false);
         }
     };
 
-    // [MODIFIED] Handler untuk PDF yang diubah sesuai arsitektur Fase 2
+    // [MODIFIED] Handler PDF tetap memanggil Modal Handoff PWA
     const handleDownloadPdf = async () => {
         if (!result.simulationId) {
             toast.error("ID Simulasi tidak ditemukan. Mohon hitung ulang.");
@@ -103,21 +95,25 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         }
 
         setIsDownloading(true);
-        toast.loading("Menyiapkan dokumen laporan...");
+        toast.loading("Menyiapkan dokumen laporan PDF...");
 
         try {
             const clientName = simulationData?.clientName || "Klien";
+            const filenamePdf = generateSimulationFilename("Education Plan", clientName, "pdf");
 
-            // Panggilan ke layer service (Asumsi financialService.downloadEducationSimulationPdf telah direfaktor untuk mereturn File/Blob data)
-            const resultData: any = await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
+            // 1. Panggil service untuk mencetak PDF
+            const responseData = await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
 
             toast.dismiss();
 
-            // Serahkan ke Interceptor Modal Fase 2
-            if (resultData) {
-                setDownloadData(resultData);
-                setIsModalOpen(true);
-            }
+            // 2. Bungkus sebagai Objek File untuk Native OS Handoff
+            const pdfFile = new File([responseData as any], filenamePdf, { type: 'application/pdf' });
+            const pdfUrl = window.URL.createObjectURL(pdfFile);
+
+            setDownloadData({ file: pdfFile, url: pdfUrl, filename: filenamePdf });
+
+            // 3. Picu Modal
+            setIsModalOpen(true);
 
         } catch (error) {
             console.error("Download error:", error);
@@ -128,7 +124,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         }
     };
 
-    // [ADDED] Handler penutupan modal dengan Garbage Collection
     const handleCloseModal = () => {
         if (downloadData?.url) {
             window.URL.revokeObjectURL(downloadData.url);
@@ -154,7 +149,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     </p>
                 </div>
 
-                {/* --- SUMMARY CARDS (Menggunakan Aggregated Values) --- */}
+                {/* --- SUMMARY CARDS --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Card Total Investasi */}
                     <Card className="bg-linear-to-br from-blue-600 to-blue-700 text-white border-none shadow-xl shadow-blue-900/20 relative overflow-hidden group">
@@ -204,7 +199,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
                     {children.length > 0 ? (
                         children.map((child, idx) => {
-                            // Kalkulasi per child (tetap dilakukan untuk display row level)
                             const totalSavingPerChild = child.stages.reduce(
                                 (sum, stage) => sum + (stage.calculatedMonthlySaving || 0), 0
                             );
@@ -221,7 +215,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                                         isOpen ? "border-blue-200 shadow-md ring-1 ring-blue-50" : "border-slate-200 hover:border-blue-200"
                                     )}
                                 >
-                                    {/* Accordion Header */}
                                     <div
                                         onClick={() => toggleAccordion(idx)}
                                         className="p-5 flex items-center justify-between cursor-pointer bg-linear-to-r from-transparent via-transparent to-blue-50/30 hover:bg-slate-50"
@@ -235,7 +228,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                                                 <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                                                     <span>Lahir: {child.childDob}</span>
                                                     <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                                    <span className="text-blue-600 font-semibold">{child.stages.length} Jenjang Sekolah</span>
+                                                    <span className="text-blue-600 font-semibold">{child.stages.length} Jenjang</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -248,7 +241,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                                         </div>
                                     </div>
 
-                                    {/* Accordion Content (Table) */}
                                     {isOpen && (
                                         <div className="border-t border-slate-100 animate-in slide-in-from-top-2">
                                             <div className="bg-slate-50/50 p-4">
@@ -257,8 +249,8 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                                                         <thead className="bg-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
                                                             <tr>
                                                                 <th className="px-4 py-3">Jenjang</th>
-                                                                <th className="px-4 py-3 text-right">Dana Dibutuhkan (FV)</th>
-                                                                <th className="px-4 py-3 text-right">Tabungan/Bulan</th>
+                                                                <th className="px-4 py-3 text-right">Dana Dibutuhkan</th>
+                                                                <th className="px-4 py-3 text-right">Nabung/Bulan</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y divide-slate-100 bg-white">
@@ -278,7 +270,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                                                                     </td>
                                                                 </tr>
                                                             ))}
-                                                            {/* Subtotal Row */}
                                                             <tr className="bg-blue-50/30 font-bold text-slate-800">
                                                                 <td className="px-4 py-3 text-right text-xs uppercase text-blue-600">Total</td>
                                                                 <td className="px-4 py-3 text-right">{formatCurrency(totalCostPerChild)}</td>
@@ -300,11 +291,11 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     )}
                 </div>
 
-                {/* --- ACTION BUTTONS (Refactored) --- */}
+                {/* --- ACTION BUTTONS --- */}
                 <div className="flex flex-col sm:flex-row flex-wrap gap-4 pt-6 border-t border-slate-200">
                     <Button
                         onClick={handleDownloadPdf}
-                        disabled={isDownloading || isDownloadingMgc}
+                        disabled={isDownloading}
                         className="flex-2 h-12 gap-2 text-base font-bold shadow-xl shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
                     >
                         {isDownloading ? (
@@ -321,23 +312,17 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     <Button
                         variant="outline"
                         onClick={handleDownloadMgc}
-                        disabled={isDownloadingMgc || isDownloading || !result.mgcToken}
+                        disabled={isDownloading || !result.mgcToken}
                         className="flex-1 h-12 gap-2 text-base font-bold border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-all"
                         title="Ekstrak arsip kalkulasi sebagai cadangan (MGC)"
                     >
-                        {isDownloadingMgc ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                            <>
-                                <FileJson className="w-5 h-5" /> Cadangkan .MGC
-                            </>
-                        )}
+                        <FileJson className="w-5 h-5" /> Cadangkan .MGC
                     </Button>
 
                     <Button
                         variant="outline"
                         onClick={onBack}
-                        disabled={isDownloading || isDownloadingMgc}
+                        disabled={isDownloading}
                         className="flex-1 h-12 gap-2 text-base font-semibold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
                     >
                         <ChevronLeft className="w-4 h-4" /> Revisi Data
@@ -346,7 +331,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     <Button
                         variant="outline"
                         onClick={onReset}
-                        disabled={isDownloading || isDownloadingMgc}
+                        disabled={isDownloading}
                         className="flex-1 h-12 gap-2 text-base font-semibold border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-900 transition-all"
                     >
                         <RefreshCcw className="w-5 h-5" /> Hitung Ulang
@@ -360,7 +345,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 </div>
             </div>
 
-            {/* [ADDED] Interceptor Modal Post-Download (Render Dinamis) */}
             <PostDownloadAction
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}

@@ -31,6 +31,10 @@ import { RecommendationCard } from "@/components/features/calculator/insurance/R
 import { HelperCalculatorModal } from "@/components/features/calculator/insurance/HelperCalculatorModal";
 import { generateSimulationFilename } from "@/lib/formatters";
 
+// [NEW IMPORTS] Untuk Integrasi PWA Handoff
+import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
+import { downloadMgcFile } from "@/lib/utils";
+
 export default function InsurancePage() {
   // --- AUTH & QUOTA ---
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
@@ -39,6 +43,10 @@ export default function InsurancePage() {
   // --- REFS ---
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(uuidv4());
+
+  // --- [NEW STATES] PWA DOWNLOAD HANDOFF ---
+  const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // --- STATE: INPUT DATA ---
   const [clientData, setClientData] = useState({
@@ -137,41 +145,65 @@ export default function InsurancePage() {
       };
 
       const response = await financialService.simulateAgentInsurance(payload);
+
+      // [SYNC QUOTA]
       await refreshUser();
-      window.dispatchEvent(new Event('refresh_user_data'));
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('refresh_user_data'));
 
       const token = response.headers['x-mgc-token'];
+      const disposition = response.headers['content-disposition'];
+
       if (!token) throw new Error("Token tidak ditemukan.");
 
       const decodedData = JSON.parse(atob(token.split('.')[0]));
       setResult(decodedData.result);
 
-      const pdfUrl = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_') || 'Klien';
+      // Ekstraksi Nama File Secara Akurat dari Header
+      let pdfFilename = generateSimulationFilename("Rancang Proteksi", clientData.clientName, "pdf");
+      if (disposition) {
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
+      }
+
+      // [INTEGRASI PWA] Transformasi Blob menjadi File Object untuk PostDownloadAction
+      const pdfFile = new File([response.data], pdfFilename, { type: 'application/pdf' });
+      const pdfUrl = window.URL.createObjectURL(pdfFile);
+
+      setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
 
       setGeneratedFiles({
         pdfUrl, mgcToken: token,
         filenameMgc: generateSimulationFilename("Rancang Proteksi", clientData.clientName, "mgc"),
-        filenamePdf: generateSimulationFilename("Rancang Proteksi", clientData.clientName, "pdf")
+        filenamePdf: pdfFilename
       });
 
       toast.success("Analisa Selesai");
+
+      // Memicu modal PostDownloadAction secara otomatis
+      setIsModalOpen(true);
+
     } catch (error: any) {
       toast.error("Gagal Menghitung", { description: error.response?.status === 403 ? "Kuota habis." : "Terjadi kesalahan sistem." });
     } finally {
       setIsLoading(false);
       setShowPdfModal(false);
+      if (window.innerWidth < 1024) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
   };
 
   const handleDownloadFile = (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) return;
-    const isPdf = type === 'PDF';
-    const link = document.createElement('a');
-    link.href = isPdf ? generatedFiles.pdfUrl! : window.URL.createObjectURL(new Blob([generatedFiles.mgcToken!], { type: 'text/plain' }));
-    link.setAttribute('download', isPdf ? generatedFiles.filenamePdf! : generatedFiles.filenameMgc!);
-    document.body.appendChild(link); link.click(); link.remove();
-    toast.success(`${type} Berhasil Diunduh`);
+
+    if (type === 'PDF') {
+      // PDF menggunakan alur PWA Handoff (Share Sheet)
+      setIsModalOpen(true);
+    } else if (type === 'MGC' && generatedFiles.mgcToken) {
+      // MGC menggunakan utilitas eksternal adaptif
+      downloadMgcFile(
+        generatedFiles.filenameMgc || "Proteksi.mgc",
+        generatedFiles.mgcToken
+      );
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,6 +280,7 @@ export default function InsurancePage() {
     setAnnualIncome(""); setProtectionDuration("10"); setFinalExpense(""); setExistingInsurance("");
     setResult(null); setGeneratedFiles(null);
     sessionId.current = uuidv4();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const applyCalculation = (type: 'KPR' | 'KPM' | 'INCOME') => {
@@ -386,6 +419,13 @@ export default function InsurancePage() {
         onMonthlyChange={(val) => handleMoneyInput(val, setTempMonthly)}
         onTenorChange={setTempTenor}
         onApply={applyCalculation}
+      />
+
+      {/* [PWA FEEDBACK MODAL] Handoff Area */}
+      <PostDownloadAction
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        fileData={downloadData}
       />
     </div>
   );

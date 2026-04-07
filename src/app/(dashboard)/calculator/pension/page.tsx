@@ -21,11 +21,19 @@ import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-lo
 import { QuotaAlert } from "@/components/features/calculator/pension/quota-alert";
 import { generateSimulationFilename } from "@/lib/formatters";
 
+// [NEW IMPORTS] Untuk Integrasi PWA Handoff
+import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
+import { downloadMgcFile } from "@/lib/utils";
+
 export default function PensionPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
   const hasAccess = isPro || quota > 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(uuidv4());
+
+  // --- [NEW STATES] PWA DOWNLOAD HANDOFF ---
+  const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // --- STATE: INPUT DATA ---
   const [clientData, setClientData] = useState({
@@ -93,39 +101,66 @@ export default function PensionPage() {
       };
 
       const response = await financialService.simulateAgentPension(payload);
+
+      // [SYNC QUOTA]
       await refreshUser();
-      window.dispatchEvent(new Event('refresh_user_data'));
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('refresh_user_data'));
 
       const token = response.headers['x-mgc-token'];
+      const disposition = response.headers['content-disposition'];
+
+      if (!token) throw new Error("Token tidak ditemukan");
+
       const decodedData = JSON.parse(atob(token.split('.')[0]));
       setResult(decodedData.result);
 
-      const pdfUrl = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-      const cleanName = clientData.clientName.replace(/[^a-zA-Z0-9]/g, '_');
+      // Ekstraksi Nama File Secara Akurat dari Header
+      let pdfFilename = generateSimulationFilename("Rencana Dana Hari Tua", clientData.clientName, "pdf");
+      if (disposition) {
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
+      }
+
+      // [INTEGRASI PWA] Transformasi Blob menjadi File Object untuk PostDownloadAction
+      const pdfFile = new File([response.data], pdfFilename, { type: 'application/pdf' });
+      const pdfUrl = window.URL.createObjectURL(pdfFile);
+
+      setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
 
       setGeneratedFiles({
         pdfUrl, mgcToken: token,
         filenameMgc: generateSimulationFilename("Rencana Dana Hari Tua", clientData.clientName, "mgc"),
-        filenamePdf: generateSimulationFilename("Rencana Dana Hari Tua", clientData.clientName, "pdf")
+        filenamePdf: pdfFilename
       });
 
       toast.success("Analisa Selesai");
+
+      // Memicu modal PostDownloadAction secara otomatis
+      setIsModalOpen(true);
+
     } catch (error: any) {
       toast.error("Gagal Simulasi");
     } finally {
       setIsLoading(false);
       setShowPdfModal(false);
+      // Auto-scroll pada device kecil agar melihat hasil
+      if (window.innerWidth < 1024) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
   };
 
   const handleDownloadFile = (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) return;
-    const isPdf = type === 'PDF';
-    const link = document.createElement('a');
-    link.href = isPdf ? generatedFiles.pdfUrl! : window.URL.createObjectURL(new Blob([generatedFiles.mgcToken!], { type: 'text/plain' }));
-    link.setAttribute('download', isPdf ? generatedFiles.filenamePdf! : generatedFiles.filenameMgc!);
-    document.body.appendChild(link); link.click(); link.remove();
-    toast.success(`${type} Berhasil Diunduh`);
+
+    if (type === 'PDF') {
+      // PDF menggunakan alur PWA Handoff (Share Sheet)
+      setIsModalOpen(true);
+    } else if (type === 'MGC' && generatedFiles.mgcToken) {
+      // MGC menggunakan utilitas eksternal adaptif
+      downloadMgcFile(
+        generatedFiles.filenameMgc || "Pensiun.mgc",
+        generatedFiles.mgcToken
+      );
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,6 +207,7 @@ export default function PensionPage() {
     setCurrentExpense(""); setCurrentSaving("");
     setResult(null); setGeneratedFiles(null);
     sessionId.current = uuidv4();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -254,6 +290,13 @@ export default function PensionPage() {
 
         </div>
       </div>
+
+      {/* [PWA FEEDBACK MODAL] Handoff Area */}
+      <PostDownloadAction
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        fileData={downloadData}
+      />
     </div>
   );
 }
