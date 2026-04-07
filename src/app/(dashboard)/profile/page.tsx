@@ -180,19 +180,18 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // [SECURITY LAYER] Immutability Constraint
-      // Destructure 'email' untuk memastikan payload update tidak membawa kredensial
-      const { email, ...safeFormData } = formData;
-
-      // Sanitasi Payload Pre-flight
+      // [REFACTORED] Explicit Payload Construction (Single Source of Truth)
+      // Mencegah Payload Leakage dengan tidak menggunakan spread operator dari state awal.
+      // Hanya menyertakan 7 atribut esensial + avatar yang disepakati dengan UpdateProfileDto Backend.
       const payloadToSubmit = {
-        ...safeFormData,
-        fullName: safeFormData.fullName.trim(),
-        phoneNumber: safeFormData.phoneNumber.trim(),
-        goals: safeFormData.goals.trim(),
-        companyName: safeFormData.companyName.trim(),
-        agencyName: safeFormData.agencyName.trim(),
-        agentLevel: safeFormData.agentLevel.trim(),
+        fullName: formData.fullName.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        agentLevel: formData.agentLevel.trim(),
+        companyName: formData.companyName.trim(),
+        agencyName: formData.agencyName.trim(),
+        dateOfBirth: formData.dateOfBirth,
+        goals: formData.goals.trim(),
+        avatar: formData.avatar,
       };
 
       await api.patch("/users/me", payloadToSubmit);

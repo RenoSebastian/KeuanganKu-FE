@@ -13,6 +13,22 @@ import {
 import Cookies from "js-cookie";
 import { getOrCreateDeviceId } from "@/lib/device-id";
 
+// =================================================================
+// [NEW] KONTRAK DATA UPDATE PROFILE (Single Source of Truth)
+// Selaras 100% dengan UpdateProfileDto di Backend
+// =================================================================
+export interface UpdateProfilePayload {
+  fullName?: string;
+  phoneNumber?: string;
+  agentLevel?: string;
+  companyName?: string;
+  agencyName?: string;
+  agencyId?: string;
+  dateOfBirth?: string;
+  goals?: string;
+  avatar?: string;
+}
+
 export const authService = {
   // =================================================================
   // HELPER: STANDARDIZASI PENYIMPANAN SESI (DRY Principle)
@@ -186,8 +202,10 @@ export const authService = {
   // =================================================================
   // 13. UPDATE PROFILE
   // =================================================================
-  updateProfile: async (data: Partial<User>) => {
+  updateProfile: async (data: UpdateProfilePayload) => {
     try {
+      // [REFACTORED] Tipe argumen kini secara eksplisit menggunakan UpdateProfilePayload
+      // Mengunci celah kebocoran atribut dari level Service.
       const response = await api.patch<User>("/users/me", data);
 
       if (response.data && typeof window !== "undefined") {

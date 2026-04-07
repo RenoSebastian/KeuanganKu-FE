@@ -34,6 +34,11 @@ export default function EditUserPage({ params }: PageProps) {
     agentLevel: "",
     dateOfBirth: "",
     phoneNumber: "",
+    // Menambahkan field tambahan agar sinkron dengan struktur DTO
+    companyName: "",
+    agencyName: "",
+    goals: "",
+    avatar: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -71,6 +76,11 @@ export default function EditUserPage({ params }: PageProps) {
           agentLevel: userData.agentLevel || "",
           dateOfBirth: formattedDob,
           phoneNumber: userData.phoneNumber || "",
+          // Inisialisasi field tambahan
+          companyName: userData.companyName || "",
+          agencyName: userData.agencyName || "",
+          goals: userData.goals || "",
+          avatar: userData.avatar || "",
         });
 
       } catch (error: any) {
@@ -109,13 +119,20 @@ export default function EditUserPage({ params }: PageProps) {
     setIsSaving(true);
 
     try {
-      // [SECURITY ENFORCEMENT] Stripping immutable fields
-      // Memastikan email diamputasi dari objek formData sebelum ditembakkan ke Backend
-      const { email, ...safeFormData } = formData;
-
+      // [REFACTORED] Explicit Payload Construction (Single Source of Truth)
+      // Memastikan Admin mengirimkan bentuk payload yang identik dengan portal User,
+      // bebas dari "sampah state" dan diamputasi dari atribut 'email'.
       const payloadToSubmit = {
-        ...safeFormData,
-        phoneNumber: safeFormData.phoneNumber.trim()
+        fullName: formData.fullName.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        agentLevel: formData.agentLevel.trim(),
+        dateOfBirth: formData.dateOfBirth,
+        role: formData.role, // Admin memiliki previlese untuk update Role
+        nip: formData.nip.trim(),
+        companyName: formData.companyName.trim(),
+        agencyName: formData.agencyName.trim(),
+        goals: formData.goals.trim(),
+        avatar: formData.avatar,
       };
 
       await adminService.updateUser(userId, payloadToSubmit as any);
