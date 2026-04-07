@@ -23,15 +23,22 @@ import { BudgetForm } from "@/components/features/calculator/budget/budget-form"
 import { BudgetResults } from "@/components/features/calculator/budget/budget-results";
 import { generateSimulationFilename } from "@/lib/formatters";
 
+// [NEW IMPORTS] Untuk perbaikan download PWA
+import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
+import { downloadMgcFile } from "@/lib/utils";
+
 export default function AgentBudgetPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
   const hasAccess = isPro || quota > 0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // [IDEMPOTENCY] Session ID untuk mencegah double-deduction jika user hanya edit angka
   const sessionId = useRef(uuidv4());
 
-  // State
+  // --- [NEW STATES FOR PWA DOWNLOAD] ---
+  const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Existing States
   const [clientData, setClientData] = useState({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
   const [fixedIncome, setFixedIncome] = useState("");
   const [variableIncome, setVariableIncome] = useState("");
@@ -70,6 +77,7 @@ export default function AgentBudgetPage() {
     if (result) { setResult(null); setGeneratedFiles(null); }
   };
 
+  // --- [FIXED CALCULATION LOGIC] ---
   const handleCalculateOnly = async () => {
     if (!hasAccess) { toast.error("Kuota Habis", { description: "Silakan upgrade ke PRO." }); return; }
     if (!clientData.clientName || !clientData.clientCity || !fixedIncome) { toast.error("Data Belum Lengkap", { description: "Isi Nama, Kota, dan Gaji Tetap." }); return; }
@@ -84,20 +92,26 @@ export default function AgentBudgetPage() {
         ...clientData, fixedIncome: Math.round(fixedRaw / 12), variableIncome: Math.round(variableRaw / 12), sessionId: sessionId.current
       };
 
+      // 1. Fetch data sebagai Blob (untuk PDF)
       const response = await financialService.simulateAgentBudget(payload);
 
-      // [UPDATE: REALTIME SYNC]
-      // 1. Update state di hook halaman ini
+      // [SYNC QUOTA]
       await refreshUser();
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('refresh_user_data'));
 
-      // 2. Kirim sinyal ke Sidebar agar progress bar kuota berkurang otomatis
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('refresh_user_data'));
-      }
-
+      // 2. Ekstrak Metadata dari Header
       const token = response.headers['x-mgc-token'];
+      const disposition = response.headers['content-disposition'];
       if (!token) throw new Error("Token data tidak ditemukan.");
 
+      // 3. Tentukan Nama File yang Akurat
+      let pdfFilename = generateSimulationFilename("Budget Plan", clientData.clientName, "pdf");
+      if (disposition) {
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
+      }
+
+      // 4. Transformasi ke Hasil UI
       const decodedData = JSON.parse(atob(token.split('.')[0]));
       const beResult = decodedData.result;
 
@@ -114,38 +128,50 @@ export default function AgentBudgetPage() {
         ]
       };
 
+      // 5. SIAPKAN OBJEK FILE UNTUK PWA (PDF)
+      const pdfFile = new File([response.data], pdfFilename, { type: 'application/pdf' });
+      const pdfUrl = window.URL.createObjectURL(pdfFile);
+
       setResult(mappedResult);
       setRecommendation(beResult.analysis.variableIncomeRecommendation);
+
+      // Simpan untuk modal
+      setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
+
       setGeneratedFiles({
-        pdfUrl: window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' })),
+        pdfUrl: pdfUrl,
         mgcToken: token,
         filenameMgc: generateSimulationFilename("Budget Plan", clientData.clientName, "mgc"),
-        filenamePdf: generateSimulationFilename("Budget Plan", clientData.clientName, "pdf")
+        filenamePdf: pdfFilename
       });
+
+      // Buka Modal sebagai notifikasi "Selesai"
+      setIsModalOpen(true);
       toast.success("Analisa Selesai");
+
     } catch (error: any) {
-      if (error.response?.status === 403) {
-        toast.error("Akses Ditolak", { description: "Kuota habis." });
-        await refreshUser();
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('refresh_user_data'));
-        }
-      }
-      else toast.error("Gagal Simulasi");
+      console.error(error);
+      toast.error("Gagal Simulasi");
     } finally {
-      setIsLoading(false); setShowPdfModal(false);
+      setIsLoading(false);
+      setShowPdfModal(false);
       if (window.innerWidth < 1024) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
   };
 
+  // --- [FIXED DOWNLOAD ROUTER] ---
   const handleDownloadFile = (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) return;
-    if (type === 'PDF' && generatedFiles.pdfUrl) {
-      const link = document.createElement('a'); link.href = generatedFiles.pdfUrl;
-      link.setAttribute('download', generatedFiles.filenamePdf || "Budget.pdf"); document.body.appendChild(link); link.click(); link.remove();
+
+    if (type === 'PDF') {
+      // PDF selalu memicu modal (Share Sheet) agar aman di PWA
+      setIsModalOpen(true);
     } else if (type === 'MGC' && generatedFiles.mgcToken) {
-      const url = window.URL.createObjectURL(new Blob([generatedFiles.mgcToken], { type: 'text/plain' }));
-      const a = document.createElement('a'); a.href = url; a.download = generatedFiles.filenameMgc || "Backup.mgc"; a.click(); window.URL.revokeObjectURL(url);
+      // MGC menggunakan utility khusus biner (Save Game)
+      downloadMgcFile(
+        generatedFiles.filenameMgc || "Backup.mgc",
+        generatedFiles.mgcToken
+      );
     }
   };
 
@@ -163,7 +189,7 @@ export default function AgentBudgetPage() {
         setClientData({ clientName: client.name || "", clientDob: client.dob || "", clientCity: client.city || "", clientJob: client.job || "", clientPhone: client.phone || "" });
         setFixedIncome(new Intl.NumberFormat("id-ID").format((Number(financial.fixedIncome) || 0) * 12));
         setVariableIncome(new Intl.NumberFormat("id-ID").format((Number(financial.variableIncome) || 0) * 12));
-        sessionId.current = uuidv4(); // Reset session ID on import
+        sessionId.current = uuidv4();
         toast.success("Import Berhasil"); setResult(null); setGeneratedFiles(null);
       } catch { toast.error("Gagal Import File"); } finally { setIsImporting(false); }
     };
@@ -244,6 +270,13 @@ export default function AgentBudgetPage() {
           </div>
         </div>
       </div>
+
+      {/* [PWA FEEDBACK MODAL] Muncul otomatis saat download/kalkulasi selesai */}
+      <PostDownloadAction
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        fileData={downloadData}
+      />
     </div>
   );
 }

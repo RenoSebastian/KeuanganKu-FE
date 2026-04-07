@@ -6,7 +6,7 @@ import { DownloadResultData } from "@/components/features/shared/post-download-a
 
 export interface UseSecureExportReturn {
     isLoading: boolean;
-    // [NEW] Mengekspos nilai persentase progres untuk dikonsumsi komponen UI
+    // Mengekspos nilai persentase progres untuk dikonsumsi komponen UI
     progress: number;
     triggerExport: (query: ExportQuery) => Promise<DownloadResultData | undefined>;
 }
@@ -35,11 +35,11 @@ export function useSecureExport(
                 cutoffDate: query.cutoffDate,
             });
 
-            // Endpoint ini mengembalikan application/octet-stream (binary blob)
+            // Endpoint ini mengembalikan binary blob
             const response = await api.get(`/admin/retention/export?${params.toString()}`, {
-                responseType: "blob", // [CRITICAL] Memaksa Axios untuk menerima aliran biner ke RAM
+                responseType: "blob", // Memaksa Axios untuk menerima aliran biner
                 timeout: 60000,
-                // [NEW] Injeksi Interseptor Progres Jaringan
+                // Interseptor Progres Jaringan
                 onDownloadProgress: (progressEvent) => {
                     if (progressEvent.total) {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -52,7 +52,6 @@ export function useSecureExport(
             const contentType = response.headers["content-type"] || "";
 
             if (contentType.includes("application/json")) {
-                // Konversi blob yang berisi error message kembali menjadi teks JSON
                 const textData = await response.data.text();
                 try {
                     const jsonBody = JSON.parse(textData);
@@ -62,43 +61,55 @@ export function useSecureExport(
                 }
             }
 
-            // 4. Penamaan File & Restorasi Ekstensi Asli
+            // 4. [HARDENED] Penamaan File & Restorasi Nama Asli dari Backend
             const disposition = response.headers["content-disposition"];
             let filename = `secure-archive-${query.entityType.toLowerCase()}-${query.cutoffDate}.mgc`;
 
-            if (disposition && disposition.indexOf("attachment") !== -1) {
-                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                const matches = filenameRegex.exec(disposition);
-                if (matches != null && matches[1]) {
-                    filename = matches[1].replace(/['"]/g, "");
+            if (disposition) {
+                /** 
+                 * Regex yang dipertajam: 
+                 * 1. Mendukung standard filename="name.ext"
+                 * 2. Mendukung modern standard filename*=UTF-8''name.ext (untuk karakter spesial)
+                 */
+                const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                const filenameStarMatch = disposition.match(/filename\*=UTF-8''([^;\n]*)/);
+
+                if (filenameStarMatch && filenameStarMatch[1]) {
+                    // Jika backend mengirim format UTF-8 encoded
+                    filename = decodeURIComponent(filenameStarMatch[1]);
+                } else if (filenameMatch && filenameMatch[1]) {
+                    // Jika backend mengirim format standard dengan atau tanpa kutip
+                    filename = filenameMatch[1].replace(/['"]/g, "");
                 }
             }
 
             // 5. Transformasi ke Objek File (Refactor Utama)
-            // Membungkus data ke dalam objek File agar kompatibel dengan navigator.share di Android OS
+            // Membungkus data ke dalam objek File agar kompatibel dengan navigator.share di PWA
             const file = new File([response.data], filename, {
                 type: 'application/octet-stream',
                 lastModified: Date.now()
             });
+
+            // Buat URL pointer untuk preview/download legacy
             const url = window.URL.createObjectURL(file);
 
-            // Set ke 100 secara eksplisit untuk menjamin state tidak tertinggal di angka 99%
+            // Set ke 100 secara eksplisit untuk menjamin state tidak tertinggal
             setProgress(100);
             if (onSuccess) onSuccess();
 
-            // Mengembalikan entitas utuh ke pemanggil
+            // Mengembalikan entitas utuh ke pemanggil (biasanya PostDownloadAction modal)
             return { file, url, filename };
 
         } catch (error: any) {
             console.error("Export Error:", error);
-            setProgress(0); // Reset progres jika terjadi anomali/kegagalan
+            setProgress(0);
 
             let message = "Terjadi kesalahan saat mengunduh data.";
 
             if (error instanceof AxiosError) {
                 if (error.response?.status === 404) message = "Data tidak ditemukan untuk periode tersebut.";
                 else if (error.response?.status === 403) message = "Anda tidak memiliki izin akses.";
-                else if (error.code === 'ECONNABORTED') message = "Koneksi timeout. Data terlalu besar.";
+                else if (error.code === 'ECONNABORTED') message = "Koneksi timeout. Data mungkin terlalu besar.";
             } else if (error instanceof Error) {
                 message = error.message;
             }
