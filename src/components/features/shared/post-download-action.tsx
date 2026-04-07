@@ -55,31 +55,41 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
     const fileSize = (fileData.file.size / 1024).toFixed(1) + " KB";
 
     // ====================================================================
-    // [TAHAP 3] FILTRASI EXCEPTION PADA WEB SHARE API
+    // [TAHAP 3] FILTRASI EXCEPTION PADA WEB SHARE API & CAPABILITY DETECTION
     // ====================================================================
     const handleShare = async () => {
         setIsSharing(true);
         setShareError(null);
 
         try {
-            if (navigator.share && navigator.canShare({ files: [fileData.file] })) {
+            // Evaluasi aman: Pastikan object navigator mendukung share dan canShare spesifik untuk file
+            const supportsShare = typeof navigator.share === 'function';
+            const supportsCanShare = typeof navigator.canShare === 'function';
+
+            let canShareFile = false;
+            if (supportsShare && supportsCanShare) {
+                canShareFile = navigator.canShare({ files: [fileData.file] });
+            }
+
+            if (supportsShare && canShareFile) {
                 await navigator.share({
                     title: 'Simpan Dokumen KeuanganKu',
+                    text: `Dokumen ${fileData.filename} siap disimpan.`,
                     files: [fileData.file],
                 });
             } else {
-                setShareError("Perangkat Anda tidak mendukung fitur berbagi file langsung.");
+                setShareError("Sistem OS memblokir atau tidak mendukung fitur simpan via Share Sheet.");
             }
         } catch (error: any) {
             // Abaikan jika user secara sadar menekan 'Cancel' / 'Back' pada sistem operasi
-            if (error.name === 'AbortError') {
+            if (error.name === 'AbortError' || error.message.includes('abort')) {
                 console.log("Share operation was cancelled by user (Normal behavior).");
                 return;
             }
 
             // Catat error sungguhan dan tampilkan ke layar
             console.error("Web Share API Failed:", error);
-            setShareError("Terjadi kendala saat membuka menu berbagi sistem.");
+            setShareError("Terjadi penolakan keamanan saat memanggil menu berbagi sistem.");
         } finally {
             setIsSharing(false);
         }
@@ -92,7 +102,7 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
     };
 
     // ====================================================================
-    // [TAHAP 2] HARDENING DOM MANIPULATION (Legacy Download)
+    // [TAHAP 2] HARDENING DOM MANIPULATION (Fallback / Legacy Download)
     // ====================================================================
     const handleLegacyDownload = () => {
         // 1. Buat elemen

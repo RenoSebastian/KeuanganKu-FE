@@ -2,11 +2,12 @@ import { useState } from "react";
 import { AxiosError } from "axios";
 import api from "@/lib/axios";
 import { ExportQuery } from "@/lib/types/retention";
-import { DownloadResultData } from "@/components/features/shared/post-download-action"; // Pastikan path ini sesuai dengan lokasi komponen Anda
+import { DownloadResultData } from "@/components/features/shared/post-download-action";
 
-interface UseSecureExportReturn {
+export interface UseSecureExportReturn {
     isLoading: boolean;
-    // Mengubah return type agar mengembalikan promise berisi data file
+    // [NEW] Mengekspos nilai persentase progres untuk dikonsumsi komponen UI
+    progress: number;
     triggerExport: (query: ExportQuery) => Promise<DownloadResultData | undefined>;
 }
 
@@ -15,6 +16,7 @@ export function useSecureExport(
     onError?: (msg: string) => void
 ): UseSecureExportReturn {
     const [isLoading, setIsLoading] = useState(false);
+    const [progress, setProgress] = useState<number>(0);
 
     const triggerExport = async (query: ExportQuery): Promise<DownloadResultData | undefined> => {
         // 1. Validasi Input
@@ -24,6 +26,7 @@ export function useSecureExport(
         }
 
         setIsLoading(true);
+        setProgress(0); // Reset progres setiap kali inisiasi baru dimulai
 
         try {
             // 2. Request ke Backend
@@ -36,6 +39,13 @@ export function useSecureExport(
             const response = await api.get(`/admin/retention/export?${params.toString()}`, {
                 responseType: "blob", // [CRITICAL] Memaksa Axios untuk menerima aliran biner ke RAM
                 timeout: 60000,
+                // [NEW] Injeksi Interseptor Progres Jaringan
+                onDownloadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        setProgress(percentCompleted);
+                    }
+                },
             });
 
             // 3. Validasi Cerdas (Smart Content-Type Check & Error Handling)
@@ -72,6 +82,8 @@ export function useSecureExport(
             });
             const url = window.URL.createObjectURL(file);
 
+            // Set ke 100 secara eksplisit untuk menjamin state tidak tertinggal di angka 99%
+            setProgress(100);
             if (onSuccess) onSuccess();
 
             // Mengembalikan entitas utuh ke pemanggil
@@ -79,6 +91,8 @@ export function useSecureExport(
 
         } catch (error: any) {
             console.error("Export Error:", error);
+            setProgress(0); // Reset progres jika terjadi anomali/kegagalan
+
             let message = "Terjadi kesalahan saat mengunduh data.";
 
             if (error instanceof AxiosError) {
@@ -96,5 +110,5 @@ export function useSecureExport(
         }
     };
 
-    return { isLoading, triggerExport };
+    return { isLoading, progress, triggerExport };
 }
