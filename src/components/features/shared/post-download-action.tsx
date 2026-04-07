@@ -1,10 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-    Dialog,
-    DialogContent,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
     Download,
@@ -14,9 +10,12 @@ import {
     Copy,
     X,
     AlertCircle,
-    ArrowRight
+    ArrowRight,
+    Sparkles,
+    ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface DownloadResultData {
     file: File;
@@ -44,12 +43,12 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
         };
     }, [fileData?.url]);
 
-    if (!fileData) return null;
-
-    const isPdf = fileData.filename.toLowerCase().endsWith('.pdf');
-    const fileSize = (fileData.file.size / 1024).toFixed(1) + " KB";
+    const isPdf = fileData?.filename.toLowerCase().endsWith('.pdf');
+    const fileSize = fileData ? (fileData.file.size / 1024).toFixed(1) + " KB" : "0 KB";
 
     const handleShare = async () => {
+        if (!fileData) return;
+
         setIsSharing(true);
         setShareError(null);
 
@@ -79,134 +78,186 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
             }
         } catch (error: any) {
             if (error.name === 'AbortError' || error.message.includes('abort')) return;
-            setShareError("Gagal membuka sistem penyimpanan. Pastikan browser Anda mengizinkan unduhan.");
+            setShareError("Gagal membuka sistem penyimpanan. Pastikan perangkat mendukung fitur ini.");
         } finally {
             setIsSharing(false);
         }
     };
 
     const handleCopyName = () => {
+        if (!fileData) return;
         navigator.clipboard.writeText(fileData.filename);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-105 p-0 overflow-hidden border-none bg-transparent shadow-none focus:outline-none">
-                {/* 
-                   STRATEGI PWA: Menggunakan animasi slide-up dari bawah 
-                   dan rounded corners besar agar terasa seperti native iOS/Android sheet 
-                */}
-                <div className="bg-white dark:bg-slate-900 rounded-t-[32px] sm:rounded-[32px] p-6 pb-10 animate-in slide-in-from-bottom-20 duration-500 shadow-2xl border-t border-slate-100 dark:border-slate-800">
+        <AnimatePresence>
+            {isOpen && fileData && (
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6">
+                    {/* BACKDROP GELAP (Blur) */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm cursor-pointer"
+                    />
 
-                    {/* Handle Bar (Visual cue untuk pengguna mobile) */}
-                    <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-8 sm:hidden" />
+                    {/* MODAL KONTEN */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl p-6 sm:p-8 max-w-md w-full border border-slate-100 dark:border-slate-800 text-center overflow-hidden"
+                    >
+                        {/* AMBIENT GLOW EFFECTS */}
+                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/20 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+                        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-400/20 dark:bg-blue-400/10 rounded-full blur-3xl pointer-events-none animate-pulse" style={{ animationDelay: "1s" }} />
 
-                    {/* Header Section */}
-                    <div className="flex justify-between items-start mb-8 text-center sm:text-left">
-                        <div className="w-full sm:w-auto">
-                            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                                Berhasil Dibuat!
-                            </h2>
-                            <p className="text-slate-500 text-sm mt-2 font-medium">Klik tombol di bawah untuk menyimpan.</p>
-                        </div>
-                        <button onClick={onClose} className="absolute right-6 top-6 p-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 rounded-full transition-colors hidden sm:block">
-                            <X className="w-5 h-5 text-slate-400" />
+                        {/* Top Decorative Line */}
+                        <div className={cn(
+                            "absolute top-0 left-0 w-full h-1.5",
+                            isPdf ? "bg-linear-to-r from-rose-500 via-red-400 to-orange-400" : "bg-linear-to-r from-emerald-500 via-teal-400 to-blue-400"
+                        )} />
+
+                        {/* Close Button */}
+                        <button
+                            onClick={onClose}
+                            className="absolute right-4 top-4 sm:right-6 sm:top-6 p-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors z-20"
+                        >
+                            <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
                         </button>
-                    </div>
 
-                    {/* Visual File Card: Fokus pada nama file dan tipe */}
-                    <div className="relative group mb-8">
-                        <div className="absolute -inset-2 bg-linear-to-r from-emerald-500 to-blue-500 rounded-[2rem] blur-xl opacity-10" />
-                        <div className="relative flex items-center p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-[2rem]">
+                        {/* =========================================
+                            ICON CHOREOGRAPHY
+                            ========================================= */}
+                        <div className="mt-2 mb-6 sm:mb-8 relative mx-auto w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center">
+                            {/* Radar Waves Effect */}
                             <div className={cn(
-                                "w-16 h-16 rounded-2xl flex items-center justify-center mr-4 shadow-sm shrink-0",
-                                isPdf ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
-                            )}>
-                                {isPdf ? <FileText size={36} strokeWidth={2.5} /> : <FileCode size={36} strokeWidth={2.5} />}
-                            </div>
-                            <div className="flex-1 overflow-hidden">
-                                <p className="text-sm font-black text-slate-900 dark:text-slate-100 truncate pr-2">
-                                    {fileData.filename}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-white dark:bg-slate-700 rounded-md border border-slate-200 dark:border-slate-600 text-slate-400">
-                                        {isPdf ? 'PDF' : 'MGC'}
-                                    </span>
-                                    <span className="text-xs text-slate-400 font-bold">{fileSize}</span>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleCopyName}
-                                className="p-3 text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
-                            >
-                                {copied ? <Check size={20} className="text-emerald-500" /> : <Copy size={20} />}
-                            </button>
-                        </div>
-                    </div>
+                                "absolute inset-0 border-2 rounded-full animate-ping opacity-30",
+                                isPdf ? "border-rose-100 dark:border-rose-900" : "border-emerald-100 dark:border-emerald-900"
+                            )} style={{ animationDuration: "2s" }} />
+                            <div className={cn(
+                                "absolute inset-2 border-2 rounded-full animate-ping opacity-40",
+                                isPdf ? "border-red-100 dark:border-red-900" : "border-teal-100 dark:border-teal-900"
+                            )} style={{ animationDuration: "2s", animationDelay: "0.5s" }} />
 
-                    {/* 
-                        SINGLE ACTION BUTTON (PWA OPTIMIZED)
-                        Menggunakan icon Download tapi narasi "Bagikan / Simpan"
-                    */}
-                    <div className="space-y-4">
+                            {/* Main Icon Container */}
+                            <div className={cn(
+                                "relative z-10 rounded-[1.5rem] p-4 sm:p-5 shadow-lg border",
+                                isPdf ? "bg-linear-to-br from-rose-50 to-white dark:from-rose-950/50 dark:to-slate-900 border-rose-100 dark:border-rose-800"
+                                    : "bg-linear-to-br from-emerald-50 to-white dark:from-emerald-950/50 dark:to-slate-900 border-emerald-100 dark:border-emerald-800"
+                            )}>
+                                <motion.div
+                                    animate={{ y: [0, -8, 0] }}
+                                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                >
+                                    {isPdf ? (
+                                        <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-rose-600 dark:text-rose-400 drop-shadow-sm" />
+                                    ) : (
+                                        <FileCode className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-600 dark:text-emerald-400 drop-shadow-sm" />
+                                    )}
+                                </motion.div>
+
+                                {/* Sparkle Accents */}
+                                <motion.div
+                                    animate={{ rotate: 180, scale: [1, 1.2, 1] }}
+                                    transition={{ repeat: Infinity, duration: 3 }}
+                                    className="absolute -top-2 -right-2 bg-white dark:bg-slate-800 rounded-full p-1 shadow-sm border border-slate-100 dark:border-slate-700"
+                                >
+                                    <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400" />
+                                </motion.div>
+                            </div>
+                        </div>
+
+                        {/* =========================================
+                            TEXT & STATUS
+                            ========================================= */}
+                        <div className="mb-6 sm:mb-8">
+                            <h3 className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white mb-2 tracking-tight leading-tight">
+                                Berhasil Dibuat!
+                            </h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium px-4">
+                                Dokumen Anda telah siap. Silakan simpan ke perangkat Anda untuk akses *offline*.
+                            </p>
+                        </div>
+
                         {shareError && (
-                            <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-[11px] font-bold">
-                                <AlertCircle className="w-4 h-4 shrink-0" />
+                            <div className="flex items-start gap-2 p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900 text-rose-600 dark:text-rose-400 rounded-xl text-[11px] sm:text-xs font-bold mb-6 text-left">
+                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                                 <p>{shareError}</p>
                             </div>
                         )}
 
+                        {/* Visual File Card */}
+                        <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-2xl mb-6 sm:mb-8">
+                            <div className="flex items-center overflow-hidden">
+                                <div className="flex flex-col items-start overflow-hidden px-2">
+                                    <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100 truncate max-w-45 sm:max-w-55">
+                                        {fileData.filename}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-white dark:bg-slate-700 rounded-md border border-slate-200 dark:border-slate-600 text-slate-400">
+                                            {isPdf ? 'PDF' : 'MGC'}
+                                        </span>
+                                        <span className="text-[10px] sm:text-xs text-slate-400 font-bold">{fileSize}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleCopyName}
+                                className="p-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-400 hover:text-emerald-500 transition-colors shrink-0 shadow-sm"
+                            >
+                                {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                            </button>
+                        </div>
+
+                        {/* =========================================
+                            ACTION BUTTON (PWA OPTIMIZED)
+                            ========================================= */}
                         <Button
                             onClick={handleShare}
                             disabled={isSharing}
                             className={cn(
-                                "w-full h-20 rounded-[2rem] text-lg font-black shadow-2xl transition-all active:scale-95 flex items-center justify-between px-8",
+                                "w-full h-16 sm:h-20 rounded-[1.5rem] sm:rounded-[2rem] text-base sm:text-lg font-black shadow-xl transition-all active:scale-95 flex items-center justify-between px-6 sm:px-8",
                                 isSharing
-                                    ? "bg-slate-100 text-slate-400"
-                                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200 dark:shadow-none"
+                                    ? "bg-slate-100 text-slate-400 border border-slate-200 dark:bg-slate-800 dark:border-slate-700"
+                                    : "bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-emerald-200 dark:shadow-none border border-emerald-400 dark:border-none"
                             )}
                         >
                             {isSharing ? (
                                 <div className="flex items-center gap-3 mx-auto">
-                                    <div className="w-6 h-6 border-4 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
-                                    <span>Menyiapkan...</span>
+                                    <div className="w-5 h-5 sm:w-6 sm:h-6 border-4 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
+                                    <span>Membuka Sistem...</span>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center gap-4">
-                                        <div className="bg-white/20 p-2.5 rounded-xl">
-                                            <Download className="w-6 h-6" strokeWidth={3} />
+                                    <div className="flex items-center gap-3 sm:gap-4">
+                                        <div className="bg-white/20 p-2 rounded-xl">
+                                            <Download className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />
                                         </div>
                                         <div className="text-left">
-                                            <span className="block leading-none">Bagikan / Simpan</span>
-                                            <span className="text-[10px] opacity-70 font-bold uppercase tracking-widest">Ke Perangkat Anda</span>
+                                            <span className="block leading-none mb-1">Simpan File</span>
+                                            <span className="text-[9px] sm:text-[10px] opacity-80 font-bold uppercase tracking-widest text-emerald-50">Ke Perangkat</span>
                                         </div>
                                     </div>
-                                    <ArrowRight className="w-6 h-6 opacity-50" />
+                                    <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 opacity-50" />
                                 </>
                             )}
                         </Button>
 
-                        {/* Hint for PWA Users */}
-                        <div className="flex flex-col items-center gap-2 pt-2">
-                            <p className="text-[11px] text-slate-400 text-center font-bold uppercase tracking-tighter leading-relaxed">
-                                Fitur simpan ini terintegrasi langsung dengan <br />
-                                <span className="text-emerald-600">Sistem Operasi Perangkat Anda</span>
+                        {/* Footer Warning */}
+                        <div className="mt-6 sm:mt-8 flex justify-center items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-300" />
+                            <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                Aman & Terenkripsi
                             </p>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={onClose}
-                                className="text-slate-400 font-bold text-xs hover:bg-transparent"
-                            >
-                                Selesai
-                            </Button>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            )}
+        </AnimatePresence>
     );
 }
