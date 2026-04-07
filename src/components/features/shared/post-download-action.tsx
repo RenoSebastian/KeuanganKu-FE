@@ -7,15 +7,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-    Share2,
     Download,
-    ExternalLink,
     FileText,
     FileCode,
     Check,
     Copy,
     X,
-    AlertCircle
+    AlertCircle,
+    ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,33 +35,25 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
     const [copied, setCopied] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
 
-    // ====================================================================
-    // [TAHAP 1] ENKAPSULASI GARBAGE COLLECTION (Memory Management)
-    // ====================================================================
+    // Otomatis bersihkan RAM saat modal ditutup
     useEffect(() => {
-        // Membersihkan Blob URL dari RAM setiap kali modal ditutup atau file berubah
-        // Ini memastikan tidak ada Memory Leak di PWA/Browser tanpa bergantung pada parent component
         return () => {
             if (fileData?.url) {
                 window.URL.revokeObjectURL(fileData.url);
             }
         };
-    }, [fileData?.url]); // Hanya re-run jika URL pointer berubah
+    }, [fileData?.url]);
 
     if (!fileData) return null;
 
     const isPdf = fileData.filename.toLowerCase().endsWith('.pdf');
     const fileSize = (fileData.file.size / 1024).toFixed(1) + " KB";
 
-    // ====================================================================
-    // [TAHAP 3] FILTRASI EXCEPTION PADA WEB SHARE API & CAPABILITY DETECTION
-    // ====================================================================
     const handleShare = async () => {
         setIsSharing(true);
         setShareError(null);
 
         try {
-            // Evaluasi aman: Pastikan object navigator mendukung share dan canShare spesifik untuk file
             const supportsShare = typeof navigator.share === 'function';
             const supportsCanShare = typeof navigator.canShare === 'function';
 
@@ -78,18 +69,17 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
                     files: [fileData.file],
                 });
             } else {
-                setShareError("Sistem OS memblokir atau tidak mendukung fitur simpan via Share Sheet.");
+                // Fallback otomatis jika Share API gagal (PWA di browser tertentu)
+                const link = document.createElement('a');
+                link.href = fileData.url;
+                link.setAttribute('download', fileData.filename);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
             }
         } catch (error: any) {
-            // Abaikan jika user secara sadar menekan 'Cancel' / 'Back' pada sistem operasi
-            if (error.name === 'AbortError' || error.message.includes('abort')) {
-                console.log("Share operation was cancelled by user (Normal behavior).");
-                return;
-            }
-
-            // Catat error sungguhan dan tampilkan ke layar
-            console.error("Web Share API Failed:", error);
-            setShareError("Terjadi penolakan keamanan saat memanggil menu berbagi sistem.");
+            if (error.name === 'AbortError' || error.message.includes('abort')) return;
+            setShareError("Gagal membuka sistem penyimpanan. Pastikan browser Anda mengizinkan unduhan.");
         } finally {
             setIsSharing(false);
         }
@@ -101,141 +91,120 @@ export function PostDownloadAction({ isOpen, onClose, fileData }: PostDownloadAc
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // ====================================================================
-    // [TAHAP 2] HARDENING DOM MANIPULATION (Fallback / Legacy Download)
-    // ====================================================================
-    const handleLegacyDownload = () => {
-        // 1. Buat elemen
-        const link = document.createElement('a');
-
-        // 2. Sembunyikan secara CSS agar aman (Hidden DOM)
-        link.style.display = 'none';
-
-        // 3. Set atribut
-        link.href = fileData.url;
-        link.setAttribute('download', fileData.filename);
-
-        // 4. Inject ke dokumen untuk mematuhi aturan strict security policy browser tertentu
-        document.body.appendChild(link);
-
-        // 5. Eksekusi klik simulasi
-        link.click();
-
-        // 6. Cleanup instan (Menghapus node)
-        document.body.removeChild(link);
-
-        // Catatan: revokeObjectURL kita delegasikan ke useEffect() agar tidak bentrok 
-        // jika user belum selesai mengekstrak file namun RAM sudah keburu dihapus.
-    };
-
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-100 p-0 overflow-hidden border-none bg-transparent shadow-none">
-                {/* Container Utama dengan Efek Glassmorphism di Mobile/Desktop */}
-                <div className="bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-[24px] p-6 pb-8 animate-in slide-in-from-bottom-10 duration-300 shadow-2xl">
+            <DialogContent className="sm:max-w-105 p-0 overflow-hidden border-none bg-transparent shadow-none focus:outline-none">
+                {/* 
+                   STRATEGI PWA: Menggunakan animasi slide-up dari bawah 
+                   dan rounded corners besar agar terasa seperti native iOS/Android sheet 
+                */}
+                <div className="bg-white dark:bg-slate-900 rounded-t-[32px] sm:rounded-[32px] p-6 pb-10 animate-in slide-in-from-bottom-20 duration-500 shadow-2xl border-t border-slate-100 dark:border-slate-800">
 
-                    {/* Handle Bar untuk Mobile Look */}
-                    <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6 sm:hidden" />
+                    {/* Handle Bar (Visual cue untuk pengguna mobile) */}
+                    <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-8 sm:hidden" />
 
                     {/* Header Section */}
-                    <div className="flex justify-between items-start mb-6">
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">
-                                Siap Dikirim!
+                    <div className="flex justify-between items-start mb-8 text-center sm:text-left">
+                        <div className="w-full sm:w-auto">
+                            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                                Berhasil Dibuat!
                             </h2>
-                            <p className="text-slate-500 text-sm mt-1">Pilih cara untuk menyimpan dokumen Anda.</p>
+                            <p className="text-slate-500 text-sm mt-2 font-medium">Klik tombol di bawah untuk menyimpan.</p>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <button onClick={onClose} className="absolute right-6 top-6 p-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 rounded-full transition-colors hidden sm:block">
                             <X className="w-5 h-5 text-slate-400" />
                         </button>
                     </div>
 
-                    {/* Alert Banner for Share Error */}
-                    {shareError && (
-                        <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-medium mb-6">
-                            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                            <p>{shareError}</p>
-                        </div>
-                    )}
-
-                    {/* Visual File Card (Immersive UI) */}
+                    {/* Visual File Card: Fokus pada nama file dan tipe */}
                     <div className="relative group mb-8">
-                        <div className="absolute -inset-1 bg-linear-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-                        <div className="relative flex items-center p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-2xl">
+                        <div className="absolute -inset-2 bg-linear-to-r from-emerald-500 to-blue-500 rounded-[2rem] blur-xl opacity-10" />
+                        <div className="relative flex items-center p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-[2rem]">
                             <div className={cn(
-                                "w-14 h-14 rounded-xl flex items-center justify-center mr-4 shadow-sm",
+                                "w-16 h-16 rounded-2xl flex items-center justify-center mr-4 shadow-sm shrink-0",
                                 isPdf ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
                             )}>
-                                {isPdf ? <FileText size={32} /> : <FileCode size={32} />}
+                                {isPdf ? <FileText size={36} strokeWidth={2.5} /> : <FileCode size={36} strokeWidth={2.5} />}
                             </div>
                             <div className="flex-1 overflow-hidden">
-                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                                <p className="text-sm font-black text-slate-900 dark:text-slate-100 truncate pr-2">
                                     {fileData.filename}
                                 </p>
-                                <p className="text-xs text-slate-400 font-medium">{fileSize} • {isPdf ? 'PDF Document' : 'MGC File'}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-white dark:bg-slate-700 rounded-md border border-slate-200 dark:border-slate-600 text-slate-400">
+                                        {isPdf ? 'PDF' : 'MGC'}
+                                    </span>
+                                    <span className="text-xs text-slate-400 font-bold">{fileSize}</span>
+                                </div>
                             </div>
                             <button
                                 onClick={handleCopyName}
-                                className="p-2 text-slate-400 hover:text-emerald-500 transition-colors"
+                                className="p-3 text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
                             >
-                                {copied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
+                                {copied ? <Check size={20} className="text-emerald-500" /> : <Copy size={20} />}
                             </button>
                         </div>
                     </div>
 
-                    {/* Action Buttons Stack */}
-                    <div className="space-y-3">
-                        {/* Primary Action: Share (Paling Nyaman untuk PWA/Mobile) */}
+                    {/* 
+                        SINGLE ACTION BUTTON (PWA OPTIMIZED)
+                        Menggunakan icon Download tapi narasi "Bagikan / Simpan"
+                    */}
+                    <div className="space-y-4">
+                        {shareError && (
+                            <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-[11px] font-bold">
+                                <AlertCircle className="w-4 h-4 shrink-0" />
+                                <p>{shareError}</p>
+                            </div>
+                        )}
+
                         <Button
                             onClick={handleShare}
                             disabled={isSharing}
-                            className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-lg font-bold shadow-lg shadow-emerald-200 dark:shadow-none transition-all active:scale-[0.98]"
+                            className={cn(
+                                "w-full h-20 rounded-[2rem] text-lg font-black shadow-2xl transition-all active:scale-95 flex items-center justify-between px-8",
+                                isSharing
+                                    ? "bg-slate-100 text-slate-400"
+                                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200 dark:shadow-none"
+                            )}
                         >
                             {isSharing ? (
-                                <span className="flex items-center gap-2">
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Membuka Sistem...
-                                </span>
+                                <div className="flex items-center gap-3 mx-auto">
+                                    <div className="w-6 h-6 border-4 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
+                                    <span>Menyiapkan...</span>
+                                </div>
                             ) : (
-                                <span className="flex items-center gap-2">
-                                    <Share2 className="w-5 h-5" />
-                                    Bagikan / Simpan ke Perangkat
-                                </span>
+                                <>
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-white/20 p-2.5 rounded-xl">
+                                            <Download className="w-6 h-6" strokeWidth={3} />
+                                        </div>
+                                        <div className="text-left">
+                                            <span className="block leading-none">Bagikan / Simpan</span>
+                                            <span className="text-[10px] opacity-70 font-bold uppercase tracking-widest">Ke Perangkat Anda</span>
+                                        </div>
+                                    </div>
+                                    <ArrowRight className="w-6 h-6 opacity-50" />
+                                </>
                             )}
                         </Button>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            {/* Secondary: Preview (Hanya PDF) */}
-                            {isPdf && (
-                                <Button
-                                    onClick={() => window.open(fileData.url, '_blank')}
-                                    variant="outline"
-                                    className="h-12 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-50"
-                                >
-                                    <ExternalLink className="mr-2 w-4 h-4" />
-                                    Buka Langsung
-                                </Button>
-                            )}
-
-                            {/* Secondary: Browser Download */}
+                        {/* Hint for PWA Users */}
+                        <div className="flex flex-col items-center gap-2 pt-2">
+                            <p className="text-[11px] text-slate-400 text-center font-bold uppercase tracking-tighter leading-relaxed">
+                                Fitur simpan ini terintegrasi langsung dengan <br />
+                                <span className="text-emerald-600">Sistem Operasi Perangkat Anda</span>
+                            </p>
                             <Button
-                                onClick={handleLegacyDownload}
-                                variant="outline"
-                                className={cn(
-                                    "h-12 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold hover:bg-slate-50",
-                                    !isPdf && "col-span-2"
-                                )}
+                                variant="ghost"
+                                size="sm"
+                                onClick={onClose}
+                                className="text-slate-400 font-bold text-xs hover:bg-transparent"
                             >
-                                <Download className="mr-2 w-4 h-4" />
-                                Unduh (Browser)
+                                Selesai
                             </Button>
                         </div>
                     </div>
-
-                    {/* Hint Footer */}
-                    <p className="text-[11px] text-slate-400 text-center mt-6 leading-relaxed">
-                        Gunakan <strong className="text-slate-500">"Bagikan / Simpan"</strong> untuk menghindari <br /> hilangnya file jika Anda membuka aplikasi ini dari Layar Utama.
-                    </p>
                 </div>
             </DialogContent>
         </Dialog>

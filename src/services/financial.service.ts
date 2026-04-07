@@ -43,6 +43,9 @@ import {
 // [NEW] Import Pure Fabrication Utility untuk standardisasi penamaan file
 import { generateSimulationFilename } from "@/lib/formatters";
 
+// [ADDED] Import type untuk PWA Post-Download Action
+import { DownloadResultData } from "@/components/features/shared/post-download-action";
+
 // ============================================================================
 // PRIVATE ADAPTER HELPERS (Internal Service Logic)
 // ============================================================================
@@ -89,6 +92,33 @@ function toAnnualState(record: FinancialMonthlyPayload): FinancialAnnualState {
   return convertRecordToAnnual(record);
 }
 
+/**
+ * [NEW HELPER] PWA-Friendly File Preparer
+ * Mengubah response Axios menjadi objek DownloadResultData tanpa memicu download otomatis.
+ */
+function prepareFileForPwa(response: AxiosResponse<Blob>, defaultTitle: string, clientName: string): DownloadResultData {
+  const disposition = response.headers["content-disposition"];
+  let filename = generateSimulationFilename(defaultTitle, clientName, "pdf");
+
+  // Pertajam pencarian nama file dari header Content-Disposition
+  if (disposition) {
+    const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, "");
+    }
+  }
+
+  // Bungkus ke objek File asli agar kompatibel dengan navigator.share (PWA)
+  const file = new File([response.data], filename, {
+    type: response.data.type || "application/pdf",
+    lastModified: Date.now()
+  });
+
+  const url = window.URL.createObjectURL(file);
+
+  return { file, url, filename };
+}
+
 // ============================================================================
 // SERVICE IMPLEMENTATION
 // ============================================================================
@@ -118,21 +148,17 @@ export const financialService = {
     return response.data;
   },
 
-  downloadCheckupPdf: async (checkupId: string, clientName: string = "Klien") => {
+  /**
+   * [UPDATED] downloadCheckupPdf
+   * Sekarang mengembalikan DownloadResultData untuk diproses oleh PostDownloadAction Modal.
+   */
+  downloadCheckupPdf: async (checkupId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
 
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    // Menggunakan Formatter Terstandar
-    const filename = generateSimulationFilename("Financial Checkup", clientName, "pdf");
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return prepareFileForPwa(response, "Financial Checkup", clientName);
   },
 
   // ===========================================================================
@@ -149,20 +175,16 @@ export const financialService = {
     return response.data;
   },
 
-  downloadBudgetPdf: async (budgetId: string, clientName: string = "Klien") => {
+  /**
+   * [UPDATED] downloadBudgetPdf
+   */
+  downloadBudgetPdf: async (budgetId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/budget/pdf/${budgetId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
 
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    // Menggunakan Formatter Terstandar
-    link.setAttribute('download', generateSimulationFilename("Budget Plan", clientName, "pdf"));
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return prepareFileForPwa(response, "Budget Plan", clientName);
   },
 
   // ===========================================================================
@@ -175,19 +197,15 @@ export const financialService = {
     return response.data;
   },
 
-  downloadPensionPdf: async (planId: string, clientName: string = "Klien") => {
+  /**
+   * [UPDATED] downloadPensionPdf
+   */
+  downloadPensionPdf: async (planId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/pension/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    // Menggunakan Formatter Terstandar
-    link.setAttribute('download', generateSimulationFilename("Pension Plan", clientName, "pdf"));
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return prepareFileForPwa(response, "Pension Plan", clientName);
   },
 
   // B. Asuransi
@@ -210,19 +228,15 @@ export const financialService = {
     return raw;
   },
 
-  downloadInsurancePdf: async (planId: string, clientName: string = "Klien") => {
+  /**
+   * [UPDATED] downloadInsurancePdf
+   */
+  downloadInsurancePdf: async (planId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/insurance/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    // Menggunakan Formatter Terstandar
-    link.setAttribute('download', generateSimulationFilename("Insurance Plan", clientName, "pdf"));
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return prepareFileForPwa(response, "Insurance Plan", clientName);
   },
 
   // C. Goals
@@ -236,19 +250,15 @@ export const financialService = {
     return response.data.data;
   },
 
-  downloadGoalPdf: async (planId: string, clientName: string = "Klien") => {
+  /**
+   * [UPDATED] downloadGoalPdf
+   */
+  downloadGoalPdf: async (planId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/goals/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    // Menggunakan Formatter Terstandar
-    link.setAttribute('download', generateSimulationFilename("Goal Plan", clientName, "pdf"));
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return prepareFileForPwa(response, "Goal Plan", clientName);
   },
 
   // D. Pendidikan Anak (PERSONAL - DB SAVED)
@@ -287,20 +297,15 @@ export const financialService = {
     return response.data;
   },
 
-  // Download for PERSONAL Education Plan
-  downloadEducationPdf: async (clientName: string = "Klien") => {
+  /**
+   * [UPDATED] downloadEducationPdf (Personal)
+   */
+  downloadEducationPdf: async (clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/education/pdf`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    // Menggunakan Formatter Terstandar
-    link.setAttribute('download', generateSimulationFilename("Education Plan", clientName, "pdf"));
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return prepareFileForPwa(response, "Education Plan", clientName);
   },
 
   // ===========================================================================
@@ -320,24 +325,19 @@ export const financialService = {
     return response.data;
   },
 
-  downloadHistoryPdf: async (historyId: string, clientName: string = "Klien") => {
+  /**
+   * [UPDATED] downloadHistoryPdf
+   */
+  downloadHistoryPdf: async (historyId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/checkup/history/pdf/${historyId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    // Menggunakan Formatter Terstandar
-    link.setAttribute('download', generateSimulationFilename("Checkup History", clientName, "pdf"));
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return prepareFileForPwa(response, "Checkup History", clientName);
   },
 
   // ===========================================================================
   // 8. AGENT SIMULATION (STATELESS / OFFLINE-FIRST)
-  // [UPDATED] Added sessionId support for Quota & Idempotency
   // ===========================================================================
 
   simulateAgentBudget: async (data: CreateBudgetSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
@@ -366,19 +366,16 @@ export const financialService = {
 
   simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/risk-profile-pdf", data, {
-      responseType: 'arraybuffer'
+      responseType: 'blob' // Diubah ke blob agar seragam dengan PDF lainnya
     });
   },
 
-  // [UPDATED] Checkup Simulation using new Adapter Logic
   simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<CheckupSimulationResponse> => {
     const apiPayload = toMonthlyPayload(data);
     const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup/calculate", apiPayload);
 
     const responseData = response.data as any;
 
-    // [Adapter Pattern] Pengecekan absolut: Jika response dibungkus interceptor (data.data),
-    // kita secara eksplisit mengangkat mgcToken ke root agar kontrak dengan komponen CheckupResult.tsx tidak patah.
     if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
       responseData.mgcToken = responseData.data.mgcToken;
     }
@@ -387,51 +384,23 @@ export const financialService = {
   },
 
   /**
-   * [NEW - STEP 2] Fetcher untuk On-Demand PDF Download Khusus Checkup Agen
+   * [UPDATED] downloadAgentCheckupPdf
    */
-  downloadAgentCheckupPdf: async (simulationId: string, clientName: string = "Klien") => {
+  downloadAgentCheckupPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/simulation/checkup/${simulationId}/pdf`, {
       responseType: 'blob',
-      timeout: 60000, // 1 Menit batas wajar render PDF kompleks
+      timeout: 60000,
     });
 
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-
-    // Deteksi nama file dari Header (opsional), fallback ke formatter terstandar
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = generateSimulationFilename("Checkup Simulation", clientName, "pdf");
-
-    if (contentDisposition) {
-      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-      if (fileNameMatch && fileNameMatch.length === 2) {
-        // filename = fileNameMatch[1]; 
-      }
-    }
-
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-
-    // Cleanup memori browser
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    return prepareFileForPwa(response, "Checkup Simulation", clientName);
   },
 
-  /**
-   * [SCENARIO B] simulateAgentEducation
-   * ----------------------------------------
-   * 1. Request Kalkulasi (JSON)
-   * Mengirim payload ke Backend untuk dihitung dan LOG disimpan ke DB.
-   * Return: JSON berisi Data Angka + ID Simulasi (bukan file PDF).
-   */
+  // Pendidikan Agen (Scenario B)
   simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
     const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
 
     const responseData = response.data as any;
 
-    // [Adapter Pattern] Standardisasi fallback untuk Education agar setara dengan Checkup
     if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
       responseData.mgcToken = responseData.data.mgcToken;
     }
@@ -440,41 +409,15 @@ export const financialService = {
   },
 
   /**
-   * [SCENARIO B] downloadEducationSimulationPdf
-   * ----------------------------------------
-   * 2. Request Download (On-Demand)
-   * Menggunakan ID Simulasi dari langkah 1 untuk men-stream file PDF.
+   * [UPDATED] downloadEducationSimulationPdf
    */
-  downloadEducationSimulationPdf: async (simulationId: string, clientName: string = "Klien") => {
+  downloadEducationSimulationPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/simulation/education/${simulationId}/pdf`, {
       responseType: 'blob',
       timeout: 60000,
     });
 
-    // Proses pembuatan Link Download dari Blob
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-
-    // Deteksi nama file dari Header (opsional), fallback ke formatter terstandar
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = generateSimulationFilename("Education Plan", clientName, "pdf");
-
-    if (contentDisposition) {
-      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-      if (fileNameMatch && fileNameMatch.length === 2) {
-        // Jika server memaksa header nama file, bisa override atau dikomentari jika ingin FE mendikte nama.
-        // filename = fileNameMatch[1]; 
-      }
-    }
-
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-
-    // Cleanup
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    return prepareFileForPwa(response, "Education Plan", clientName);
   },
 
   /**
@@ -496,41 +439,35 @@ export const financialService = {
   },
 
   /**
-   * Helper untuk mendownload .mgc Token (JSON -> File)
-   * Digunakan jika kita ingin user bisa save session tanpa download PDF.
+   * [UPDATED] downloadSimulationFiles
+   * Mengolah token MGC hasil simulasi menjadi objek DownloadResultData (PWA Ready)
+   * Menggunakan application/octet-stream agar didownload sebagai file biner .mgc
    */
-  downloadSimulationFiles: (simulationResult: any, clientName: string = "Klien") => {
+  downloadSimulationFiles: (simulationResult: any, clientName: string = "Klien"): DownloadResultData => {
     const { mgcToken, filename } = simulationResult;
-
-    // [FIX] Proteksi Adapter: Mengekstrak token secara aman, mengantisipasi re-wrap payload oleh Axios interceptor
     const actualToken = mgcToken || simulationResult?.data?.mgcToken;
 
-    // Jika filename dari parameter exist, kita gunakan base name-nya, jika tidak pakai formatter
-    const fallbackFilename = generateSimulationFilename("Simulation", clientName, "mgc");
-    const baseFilename = filename || fallbackFilename;
-
-    if (actualToken) {
-      try {
-        const tokenBlob = new Blob([actualToken], { type: 'text/plain' });
-        const tokenUrl = window.URL.createObjectURL(tokenBlob);
-        const link = document.createElement('a');
-        link.href = tokenUrl;
-
-        // Memastikan ekstensinya adalah .mgc
-        const tokenName = baseFilename.endsWith('.mgc') ? baseFilename : baseFilename.replace(/\.pdf$/i, '') + '.mgc';
-        link.download = tokenName;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(tokenUrl);
-      } catch (e) {
-        console.error("Gagal memproses token simulasi (.mgc):", e);
-        // [FIXED - Tahap 2] Lempar exception agar UI bisa menangkap kegagalan dan tidak loading selamanya
-        throw new Error("Gagal mengunduh file token MGC. Pastikan peramban tidak memblokir unduhan otomatis.");
-      }
-    } else {
+    if (!actualToken) {
       throw new Error("Token MGC tidak ditemukan pada payload balasan server.");
     }
+
+    const fallbackFilename = generateSimulationFilename("Simulation", clientName, "mgc");
+    let baseFilename = filename || fallbackFilename;
+
+    // Pastikan ekstensinya adalah .mgc
+    const tokenName = baseFilename.endsWith('.mgc')
+      ? baseFilename
+      : baseFilename.replace(/\.pdf$/i, '') + '.mgc';
+
+    // Bungkus ke objek File biner
+    const blob = new Blob([actualToken], { type: 'application/octet-stream' });
+    const file = new File([blob], tokenName, {
+      type: 'application/octet-stream',
+      lastModified: Date.now()
+    });
+
+    const url = window.URL.createObjectURL(file);
+
+    return { file, url, filename: tokenName };
   }
 };
