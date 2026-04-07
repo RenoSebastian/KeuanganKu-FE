@@ -333,7 +333,7 @@ export default function ProfilePage() {
                     {!userData.isPro && (
                       <Button
                         size="sm"
-                        onClick={() => router.push('/pricing')}
+                        onClick={() => router.push('/subscription')}
                         className="bg-white text-slate-900 hover:bg-yellow-400 font-black text-[10px] rounded-xl h-8 px-4"
                       >
                         UPGRADE
