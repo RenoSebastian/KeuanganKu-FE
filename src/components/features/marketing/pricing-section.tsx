@@ -170,14 +170,20 @@ const PricingSection = () => {
                                         )}
                                     </div>
 
-                                    {/* EKUIVALENSI BULANAN */}
                                     <div className="min-h-16 mt-5 flex flex-col items-start justify-center border-t border-dashed border-slate-500/40 pt-5 gap-3">
                                         {item.price > 0 && item.duration !== "1 Bulan" ? (
                                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-700">
                                                 <TrendingDown size={16} className={item.isPopular ? "text-emerald-400" : "text-emerald-600"} />
-                                                <p className={cn("text-xs font-bold", item.isPopular ? "text-slate-300" : "text-slate-700")}>
-                                                    Jatuhnya hanya <br /><span className={cn("font-black text-base", item.isPopular ? "text-white" : "text-slate-900")}>{formatCurrency(item.monthlyBreakdown)}</span> / bulan
+
+                                                {/* PERUBAHAN DI SINI: Tambahkan flex items-baseline gap-1 dan hapus <br /> */}
+                                                <p className={cn("flex items-baseline gap-1 text-xs font-bold", item.isPopular ? "text-slate-300" : "text-slate-700")}>
+                                                    Senilai
+                                                    <span className={cn("font-black text-base", item.isPopular ? "text-white" : "text-slate-900")}>
+                                                        {formatCurrency(item.monthlyBreakdown)}
+                                                    </span>
+                                                    / bulan
                                                 </p>
+
                                             </div>
                                         ) : item.price > 0 ? (
                                             <p className="text-xs font-bold text-slate-600 italic opacity-80">Perpanjang kapan saja</p>
