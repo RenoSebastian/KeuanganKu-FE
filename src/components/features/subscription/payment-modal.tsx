@@ -227,7 +227,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
 
                             {/* Copy Rekening */}
                             <div className="flex items-center justify-between mb-1">
-                                <p className="text-3xl font-black tracking-widest font-mono select-all">0084047640</p>
+                                <p className="text-3xl font-black tracking-widest font-mono select-all">5170595922</p>
                                 <button
                                     onClick={() => handleCopy("0084047640", "No. Rekening")}
                                     className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all active:scale-95 border border-white/5"
@@ -236,7 +236,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                     <Copy size={18} />
                                 </button>
                             </div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-tight mb-4">Bank BCA • A/N Sandra Ariyanti</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-tight mb-4">Bank BCA • A/N Metta Sulistiyanti</p>
 
                             <div className="h-px bg-white/10 w-full mb-4" />
                             <p className="text-[10px] text-slate-500 italic leading-relaxed">
