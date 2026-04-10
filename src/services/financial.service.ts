@@ -366,7 +366,7 @@ export const financialService = {
 
   simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     return await api.post("/financial/simulation/risk-profile-pdf", data, {
-      responseType: 'blob' // Diubah ke blob agar seragam dengan PDF lainnya
+      responseType: 'blob'
     });
   },
 
@@ -395,21 +395,25 @@ export const financialService = {
     return prepareFileForPwa(response, "Checkup Simulation", clientName);
   },
 
-  // Pendidikan Agen (Scenario B)
-  simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
-    const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
+  // ===========================================================================
+  // [FIXED] AGENT EDUCATION SIMULATION (STATELESS STREAMING UNIFIED)
+  // ===========================================================================
 
-    const responseData = response.data as any;
-
-    if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
-      responseData.mgcToken = responseData.data.mgcToken;
-    }
-
-    return responseData;
+  /**
+   * [UPDATED] simulateAgentEducation
+   * Diubah dari JSON response menjadi Blob stream. 
+   * Sesuai dengan endpoint POST '/financial/simulation/education' di backend yang baru.
+   */
+  simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
+    return await api.post("/financial/simulation/education", data, {
+      responseType: 'blob'
+    });
   },
 
   /**
-   * [UPDATED] downloadEducationSimulationPdf
+   * [LEGACY] downloadEducationSimulationPdf
+   * Tetap dipertahankan untuk kebutuhan fallback apabila masih ada logic
+   * yang memisahkan get PDF berdasarkan ID simulasi.
    */
   downloadEducationSimulationPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/simulation/education/${simulationId}/pdf`, {
