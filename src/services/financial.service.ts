@@ -396,26 +396,31 @@ export const financialService = {
   },
 
   // ===========================================================================
-  // [FIXED] AGENT EDUCATION SIMULATION (STATELESS STREAMING UNIFIED)
+  // AGENT EDUCATION SIMULATION (SCENARIO B: DECOUPLED I/O)
   // ===========================================================================
 
   /**
-   * [UPDATED] simulateAgentEducation
-   * Diubah dari JSON response menjadi Blob stream. 
-   * Sesuai dengan endpoint POST '/financial/simulation/education' di backend yang baru.
+   * Langkah 1: Kalkulasi Data (Menerima balasan JSON)
    */
-  simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/education", data, {
-      responseType: 'blob'
-    });
+  simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
+    // Tembak endpoint kalkulasi, TANPA responseType: 'blob'
+    const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
+
+    const responseData = response.data as any;
+
+    // Normalisasi token MGC jika struktur kembalian bersarang
+    if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
+      responseData.mgcToken = responseData.data.mgcToken;
+    }
+
+    return responseData;
   },
 
   /**
-   * [LEGACY] downloadEducationSimulationPdf
-   * Tetap dipertahankan untuk kebutuhan fallback apabila masih ada logic
-   * yang memisahkan get PDF berdasarkan ID simulasi.
+   * Langkah 2: Ambil PDF (Menerima balasan Binary Stream)
    */
   downloadEducationSimulationPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
+    // Tembak endpoint PDF, WAJIB menggunakan responseType: 'blob'
     const response = await api.get(`/financial/simulation/education/${simulationId}/pdf`, {
       responseType: 'blob',
       timeout: 60000,
