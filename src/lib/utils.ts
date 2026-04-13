@@ -67,35 +67,28 @@ function triggerLegacyDownload(data: Blob | File, filename: string) {
  */
 export async function downloadMgcFile(filename: string, token: string): Promise<void> {
   try {
-    // 1. Buat Blob dari token string (Data mentah)
+    // 1. Buat Blob dari token string dengan tipe octet-stream (universal binary format)
     const blob = new Blob([token], { type: "application/octet-stream" });
 
-    // 2. Bungkus ke objek File agar bisa di-share di PWA Mobile
-    const file = new File([blob], filename, {
-      type: "application/octet-stream",
-      lastModified: Date.now()
-    });
+    // 2. **PRIMARY METHOD**: Hidden Anchor Link (Paling universal untuk PWA & Android Chrome)
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
 
-    // 3. Gunakan Share API (Paling stabil untuk PWA di Android/iOS)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: 'Simpan Data Simulasi Agen',
-        files: [file],
-      });
-      return;
-    }
+    // Append dan trigger click secara atomik
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-    // 4. Fallback: Download Browser biasa jika Share API tidak tersedia
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    // Cleanup URL object reference (penting untuk mobile memory)
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 100);
+
   } catch (error) {
     console.error("Gagal mendownload file .mgc:", error);
+    throw error;
   }
 }
 

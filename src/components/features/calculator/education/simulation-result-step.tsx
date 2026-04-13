@@ -99,20 +99,16 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
         try {
             const clientName = simulationData?.clientName || "Klien";
-            const filenamePdf = generateSimulationFilename("Education Plan", clientName, "pdf");
 
-            // 1. Panggil service untuk mencetak PDF
             const responseData = await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
 
             toast.dismiss();
 
-            // 2. Bungkus sebagai Objek File untuk Native OS Handoff
-            const pdfFile = new File([responseData as any], filenamePdf, { type: 'application/pdf' });
-            const pdfUrl = window.URL.createObjectURL(pdfFile);
+            if (!responseData || !responseData.file || !responseData.url) {
+                throw new Error('Response PDF tidak valid');
+            }
 
-            setDownloadData({ file: pdfFile, url: pdfUrl, filename: filenamePdf });
-
-            // 3. Picu Modal
+            setDownloadData(responseData);
             setIsModalOpen(true);
 
         } catch (error) {

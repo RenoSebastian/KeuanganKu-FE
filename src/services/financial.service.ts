@@ -108,9 +108,12 @@ function prepareFileForPwa(response: AxiosResponse<Blob>, defaultTitle: string, 
     }
   }
 
+  const contentTypeHeader = response.headers['content-type'] || response.headers['Content-Type'] || '';
+  const mimeType = contentTypeHeader.split(';')[0].trim() || 'application/pdf';
+
   // Bungkus ke objek File asli agar kompatibel dengan navigator.share (PWA)
   const file = new File([response.data], filename, {
-    type: response.data.type || "application/pdf",
+    type: mimeType,
     lastModified: Date.now()
   });
 
