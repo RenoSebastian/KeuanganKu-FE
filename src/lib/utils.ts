@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * Menggabungkan classname Tailwind dengan aman.
+ * Menggabungkan classname Tailwind dengan aman menggunakan clsx dan tailwind-merge.
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,7 +29,7 @@ export function getImageUrl(path: string | null | undefined): string {
 }
 
 /**
- * Standard Formatter untuk Rupiah.
+ * Standard Formatter untuk mata uang Rupiah.
  */
 export function formatRupiah(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -40,66 +40,8 @@ export function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
-/**
- * Helper Private: Fallback untuk mengunduh via manipulasi DOM (Desktop & PWA Fallback)
- * Menggunakan Blob biner agar browser terpaksa melakukan 'Save As'
- */
-function triggerLegacyDownload(data: Blob | File, filename: string) {
-  const url = window.URL.createObjectURL(data);
-  const a = document.createElement("a");
-
-  a.style.display = "none";
-  a.href = url;
-  a.download = filename;
-
-  document.body.appendChild(a);
-  a.click();
-
-  // Cleanup DOM
-  setTimeout(() => {
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  }, 200);
-}
-
-/**
- * Utility untuk download file .mgc dari Token (Save Game Agen)
- */
-export async function downloadMgcFile(filename: string, token: string): Promise<void> {
-  try {
-    // 1. Buat Blob dari token string (Data mentah)
-    const blob = new Blob([token], { type: "application/octet-stream" });
-
-    // 2. Bungkus ke objek File agar bisa di-share di PWA Mobile
-    const file = new File([blob], filename, {
-      type: "application/octet-stream",
-      lastModified: Date.now()
-    });
-
-    // 3. Gunakan Share API (Paling stabil untuk PWA di Android/iOS)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: 'Simpan Data Simulasi Agen',
-        files: [file],
-      });
-      return;
-    }
-
-    // 4. Fallback: Download Browser biasa jika Share API tidak tersedia
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Gagal mendownload file .mgc:", error);
-  }
-}
-
 // --- ARTIFACT INSPECTOR LOGIC (.MGC VALIDATION) ---
+// Bagian ini dipertahankan untuk kebutuhan fungsi 'Restore Sesi' (Import File)
 
 import { StreamMetadata, StreamSecurity } from './types/retention';
 
@@ -114,6 +56,9 @@ interface ValidationResult {
   error?: string;
 }
 
+/**
+ * Membaca signature dan metadata dari bagian awal file biner .mgc
+ */
 async function readHeaderData(file: File) {
   const startChunk = file.slice(0, HEADER_SAMPLE_SIZE);
   const text = await startChunk.text();
@@ -139,6 +84,9 @@ async function readHeaderData(file: File) {
   }
 }
 
+/**
+ * Memastikan integritas stream file dengan mengecek penutup JSON di akhir file.
+ */
 async function verifyStreamIntegrity(file: File): Promise<void> {
   const startByte = Math.max(0, file.size - FOOTER_SAMPLE_SIZE);
   const endChunk = file.slice(startByte, file.size);
@@ -149,6 +97,9 @@ async function verifyStreamIntegrity(file: File): Promise<void> {
   }
 }
 
+/**
+ * Fungsi Inspektor Utama untuk memvalidasi file arsip sebelum di-upload kembali ke sistem.
+ */
 export async function inspectArchiveFile(file: File): Promise<ValidationResult> {
   if (file.size < 200) {
     return { isValid: false, error: 'File terlalu kecil untuk format .mgc' };

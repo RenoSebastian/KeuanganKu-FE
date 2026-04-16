@@ -23,9 +23,8 @@ import { BudgetForm } from "@/components/features/calculator/budget/budget-form"
 import { BudgetResults } from "@/components/features/calculator/budget/budget-results";
 import { generateSimulationFilename } from "@/lib/formatters";
 
-// [NEW IMPORTS] Untuk perbaikan download PWA
-import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
-import { downloadMgcFile } from "@/lib/utils";
+// [NEW ARCHITECTURE] Import mesin eksekutor Universal
+import { executeUniversalExport } from "@/utils/universal-export-engine";
 
 export default function AgentBudgetPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
@@ -34,10 +33,6 @@ export default function AgentBudgetPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(uuidv4());
 
-  // --- [NEW STATES FOR PWA DOWNLOAD] ---
-  const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
   // Existing States
   const [clientData, setClientData] = useState({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
   const [fixedIncome, setFixedIncome] = useState("");
@@ -45,7 +40,15 @@ export default function AgentBudgetPage() {
   const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
   const [result, setResult] = useState<BudgetResult | null>(null);
   const [recommendation, setRecommendation] = useState<string>("");
-  const [generatedFiles, setGeneratedFiles] = useState<{ pdfUrl: string | null; mgcToken: string | null; filenameMgc: string | null; filenamePdf: string | null; } | null>(null);
+
+  // [MODIFIED STATE] Menyimpan raw Blob alih-alih URL untuk mencegah memory leak
+  const [generatedFiles, setGeneratedFiles] = useState<{
+    pdfBlob: Blob | null;
+    mgcToken: string | null;
+    filenameMgc: string | null;
+    filenamePdf: string | null;
+  } | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -77,7 +80,7 @@ export default function AgentBudgetPage() {
     if (result) { setResult(null); setGeneratedFiles(null); }
   };
 
-  // --- [FIXED CALCULATION LOGIC] ---
+  // --- [REFACTORED CALCULATION LOGIC] ---
   const handleCalculateOnly = async () => {
     if (!hasAccess) { toast.error("Kuota Habis", { description: "Silakan upgrade ke PRO." }); return; }
     if (!clientData.clientName || !clientData.clientCity || !fixedIncome) { toast.error("Data Belum Lengkap", { description: "Isi Nama, Kota, dan Gaji Tetap." }); return; }
@@ -92,26 +95,26 @@ export default function AgentBudgetPage() {
         ...clientData, fixedIncome: Math.round(fixedRaw / 12), variableIncome: Math.round(variableRaw / 12), sessionId: sessionId.current
       };
 
-      // 1. Fetch data sebagai Blob (untuk PDF)
+      // 1. Fetch data
       const response = await financialService.simulateAgentBudget(payload);
 
       // [SYNC QUOTA]
       await refreshUser();
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('refresh_user_data'));
 
-      // 2. Ekstrak Metadata dari Header
+      // 2. Ekstrak Metadata
       const token = response.headers['x-mgc-token'];
       const disposition = response.headers['content-disposition'];
       if (!token) throw new Error("Token data tidak ditemukan.");
 
-      // 3. Tentukan Nama File yang Akurat
+      // 3. Tentukan Nama File
       let pdfFilename = generateSimulationFilename("Budget Plan", clientData.clientName, "pdf");
       if (disposition) {
         const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
       }
 
-      // 4. Transformasi ke Hasil UI
+      // 4. Transformasi Hasil UI
       const decodedData = JSON.parse(atob(token.split('.')[0]));
       const beResult = decodedData.result;
 
@@ -128,25 +131,17 @@ export default function AgentBudgetPage() {
         ]
       };
 
-      // 5. SIAPKAN OBJEK FILE UNTUK PWA (PDF)
-      const pdfFile = new File([response.data], pdfFilename, { type: 'application/pdf' });
-      const pdfUrl = window.URL.createObjectURL(pdfFile);
-
       setResult(mappedResult);
       setRecommendation(beResult.analysis.variableIncomeRecommendation);
 
-      // Simpan untuk modal
-      setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
-
+      // 5. [CLEAN ARCHITECTURE] Simpan Blob biner langsung ke state tanpa membuat Object URL
       setGeneratedFiles({
-        pdfUrl: pdfUrl,
+        pdfBlob: new Blob([response.data], { type: 'application/pdf' }),
         mgcToken: token,
         filenameMgc: generateSimulationFilename("Budget Plan", clientData.clientName, "mgc"),
         filenamePdf: pdfFilename
       });
 
-      // Buka Modal sebagai notifikasi "Selesai"
-      setIsModalOpen(true);
       toast.success("Analisa Selesai");
 
     } catch (error: any) {
@@ -159,22 +154,42 @@ export default function AgentBudgetPage() {
     }
   };
 
-  // --- [FIXED DOWNLOAD ROUTER] ---
-  const handleDownloadFile = (type: 'PDF' | 'MGC') => {
+  // --- [REFACTORED DOWNLOAD ROUTER] ---
+  const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) return;
 
-    if (type === 'PDF') {
-      // PDF selalu memicu modal (Share Sheet) agar aman di PWA
-      setIsModalOpen(true);
-    } else if (type === 'MGC' && generatedFiles.mgcToken) {
-      // MGC menggunakan utility khusus biner (Save Game)
-      downloadMgcFile(
-        generatedFiles.filenameMgc || "Backup.mgc",
-        generatedFiles.mgcToken
-      );
+    try {
+      if (type === 'PDF' && generatedFiles.pdfBlob && generatedFiles.filenamePdf) {
+        // Eksekusi Blob PDF
+        const exportStatus = await executeUniversalExport(generatedFiles.pdfBlob, generatedFiles.filenamePdf);
+
+        if (exportStatus === 'SHARED') {
+          toast.success("Dokumen PDF siap dibagikan.");
+        } else if (exportStatus === 'DOWNLOADED') {
+          toast.success("Dokumen PDF berhasil diunduh.");
+        }
+
+      } else if (type === 'MGC' && generatedFiles.mgcToken) {
+        // [HARDENED] Transformasi Token String menjadi Blob Biner agar sesuai dengan parameter Engine
+        const mgcBlob = new Blob([generatedFiles.mgcToken], { type: 'application/octet-stream' });
+        const filename = generatedFiles.filenameMgc || "Backup.mgc";
+
+        // Eksekusi Blob MGC melalui Universal Engine (Bypass Permission Denied Android PWA)
+        const exportStatus = await executeUniversalExport(mgcBlob, filename);
+
+        if (exportStatus === 'SHARED') {
+          toast.success("File Backup (.mgc) siap dibagikan.");
+        } else if (exportStatus === 'DOWNLOADED') {
+          toast.success("File Backup (.mgc) berhasil disimpan.");
+        }
+      }
+    } catch (error) {
+      console.error(`Export Error (${type}):`, error);
+      toast.error(`Gagal memproses file ${type}.`);
     }
   };
 
+  // ... (Sisa fungsi handleFileUpload dan resetForm tetap sama)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -271,12 +286,10 @@ export default function AgentBudgetPage() {
         </div>
       </div>
 
-      {/* [PWA FEEDBACK MODAL] Muncul otomatis saat download/kalkulasi selesai */}
-      <PostDownloadAction
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        fileData={downloadData}
-      />
+      {/* [CLEANUP] <PostDownloadAction /> telah dihapus sepenuhnya dari DOM.
+        Tidak ada lagi modal tumpang tindih. Seluruh logika export ditangani
+        di belakang layar oleh Universal Export Engine.
+      */}
     </div>
   );
 }
