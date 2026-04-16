@@ -5,7 +5,7 @@
  * * Arsitektur: Protected Variations (Melindungi aplikasi dari "Permission Denied" di WebView Android).
  */
 
-import { isPwaWrapperEnvironment, isShareApiSupported } from './environment-detector';
+import { isPwaWrapperEnvironment, isShareApiSupported, getEnvironmentMetrics } from './environment-detector';
 
 // Tipe pengembalian agar Orchestrator (Hook) tahu persis apa hasil eksekusinya
 export type ExportResult = 'SHARED' | 'DOWNLOADED' | 'SHARE_CANCELLED' | 'FAILED';
@@ -62,11 +62,13 @@ const executeDirectDownload = async (blob: Blob, fileName: string): Promise<Expo
  */
 export const executeUniversalExport = async (fileBlob: Blob, fileName: string): Promise<ExportResult> => {
     try {
+        const metrics = getEnvironmentMetrics();
         const isPwa = isPwaWrapperEnvironment();
         const canUseShareApi = isShareApiSupported();
 
-        // JALUR 1: PWA / Mobile OS
-        if (isPwa && canUseShareApi) {
+        // [REVISI ARSITEKTUR]: Gunakan Share API jika mendukung, DAN user berada di lingkungan Mobile OS 
+        // ATAU secara eksplisit adalah PWA. Ini melonggarkan batasan WebView Wrapper yang kaku.
+        if ((isPwa || metrics.isMobileOS) && canUseShareApi) {
             // Web Share API Level 2 mensyaratkan tipe data File, bukan Blob mentah.
             // [HARDENED]: Deteksi dinamis MIME type. Jika kosong, fallback ke octet-stream (biner murni).
             const file = new File([fileBlob], fileName, { type: fileBlob.type || 'application/octet-stream' });
