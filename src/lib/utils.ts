@@ -64,30 +64,40 @@ function triggerLegacyDownload(data: Blob | File, filename: string) {
 
 /**
  * Utility untuk download file .mgc dari Token (Save Game Agen)
+ * [FIXED] Menggunakan BlobUrlManager untuk menghindari exhaustion di Android PWA
  */
 export async function downloadMgcFile(filename: string, token: string): Promise<void> {
   try {
-    // 1. Buat Blob dari token string dengan tipe octet-stream (universal binary format)
-    const blob = new Blob([token], { type: "application/octet-stream" });
+    // Import BlobUrlManager
+    const { blobUrlManager } = await import('./services/blob-url-manager');
 
-    // 2. **PRIMARY METHOD**: Hidden Anchor Link (Paling universal untuk PWA & Android Chrome)
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    // 1. Buat Blob dari token string dengan MIME type custom untuk iOS recognition
+    const blob = new Blob([token], { type: 'application/x-mgc' });
+
+    // 2. Gunakan BlobUrlManager untuk pooled URL creation (Android PWA safe)
+    const url = blobUrlManager.createObjectURL(blob);
+
+    // 3. Create hidden anchor dan trigger download
+    const link = document.createElement('a');
     link.href = url;
     link.download = filename;
 
-    // Append dan trigger click secara atomik
+    // Append dan trigger click atomically
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    // Cleanup URL object reference (penting untuk mobile memory)
+    // 4. Mark URL as used for LRU tracking
+    blobUrlManager.markURLUsed(url);
+
+    // 5. Revoke URL setelah download selesai (competitive cleanup)
+    // Android Chrome memerlukan delay minimal untuk memastikan download dimulai
     setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 100);
+      blobUrlManager.revokeObjectURL(url);
+    }, 500);
 
   } catch (error) {
-    console.error("Gagal mendownload file .mgc:", error);
+    console.error('Gagal mendownload file .mgc:', error);
     throw error;
   }
 }

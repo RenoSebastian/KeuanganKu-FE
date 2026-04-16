@@ -15,12 +15,18 @@ import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-lo
 import { cn } from "@/lib/utils";
 
 interface AnalysisResultProps {
-    data: RiskProfileSimulationResult;
+    data: RiskProfileSimulationResult | null;
     userAnswers?: RiskProfileAnswerItem[];
     onDownloadPdf: () => Promise<void> | void;
     onRetake: () => void;
     onReset: () => void;
     isDownloading?: boolean;
+    showPreviewModal?: boolean;
+    onModalClose?: () => void;
+    pdfUrl?: string | null;
+    mgcToken?: string | null;
+    onPdfDownload?: (filename: string) => Promise<void>;
+    onMgcShare?: (filename: string, token: string) => Promise<void>;
 }
 
 // --- RECHARTS CUSTOM SHAPE (Modern Donut Shape) ---
@@ -83,7 +89,13 @@ export function AnalysisResult({
     onDownloadPdf,
     onRetake,
     onReset,
-    isDownloading = false
+    isDownloading = false,
+    showPreviewModal = false,
+    onModalClose,
+    pdfUrl,
+    mgcToken,
+    onPdfDownload,
+    onMgcShare
 }: AnalysisResultProps) {
     const [activeIndex, setActiveIndex] = useState<number>(0);
     const [showPdfModal, setShowPdfModal] = useState(false);

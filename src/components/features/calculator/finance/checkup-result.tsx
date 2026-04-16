@@ -23,11 +23,9 @@ import { financialService } from "@/services/financial.service";
 import { PdfLoadingModal } from "./pdf-loading-modal";
 import { generateSimulationFilename } from "@/lib/formatters";
 
-// [ADDED] Fase 2: Import komponen Post-Download Action
-import {
-    PostDownloadAction,
-    DownloadResultData
-} from "@/components/features/shared/post-download-action";
+// [PHASE 3] Preview-First Download Modal
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW" | "AGENT_SIMULATION";
 
@@ -114,9 +112,12 @@ export function CheckupResult({
     const [localPdfLoading, setLocalPdfLoading] = useState(false);
     const [isDownloadingMgc, setIsDownloadingMgc] = useState(false);
 
-    // [ADDED] State baru untuk integrasi PostDownloadAction (Fase 2)
-    const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    // [PHASE 3] Preview-First Download Modal State
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+    // [PHASE 3] Unified Download Hook
+    const { triggerPdfDownload } = useUnifiedDownload({ autoToast: true });
 
     const isReadOnly = mode === "DIRECTOR_VIEW";
     const isAgentMode = mode === "AGENT_SIMULATION";
@@ -204,24 +205,25 @@ export function CheckupResult({
         try {
             setLocalPdfLoading(true);
             const clientName = clientInfo?.name || "Klien";
-            let result: DownloadResultData | undefined;
+            let pdfUrl: string | undefined;
+            const filenamePdf = generateSimulationFilename("Financial Checkup", clientName, "pdf");
 
             if (isAgentMode) {
                 if (onDownloadPdf) {
                     onDownloadPdf();
+                    return;
                 } else if (data?.meta?.simulationId) {
-                    result = await financialService.downloadAgentCheckupPdf(data.meta.simulationId, clientName) as any;
+                    const result = await financialService.downloadAgentCheckupPdf(data.meta.simulationId, clientName) as any;
+                    if (result?.url) {
+                        pdfUrl = result.url;
+                    }
                 } else if (data?.pdfBuffer) {
-                    // [MODIFIED] Fase 1 ke Fase 2: Ekstraksi Blob menjadi File dan hindari DOM Manipulation
+                    // [PHASE 3] Extract blob and create preview URL
                     const blob = new Blob([new Uint8Array(data.pdfBuffer.data)], { type: 'application/pdf' });
-                    const filenamePdf = generateSimulationFilename("Financial Checkup", clientName, "pdf");
-
-                    const file = new File([blob], filenamePdf, { type: 'application/pdf', lastModified: Date.now() });
-                    const url = window.URL.createObjectURL(file);
-
-                    result = { file, url, filename: filenamePdf };
+                    pdfUrl = window.URL.createObjectURL(blob);
                 } else {
                     alert("ID Simulasi tidak ditemukan di respons server. PDF tidak dapat dicetak.");
+                    return;
                 }
             } else {
                 const recordId = (payload as any)?.id || (rawData as any)?.id || data?.meta?.simulationId;
@@ -229,13 +231,16 @@ export function CheckupResult({
                     alert("ID Laporan tidak ditemukan. Mohon simpan data terlebih dahulu.");
                     return;
                 }
-                result = await financialService.downloadCheckupPdf(recordId, clientName) as any;
+                const result = await financialService.downloadCheckupPdf(recordId, clientName) as any;
+                if (result?.url) {
+                    pdfUrl = result.url;
+                }
             }
 
-            // [ADDED] Membuka Interceptor Modal jika result ada (Fase 2)
-            if (result) {
-                setDownloadData(result);
-                setIsModalOpen(true);
+            // [PHASE 3] Open preview modal
+            if (pdfUrl) {
+                setPreviewUrl(pdfUrl);
+                setShowPreviewModal(true);
             }
 
         } catch (error) {
@@ -247,12 +252,18 @@ export function CheckupResult({
     };
 
     // [ADDED] Handler penutupan modal dengan Garbage Collection (Memory Management)
-    const handleCloseModal = () => {
-        if (downloadData?.url) {
-            window.URL.revokeObjectURL(downloadData.url);
-        }
-        setIsModalOpen(false);
-        setTimeout(() => setDownloadData(null), 300);
+    const handlePreviewModalClose = () => {
+        setShowPreviewModal(false);
+        setPreviewUrl(null);
+    };
+
+    const handlePdfConfirmDownload = async () => {
+        if (!previewUrl) return;
+        const clientName = clientInfo?.name || "Laporan Kesehatan Finansial";
+        const filename = generateSimulationFilename("Financial Checkup", clientName, "pdf");
+        await triggerPdfDownload(previewUrl, filename);
+        setShowPreviewModal(false);
+        setPreviewUrl(null);
     };
 
     // --- THEME ENGINE ---
@@ -663,10 +674,14 @@ export function CheckupResult({
             </div>
 
             {/* [ADDED] Fase 2: Dialog Modal Post-Download (Render secara dinamis) */}
-            <PostDownloadAction
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                fileData={downloadData}
+            {/* [PHASE 3] Preview-First Download Modal */}
+            <PdfPreviewModal
+                isOpen={showPreviewModal}
+                onClose={handlePreviewModalClose}
+                previewUrl={previewUrl || ""}
+                fileName={`Financial Checkup - ${clientInfo?.name || "Klien"}.pdf`}
+                onDownload={handlePdfConfirmDownload}
+                onShare={handlePdfConfirmDownload}
             />
         </>
     );

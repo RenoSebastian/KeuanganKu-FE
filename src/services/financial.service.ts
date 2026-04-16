@@ -34,7 +34,6 @@ import {
   convertRecordToAnnual
 } from "@/lib/financial-math";
 
-// [UPDATED] Import Response Type baru untuk Education
 import {
   EducationSimulationPayload,
   EducationSimulationResponse
@@ -51,19 +50,40 @@ import { DownloadResultData } from "@/components/features/shared/post-download-a
 // ============================================================================
 
 /**
+ * [TAHAP 2 & 3: BLUESPRINT DEFENSIVE PROGRAMMING]
+ * Menginspeksi Blob yang diterima. Jika ternyata Backend mengembalikan JSON
+ * (misal karena ada Error 500/400 yang tersembunyi), kita cegah browser
+ * menelannya sebagai PDF murni yang berujung pada Infinite Loading Loop.
+ */
+async function validateBlobResponse(response: AxiosResponse<Blob>): Promise<Blob> {
+  const blob = response.data;
+
+  // Jika tipe MIME adalah JSON, ini mengindikasikan pelanggaran kontrak/Error State!
+  if (blob.type && blob.type.includes('application/json')) {
+    const text = await blob.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Terjadi kesalahan memproses respons dokumen dari server.');
+    }
+
+    // Lempar error agar bisa ditangkap oleh catch() di UI komponen (memunculkan Toast Error)
+    throw new Error(errorData.message || errorData.error || 'Terjadi kegagalan saat membuat dokumen PDF.');
+  }
+
+  return blob;
+}
+
+/**
  * Mengonversi Annual State (UI) -> Monthly Payload (API)
- * Memisahkan data finansial dari data klien, mengonversi angka, lalu menggabungkan kembali.
- * [FIXED - Tahap 1 & 3] Menambahkan sanitasi Data FE dan mencegah hilangnya properti laten (destructuring bug).
  */
 function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: any, sessionId: string }): any {
-  // 1. Ekstraksi eksplisit data non-finansial
   const { client, spouse, sessionId, ...rawFinancials } = data as any;
 
-  // 2. Sanitasi data finansial murni (Mencegah string kosong "" atau NaN terkirim ke BE)
   const sanitizedFinancials: any = {};
   for (const key in rawFinancials) {
     const val = rawFinancials[key];
-    // Jika nilai kosong, null, undefined, atau tidak bisa di-cast ke angka, paksa jadi 0 mutlak
     if (val === undefined || val === null || val === "" || Number.isNaN(Number(val))) {
       sanitizedFinancials[key] = 0;
     } else {
@@ -71,36 +91,34 @@ function toMonthlyPayload(data: FinancialAnnualState & { client?: any, spouse?: 
     }
   }
 
-  // 3. Konversi Angka Finansial yang sudah bersih (Annual -> Monthly)
   const monthlyFinancial = convertRecordToMonthly(sanitizedFinancials);
 
-  // 4. Gabungkan kembali secara utuh (tidak ada properti laten yang terbuang)
   return {
-    ...sanitizedFinancials, // Fallback mempertahankan properti yang mungkin tidak ikut dikonversi oleh util
-    ...monthlyFinancial,    // Timpa dengan hasil konversi bulanan
+    ...sanitizedFinancials,
+    ...monthlyFinancial,
     client,
     spouse,
-    sessionId, // [CRITICAL] Wajib ada untuk sistem kuota BE
+    sessionId,
   };
 }
 
 /**
  * Mengonversi Monthly Payload (API) -> Annual State (UI)
- * Memastikan semua flow (pemasukan/pengeluaran) dikali 12.
  */
 function toAnnualState(record: FinancialMonthlyPayload): FinancialAnnualState {
   return convertRecordToAnnual(record);
 }
 
 /**
- * [NEW HELPER] PWA-Friendly File Preparer
- * Mengubah response Axios menjadi objek DownloadResultData tanpa memicu download otomatis.
+ * [UPDATED HELPER] PWA-Friendly File Preparer dengan Validasi Defensive Async
  */
-function prepareFileForPwa(response: AxiosResponse<Blob>, defaultTitle: string, clientName: string): DownloadResultData {
+async function prepareFileForPwa(response: AxiosResponse<Blob>, defaultTitle: string, clientName: string): Promise<DownloadResultData> {
+  // Validasi tipe blob terlebih dahulu (Mencegah parse error ke depannya)
+  const validBlob = await validateBlobResponse(response);
+
   const disposition = response.headers["content-disposition"];
   let filename = generateSimulationFilename(defaultTitle, clientName, "pdf");
 
-  // Pertajam pencarian nama file dari header Content-Disposition
   if (disposition) {
     const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
     if (filenameMatch && filenameMatch[1]) {
@@ -111,8 +129,7 @@ function prepareFileForPwa(response: AxiosResponse<Blob>, defaultTitle: string, 
   const contentTypeHeader = response.headers['content-type'] || response.headers['Content-Type'] || '';
   const mimeType = contentTypeHeader.split(';')[0].trim() || 'application/pdf';
 
-  // Bungkus ke objek File asli agar kompatibel dengan navigator.share (PWA)
-  const file = new File([response.data], filename, {
+  const file = new File([validBlob], filename, {
     type: mimeType,
     lastModified: Date.now()
   });
@@ -151,17 +168,13 @@ export const financialService = {
     return response.data;
   },
 
-  /**
-   * [UPDATED] downloadCheckupPdf
-   * Sekarang mengembalikan DownloadResultData untuk diproses oleh PostDownloadAction Modal.
-   */
   downloadCheckupPdf: async (checkupId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/checkup/pdf/${checkupId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-
-    return prepareFileForPwa(response, "Financial Checkup", clientName);
+    // Menambahkan await karena helper sudah diubah menjadi async
+    return await prepareFileForPwa(response, "Financial Checkup", clientName);
   },
 
   // ===========================================================================
@@ -178,45 +191,35 @@ export const financialService = {
     return response.data;
   },
 
-  /**
-   * [UPDATED] downloadBudgetPdf
-   */
   downloadBudgetPdf: async (budgetId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/budget/pdf/${budgetId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-
-    return prepareFileForPwa(response, "Budget Plan", clientName);
+    return await prepareFileForPwa(response, "Budget Plan", clientName);
   },
 
   // ===========================================================================
   // 3. NEW CALCULATORS
   // ===========================================================================
 
-  // A. Pensiun
   calculatePension: async (data: CreatePensionDto) => {
     const response = await api.post<{ plan: PensionPlanData, calculation: any }>("/financial/calculator/pension", data);
     return response.data;
   },
 
-  /**
-   * [UPDATED] downloadPensionPdf
-   */
   downloadPensionPdf: async (planId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/pension/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    return prepareFileForPwa(response, "Pension Plan", clientName);
+    return await prepareFileForPwa(response, "Pension Plan", clientName);
   },
 
-  // B. Asuransi
   calculateInsurance: async (data: CreateInsuranceDto) => {
     const response = await api.post<{ plan: InsurancePlanData, calculation: any }>("/financial/calculator/insurance", data);
     const raw = response.data;
 
-    // [FIXED] Parsing aman: Tetap pertahankan null/undefined jika memang dikembalikan oleh BE (Information Expert)
     if (raw.calculation) {
       const safeNumber = (val: any) => (val === null || val === undefined) ? undefined : Number(val);
       raw.calculation = {
@@ -231,18 +234,14 @@ export const financialService = {
     return raw;
   },
 
-  /**
-   * [UPDATED] downloadInsurancePdf
-   */
   downloadInsurancePdf: async (planId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/insurance/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    return prepareFileForPwa(response, "Insurance Plan", clientName);
+    return await prepareFileForPwa(response, "Insurance Plan", clientName);
   },
 
-  // C. Goals
   calculateGoal: async (data: CreateGoalDto) => {
     const response = await api.post<{ plan: GoalPlanData, calculation: any }>("/financial/calculator/goals", data);
     return response.data;
@@ -253,18 +252,14 @@ export const financialService = {
     return response.data.data;
   },
 
-  /**
-   * [UPDATED] downloadGoalPdf
-   */
   downloadGoalPdf: async (planId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/goals/pdf/${planId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    return prepareFileForPwa(response, "Goal Plan", clientName);
+    return await prepareFileForPwa(response, "Goal Plan", clientName);
   },
 
-  // D. Pendidikan Anak (PERSONAL - DB SAVED)
   calculateEducation: async (data: any) => {
     const response = await api.post<{ plan: any, calculation: any }>("/financial/calculator/education", data);
     return response.data;
@@ -300,15 +295,12 @@ export const financialService = {
     return response.data;
   },
 
-  /**
-   * [UPDATED] downloadEducationPdf (Personal)
-   */
   downloadEducationPdf: async (clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/education/pdf`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    return prepareFileForPwa(response, "Education Plan", clientName);
+    return await prepareFileForPwa(response, "Education Plan", clientName);
   },
 
   // ===========================================================================
@@ -328,15 +320,12 @@ export const financialService = {
     return response.data;
   },
 
-  /**
-   * [UPDATED] downloadHistoryPdf
-   */
   downloadHistoryPdf: async (historyId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/checkup/history/pdf/${historyId}`, {
       responseType: 'blob',
       timeout: 60000,
     });
-    return prepareFileForPwa(response, "Checkup History", clientName);
+    return await prepareFileForPwa(response, "Checkup History", clientName);
   },
 
   // ===========================================================================
@@ -344,33 +333,34 @@ export const financialService = {
   // ===========================================================================
 
   simulateAgentBudget: async (data: CreateBudgetSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/budget", data, {
-      responseType: 'blob'
-    });
+    const response = await api.post("/financial/simulation/budget", data, { responseType: 'blob' });
+    // Validasi tipe blob sebelum mengembalikan objek response Axios utuh ke komponen
+    await validateBlobResponse(response);
+    return response;
   },
 
   simulateAgentInsurance: async (data: CreateInsuranceSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/insurance", data, {
-      responseType: 'blob'
-    });
+    const response = await api.post("/financial/simulation/insurance", data, { responseType: 'blob' });
+    await validateBlobResponse(response);
+    return response;
   },
 
   simulateAgentPension: async (data: CreatePensionSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/pension", data, {
-      responseType: 'blob'
-    });
+    const response = await api.post("/financial/simulation/pension", data, { responseType: 'blob' });
+    await validateBlobResponse(response);
+    return response;
   },
 
   simulateAgentGoal: async (data: CreateGoalSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/goals", data, {
-      responseType: 'blob'
-    });
+    const response = await api.post("/financial/simulation/goals", data, { responseType: 'blob' });
+    await validateBlobResponse(response);
+    return response;
   },
 
   simulateAgentRiskProfile: async (data: CreateRiskProfileSimulationDto & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
-    return await api.post("/financial/simulation/risk-profile-pdf", data, {
-      responseType: 'blob'
-    });
+    const response = await api.post("/financial/simulation/risk-profile-pdf", data, { responseType: 'blob' });
+    await validateBlobResponse(response);
+    return response;
   },
 
   simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<CheckupSimulationResponse> => {
@@ -386,32 +376,65 @@ export const financialService = {
     return responseData;
   },
 
-  /**
-   * [UPDATED] downloadAgentCheckupPdf
-   */
   downloadAgentCheckupPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
     const response = await api.get(`/financial/simulation/checkup/${simulationId}/pdf`, {
       responseType: 'blob',
       timeout: 60000,
     });
-
-    return prepareFileForPwa(response, "Checkup Simulation", clientName);
+    return await prepareFileForPwa(response, "Checkup Simulation", clientName);
   },
+
+  // ===========================================================================
+  // [TAHAP 2] DEDICATED PREVIEW ENDPOINTS (MODAL IN-MEMORY VIEWER)
+  // Menargetkan /preview-pdf dari BE. Murni mengembalikan Blob tervalidasi.
+  // ===========================================================================
+
+  previewAgentBudget: async (data: CreateBudgetSimulationDto & { sessionId: string }): Promise<Blob> => {
+    const response = await api.post("/financial/simulation/budget/preview-pdf", data, { responseType: 'blob' });
+    return await validateBlobResponse(response);
+  },
+
+  previewAgentInsurance: async (data: CreateInsuranceSimulationDto & { sessionId: string }): Promise<Blob> => {
+    const response = await api.post("/financial/simulation/insurance/preview-pdf", data, { responseType: 'blob' });
+    return await validateBlobResponse(response);
+  },
+
+  previewAgentPension: async (data: CreatePensionSimulationDto & { sessionId: string }): Promise<Blob> => {
+    const response = await api.post("/financial/simulation/pension/preview-pdf", data, { responseType: 'blob' });
+    return await validateBlobResponse(response);
+  },
+
+  previewAgentGoal: async (data: CreateGoalSimulationDto & { sessionId: string }): Promise<Blob> => {
+    const response = await api.post("/financial/simulation/goals/preview-pdf", data, { responseType: 'blob' });
+    return await validateBlobResponse(response);
+  },
+
+  previewAgentRiskProfile: async (data: CreateRiskProfileSimulationDto & { sessionId: string }): Promise<Blob> => {
+    const response = await api.post("/financial/simulation/risk-profile/preview-pdf", data, { responseType: 'blob' });
+    return await validateBlobResponse(response);
+  },
+
+  previewAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<Blob> => {
+    const apiPayload = toMonthlyPayload(data);
+    const response = await api.post("/financial/simulation/checkup/preview-pdf", apiPayload, { responseType: 'blob' });
+    return await validateBlobResponse(response);
+  },
+
+  previewAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<Blob> => {
+    const response = await api.post("/financial/simulation/education/preview-pdf", data, { responseType: 'blob' });
+    return await validateBlobResponse(response);
+  },
+
 
   // ===========================================================================
   // AGENT EDUCATION SIMULATION (SCENARIO B: DECOUPLED I/O)
   // ===========================================================================
 
-  /**
-   * Langkah 1: Kalkulasi Data (Menerima balasan JSON)
-   */
   simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
-    // Tembak endpoint kalkulasi, TANPA responseType: 'blob'
     const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
 
     const responseData = response.data as any;
 
-    // Normalisasi token MGC jika struktur kembalian bersarang
     if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
       responseData.mgcToken = responseData.data.mgcToken;
     }
@@ -419,22 +442,14 @@ export const financialService = {
     return responseData;
   },
 
-  /**
-   * Langkah 2: Ambil PDF (Menerima balasan Binary Stream)
-   */
   downloadEducationSimulationPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
-    // Tembak endpoint PDF, WAJIB menggunakan responseType: 'blob'
     const response = await api.get(`/financial/simulation/education/${simulationId}/pdf`, {
       responseType: 'blob',
       timeout: 60000,
     });
-
-    return prepareFileForPwa(response, "Education Plan", clientName);
+    return await prepareFileForPwa(response, "Education Plan", clientName);
   },
 
-  /**
-   * decodeSimulationToken
-   */
   decodeSimulationToken: async (token: string) => {
     const response = await api.post("/financial/simulation/decode", { simulationToken: token });
     let rawData = response.data;
@@ -450,11 +465,6 @@ export const financialService = {
     return rawData;
   },
 
-  /**
-   * [UPDATED] downloadSimulationFiles
-   * Mengolah token MGC hasil simulasi menjadi objek DownloadResultData (PWA Ready)
-   * Menggunakan application/octet-stream agar didownload sebagai file biner .mgc
-   */
   downloadSimulationFiles: (simulationResult: any, clientName: string = "Klien"): DownloadResultData => {
     const { mgcToken, filename } = simulationResult;
     const actualToken = mgcToken || simulationResult?.data?.mgcToken;
@@ -466,12 +476,10 @@ export const financialService = {
     const fallbackFilename = generateSimulationFilename("Simulation", clientName, "mgc");
     let baseFilename = filename || fallbackFilename;
 
-    // Pastikan ekstensinya adalah .mgc
     const tokenName = baseFilename.endsWith('.mgc')
       ? baseFilename
       : baseFilename.replace(/\.pdf$/i, '') + '.mgc';
 
-    // Bungkus ke objek File biner
     const blob = new Blob([actualToken], { type: 'application/octet-stream' });
     const file = new File([blob], tokenName, {
       type: 'application/octet-stream',

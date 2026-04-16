@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 // --- HOOKS & SERVICES ---
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 import { financialService } from "@/services/financial.service";
 import { PensionSimulationResult } from "@/lib/types";
 
@@ -21,19 +22,24 @@ import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-lo
 import { QuotaAlert } from "@/components/features/calculator/pension/quota-alert";
 import { generateSimulationFilename } from "@/lib/formatters";
 
-// [NEW IMPORTS] Untuk Integrasi PWA Handoff
-import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
-import { downloadMgcFile } from "@/lib/utils";
+// [PHASE 3] Preview-First Download Modal
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 export default function PensionPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
   const hasAccess = isPro || quota > 0;
+
+  // --- [PHASE 3] Unified Download Hook ---
+  const { downloadMgc: downloadMgcUnified, triggerPdfDownload } = useUnifiedDownload({
+    autoToast: true,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(uuidv4());
 
   // --- [NEW STATES] PWA DOWNLOAD HANDOFF ---
-  const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // --- [PHASE 3] Preview-First Download Modal State ---
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // --- STATE: INPUT DATA ---
   const [clientData, setClientData] = useState({
@@ -125,8 +131,6 @@ export default function PensionPage() {
       const pdfFile = new File([response.data], pdfFilename, { type: 'application/pdf' });
       const pdfUrl = window.URL.createObjectURL(pdfFile);
 
-      setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
-
       setGeneratedFiles({
         pdfUrl, mgcToken: token,
         filenameMgc: generateSimulationFilename("Rencana Dana Hari Tua", clientData.clientName, "mgc"),
@@ -134,9 +138,6 @@ export default function PensionPage() {
       });
 
       toast.success("Analisa Selesai");
-
-      // Memicu modal PostDownloadAction secara otomatis
-      setIsModalOpen(true);
 
     } catch (error: any) {
       toast.error("Gagal Simulasi");
@@ -148,19 +149,33 @@ export default function PensionPage() {
     }
   };
 
-  const handleDownloadFile = (type: 'PDF' | 'MGC') => {
+  // --- [PHASE 3] Preview-First Download Handler ---
+  const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) return;
 
-    if (type === 'PDF') {
-      // PDF menggunakan alur PWA Handoff (Share Sheet)
-      setIsModalOpen(true);
+    if (type === 'PDF' && generatedFiles.pdfUrl) {
+      // PDF: Open preview modal first
+      setPreviewUrl(generatedFiles.pdfUrl);
+      setShowPreviewModal(true);
     } else if (type === 'MGC' && generatedFiles.mgcToken) {
-      // MGC menggunakan utilitas eksternal adaptif
-      downloadMgcFile(
-        generatedFiles.filenameMgc || "Pensiun.mgc",
-        generatedFiles.mgcToken
+      // MGC: Direct download via unified hook
+      await downloadMgcUnified(
+        generatedFiles.mgcToken,
+        generatedFiles.filenameMgc || "Pension Plan.mgc"
       );
     }
+  };
+
+  const handlePdfConfirmDownload = async () => {
+    if (!previewUrl || !generatedFiles?.filenamePdf) return;
+    await triggerPdfDownload(previewUrl, generatedFiles.filenamePdf);
+    setShowPreviewModal(false);
+    setPreviewUrl(null);
+  };
+
+  const handlePreviewModalClose = () => {
+    setShowPreviewModal(false);
+    setPreviewUrl(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,10 +307,14 @@ export default function PensionPage() {
       </div>
 
       {/* [PWA FEEDBACK MODAL] Handoff Area */}
-      <PostDownloadAction
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        fileData={downloadData}
+      {/* [PHASE 3] Preview-First Download Modal */}
+      <PdfPreviewModal
+        isOpen={showPreviewModal}
+        onClose={handlePreviewModalClose}
+        previewUrl={previewUrl || ""}
+        fileName={generatedFiles?.filenamePdf || "Pension Plan.pdf"}
+        onDownload={handlePdfConfirmDownload}
+        onShare={handlePdfConfirmDownload}
       />
     </div>
   );

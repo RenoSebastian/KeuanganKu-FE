@@ -8,6 +8,7 @@ import Link from "next/link"; // [NEW] Untuk link ke pricing
 import { GoalSimulationResult, CreateGoalSimulationDto } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
 import { useAuthUser } from "@/hooks/use-auth-user"; // [NEW] Auth Hook
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload"; // [NEW] Unified Download Hook
 
 // UI Components
 import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
@@ -21,9 +22,8 @@ import { GoalInputForm } from "@/components/features/calculator/goals/goal-input
 import { GoalResults } from "@/components/features/calculator/goals/goal-results";
 import { generateSimulationFilename } from "@/lib/formatters";
 
-// [NEW IMPORTS] Untuk Integrasi PWA Handoff
-import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
-import { downloadMgcFile } from "@/lib/utils";
+// [PHASE 3] Preview-First Download Modal
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // --- KONFIGURASI PILIHAN ---
 const GOAL_OPTIONS = [
@@ -38,13 +38,19 @@ export default function GoalsPage() {
     const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
     const hasAccess = isPro || quota > 0;
 
+    // --- [PHASE 3] Unified Download Hook ---
+    const { downloadMgc: downloadMgcUnified, triggerPdfDownload } = useUnifiedDownload({
+        autoToast: true,
+    });
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     // [NEW] Idempotency Key untuk mencegah pemotongan kuota ganda saat edit
     const sessionId = useRef(uuidv4());
 
     // --- [NEW STATES] PWA DOWNLOAD HANDOFF ---
-    const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    // --- [PHASE 3] Preview-First Download Modal State ---
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     const [clientData, setClientData] = useState({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
     const [selectedGoal, setSelectedGoal] = useState<string>("LAINNYA");
@@ -165,9 +171,6 @@ export default function GoalsPage() {
 
             toast.success("Analisa Selesai", { description: "Sistem telah menemukan strategi terbaik untuk klien Anda." });
 
-            // Memicu modal PostDownloadAction secara otomatis
-            setIsModalOpen(true);
-
         } catch (error: any) {
             console.error(error);
             if (error.response?.status === 403) {
@@ -186,19 +189,32 @@ export default function GoalsPage() {
         }
     };
 
-    const handleDownloadFile = (type: 'PDF' | 'MGC') => {
+    const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
         if (!generatedFiles) return;
 
-        if (type === 'PDF') {
-            // PDF menggunakan alur PWA Handoff (Share Sheet)
-            setIsModalOpen(true);
+        if (type === 'PDF' && generatedFiles.pdfUrl) {
+            // PDF: Open preview modal first
+            setPreviewUrl(generatedFiles.pdfUrl);
+            setShowPreviewModal(true);
         } else if (type === 'MGC' && generatedFiles.mgcToken) {
-            // MGC menggunakan utilitas eksternal adaptif
-            downloadMgcFile(
-                generatedFiles.filenameMgc || "Backup_Goal.mgc",
-                generatedFiles.mgcToken
+            // MGC: Direct download via unified hook
+            await downloadMgcUnified(
+                generatedFiles.mgcToken,
+                generatedFiles.filenameMgc || "Financial Goals.mgc"
             );
         }
+    };
+
+    const handlePdfConfirmDownload = async () => {
+        if (!previewUrl || !generatedFiles?.filenamePdf) return;
+        await triggerPdfDownload(previewUrl, generatedFiles.filenamePdf);
+        setShowPreviewModal(false);
+        setPreviewUrl(null);
+    };
+
+    const handlePreviewModalClose = () => {
+        setShowPreviewModal(false);
+        setPreviewUrl(null);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -319,10 +335,14 @@ export default function GoalsPage() {
             </div>
 
             {/* [PWA FEEDBACK MODAL] Handoff Area */}
-            <PostDownloadAction
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                fileData={downloadData}
+            {/* [PHASE 3] Preview-First Download Modal */}
+            <PdfPreviewModal
+                isOpen={showPreviewModal}
+                onClose={handlePreviewModalClose}
+                previewUrl={previewUrl || ""}
+                fileName={generatedFiles?.filenamePdf || "Financial Goals.pdf"}
+                onDownload={handlePdfConfirmDownload}
+                onShare={handlePdfConfirmDownload}
             />
         </div>
     );

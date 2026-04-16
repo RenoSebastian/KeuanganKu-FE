@@ -12,6 +12,7 @@ import Link from "next/link";
 
 // Hooks & Services
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 import { financialService } from "@/services/financial.service";
 import { BudgetResult, CreateBudgetSimulationDto } from "@/lib/types";
 
@@ -23,20 +24,24 @@ import { BudgetForm } from "@/components/features/calculator/budget/budget-form"
 import { BudgetResults } from "@/components/features/calculator/budget/budget-results";
 import { generateSimulationFilename } from "@/lib/formatters";
 
-// [NEW IMPORTS] Untuk perbaikan download PWA
-import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
-import { downloadMgcFile } from "@/lib/utils";
+// [PHASE 3] Preview-First Download Modal
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 export default function AgentBudgetPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
   const hasAccess = isPro || quota > 0;
 
+  // --- [PHASE 3] Unified Download Hook ---
+  const { downloadMgc: downloadMgcUnified, triggerPdfDownload } = useUnifiedDownload({
+    autoToast: true,
+  });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(uuidv4());
 
-  // --- [NEW STATES FOR PWA DOWNLOAD] ---
-  const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // --- [PHASE 3] Preview-First Download Modal State ---
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Existing States
   const [clientData, setClientData] = useState({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
@@ -128,15 +133,12 @@ export default function AgentBudgetPage() {
         ]
       };
 
-      // 5. SIAPKAN OBJEK FILE UNTUK PWA (PDF)
+      // 5. SIAPKAN OBJEK FILE UNTUK PREVIEW-FIRST FLOW
       const pdfFile = new File([response.data], pdfFilename, { type: 'application/pdf' });
       const pdfUrl = window.URL.createObjectURL(pdfFile);
 
       setResult(mappedResult);
       setRecommendation(beResult.analysis.variableIncomeRecommendation);
-
-      // Simpan untuk modal
-      setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
 
       setGeneratedFiles({
         pdfUrl: pdfUrl,
@@ -145,8 +147,6 @@ export default function AgentBudgetPage() {
         filenamePdf: pdfFilename
       });
 
-      // Buka Modal sebagai notifikasi "Selesai"
-      setIsModalOpen(true);
       toast.success("Analisa Selesai");
 
     } catch (error: any) {
@@ -159,20 +159,33 @@ export default function AgentBudgetPage() {
     }
   };
 
-  // --- [FIXED DOWNLOAD ROUTER] ---
-  const handleDownloadFile = (type: 'PDF' | 'MGC') => {
+  // --- [PHASE 3] Preview-First Download Handler ---
+  const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) return;
 
-    if (type === 'PDF') {
-      // PDF selalu memicu modal (Share Sheet) agar aman di PWA
-      setIsModalOpen(true);
+    if (type === 'PDF' && generatedFiles.pdfUrl) {
+      // PDF: Open preview modal first
+      setPreviewUrl(generatedFiles.pdfUrl);
+      setShowPreviewModal(true);
     } else if (type === 'MGC' && generatedFiles.mgcToken) {
-      // MGC menggunakan utility khusus biner (Save Game)
-      downloadMgcFile(
-        generatedFiles.filenameMgc || "Backup.mgc",
-        generatedFiles.mgcToken
+      // MGC: Direct download via unified hook
+      await downloadMgcUnified(
+        generatedFiles.mgcToken,
+        generatedFiles.filenameMgc || "Budget Plan.mgc"
       );
     }
+  };
+
+  const handlePdfConfirmDownload = async () => {
+    if (!previewUrl || !generatedFiles?.filenamePdf) return;
+    await triggerPdfDownload(previewUrl, generatedFiles.filenamePdf);
+    setShowPreviewModal(false);
+    setPreviewUrl(null);
+  };
+
+  const handlePreviewModalClose = () => {
+    setShowPreviewModal(false);
+    setPreviewUrl(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,11 +284,14 @@ export default function AgentBudgetPage() {
         </div>
       </div>
 
-      {/* [PWA FEEDBACK MODAL] Muncul otomatis saat download/kalkulasi selesai */}
-      <PostDownloadAction
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        fileData={downloadData}
+      {/* [PHASE 3] Preview-First Download Modal */}
+      <PdfPreviewModal
+        isOpen={showPreviewModal}
+        onClose={handlePreviewModalClose}
+        previewUrl={previewUrl || ""}
+        fileName={generatedFiles?.filenamePdf || "Budget Plan.pdf"}
+        onDownload={handlePdfConfirmDownload}
+        onShare={handlePdfConfirmDownload}
       />
     </div>
   );

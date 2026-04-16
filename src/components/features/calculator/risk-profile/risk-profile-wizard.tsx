@@ -32,8 +32,12 @@ import { riskProfileService } from "@/services/risk-profile.service";
 
 // Hooks
 import { useSimulationPersistence, SIMULATION_STORAGE_KEYS } from "@/hooks/use-simulation-persistence";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 import { cn } from "@/lib/utils";
 import { useAuthUser } from "@/hooks/use-auth-user";
+
+// Components: Unified Download Modal
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // [NEW] Import Formatter Terstandarisasi
 import { generateSimulationFilename } from "@/lib/formatters";
@@ -75,6 +79,16 @@ export function RiskProfileWizard() {
     const [simulationResult, setSimulationResult] = useState<RiskProfileSimulationResult | null>(null);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    // [NEW] Modal & Unified Download State
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const { downloadPdf, triggerPdfDownload, downloadMgc, isLoading: isUnifiedLoading } = useUnifiedDownload({
+        autoToast: true,
+        onSuccess: (filename) => {
+            clearDraft();
+        },
+    });
 
     // --- PERSISTENCE HOOK ---
     const stepIndex = currentStep === "IDENTITY" ? 0 : currentStep === "QUIZ" ? 1 : 2;
@@ -234,13 +248,13 @@ export function RiskProfileWizard() {
             return;
         }
 
-        setIsDownloading(true);
-
         try {
             let targetPdfUrl = pdfUrl;
             let targetToken = mgcToken;
 
+            // Jika belum ada PDF, request ke backend
             if (!targetPdfUrl) {
+                setIsLoading(true);
                 const sessionId = crypto.randomUUID();
                 const payload = {
                     sessionId: sessionId,
@@ -258,40 +272,44 @@ export function RiskProfileWizard() {
 
                 setPdfUrl(targetPdfUrl);
                 setMgcToken(targetToken);
+                setIsLoading(false);
             }
 
+            // Buat preview URL menggunakan hook
             if (targetPdfUrl) {
-                const filenamePdf = generateSimulationFilename("Risk Profile", clientData.name, "pdf");
-                const filenameMgc = generateSimulationFilename("Risk Profile", clientData.name, "mgc");
+                // Extract PDF blob dari URL (fetch PDF dari server)
+                const pdfResponse = await fetch(targetPdfUrl);
+                const pdfBlob = await pdfResponse.blob();
 
-                const link = document.createElement('a');
-                link.href = targetPdfUrl;
-                link.setAttribute('download', filenamePdf);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-                if (targetToken) {
-                    const blobMgc = new Blob([targetToken], { type: 'application/octet-stream' });
-                    const urlMgc = window.URL.createObjectURL(blobMgc);
-                    const linkMgc = document.createElement('a');
-                    linkMgc.href = urlMgc;
-                    linkMgc.setAttribute('download', filenameMgc);
-                    document.body.appendChild(linkMgc);
-                    linkMgc.click();
-                    linkMgc.remove();
-                    window.URL.revokeObjectURL(urlMgc);
-                }
-
-                toast.success("Dokumen PDF berhasil diunduh.");
-                clearDraft();
+                // Create preview URL dan simpan ke state
+                const url = await downloadPdf(pdfBlob);
+                setPreviewUrl(url);
+                setShowPreviewModal(true);
             } else {
                 toast.error("Sistem gagal menghasilkan dokumen PDF.");
             }
         } catch (error: any) {
-            toast.error("Gagal Download", { description: error.message || "Terjadi kesalahan teknis saat merender dokumen." });
-        } finally {
-            setIsDownloading(false);
+            toast.error("Gagal Mempersiapkan PDF", { description: error.message || "Terjadi kesalahan teknis." });
+        }
+    };
+
+    const handlePdfDownload = async (filename: string) => {
+        try {
+            if (previewUrl) {
+                triggerPdfDownload(previewUrl, filename);
+            } else {
+                toast.error("Preview URL tidak tersedia");
+            }
+        } catch (error: any) {
+            toast.error("Gagal Download", { description: error.message });
+        }
+    };
+
+    const handleMgcShare = async (filename: string, token: string) => {
+        try {
+            await downloadMgc(token, filename.replace('.pdf', '.mgc'));
+        } catch (error: any) {
+            toast.error("Gagal Download Backup", { description: error.message });
         }
     };
 
@@ -441,6 +459,24 @@ export function RiskProfileWizard() {
                                 onRetake={handleRetake}
                                 onReset={handleResetFull}
                                 isDownloading={isDownloading}
+                                showPreviewModal={showPreviewModal}
+                                onModalClose={() => setShowPreviewModal(false)}
+                                pdfUrl={pdfUrl}
+                                mgcToken={mgcToken}
+                                onPdfDownload={handlePdfDownload}
+                                onMgcShare={handleMgcShare}
+                            />
+
+                            {/* PDF Preview Modal */}
+                            <PdfPreviewModal
+                                isOpen={showPreviewModal}
+                                pdfUrl={previewUrl}
+                                filename={previewUrl ? generateSimulationFilename("Risk Profile", clientData?.name || "Client", "pdf") : ""}
+                                mgcToken={mgcToken}
+                                fileSize={0}
+                                onClose={() => setShowPreviewModal(false)}
+                                onDownload={(filename) => handlePdfDownload(filename)}
+                                onShare={() => handleMgcShare(generateSimulationFilename("Risk Profile", clientData?.name || "Client", "pdf"), mgcToken || "")}
                             />
                         </motion.div>
                     )}
