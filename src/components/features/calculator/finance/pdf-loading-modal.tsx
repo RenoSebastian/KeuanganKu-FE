@@ -14,7 +14,9 @@ export function PdfLoadingModal({ isOpen }: PdfLoadingModalProps) {
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState("Memulai permintaan...");
 
-    // Reset & Optimistic Progress Logic (UX Illusion)
+    // ===========================================================================
+    // 1. ENGINE PROGRES (Hanya bertanggung jawab menaikkan angka)
+    // ===========================================================================
     useEffect(() => {
         if (isOpen) {
             setProgress(0);
@@ -22,15 +24,8 @@ export function PdfLoadingModal({ isOpen }: PdfLoadingModalProps) {
 
             const interval = setInterval(() => {
                 setProgress((prev) => {
-                    if (prev >= 90) {
-                        setStatus("Finalisasi dokumen PDF...");
-                        return 90; // Mentok di 90% sampai API Backend selesai memproses PDF
-                    }
-
-                    // Update pesan status berdasarkan persentase
-                    if (prev === 20) setStatus("Mengumpulkan data finansial...");
-                    if (prev === 45) setStatus("Merender grafik & kalkulasi...");
-                    if (prev === 70) setStatus("Menyusun halaman laporan...");
+                    // Mentok di 90% sampai API Backend selesai memproses PDF
+                    if (prev >= 90) return 90;
 
                     // Kecepatan progress melambat seiring waktu untuk UX realistis
                     const increment = prev < 40 ? 5 : prev < 70 ? 3 : 1;
@@ -42,10 +37,28 @@ export function PdfLoadingModal({ isOpen }: PdfLoadingModalProps) {
         }
     }, [isOpen]);
 
+    // ===========================================================================
+    // 2. ENGINE STATUS (Bereaksi murni terhadap perubahan progress) - BEST PRACTICE
+    // ===========================================================================
+    useEffect(() => {
+        if (!isOpen) return;
+
+        // Menggunakan rentang threshold (>=) mencegah bug status terlewat
+        if (progress >= 90) {
+            setStatus("Finalisasi dokumen PDF...");
+        } else if (progress >= 70) {
+            setStatus("Menyusun halaman laporan...");
+        } else if (progress >= 45) {
+            setStatus("Merender grafik & kalkulasi...");
+        } else if (progress >= 20) {
+            setStatus("Mengumpulkan data finansial...");
+        }
+    }, [progress, isOpen]);
+
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
                     {/* BACKDROP GELAP (Blur) */}
                     <motion.div
                         initial={{ opacity: 0 }}

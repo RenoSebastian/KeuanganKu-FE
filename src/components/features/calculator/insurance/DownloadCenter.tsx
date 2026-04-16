@@ -44,7 +44,7 @@ export const DownloadCenter = ({
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-10 rounded-lg transition-all"
                     disabled={!pdfUrl}
                 >
-                    <Share2 className="w-4 h-4 mr-2" /> Simpan / Bagikan PDF
+                    <Share2 className="w-4 h-4 mr-2" /> Preview & Bagikan Laporan
                 </Button>
                 <Button
                     size="sm"

@@ -45,7 +45,7 @@ export function PensionResultSection({
                             onClick={() => onDownload('PDF')}
                             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-lg transition-all"
                         >
-                            <Share2 className="w-4 h-4 mr-2" /> Simpan / Bagikan PDF
+                            <Share2 className="w-4 h-4 mr-2" /> Preview & Bagikan Laporan
                         </Button>
                         <Button
                             size="sm"

@@ -23,11 +23,8 @@ import { cn } from "@/lib/utils";
 
 // [ADDED] Fase 3: Integrasi Utilitas Download Cerdas
 import { downloadMgcFile } from "@/lib/utils";
-
-import {
-    PostDownloadAction,
-    DownloadResultData
-} from "@/components/features/shared/post-download-action";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 interface SimulationResultStepProps {
     result: EducationSimulationResponse;
@@ -39,8 +36,13 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
     const [isDownloading, setIsDownloading] = useState(false);
     const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
-    const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
+
+    // [NEW] Unified Download Hook
+    const { downloadPdf, triggerPdfDownload, downloadMgc } = useUnifiedDownload({
+        autoToast: true,
+    });
 
     // [VALIDATION & AGGREGATION]
     const simulationData = result?.data;
@@ -77,8 +79,8 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
             const clientName = simulationData?.clientName || "Klien";
             const filenameMgc = generateSimulationFilename("Education Plan", clientName, "mgc");
 
-            // Menggunakan fungsi eksternal untuk melompati bug Share Sheet PWA pada format custom
-            await downloadMgcFile(filenameMgc, result.mgcToken);
+            // Menggunakan unified download untuk consistent blob URL management
+            await downloadMgc(result.mgcToken, filenameMgc);
             toast.success("Backup MGC berhasil diamankan");
 
         } catch (error) {
@@ -87,7 +89,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         }
     };
 
-    // [MODIFIED] Handler PDF tetap memanggil Modal Handoff PWA
+    // [MODIFIED] Handler PDF dengan Preview-First workflow
     const handleDownloadPdf = async () => {
         if (!result.simulationId) {
             toast.error("ID Simulasi tidak ditemukan. Mohon hitung ulang.");
@@ -95,37 +97,39 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         }
 
         setIsDownloading(true);
-        toast.loading("Menyiapkan dokumen laporan PDF...");
 
         try {
             const clientName = simulationData?.clientName || "Klien";
+            const responsePdf = await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
 
-            const responseData = await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
-
-            toast.dismiss();
-
-            if (!responseData || !responseData.file || !responseData.url) {
+            if (!responsePdf?.file) {
                 throw new Error('Response PDF tidak valid');
             }
 
-            setDownloadData(responseData);
-            setIsModalOpen(true);
+            // Create preview URL via unified download manager
+            const url = await downloadPdf(responsePdf.file);
+            setPreviewUrl(url);
+            setShowPreviewModal(true);
 
         } catch (error) {
             console.error("Download error:", error);
-            toast.dismiss();
             toast.error("Gagal mengunduh dokumen PDF. Silakan coba lagi.");
         } finally {
             setIsDownloading(false);
         }
     };
 
-    const handleCloseModal = () => {
-        if (downloadData?.url) {
-            window.URL.revokeObjectURL(downloadData.url);
-        }
-        setIsModalOpen(false);
-        setTimeout(() => setDownloadData(null), 300);
+    const handlePdfActionConfirm = async () => {
+        if (!previewUrl) return;
+        const clientName = simulationData?.clientName || "Klien";
+        const filename = generateSimulationFilename("Education Plan", clientName, "pdf");
+        await triggerPdfDownload(previewUrl, filename);
+        setShowPreviewModal(false);
+    };
+
+    const handleModalClose = () => {
+        setShowPreviewModal(false);
+        setPreviewUrl(null);
     };
 
     return (
@@ -300,7 +304,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                             </>
                         ) : (
                             <>
-                                <Share2 className="w-5 h-5" /> Simpan / Bagikan PDF
+                                <Share2 className="w-5 h-5" /> Preview & Bagikan PDF
                             </>
                         )}
                     </Button>
@@ -341,10 +345,16 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                 </div>
             </div>
 
-            <PostDownloadAction
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                fileData={downloadData}
+            <PdfPreviewModal
+                isOpen={showPreviewModal}
+                onClose={handleModalClose}
+                previewUrl={previewUrl || ""}
+                fileName={simulationData?.clientName ? `Education_Plan_${simulationData.clientName}_${new Date().toLocaleDateString('id-ID')}` : "Education_Plan"}
+                onDownload={handlePdfActionConfirm}
+                onShare={() => {
+                    // Share functionality will be handled in PdfPreviewModal
+                    handlePdfActionConfirm();
+                }}
             />
         </>
     );

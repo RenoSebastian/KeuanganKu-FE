@@ -111,7 +111,7 @@ export function BudgetResults({
                                 onClick={() => onDownload('PDF')}
                                 className="h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md active:scale-95 transition-all"
                             >
-                                <Share2 className="w-4 h-4 mr-2" /> Simpan / Bagikan PDF
+                                <Share2 className="w-4 h-4 mr-2" /> Preview & Bagikan Laporan
                             </Button>
                         </div>
                     </div>
