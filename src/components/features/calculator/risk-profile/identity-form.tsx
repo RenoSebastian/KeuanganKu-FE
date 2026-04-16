@@ -198,9 +198,9 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                             <FormItem className="group md:col-span-12">
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Nama Lengkap Sesuai Identitas <span className="text-rose-500">*</span></FormLabel>
                                                 <FormControl>
-                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                    <div className="relative transition-all duration-300 group-focus-within:-translate-y-0.5">
                                                         <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                                        <Input className="pl-14 h-16 rounded-[1.25rem] bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-xl text-slate-800 transition-all shadow-inner" placeholder="Cth: Budi Santoso" {...field} autoFocus />
+                                                        <Input className="pl-14 h-16 rounded-4xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-xl text-slate-800 transition-all shadow-inner" placeholder="Cth: Budi Santoso" {...field} autoFocus />
                                                     </div>
                                                 </FormControl>
                                                 <FormMessage className="text-[10px] font-bold" />
@@ -215,9 +215,9 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                             <FormItem className="group md:col-span-7">
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Tanggal Lahir <span className="text-rose-500">*</span></FormLabel>
                                                 <FormControl>
-                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                    <div className="relative transition-all duration-300 group-focus-within:-translate-y-0.5">
                                                         <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                                        <Input type="date" className="pl-14 h-16 rounded-[1.25rem] bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-lg text-slate-700 transition-all shadow-inner block w-full" {...field} max={new Date().toISOString().split("T")[0]} />
+                                                        <Input type="date" className="pl-14 h-16 rounded-4xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-lg text-slate-700 transition-all shadow-inner block w-full" {...field} max={new Date().toISOString().split("T")[0]} />
                                                     </div>
                                                 </FormControl>
                                                 <FormMessage className="text-[10px] font-bold" />
@@ -233,8 +233,8 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Gender</FormLabel>
                                                 <Select onValueChange={field.onChange} value={field.value}>
                                                     <FormControl>
-                                                        <div className="transition-all duration-300 group-focus-within:translate-y-[-2px]">
-                                                            <SelectTrigger className="h-16 rounded-[1.25rem] bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-lg text-slate-800 transition-all shadow-inner">
+                                                        <div className="transition-all duration-300 group-focus-within:-translate-y-0.5">
+                                                            <SelectTrigger className="h-16 rounded-4xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-indigo-500/5 focus:border-indigo-400 focus:bg-white font-black text-lg text-slate-800 transition-all shadow-inner">
                                                                 <SelectValue placeholder="Pilih Gender" />
                                                             </SelectTrigger>
                                                         </div>
@@ -269,7 +269,7 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                             <FormItem className="group">
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Profesi / Pekerjaan</FormLabel>
                                                 <FormControl>
-                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                    <div className="relative transition-all duration-300 group-focus-within:-translate-y-0.5">
                                                         <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-600 transition-colors z-10" />
                                                         <Input className="pl-14 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-emerald-500/5 focus:border-emerald-400 focus:bg-white font-bold text-base text-slate-800 transition-all shadow-inner" placeholder="Karyawan Swasta" {...field} />
                                                     </div>
@@ -285,7 +285,7 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                             <FormItem className="group">
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Kota Domisili</FormLabel>
                                                 <FormControl>
-                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                    <div className="relative transition-all duration-300 group-focus-within:-translate-y-0.5">
                                                         <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-600 transition-colors z-10" />
                                                         <Input className="pl-14 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-emerald-500/5 focus:border-emerald-400 focus:bg-white font-bold text-base text-slate-800 transition-all shadow-inner" placeholder="Jakarta Pusat" {...field} />
                                                     </div>
@@ -301,7 +301,7 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                             <FormItem className="group md:col-span-2">
                                                 <FormLabel className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Nomor WhatsApp</FormLabel>
                                                 <FormControl>
-                                                    <div className="relative transition-all duration-300 group-focus-within:translate-y-[-2px]">
+                                                    <div className="relative transition-all duration-300 group-focus-within:-translate-y-0.5">
                                                         <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-600 transition-colors z-10" />
                                                         <Input type="tel" inputMode="numeric" className="pl-14 h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-[6px] focus:ring-emerald-500/5 focus:border-emerald-400 focus:bg-white font-bold text-base text-slate-800 transition-all shadow-inner" placeholder="08123456789" {...field} />
                                                     </div>
@@ -333,7 +333,7 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                     type="submit"
                                     className={cn(
                                         "w-full h-16 md:h-20 text-lg md:text-xl bg-slate-900 hover:bg-indigo-600 text-white font-black tracking-wide rounded-[1.5rem] shadow-2xl transition-all duration-500 flex items-center justify-center gap-3 group",
-                                        (!nameWatch || !dobWatch) ? "opacity-50 grayscale cursor-not-allowed" : "hover:translate-y-[-4px] active:scale-[0.98]"
+                                        (!nameWatch || !dobWatch) ? "opacity-50 grayscale cursor-not-allowed" : "hover:-translate-y-1 active:scale-[0.98]"
                                     )}
                                     disabled={!nameWatch || !dobWatch}
                                 >

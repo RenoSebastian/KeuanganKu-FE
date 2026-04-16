@@ -31,9 +31,8 @@ import { RecommendationCard } from "@/components/features/calculator/insurance/R
 import { HelperCalculatorModal } from "@/components/features/calculator/insurance/HelperCalculatorModal";
 import { generateSimulationFilename } from "@/lib/formatters";
 
-// [NEW IMPORTS] Untuk Integrasi PWA Handoff
-import { PostDownloadAction, DownloadResultData } from "@/components/features/shared/post-download-action";
-import { downloadMgcFile } from "@/lib/utils";
+// [NEW ARCHITECTURE] Import mesin eksekutor Universal
+import { executeUniversalExport } from "@/utils/universal-export-engine";
 
 export default function InsurancePage() {
   // --- AUTH & QUOTA ---
@@ -43,10 +42,6 @@ export default function InsurancePage() {
   // --- REFS ---
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(uuidv4());
-
-  // --- [NEW STATES] PWA DOWNLOAD HANDOFF ---
-  const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // --- STATE: INPUT DATA ---
   const [clientData, setClientData] = useState({
@@ -75,8 +70,10 @@ export default function InsurancePage() {
 
   // --- STATE: UI & RESULTS ---
   const [result, setResult] = useState<InsuranceSimulationResult | null>(null);
+
+  // [MODIFIED STATE] Menyimpan raw Blob alih-alih URL untuk mencegah memory leak
   const [generatedFiles, setGeneratedFiles] = useState<{
-    pdfUrl: string | null;
+    pdfBlob: Blob | null;
     mgcToken: string | null;
     filenameMgc: string | null;
     filenamePdf: string | null;
@@ -165,22 +162,15 @@ export default function InsurancePage() {
         if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
       }
 
-      // [INTEGRASI PWA] Transformasi Blob menjadi File Object untuk PostDownloadAction
-      const pdfFile = new File([response.data], pdfFilename, { type: 'application/pdf' });
-      const pdfUrl = window.URL.createObjectURL(pdfFile);
-
-      setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
-
+      // [CLEAN ARCHITECTURE] Simpan Blob biner langsung ke state tanpa membuat Object URL
       setGeneratedFiles({
-        pdfUrl, mgcToken: token,
+        pdfBlob: new Blob([response.data], { type: 'application/pdf' }),
+        mgcToken: token,
         filenameMgc: generateSimulationFilename("Rancang Proteksi", clientData.clientName, "mgc"),
         filenamePdf: pdfFilename
       });
 
       toast.success("Analisa Selesai");
-
-      // Memicu modal PostDownloadAction secara otomatis
-      setIsModalOpen(true);
 
     } catch (error: any) {
       toast.error("Gagal Menghitung", { description: error.response?.status === 403 ? "Kuota habis." : "Terjadi kesalahan sistem." });
@@ -191,18 +181,38 @@ export default function InsurancePage() {
     }
   };
 
-  const handleDownloadFile = (type: 'PDF' | 'MGC') => {
+  // --- [REFACTORED DOWNLOAD ROUTER] ---
+  const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
     if (!generatedFiles) return;
 
-    if (type === 'PDF') {
-      // PDF menggunakan alur PWA Handoff (Share Sheet)
-      setIsModalOpen(true);
-    } else if (type === 'MGC' && generatedFiles.mgcToken) {
-      // MGC menggunakan utilitas eksternal adaptif
-      downloadMgcFile(
-        generatedFiles.filenameMgc || "Proteksi.mgc",
-        generatedFiles.mgcToken
-      );
+    try {
+      if (type === 'PDF' && generatedFiles.pdfBlob && generatedFiles.filenamePdf) {
+        // Eksekusi Blob PDF via Engine
+        const exportStatus = await executeUniversalExport(generatedFiles.pdfBlob, generatedFiles.filenamePdf);
+
+        if (exportStatus === 'SHARED') {
+          toast.success("Dokumen PDF siap dibagikan.");
+        } else if (exportStatus === 'DOWNLOADED') {
+          toast.success("Dokumen PDF berhasil diunduh.");
+        }
+
+      } else if (type === 'MGC' && generatedFiles.mgcToken) {
+        // [HARDENED] Transformasi Token String menjadi Blob Biner
+        const mgcBlob = new Blob([generatedFiles.mgcToken], { type: 'application/octet-stream' });
+        const filename = generatedFiles.filenameMgc || "Proteksi.mgc";
+
+        // Eksekusi Blob MGC melalui Universal Engine (Bypass Permission Denied)
+        const exportStatus = await executeUniversalExport(mgcBlob, filename);
+
+        if (exportStatus === 'SHARED') {
+          toast.success("File Backup (.mgc) siap dibagikan.");
+        } else if (exportStatus === 'DOWNLOADED') {
+          toast.success("File Backup (.mgc) berhasil disimpan.");
+        }
+      }
+    } catch (error) {
+      console.error(`Export Error (${type}):`, error);
+      toast.error(`Gagal memproses file ${type}.`);
     }
   };
 
@@ -215,18 +225,13 @@ export default function InsurancePage() {
       try {
         const content = (event.target?.result as string).trim();
 
-        // PERBAIKAN: Jangan didestructuring { data } jika service sudah mengembalikan response.data
         const decodedResponse = await financialService.decodeSimulationToken(content);
-
-        // Cek apakah data dibungkus dalam properti .data (Axios raw) atau sudah bersih (dari service)
         const importedData = decodedResponse.data || decodedResponse;
 
-        // Validasi modul agar tidak salah file
         if (importedData.meta?.module !== 'INSURANCE') {
           throw new Error("File ini bukan untuk simulasi Asuransi.");
         }
 
-        // Mapping data kembali ke state form
         setClientData({
           clientName: importedData.client.name || "",
           clientDob: importedData.client.dob || "",
@@ -237,7 +242,6 @@ export default function InsurancePage() {
 
         setDependents(importedData.financial.dependents || 0);
 
-        // Format ulang angka ke string bertitik untuk UI
         const fmt = new Intl.NumberFormat("id-ID");
 
         setDebtData({
@@ -255,7 +259,6 @@ export default function InsurancePage() {
         setFinalExpense(fmt.format(importedData.financial.finalExpense || 0));
         setExistingInsurance(fmt.format(importedData.financial.existingCoverage || 0));
 
-        // Reset hasil kalkulasi lama agar user harus klik hitung ulang (Sync validasi)
         sessionId.current = uuidv4();
         setResult(null);
         setGeneratedFiles(null);
@@ -387,7 +390,7 @@ export default function InsurancePage() {
             ) : (
               <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
                 <DownloadCenter
-                  pdfUrl={generatedFiles?.pdfUrl || null}
+                  pdfBlob={generatedFiles?.pdfBlob || null} // [MODIFIED] Menyesuaikan props
                   mgcToken={generatedFiles?.mgcToken || null}
                   filenamePdf={generatedFiles?.filenamePdf || null}
                   filenameMgc={generatedFiles?.filenameMgc || null}
@@ -421,12 +424,7 @@ export default function InsurancePage() {
         onApply={applyCalculation}
       />
 
-      {/* [PWA FEEDBACK MODAL] Handoff Area */}
-      <PostDownloadAction
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        fileData={downloadData}
-      />
+      {/* [CLEANUP] Komponen PostDownloadAction (Modal) dihapus dari DOM. */}
     </div>
   );
 }
