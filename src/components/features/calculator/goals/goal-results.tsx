@@ -1,18 +1,25 @@
 import { motion, Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Calculator, CheckCircle2, FileJson, Share2 } from "lucide-react"; // Ikon Download diganti dengan Share2
+import { Calculator, CheckCircle2, FileJson, Share2 } from "lucide-react";
 import { GoalSimulationResult } from "@/lib/types";
 import { GoalRealityCard } from "./goal-reality-card";
 import { GoalSolutionCard } from "./goal-solution-card";
 import { GoalStrategyCard } from "./goal-strategy-card";
 import { GoalsGuide } from "../guide/goals-guide";
 
+// [MODIFIED INTERFACE] 
+// Menyesuaikan kontrak data dengan state `generatedFiles` yang baru di page.tsx
 interface GoalResultsProps {
     result: GoalSimulationResult | null;
     targetAmount: number;
     inflation: number;
     returnRate: number;
-    generatedFiles: { pdfUrl: string | null, mgcToken: string | null } | null;
+    generatedFiles: {
+        pdfBlob: Blob | null;
+        mgcToken: string | null;
+        filenameMgc: string | null;
+        filenamePdf: string | null;
+    } | null;
     handleDownloadFile: (type: 'PDF' | 'MGC') => void;
 }
 
@@ -69,7 +76,8 @@ export function GoalResults({ result, targetAmount, inflation, returnRate, gener
                                     <Button
                                         size="sm"
                                         onClick={() => handleDownloadFile('PDF')}
-                                        disabled={!generatedFiles.pdfUrl}
+                                        // [MODIFIED] Cek eksistensi pdfBlob, bukan pdfUrl
+                                        disabled={!generatedFiles.pdfBlob}
                                         className="h-11 px-6 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold shadow-md active:scale-95 transition-all"
                                     >
                                         <Share2 className="w-4 h-4 mr-2" /> Preview & Bagikan Laporan

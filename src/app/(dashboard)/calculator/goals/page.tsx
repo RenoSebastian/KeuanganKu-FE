@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Plane, Heart, Star, Target, Lock } from "lucide-react";
-import { v4 as uuidv4 } from 'uuid'; // [NEW] Import UUID
-import Link from "next/link"; // [NEW] Untuk link ke pricing
+import { v4 as uuidv4 } from 'uuid';
+import Link from "next/link";
 
 import { GoalSimulationResult, CreateGoalSimulationDto } from "@/lib/types";
 import { financialService } from "@/services/financial.service";
-import { useAuthUser } from "@/hooks/use-auth-user"; // [NEW] Auth Hook
-import { useUnifiedDownload } from "@/hooks/useUnifiedDownload"; // [NEW] Unified Download Hook
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 // UI Components
 import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal";
@@ -22,8 +21,8 @@ import { GoalInputForm } from "@/components/features/calculator/goals/goal-input
 import { GoalResults } from "@/components/features/calculator/goals/goal-results";
 import { generateSimulationFilename } from "@/lib/formatters";
 
-// [PHASE 3] Preview-First Download Modal
-import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
+// [NEW ARCHITECTURE] Import mesin eksekutor Universal
+import { executeUniversalExport } from "@/utils/universal-export-engine";
 
 // --- KONFIGURASI PILIHAN ---
 const GOAL_OPTIONS = [
@@ -34,7 +33,7 @@ const GOAL_OPTIONS = [
 ];
 
 export default function GoalsPage() {
-    // [NEW] Auth & Quota Logic
+    // Auth & Quota Logic
     const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
     const hasAccess = isPro || quota > 0;
 
@@ -44,13 +43,15 @@ export default function GoalsPage() {
     });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    // [NEW] Idempotency Key untuk mencegah pemotongan kuota ganda saat edit
     const sessionId = useRef(uuidv4());
 
-    // --- [NEW STATES] PWA DOWNLOAD HANDOFF ---
-    // --- [PHASE 3] Preview-First Download Modal State ---
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    // [MODIFIED STATE] Menyimpan raw Blob alih-alih URL untuk mencegah memory leak
+    const [generatedFiles, setGeneratedFiles] = useState<{
+        pdfBlob: Blob | null;
+        mgcToken: string | null;
+        filenameMgc: string | null;
+        filenamePdf: string | null;
+    } | null>(null);
 
     const [clientData, setClientData] = useState({ clientName: "", clientDob: "", clientCity: "", clientJob: "", clientPhone: "" });
     const [selectedGoal, setSelectedGoal] = useState<string>("LAINNYA");
@@ -63,7 +64,6 @@ export default function GoalsPage() {
     const [returnRate, setReturnRate] = useState(6);
 
     const [result, setResult] = useState<GoalSimulationResult | null>(null);
-    const [generatedFiles, setGeneratedFiles] = useState<{ pdfUrl: string | null; mgcToken: string | null; filenameMgc: string | null; filenamePdf: string | null; } | null>(null);
 
     const [isLoading, setIsLoading] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
@@ -125,16 +125,13 @@ export default function GoalsPage() {
                 currentSaving: parseMoney(currentSaving),
                 inflationRate: inflation,
                 returnRate: returnRate,
-                sessionId: sessionId.current // [NEW] Kirim Session ID
+                sessionId: sessionId.current
             };
 
             const response = await financialService.simulateAgentGoal(payload);
 
             // [UPDATE: REALTIME SYNC]
-            // 1. Update state di hook halaman ini
             await refreshUser();
-
-            // 2. Kirim sinyal ke Sidebar agar progress bar kuota berkurang otomatis
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new Event('refresh_user_data'));
             }
@@ -156,15 +153,10 @@ export default function GoalsPage() {
                 if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
             }
 
-            // [INTEGRASI PWA] Transformasi Blob menjadi File Object untuk PostDownloadAction
-            const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
-            const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
-            const pdfUrl = window.URL.createObjectURL(pdfFile);
-
-            setDownloadData({ file: pdfFile, url: pdfUrl, filename: pdfFilename });
-
+            // [CLEAN ARCHITECTURE] Simpan Blob biner langsung ke state tanpa membuat Object URL
             setGeneratedFiles({
-                pdfUrl, mgcToken: token,
+                pdfBlob: new Blob([response.data], { type: 'application/pdf' }),
+                mgcToken: token,
                 filenameMgc: generateSimulationFilename("Rencana Khusus", clientData.clientName, "mgc"),
                 filenamePdf: pdfFilename
             });
@@ -189,19 +181,38 @@ export default function GoalsPage() {
         }
     };
 
+    // --- [REFACTORED DOWNLOAD ROUTER] ---
     const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
         if (!generatedFiles) return;
 
-        if (type === 'PDF' && generatedFiles.pdfUrl) {
-            // PDF: Open preview modal first
-            setPreviewUrl(generatedFiles.pdfUrl);
-            setShowPreviewModal(true);
-        } else if (type === 'MGC' && generatedFiles.mgcToken) {
-            // MGC: Direct download via unified hook
-            await downloadMgcUnified(
-                generatedFiles.mgcToken,
-                generatedFiles.filenameMgc || "Financial Goals.mgc"
-            );
+        try {
+            if (type === 'PDF' && generatedFiles.pdfBlob && generatedFiles.filenamePdf) {
+                // Eksekusi Blob PDF via Engine
+                const exportStatus = await executeUniversalExport(generatedFiles.pdfBlob, generatedFiles.filenamePdf);
+
+                if (exportStatus === 'SHARED') {
+                    toast.success("Dokumen PDF siap dibagikan.");
+                } else if (exportStatus === 'DOWNLOADED') {
+                    toast.success("Dokumen PDF berhasil diunduh.");
+                }
+
+            } else if (type === 'MGC' && generatedFiles.mgcToken) {
+                // [HARDENED] Transformasi Token String menjadi Blob Biner
+                const mgcBlob = new Blob([generatedFiles.mgcToken], { type: 'application/octet-stream' });
+                const filename = generatedFiles.filenameMgc || "Backup_Goal.mgc";
+
+                // Eksekusi Blob MGC melalui Universal Engine
+                const exportStatus = await executeUniversalExport(mgcBlob, filename);
+
+                if (exportStatus === 'SHARED') {
+                    toast.success("File Backup (.mgc) siap dibagikan.");
+                } else if (exportStatus === 'DOWNLOADED') {
+                    toast.success("File Backup (.mgc) berhasil disimpan.");
+                }
+            }
+        } catch (error) {
+            console.error(`Export Error (${type}):`, error);
+            toast.error(`Gagal memproses file ${type}.`);
         }
     };
 
@@ -295,7 +306,7 @@ export default function GoalsPage() {
                     {/* WRAPPER KIRI (FORM) */}
                     <div className="lg:col-span-5 space-y-6">
 
-                        {/* [NEW] Quota Alert Card */}
+                        {/* Quota Alert Card */}
                         {!hasAccess && !isAuthLoading && (
                             <Card className="p-5 rounded-2xl bg-red-50 border border-red-200 shadow-sm animate-pulse">
                                 <div className="flex items-start gap-4">
@@ -334,16 +345,7 @@ export default function GoalsPage() {
                 </div>
             </div>
 
-            {/* [PWA FEEDBACK MODAL] Handoff Area */}
-            {/* [PHASE 3] Preview-First Download Modal */}
-            <PdfPreviewModal
-                isOpen={showPreviewModal}
-                onClose={handlePreviewModalClose}
-                previewUrl={previewUrl || ""}
-                fileName={generatedFiles?.filenamePdf || "Financial Goals.pdf"}
-                onDownload={handlePdfConfirmDownload}
-                onShare={handlePdfConfirmDownload}
-            />
+            {/* [CLEANUP] Komponen PostDownloadAction (Modal) telah dihapus dari DOM. */}
         </div>
     );
 }
