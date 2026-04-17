@@ -18,6 +18,8 @@ interface AnalysisResultProps {
     data: RiskProfileSimulationResult;
     userAnswers?: RiskProfileAnswerItem[];
     onDownloadPdf: () => Promise<void> | void;
+    onDownloadMgc: () => Promise<void> | void; // <- Tambahkan ini
+    hasMgcToken?: boolean;
     onRetake: () => void;
     onReset: () => void;
     isDownloading?: boolean;
