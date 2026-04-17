@@ -37,11 +37,6 @@ export default function GoalsPage() {
     const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
     const hasAccess = isPro || quota > 0;
 
-    // --- [PHASE 3] Unified Download Hook ---
-    const { downloadMgc: downloadMgcUnified, triggerPdfDownload } = useUnifiedDownload({
-        autoToast: true,
-    });
-
     const fileInputRef = useRef<HTMLInputElement>(null);
     const sessionId = useRef(uuidv4());
 
@@ -214,18 +209,6 @@ export default function GoalsPage() {
             console.error(`Export Error (${type}):`, error);
             toast.error(`Gagal memproses file ${type}.`);
         }
-    };
-
-    const handlePdfConfirmDownload = async () => {
-        if (!previewUrl || !generatedFiles?.filenamePdf) return;
-        await triggerPdfDownload(previewUrl, generatedFiles.filenamePdf);
-        setShowPreviewModal(false);
-        setPreviewUrl(null);
-    };
-
-    const handlePreviewModalClose = () => {
-        setShowPreviewModal(false);
-        setPreviewUrl(null);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

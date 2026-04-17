@@ -11,7 +11,6 @@ import { toast } from "sonner";
 
 // --- HOOKS & SERVICES ---
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 import { financialService } from "@/services/financial.service";
 import { CreateInsuranceSimulationDto, InsuranceSimulationResult } from "@/lib/types";
 
@@ -39,11 +38,6 @@ export default function InsurancePage() {
   // --- AUTH & QUOTA ---
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
   const hasAccess = isPro || quota > 0;
-
-  // --- [PHASE 3] Unified Download Hook ---
-  const { downloadMgc: downloadMgcUnified, triggerPdfDownload } = useUnifiedDownload({
-    autoToast: true,
-  });
 
   // --- REFS ---
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,18 +214,6 @@ export default function InsurancePage() {
       console.error(`Export Error (${type}):`, error);
       toast.error(`Gagal memproses file ${type}.`);
     }
-  };
-
-  const handlePdfConfirmDownload = async () => {
-    if (!previewUrl || !generatedFiles?.filenamePdf) return;
-    await triggerPdfDownload(previewUrl, generatedFiles.filenamePdf);
-    setShowPreviewModal(false);
-    setPreviewUrl(null);
-  };
-
-  const handlePreviewModalClose = () => {
-    setShowPreviewModal(false);
-    setPreviewUrl(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

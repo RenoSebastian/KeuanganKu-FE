@@ -12,7 +12,6 @@ import Link from "next/link";
 
 // Hooks & Services
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 import { financialService } from "@/services/financial.service";
 import { BudgetResult, CreateBudgetSimulationDto } from "@/lib/types";
 
@@ -30,11 +29,6 @@ import { executeUniversalExport } from "@/utils/universal-export-engine";
 export default function AgentBudgetPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
   const hasAccess = isPro || quota > 0;
-
-  // --- [PHASE 3] Unified Download Hook ---
-  const { downloadMgc: downloadMgcUnified, triggerPdfDownload } = useUnifiedDownload({
-    autoToast: true,
-  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(uuidv4());
