@@ -432,7 +432,7 @@ export function CheckupResult({
                                             </Badge>
                                         </div>
 
-                                        <div className="flex-grow">
+                                        <div className="grow">
                                             <h4 className="font-bold text-slate-800 text-sm leading-tight line-clamp-2">{ratio.label}</h4>
                                             <div className="mt-3 flex items-baseline gap-1">
                                                 <span className="text-2xl font-black tracking-tight text-slate-900">
