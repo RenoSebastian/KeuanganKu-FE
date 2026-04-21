@@ -143,7 +143,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                     if (decoded.client) setClientData(decoded.client);
                     if (decoded.financial) setFinancialRecord(decoded.financial);
 
-                    // Menyusun ulang Standardized Response Contract secara absolut
+                    // Menyusun ulang Standardized Response Contract secara absolut (tanpa result)
                     const standardizedData: CheckupSimulationResponse = {
                         ...decoded,
                         data: decoded,
@@ -151,17 +151,20 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                         filename: file.name,
                     };
 
-                    // [FIX] Mengisi generatedFiles fallback
                     setGeneratedFiles({
-                        pdfBlob: null, // Harus diregenerate ulang jika mau PDF
+                        pdfBlob: null,
                         mgcToken: tokenString,
                         filenameMgc: file.name,
                         filenamePdf: file.name.replace('.mgc', '.pdf')
                     });
 
                     setSimulationData(standardizedData);
-                    setCurrentStep("RESULT");
-                    toast.success("Import Berhasil!", { id: toastId, description: "Data siap dianalisa ulang." });
+
+                    // [CRITICAL FIX] 
+                    // Jangan panggil setCurrentStep("RESULT") karena MGC sekarang tidak punya rasio!
+                    // Arahkan ke FINANCIAL. User tinggal klik "Diagnosa Sekarang" untuk merender ulang hasil.
+                    setCurrentStep("FINANCIAL");
+                    toast.success("Import Berhasil!", { id: toastId, description: "Klik 'Diagnosa Sekarang' untuk memuat laporan." });
                 } catch (err: any) {
                     const beMessage = err.response?.data?.message;
                     let finalMessage = "Token MGC rusak atau tidak valid.";
@@ -175,11 +178,12 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             };
             reader.readAsText(file);
         } catch (error) {
+            console.error("File Read Error:", error);
+            toast.error("Gagal membaca file. Pastikan file tidak rusak.");
             setInternalLoading(false);
-            toast.error("Sistem gagal membaca file fisik.");
         }
-        if (e.target) e.target.value = "";
     };
+    
 
     const handleReset = () => {
         if (confirm("Mulai sesi baru? Semua input saat ini akan dihapus permanen.")) {
