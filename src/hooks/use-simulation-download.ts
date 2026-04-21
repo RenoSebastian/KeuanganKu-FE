@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { AxiosResponse } from "axios";
 import { DownloadResultData } from "@/components/features/shared/post-download-action";
-import { downloadMgcFile } from "@/lib/utils";
+import { toast } from "sonner";
+
+// [UPDATED] Menggunakan standar arsitektur ekspor universal Anda
+import { executeUniversalExport } from "@/utils/universal-export-engine";
 
 export function useSimulationDownload() {
     const [isLoading, setIsLoading] = useState(false);
@@ -10,7 +13,7 @@ export function useSimulationDownload() {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     /**
-     * [UPDATED] Menggunakan Inversion of Control.
+     * Menggunakan Inversion of Control.
      * Menerima Promise langsung dari financialService (Delegation).
      * Memastikan logic adapter data di layer Service tetap tereksekusi.
      */
@@ -42,17 +45,31 @@ export function useSimulationDownload() {
 
         } catch (error) {
             console.error("Gagal menjalankan simulasi:", error);
-            throw error; // Lempar error kembali agar komponen UI (contoh: Button handler) bisa memicu Toast
+            throw error; // Lempar error kembali agar komponen UI bisa memicu Toast
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleSaveMgc = () => {
+    const handleSaveMgc = async () => {
         if (mgcToken && pdfResult) {
-            // [FIXED] Ganti ekstensi file menggunakan Regex (lebih aman daripada .replace statis)
-            const mgcName = pdfResult.filename.replace(/\.[^/.]+$/, "") + ".mgc";
-            downloadMgcFile(mgcName, mgcToken);
+            try {
+                // 1. Siapkan nama dan ubah string token ke biner (Blob)
+                const mgcName = pdfResult.filename.replace(/\.[^/.]+$/, "") + ".mgc";
+                const mgcBlob = new Blob([mgcToken], { type: 'application/octet-stream' });
+
+                // 2. Lempar ke Universal Export Engine
+                const exportStatus = await executeUniversalExport(mgcBlob, mgcName);
+
+                if (exportStatus === 'SHARED') {
+                    toast.success("File Backup (.mgc) siap dibagikan.");
+                } else if (exportStatus === 'DOWNLOADED') {
+                    toast.success("File Backup (.mgc) berhasil disimpan.");
+                }
+            } catch (error) {
+                console.error("Export Error (MGC):", error);
+                toast.error("Gagal menyimpan file backup.");
+            }
         }
     };
 

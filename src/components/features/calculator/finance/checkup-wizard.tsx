@@ -17,15 +17,17 @@ import {
 } from "@/lib/types/financial-checkup";
 
 import { financialService } from "@/services/financial.service";
+import { generateSimulationFilename } from "@/lib/formatters";
 
 // Imports Sub-Components
 import { ClientIdentityForm } from "./client-identity-form";
 import { CheckupResult } from "./checkup-result";
 import { FinancialInputSection } from "./financial-input-section";
 
-// Hooks
+// Hooks & Utils
 import { useSimulationPersistence, SIMULATION_STORAGE_KEYS } from "@/hooks/use-simulation-persistence";
 import { cn } from "@/lib/utils";
+import { executeUniversalExport } from "@/utils/universal-export-engine";
 
 // ============================================================================
 // CONSTANTS & INITIAL STATE
@@ -73,6 +75,14 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
     const [financialRecord, setFinancialRecord] = useState<FinancialFormState>(INITIAL_FINANCIAL_STATE);
     const [simulationData, setSimulationData] = useState<CheckupSimulationResponse | null>(null);
 
+    // [FIX] State untuk memegang Blob Biner dan Token yang akan dilempar ke CheckupResult
+    const [generatedFiles, setGeneratedFiles] = useState<{
+        pdfBlob: Blob | null;
+        mgcToken: string | null;
+        filenameMgc: string | null;
+        filenamePdf: string | null;
+    } | null>(null);
+
     // Boolean komposit untuk status loading (menggabungkan parent dan internal)
     const isProcessing = isLoading || internalLoading;
 
@@ -93,7 +103,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             if (restoredClient) setClientData(restoredClient);
             if (restoredInput) setFinancialRecord(restoredInput);
 
-            // [FIX] Validasi keamanan Hydration, pastikan token MGC ikut di-restore jika ada Result
             if (restoredResult) {
                 setSimulationData(restoredResult);
             }
@@ -136,11 +145,19 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
 
                     // Menyusun ulang Standardized Response Contract secara absolut
                     const standardizedData: CheckupSimulationResponse = {
-                        ...decoded, // Extrak semua root properties (meta, dll)
-                        data: decoded, // Bungkus untuk kompatibilitas CheckupResult component
-                        mgcToken: tokenString, // Token diinjeksi eksplisit di root
+                        ...decoded,
+                        data: decoded,
+                        mgcToken: tokenString,
                         filename: file.name,
                     };
+
+                    // [FIX] Mengisi generatedFiles fallback
+                    setGeneratedFiles({
+                        pdfBlob: null, // Harus diregenerate ulang jika mau PDF
+                        mgcToken: tokenString,
+                        filenameMgc: file.name,
+                        filenamePdf: file.name.replace('.mgc', '.pdf')
+                    });
 
                     setSimulationData(standardizedData);
                     setCurrentStep("RESULT");
@@ -170,6 +187,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             setClientData(null);
             setFinancialRecord(INITIAL_FINANCIAL_STATE);
             setSimulationData(null);
+            setGeneratedFiles(null);
             setCurrentStep("IDENTITY");
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -206,10 +224,38 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         const toastId = toast.loading("Memproses Kalkulasi...", { description: "Menganalisis matriks kesehatan finansial..." });
 
         try {
+            // 1. Tembak Endpoint Single-Pass yang me-return AxiosResponse<Blob>
             const response = await financialService.simulateAgentCheckup(payload);
 
-            // Response dari Adapter Layer sudah terjamin memiliki .mgcToken di Root
-            setSimulationData(response);
+            // 2. Ekstrak Header untuk mencari Magic Token
+            const token = response.headers['x-mgc-token'];
+            const disposition = response.headers['content-disposition'];
+
+            if (!token) throw new Error("Server gagal mengembalikan Token MGC.");
+
+            // 3. Tentukan nama file
+            let pdfFilename = `Checkup_${clientData.client?.name || "Klien"}.pdf`;
+            if (disposition) {
+                const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
+            }
+
+            // 4. [FIX] Decode Token MGC untuk mendapatkan JSON data.
+            // Langkah ini KRUSIAL agar UI CheckupResult bisa me-render angka-angka hasil simulasi
+            const payloadBase64 = token.split('.')[0];
+            const decodedData = JSON.parse(atob(payloadBase64));
+
+            // Set Data JSON (Supaya CheckupResult tidak terjebak layar Loading)
+            setSimulationData(decodedData);
+
+            // 5. Simpan Data Blob (Binary PDF) agar bisa di-download kapanpun oleh User
+            setGeneratedFiles({
+                pdfBlob: new Blob([response.data], { type: 'application/pdf' }),
+                mgcToken: token,
+                filenameMgc: pdfFilename.replace('.pdf', '.mgc'),
+                filenamePdf: pdfFilename
+            });
+
             setCurrentStep("RESULT");
             toast.success("Analisis Selesai", { id: toastId, description: "Laporan rasio kesehatan siap dicetak." });
         } catch (error: any) {
@@ -229,6 +275,34 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
+
+    // [NEW] Universal Download Handler yang di-pass ke CheckupResult
+    const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
+        if (!generatedFiles) {
+            toast.error("File belum siap diunduh.");
+            return;
+        }
+
+        try {
+            if (type === 'PDF' && generatedFiles.pdfBlob && generatedFiles.filenamePdf) {
+                const exportStatus = await executeUniversalExport(generatedFiles.pdfBlob, generatedFiles.filenamePdf);
+                if (exportStatus === 'SHARED') toast.success("Dokumen PDF siap dibagikan.");
+                else if (exportStatus === 'DOWNLOADED') toast.success("Dokumen PDF berhasil diunduh.");
+            } else if (type === 'MGC' && generatedFiles.mgcToken) {
+                // Transformasi Token String menjadi Blob Biner
+                const mgcBlob = new Blob([generatedFiles.mgcToken], { type: 'application/octet-stream' });
+                const filename = generatedFiles.filenameMgc || "Backup_Checkup.mgc";
+
+                const exportStatus = await executeUniversalExport(mgcBlob, filename);
+                if (exportStatus === 'SHARED') toast.success("File Backup (.mgc) siap dibagikan.");
+                else if (exportStatus === 'DOWNLOADED') toast.success("File Backup (.mgc) berhasil disimpan.");
+            }
+        } catch (error) {
+            console.error(`Export Error (${type}):`, error);
+            toast.error(`Gagal memproses file ${type}.`);
+        }
+    };
+
 
     const getInitialIdentityData = () => {
         if (!clientData) return undefined;
@@ -352,14 +426,17 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                     {currentStep === "RESULT" && simulationData && !onComplete && (
                         <motion.div key="result" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <div className="bg-white rounded-[2rem] shadow-2xl shadow-indigo-900/5 border border-slate-100 overflow-hidden">
+                                {/* [FIX] Me-lempar generatedFiles ke CheckupResult agar bisa diunduh */}
                                 <CheckupResult
                                     data={simulationData}
+                                    generatedFiles={generatedFiles}
                                     mode="AGENT_SIMULATION"
                                     onReset={handleReset}
                                     onEditData={() => {
                                         setCurrentStep("FINANCIAL");
                                         window.scrollTo({ top: 0, behavior: "smooth" });
                                     }}
+                                    onDownloadFile={handleDownloadFile} // Passing fungsi download
                                 />
                             </div>
                         </motion.div>

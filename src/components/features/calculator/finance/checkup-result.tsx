@@ -1,31 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import {
     CheckCircle2, AlertTriangle, XCircle,
-    RefreshCcw, FileText, ChevronDown, ChevronUp, ArrowLeft,
-    TrendingUp, Activity, Share2, FileJson,
-    Lock, Sparkles, Scale, Wallet, Target, Info, FileArchive,
-    User, Heart, Calendar, Phone, Briefcase, MapPin
+    RefreshCcw, ChevronDown, ChevronUp, ArrowLeft,
+    Activity, Share2, FileJson,
+    Lock, Sparkles, Scale, Wallet, Target, Info,
+    User, Heart, Calendar, Briefcase, MapPin
 } from "lucide-react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 
 import { FinancialRecord, HealthAnalysisResult, CheckupSimulationResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { financialService } from "@/services/financial.service";
 import { PdfLoadingModal } from "./pdf-loading-modal";
-import { generateSimulationFilename } from "@/lib/formatters";
-
-// [NEW ARCHITECTURE] Import mesin eksekutor Universal
-import { executeUniversalExport } from "@/utils/universal-export-engine";
 
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW" | "AGENT_SIMULATION";
 
@@ -38,9 +28,9 @@ interface CheckupResultProps {
         filenameMgc: string | null;
         filenamePdf: string | null;
     } | null;
-    setGeneratedFiles?: (data: any) => void;
     onReset?: () => void;
     onEditData?: () => void;
+    onDownloadFile?: (type: 'PDF' | 'MGC') => void;
     mode?: ViewMode;
     isDownloading?: boolean;
 }
@@ -106,17 +96,15 @@ export function CheckupResult({
     data,
     rawData,
     generatedFiles,
-    setGeneratedFiles,
     onReset,
     onEditData,
+    onDownloadFile,
     mode = "USER_VIEW",
     isDownloading = false
 }: CheckupResultProps) {
 
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
-    const [localPdfLoading, setLocalPdfLoading] = useState(false);
-    const [isDownloadingMgc, setIsDownloadingMgc] = useState(false);
 
     const isReadOnly = mode === "DIRECTOR_VIEW";
     const isAgentMode = mode === "AGENT_SIMULATION";
@@ -143,6 +131,18 @@ export function CheckupResult({
         return map[status] || status || "-";
     };
 
+    // [FIXED] Helper untuk mengkalkulasi umur dari Date of Birth jika 'age' tidak ada dari backend
+    const calculateAge = (dob?: string) => {
+        if (!dob) return null;
+        const birthDate = new Date(dob);
+        if (isNaN(birthDate.getTime())) return null;
+        const ageDifMs = Date.now() - birthDate.getTime();
+        const ageDate = new Date(ageDifMs);
+        return Math.abs(ageDate.getUTCFullYear() - 1970);
+    };
+
+    const displayAge = clientInfo?.age || calculateAge(clientInfo?.dob) || "-";
+
     if (!payload || (!payload?.ratios && !(payload as any)?.ratiosDetails)) {
         return (
             <div className="flex flex-col justify-center items-center p-12 bg-white/50 backdrop-blur-md rounded-3xl border border-slate-100 min-h-[40vh] shadow-inner">
@@ -165,87 +165,6 @@ export function CheckupResult({
     const monthlySurplus = Number(payload?.surplusDeficit ?? 0) || 0;
     const displaySurplus = viewMode === "ANNUAL" ? monthlySurplus * 12 : monthlySurplus;
 
-    // --- REFACTORED UNIVERSAL EXPORT HANDLERS ---
-
-    const handleAgentDownloadMgc = async () => {
-        if (isDownloadingMgc) return;
-
-        if (!mgcToken) {
-            toast.error("Token MGC tidak tersedia.");
-            return;
-        }
-
-        try {
-            setIsDownloadingMgc(true);
-            const clientName = clientInfo?.name || "Klien";
-            const filename = generatedFiles?.filenameMgc || generateSimulationFilename("Checkup Plan", clientName, "mgc");
-
-            // Transformasi string ke Blob Biner untuk Universal Engine
-            const mgcBlob = new Blob([mgcToken], { type: 'application/octet-stream' });
-            const exportStatus = await executeUniversalExport(mgcBlob, filename);
-
-            if (exportStatus === 'SHARED') toast.success("File Backup (.mgc) siap dibagikan.");
-            else if (exportStatus === 'DOWNLOADED') toast.success("File Backup (.mgc) berhasil disimpan.");
-
-        } catch (error) {
-            console.error("Simulation Download Error:", error);
-            toast.error("Gagal memproses file backup.");
-        } finally {
-            setIsDownloadingMgc(false);
-        }
-    };
-
-    const handleDownloadPdf = async () => {
-        if (localPdfLoading || isDownloading) return;
-
-        try {
-            setLocalPdfLoading(true);
-            const clientName = clientInfo?.name || "Klien";
-            const filenamePdf = generatedFiles?.filenamePdf || generateSimulationFilename("Checkup Plan", clientName, "pdf");
-
-            let blob: Blob;
-
-            // Jika PDF sudah di-generate dan tersimpan di state
-            if (generatedFiles?.pdfBlob) {
-                blob = generatedFiles.pdfBlob;
-            } else {
-                // Jika belum di-generate, minta dari server
-                if (isAgentMode) {
-                    const simId = data?.meta?.simulationId || (payload as any)?.id;
-                    if (!simId) { toast.error("ID Simulasi tidak tersedia untuk cetak PDF."); return; }
-                    const response = await financialService.downloadAgentCheckupPdf(simId, clientName);
-                    // Ambil raw data (buffer) lalu jadikan Blob
-                    blob = new Blob([(response as any).data || response], { type: 'application/pdf' });
-                } else {
-                    const recordId = (payload as any)?.id || (rawData as any)?.id || data?.meta?.simulationId;
-                    if (!recordId) { toast.error("ID Laporan tidak ditemukan."); return; }
-                    const response = await financialService.downloadCheckupPdf(recordId, clientName);
-                    blob = new Blob([(response as any).data || response], { type: 'application/pdf' });
-                }
-
-                // Simpan ke state untuk menghemat request berikutnya
-                if (setGeneratedFiles) {
-                    setGeneratedFiles({
-                        ...generatedFiles,
-                        pdfBlob: blob,
-                        filenamePdf: filenamePdf
-                    });
-                }
-            }
-
-            // Eksekusi Blob PDF via Engine
-            const exportStatus = await executeUniversalExport(blob, filenamePdf);
-            if (exportStatus === 'SHARED') toast.success("Dokumen PDF siap dibagikan.");
-            else if (exportStatus === 'DOWNLOADED') toast.success("Dokumen PDF berhasil diunduh.");
-
-        } catch (error) {
-            console.error("PDF Download Error:", error);
-            toast.error("Sistem gagal memproses dokumen PDF.");
-        } finally {
-            setLocalPdfLoading(false);
-        }
-    };
-
     // --- THEME ENGINE ---
     const getThemeConfig = (val: number) => {
         const safeVal = Number.isNaN(val) ? 0 : val;
@@ -262,7 +181,7 @@ export function CheckupResult({
     return (
         <>
             <div className="flex flex-col gap-6 md:gap-8 pb-8 animate-in fade-in zoom-in-95 duration-700">
-                <PdfLoadingModal isOpen={localPdfLoading || isDownloading} />
+                <PdfLoadingModal isOpen={isDownloading || false} />
 
                 {/* EXECUTIVE HERO CARD */}
                 <div className={cn("relative w-full rounded-[2rem] md:rounded-[2.5rem] overflow-hidden p-6 md:p-10 shadow-2xl bg-linear-to-br", theme.gradient)}>
@@ -332,7 +251,7 @@ export function CheckupResult({
                     </div>
                 </div>
 
-                {/* INFO CLIENT (Opsional/Bisa Dikecilkan) */}
+                {/* INFO CLIENT */}
                 {clientInfo && (
                     <div className="bg-white px-6 py-5 rounded-[2rem] border border-slate-100 shadow-xs flex flex-wrap items-center gap-x-8 gap-y-4">
                         <div className="flex items-center gap-3">
@@ -346,7 +265,8 @@ export function CheckupResult({
                             <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><Calendar className="w-4 h-4 text-slate-400" /></div>
                             <div>
                                 <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Usia</p>
-                                <p className="text-sm font-bold text-slate-700">{clientInfo.age || "-"} Tahun</p>
+                                {/* [FIXED] Menampilkan hasil kalkulasi fungsi calculateAge */}
+                                <p className="text-sm font-bold text-slate-700">{displayAge} Tahun</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -412,6 +332,13 @@ export function CheckupResult({
                                 glowEffect = "hover:shadow-rose-500/10 hover:border-rose-200";
                             }
 
+                            // [FIXED] Ekstraksi Kuat untuk mengatasi perbedaan Schema Backend Lama & Baru
+                            const safeRatioValue = Number(ratio.value ?? ratio.ratioValue) || 0;
+                            const idealText = ratio.benchmark || ratio.idealCondition || "-";
+                            const analysisText = ratio.recommendation || ratio.analysis || "Detail analisa tidak tersedia.";
+                            const isPercentage = ratio.type === "PERCENTAGE" || idealText.includes("%");
+                            const typeSymbol = isPercentage ? "%" : "x";
+
                             return (
                                 <Card
                                     key={index}
@@ -428,7 +355,7 @@ export function CheckupResult({
                                                 <Activity className="w-5 h-5 text-slate-400" />
                                             </div>
                                             <Badge variant="outline" className={cn("text-[10px] uppercase font-black tracking-wider px-2 py-0.5 gap-1", statusBadgeColor)}>
-                                                {statusIcon} {ratio.statusLabel}
+                                                {statusIcon} {ratio.statusLabel || ratio.statusColor.replace("_", " ")}
                                             </Badge>
                                         </div>
 
@@ -436,14 +363,14 @@ export function CheckupResult({
                                             <h4 className="font-bold text-slate-800 text-sm leading-tight line-clamp-2">{ratio.label}</h4>
                                             <div className="mt-3 flex items-baseline gap-1">
                                                 <span className="text-2xl font-black tracking-tight text-slate-900">
-                                                    {ratio.ratioValue.toFixed(2)}
+                                                    {safeRatioValue.toFixed(2)}
                                                 </span>
                                                 <span className="text-xs font-bold text-slate-400">
-                                                    {ratio.type === "PERCENTAGE" ? "%" : "x"}
+                                                    {typeSymbol}
                                                 </span>
                                             </div>
                                             <p className="text-[10px] text-slate-400 font-medium mt-1 flex items-center gap-1">
-                                                <Target className="w-3 h-3" /> Ideal: {ratio.idealCondition}
+                                                <Target className="w-3 h-3" /> Ideal: {idealText}
                                             </p>
                                         </div>
 
@@ -456,7 +383,7 @@ export function CheckupResult({
                                     {isExpanded && (
                                         <div className="bg-slate-50 p-5 border-t border-slate-100 animate-in slide-in-from-top-2">
                                             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                                                {ratio.analysis}
+                                                {analysisText}
                                             </p>
                                         </div>
                                     )}
@@ -480,13 +407,13 @@ export function CheckupResult({
                         </p>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Action Buttons: Memanggil fungsi delegasi onDownloadFile dari CheckupWizard */}
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
                         {onReset && !isReadOnly && (
                             <Button
                                 variant="outline"
                                 onClick={onReset}
-                                disabled={localPdfLoading || isDownloadingMgc}
+                                disabled={isDownloading}
                                 className="w-full sm:w-auto h-12 rounded-xl border-slate-300 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all px-6"
                             >
                                 <RefreshCcw className="w-4 h-4 mr-2" /> Mulai Baru
@@ -497,7 +424,7 @@ export function CheckupResult({
                             <Button
                                 variant="secondary"
                                 onClick={onEditData}
-                                disabled={localPdfLoading || isDownloadingMgc}
+                                disabled={isDownloading}
                                 className="w-full sm:w-auto h-12 rounded-xl bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 font-bold active:scale-95 transition-all px-6"
                             >
                                 <ArrowLeft className="w-4 h-4 mr-2" /> Revisi Angka
@@ -507,21 +434,21 @@ export function CheckupResult({
                         {isAgentMode && (
                             <Button
                                 variant="outline"
-                                onClick={handleAgentDownloadMgc}
-                                disabled={localPdfLoading || isDownloadingMgc || !mgcToken}
+                                onClick={() => onDownloadFile?.('MGC')}
+                                disabled={isDownloading || !mgcToken}
                                 className="w-full sm:w-auto h-12 rounded-xl border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all px-6 font-bold"
                             >
-                                {isDownloadingMgc ? <Activity className="w-4 h-4 mr-2 animate-spin" /> : <FileJson className="w-4 h-4 mr-2" />}
+                                <FileJson className="w-4 h-4 mr-2" />
                                 Cadangkan .MGC
                             </Button>
                         )}
 
                         <Button
-                            onClick={handleDownloadPdf}
-                            disabled={localPdfLoading || isDownloading}
+                            onClick={() => onDownloadFile?.('PDF')}
+                            disabled={isDownloading}
                             className="w-full sm:w-auto h-12 rounded-xl font-black shadow-lg shadow-indigo-600/30 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white px-8"
                         >
-                            {(localPdfLoading || isDownloading) ? (
+                            {isDownloading ? (
                                 <><RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> Memproses...</>
                             ) : (
                                 <><Share2 className="w-5 h-5 mr-2" /> Simpan / Bagikan PDF</>
@@ -531,7 +458,6 @@ export function CheckupResult({
                 </div>
 
             </div>
-            {/* [CLEANUP] Komponen PostDownloadAction dihapus dari DOM (Karena Universal Export Engine). */}
         </>
     );
 }
