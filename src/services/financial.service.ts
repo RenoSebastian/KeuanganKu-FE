@@ -25,8 +25,7 @@ import { CreateRiskProfileSimulationDto } from "@/lib/types/risk-profile";
 import {
   FinancialFormState, // Alias untuk FinancialAnnualState
   FinancialAnnualState,
-  FinancialMonthlyPayload,
-  CheckupSimulationResponse
+  FinancialMonthlyPayload
 } from "@/lib/types/financial-checkup";
 
 import {
@@ -370,29 +369,12 @@ export const financialService = {
     });
   },
 
-  simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<CheckupSimulationResponse> => {
+  // [UPDATED] Arsitektur Single-Pass Stateless Streaming
+  simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
     const apiPayload = toMonthlyPayload(data);
-    const response = await api.post<CheckupSimulationResponse>("/financial/simulation/checkup/calculate", apiPayload);
-
-    const responseData = response.data as any;
-
-    if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
-      responseData.mgcToken = responseData.data.mgcToken;
-    }
-
-    return responseData;
-  },
-
-  /**
-   * [UPDATED] downloadAgentCheckupPdf
-   */
-  downloadAgentCheckupPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
-    const response = await api.get(`/financial/simulation/checkup/${simulationId}/pdf`, {
-      responseType: 'blob',
-      timeout: 60000,
+    return await api.post("/financial/simulation/checkup", apiPayload, {
+      responseType: 'blob'
     });
-
-    return prepareFileForPwa(response, "Checkup Simulation", clientName);
   },
 
   // ===========================================================================
