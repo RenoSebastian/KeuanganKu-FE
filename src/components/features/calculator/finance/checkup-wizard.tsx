@@ -67,7 +67,6 @@ export interface CheckupWizardProps {
 export function CheckupWizard({ onComplete, onBack, isLoading = false }: CheckupWizardProps) {
     // --- STATE MANAGEMENT ---
     const [currentStep, setCurrentStep] = useState<WizardStep>("IDENTITY");
-    // Internal Loading State untuk proses yang tidak melibatkan parent (seperti import file)
     const [internalLoading, setInternalLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,7 +74,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
     const [financialRecord, setFinancialRecord] = useState<FinancialFormState>(INITIAL_FINANCIAL_STATE);
     const [simulationData, setSimulationData] = useState<CheckupSimulationResponse | null>(null);
 
-    // [FIX] State untuk memegang Blob Biner dan Token yang akan dilempar ke CheckupResult
     const [generatedFiles, setGeneratedFiles] = useState<{
         pdfBlob: Blob | null;
         mgcToken: string | null;
@@ -83,7 +81,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         filenamePdf: string | null;
     } | null>(null);
 
-    // Boolean komposit untuk status loading (menggabungkan parent dan internal)
     const isProcessing = isLoading || internalLoading;
 
     // --- FULL PERSISTENCE INTEGRATION ---
@@ -140,7 +137,15 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                 try {
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
-                    if (decoded.client) setClientData(decoded.client);
+                    // [CRITICAL FIX] Membungkus ulang properti 'client' dan 'spouse' agar struktur JSON
+                    // tidak bocor/flat saat dikirim ulang ke Backend (Mencegah Bad Request 400).
+                    if (decoded.client) {
+                        setClientData({
+                            client: decoded.client,
+                            spouse: decoded.spouse || undefined
+                        });
+                    }
+
                     if (decoded.financial) setFinancialRecord(decoded.financial);
 
                     // Menyusun ulang Standardized Response Contract secara absolut (tanpa result)
@@ -160,8 +165,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
 
                     setSimulationData(standardizedData);
 
-                    // [CRITICAL FIX] 
-                    // Jangan panggil setCurrentStep("RESULT") karena MGC sekarang tidak punya rasio!
                     // Arahkan ke FINANCIAL. User tinggal klik "Diagnosa Sekarang" untuk merender ulang hasil.
                     setCurrentStep("FINANCIAL");
                     toast.success("Import Berhasil!", { id: toastId, description: "Klik 'Diagnosa Sekarang' untuk memuat laporan." });
@@ -178,12 +181,11 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             };
             reader.readAsText(file);
         } catch (error) {
-            console.error("File Read Error:", error);
-            toast.error("Gagal membaca file. Pastikan file tidak rusak.");
             setInternalLoading(false);
+            toast.error("Sistem gagal membaca file fisik.");
         }
+        if (e.target) e.target.value = "";
     };
-    
 
     const handleReset = () => {
         if (confirm("Mulai sesi baru? Semua input saat ini akan dihapus permanen.")) {
@@ -244,12 +246,11 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                 if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
             }
 
-            // 4. [FIX] Decode Token MGC untuk mendapatkan JSON data.
-            // Langkah ini KRUSIAL agar UI CheckupResult bisa me-render angka-angka hasil simulasi
+            // 4. Decode Token MGC untuk mendapatkan JSON data.
             const payloadBase64 = token.split('.')[0];
             const decodedData = JSON.parse(atob(payloadBase64));
 
-            // Set Data JSON (Supaya CheckupResult tidak terjebak layar Loading)
+            // Set Data JSON
             setSimulationData(decodedData);
 
             // 5. Simpan Data Blob (Binary PDF) agar bisa di-download kapanpun oleh User
@@ -280,7 +281,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         }
     };
 
-    // [NEW] Universal Download Handler yang di-pass ke CheckupResult
     const handleDownloadFile = async (type: 'PDF' | 'MGC') => {
         if (!generatedFiles) {
             toast.error("File belum siap diunduh.");
@@ -306,7 +306,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
             toast.error(`Gagal memproses file ${type}.`);
         }
     };
-
 
     const getInitialIdentityData = () => {
         if (!clientData) return undefined;
@@ -430,7 +429,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                     {currentStep === "RESULT" && simulationData && !onComplete && (
                         <motion.div key="result" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <div className="bg-white rounded-[2rem] shadow-2xl shadow-indigo-900/5 border border-slate-100 overflow-hidden">
-                                {/* [FIX] Me-lempar generatedFiles ke CheckupResult agar bisa diunduh */}
                                 <CheckupResult
                                     data={simulationData}
                                     generatedFiles={generatedFiles}
@@ -440,7 +438,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                         setCurrentStep("FINANCIAL");
                                         window.scrollTo({ top: 0, behavior: "smooth" });
                                     }}
-                                    onDownloadFile={handleDownloadFile} // Passing fungsi download
+                                    onDownloadFile={handleDownloadFile}
                                 />
                             </div>
                         </motion.div>
