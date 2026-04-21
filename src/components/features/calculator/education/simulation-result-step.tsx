@@ -21,13 +21,8 @@ import { toast } from "sonner";
 import { financialService } from "@/services/financial.service";
 import { cn } from "@/lib/utils";
 
-// [ADDED] Fase 3: Integrasi Utilitas Download Cerdas
-import { downloadMgcFile } from "@/lib/utils";
-
-import {
-    PostDownloadAction,
-    DownloadResultData
-} from "@/components/features/shared/post-download-action";
+// [NEW ARCHITECTURE] Import mesin eksekutor Universal
+import { executeUniversalExport } from "@/utils/universal-export-engine";
 
 interface SimulationResultStepProps {
     result: EducationSimulationResponse;
@@ -38,9 +33,6 @@ interface SimulationResultStepProps {
 export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset, onBack }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
-
-    const [downloadData, setDownloadData] = useState<DownloadResultData | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
     // [VALIDATION & AGGREGATION]
     const simulationData = result?.data;
@@ -66,7 +58,8 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         setOpenItems(prev => ({ ...prev, [index]: !prev[index] }));
     };
 
-    // [MODIFIED] Handler MGC yang terisolasi untuk utilitas adaptif (Fase 3)
+    // --- REFACTORED UNIVERSAL EXPORT HANDLERS ---
+
     const handleDownloadMgc = async () => {
         if (!result.mgcToken) {
             toast.error("Token sesi tidak ditemukan. Backup dibatalkan.");
@@ -75,11 +68,14 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
         try {
             const clientName = simulationData?.clientName || "Klien";
-            const filenameMgc = generateSimulationFilename("Education Plan", clientName, "mgc");
+            const filename = generateSimulationFilename("Education Plan", clientName, "mgc");
 
-            // Menggunakan fungsi eksternal untuk melompati bug Share Sheet PWA pada format custom
-            await downloadMgcFile(filenameMgc, result.mgcToken);
-            toast.success("Backup MGC berhasil diamankan");
+            // Transformasi string ke Blob Biner untuk Universal Engine
+            const mgcBlob = new Blob([result.mgcToken], { type: 'application/octet-stream' });
+            const exportStatus = await executeUniversalExport(mgcBlob, filename);
+
+            if (exportStatus === 'SHARED') toast.success("File Backup (.mgc) siap dibagikan.");
+            else if (exportStatus === 'DOWNLOADED') toast.success("File Backup (.mgc) berhasil disimpan.");
 
         } catch (error) {
             console.error("Gagal menyusun MGC:", error);
@@ -87,7 +83,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         }
     };
 
-    // [MODIFIED] Handler PDF tetap memanggil Modal Handoff PWA
     const handleDownloadPdf = async () => {
         if (!result.simulationId) {
             toast.error("ID Simulasi tidak ditemukan. Mohon hitung ulang.");
@@ -99,21 +94,18 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
         try {
             const clientName = simulationData?.clientName || "Klien";
-            const filenamePdf = generateSimulationFilename("Education Plan", clientName, "pdf");
+            const filename = generateSimulationFilename("Education Plan", clientName, "pdf");
 
-            // 1. Panggil service untuk mencetak PDF
+            // Panggil service untuk mencetak PDF
             const responseData = await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
-
             toast.dismiss();
 
-            // 2. Bungkus sebagai Objek File untuk Native OS Handoff
-            const pdfFile = new File([responseData as any], filenamePdf, { type: 'application/pdf' });
-            const pdfUrl = window.URL.createObjectURL(pdfFile);
+            // Eksekusi Blob PDF via Engine
+            const pdfBlob = new Blob([(responseData as any).data || responseData], { type: 'application/pdf' });
+            const exportStatus = await executeUniversalExport(pdfBlob, filename);
 
-            setDownloadData({ file: pdfFile, url: pdfUrl, filename: filenamePdf });
-
-            // 3. Picu Modal
-            setIsModalOpen(true);
+            if (exportStatus === 'SHARED') toast.success("Dokumen PDF siap dibagikan.");
+            else if (exportStatus === 'DOWNLOADED') toast.success("Dokumen PDF berhasil diunduh.");
 
         } catch (error) {
             console.error("Download error:", error);
@@ -122,14 +114,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         } finally {
             setIsDownloading(false);
         }
-    };
-
-    const handleCloseModal = () => {
-        if (downloadData?.url) {
-            window.URL.revokeObjectURL(downloadData.url);
-        }
-        setIsModalOpen(false);
-        setTimeout(() => setDownloadData(null), 300);
     };
 
     return (
@@ -151,7 +135,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
 
                 {/* --- SUMMARY CARDS --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Card Total Investasi */}
                     <Card className="bg-linear-to-br from-blue-600 to-blue-700 text-white border-none shadow-xl shadow-blue-900/20 relative overflow-hidden group">
                         <div className="absolute right-[-10%] top-[-20%] opacity-10 group-hover:opacity-20 transition-opacity duration-500">
                             <Wallet className="w-40 h-40" />
@@ -171,7 +154,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                         </CardContent>
                     </Card>
 
-                    {/* Card Total Target Dana */}
                     <Card className="bg-white border-blue-100 shadow-lg shadow-slate-200/50">
                         <CardHeader className="pb-2">
                             <p className="text-slate-500 text-sm font-medium flex items-center gap-2">
@@ -344,12 +326,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     </p>
                 </div>
             </div>
-
-            <PostDownloadAction
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                fileData={downloadData}
-            />
+            {/* [CLEANUP] Komponen PostDownloadAction dihapus dari DOM (Karena Universal Export Engine). */}
         </>
     );
 };

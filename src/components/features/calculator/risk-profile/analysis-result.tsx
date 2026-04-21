@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { motion, Variants } from "framer-motion";
-import { Share2, RefreshCw, AlertCircle, ShieldCheck, RotateCcw, FileText, CheckCircle2, Target, Zap } from "lucide-react"; // [MODIFIED] Download -> Share2
+import { Share2, RefreshCw, AlertCircle, ShieldCheck, RotateCcw, FileText, CheckCircle2, Target, Zap, FileJson } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ interface AnalysisResultProps {
     data: RiskProfileSimulationResult;
     userAnswers?: RiskProfileAnswerItem[];
     onDownloadPdf: () => Promise<void> | void;
+    onDownloadMgc: () => Promise<void> | void; // Diterima dari parent (Wizard)
+    hasMgcToken?: boolean;
     onRetake: () => void;
     onReset: () => void;
     isDownloading?: boolean;
@@ -81,6 +83,8 @@ export function AnalysisResult({
     data,
     userAnswers,
     onDownloadPdf,
+    onDownloadMgc,
+    hasMgcToken,
     onRetake,
     onReset,
     isDownloading = false
@@ -247,7 +251,6 @@ export function AnalysisResult({
                 {/* Donut Chart (Kanan/Bawah) */}
                 <Card className="md:col-span-5 border border-slate-100 shadow-xl rounded-[2rem] md:rounded-[2.5rem] bg-white relative overflow-hidden flex flex-col">
                     <CardContent className="p-8 h-full flex flex-col relative z-10">
-                        {/* Donut Chart (Kanan/Bawah) */}
                         {/* PENTING: Beri z-10 (rendah) agar bisa tertimpa oleh grafik */}
                         <div className="mb-2 text-center mt-2 md:mt-0 relative z-10">
                             <h3 className="font-black text-slate-800 text-lg">Alokasi Aset Ideal</h3>
@@ -257,8 +260,6 @@ export function AnalysisResult({
                         {/* PENTING: Beri z-20 (tinggi) agar naik ke atas. 'relative' diperlukan agar z-index berfungsi */}
                         <div className="w-full min-h-70 md:min-h-80 relative z-20 font-sans mt-4 flex items-center justify-center">
                             <ResponsiveContainer width="100%" height="100%">
-                                {/* PENTING: style={{ overflow: "visible" }} ini KUNCI-nya.
-                                    Ini memerintahkan SVG untuk tidak memotong label yang keluar batas */}
                                 <PieChart style={{ overflow: "visible" }}>
                                     <Pie
                                         {...({
@@ -267,8 +268,6 @@ export function AnalysisResult({
                                             data: chartData,
                                             cx: "50%",
                                             cy: "50%",
-                                            // Kita kembalikan radiusnya agak besar agar terlihat gagah di desktop
-                                            // Karena overflow sudah visible, dia tidak akan kepotong di HP.
                                             innerRadius: "37%",
                                             outerRadius: "57%",
                                             dataKey: "value",
@@ -287,7 +286,6 @@ export function AnalysisResult({
                         </div>
 
                         {/* Custom Mini Legend untuk Desktop/Mobile */}
-                        {/* PENTING: Beri z-10 (rendah) juga */}
                         <div className="grid grid-cols-3 gap-2 mt-auto pt-4 border-t border-slate-100/60 relative z-10">
                             {chartData.map((item, idx) => (
                                 <div key={idx} className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50">
@@ -351,7 +349,7 @@ export function AnalysisResult({
             {/* =========================================
                 3. ACTION FOOTER BAR (Solid & Grounded)
                 ========================================= */}
-            <motion.div variants={itemVariants} className="mt-8 pt-6 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-6">
+            <motion.div variants={itemVariants} className="mt-8 pt-6 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-6 relative z-50">
 
                 {/* Info Advisory */}
                 <div className="flex items-start md:items-center gap-3 text-slate-500 max-w-md">
@@ -359,7 +357,7 @@ export function AnalysisResult({
                         <AlertCircle className="w-5 h-5 text-indigo-600" />
                     </div>
                     <p className="text-xs leading-relaxed font-medium">
-                        Cetak laporan PDF untuk diberikan kepada klien sebagai referensi. Jika ada perubahan profil, gunakan fitur Edit Jawaban.
+                        Cetak laporan PDF atau cadangkan file .MGC klien ini sebagai referensi. Jika ada perubahan profil, gunakan fitur Edit Jawaban.
                     </p>
                 </div>
 
@@ -368,7 +366,7 @@ export function AnalysisResult({
                     <Button
                         variant="outline"
                         onClick={onReset}
-                        disabled={isDownloading}
+                        disabled={isDownloading || showPdfModal}
                         className="w-full sm:w-auto h-12 rounded-xl border-slate-300 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all px-6"
                     >
                         <RotateCcw className="w-4 h-4 mr-2" /> Mulai Baru
@@ -377,10 +375,20 @@ export function AnalysisResult({
                     <Button
                         variant="secondary"
                         onClick={onRetake}
-                        disabled={isDownloading}
+                        disabled={isDownloading || showPdfModal}
                         className="w-full sm:w-auto h-12 rounded-xl bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 font-bold active:scale-95 transition-all px-6"
                     >
                         <RefreshCw className="w-4 h-4 mr-2" /> Edit Jawaban
+                    </Button>
+
+                    {/* [ADDED] Tombol Ekspor MGC */}
+                    <Button
+                        variant="outline"
+                        onClick={onDownloadMgc}
+                        disabled={isDownloading || showPdfModal || !hasMgcToken}
+                        className="w-full sm:w-auto h-12 rounded-xl font-bold border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all px-6"
+                    >
+                        <FileJson className="w-5 h-5 mr-2" /> Cadangkan .MGC
                     </Button>
 
                     <Button
@@ -391,7 +399,7 @@ export function AnalysisResult({
                         {(showPdfModal || isDownloading) ? (
                             <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Memproses...</>
                         ) : (
-                            <><Share2 className="w-5 h-5 mr-2" /> Simpan / Bagikan Laporan PDF</> // [MODIFIED] Teks & Ikon menyesuaikan Fase 2
+                            <><Share2 className="w-5 h-5 mr-2" /> Simpan / Bagikan PDF</>
                         )}
                     </Button>
                 </div>
