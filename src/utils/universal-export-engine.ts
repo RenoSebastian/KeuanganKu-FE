@@ -2,7 +2,7 @@
  * Modul Eksekutor: Universal Export Engine
  * Bertanggung jawab menerima aliran Blob (PDF, MGC, CSV, dll) dan mengarahkannya ke 
  * jalur transportasi yang paling stabil (Native Share untuk PWA vs Direct Download untuk Web Desktop).
- * * Arsitektur: Protected Variations (Melindungi aplikasi dari "Permission Denied" di WebView Android).
+ * * Arsitektur: Protected Variations (Melindungi aplikasi dari "Permission Denied" di WebView Android & iOS).
  */
 
 import { isPwaWrapperEnvironment, isShareApiSupported, getEnvironmentMetrics } from './environment-detector';
@@ -43,9 +43,7 @@ const executeDirectDownload = async (blob: Blob, fileName: string): Promise<Expo
 
         // Pembersihan Referensi Blob
         if (objectUrl) {
-            // Best Practice Android Browser: Berikan jeda asinkron kecil (150ms) 
-            // sebelum me-revoke URL. Beberapa browser internal (seperti MIUI/Samsung Browser lama)
-            // akan membatalkan download jika URL dihancurkan tepat di milidetik yang sama saat 'click' dieksekusi.
+            // Best Practice Mobile Browser: Berikan jeda asinkron kecil (150ms) 
             setTimeout(() => {
                 URL.revokeObjectURL(objectUrl!);
             }, 150);
@@ -56,9 +54,6 @@ const executeDirectDownload = async (blob: Blob, fileName: string): Promise<Expo
 /**
  * Fungsi Eksekutor Utama. Akan dipanggil oleh layer Hook/Orchestrator.
  * Berperan sebagai Polymorphic endpoint untuk berbagai jenis ekstensi file.
- * * @param fileBlob Objek Blob murni dari respon server atau generator client.
- * @param fileName Nama file yang diharapkan lengkap dengan ekstensi (misal: "Backup.mgc" atau "Laporan.pdf").
- * @returns Promise<ExportResult> Status akhir dari eksekusi.
  */
 export const executeUniversalExport = async (fileBlob: Blob, fileName: string): Promise<ExportResult> => {
     try {
@@ -66,11 +61,7 @@ export const executeUniversalExport = async (fileBlob: Blob, fileName: string): 
         const isPwa = isPwaWrapperEnvironment();
         const canUseShareApi = isShareApiSupported();
 
-        // [REVISI ARSITEKTUR]: Gunakan Share API jika mendukung, DAN user berada di lingkungan Mobile OS 
-        // ATAU secara eksplisit adalah PWA. Ini melonggarkan batasan WebView Wrapper yang kaku.
         if ((isPwa || metrics.isMobileOS) && canUseShareApi) {
-            // Web Share API Level 2 mensyaratkan tipe data File, bukan Blob mentah.
-            // [HARDENED]: Deteksi dinamis MIME type. Jika kosong, fallback ke octet-stream (biner murni).
             const file = new File([fileBlob], fileName, { type: fileBlob.type || 'application/octet-stream' });
 
             const shareData: ShareData = {
@@ -78,13 +69,12 @@ export const executeUniversalExport = async (fileBlob: Blob, fileName: string): 
                 title: 'Dokumen KeuanganKu',
             };
 
-            // Validasi kapabilitas OS level 2: Apakah OS Android versi ini mendukung share tipe file ini?
             if (navigator.canShare && navigator.canShare(shareData)) {
                 try {
                     await navigator.share(shareData);
                     return 'SHARED';
                 } catch (error: any) {
-                    // Graceful Handling: User sengaja menutup laci Share Dialog (bukan error sistem)
+                    // Graceful Handling 1: User sengaja menutup laci Share Dialog
                     const isUserCancellation =
                         error.name === 'AbortError' ||
                         error.message?.toLowerCase().includes('abort') ||
@@ -95,12 +85,12 @@ export const executeUniversalExport = async (fileBlob: Blob, fileName: string): 
                         return 'SHARE_CANCELLED';
                     }
 
-                    // Jika gagal karena alasan sistem (misal file terlalu besar untuk Intent), lempar ke luar
-                    throw error;
+                    // Graceful Handling 2: iOS/Android Menolak Payload (NotAllowedError / Permission Denied)
+                    // [CRITICAL FIX] Alih-alih throw error, kita otomatis belokkan ke Direct Download.
+                    console.warn('[UniversalExportEngine] Native Share ditolak OS (Permission Denied), fallback ke Direct Download.', error);
+                    return await executeDirectDownload(fileBlob, fileName);
                 }
             } else {
-                // Fallback: OS mendukung Share API secara umum, tapi tidak mensupport tipe/ekstensi file ini.
-                // Turunkan derajatnya (Graceful Degradation) ke jalur download standar.
                 console.warn('[UniversalExportEngine] Tipe file tidak didukung oleh Native Share, fallback ke Direct Download.');
                 return await executeDirectDownload(fileBlob, fileName);
             }
@@ -111,6 +101,6 @@ export const executeUniversalExport = async (fileBlob: Blob, fileName: string): 
 
     } catch (error) {
         console.error('[UniversalExportEngine] Kegagalan sistemik saat mengeksekusi Blob:', error);
-        throw error; // Lempar kembali ke layer Orchestrator agar dapat memicu Toast Error ke UI.
+        throw error;
     }
 };

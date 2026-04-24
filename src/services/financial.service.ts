@@ -369,12 +369,14 @@ export const financialService = {
     });
   },
 
-  // [UPDATED] Arsitektur Single-Pass Stateless Streaming
-  simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<AxiosResponse<Blob>> => {
+  // [UPDATED] Arsitektur Base64 JSON Pipeline untuk Checkup
+  simulateAgentCheckup: async (data: FinancialFormState & { sessionId: string }): Promise<any> => {
     const apiPayload = toMonthlyPayload(data);
-    return await api.post("/financial/simulation/checkup", apiPayload, {
-      responseType: 'blob'
-    });
+
+    // PERHATIKAN: Kita membuang { responseType: 'blob' } karena sekarang responnya JSON
+    const response = await api.post("/financial/simulation/checkup", apiPayload);
+
+    return response.data; // Mengembalikan JSON langsung
   },
 
   // ===========================================================================

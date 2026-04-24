@@ -47,7 +47,6 @@ const INITIAL_FINANCIAL_STATE: FinancialFormState = {
 
 type WizardStep = "IDENTITY" | "FINANCIAL" | "RESULT";
 
-// Pemetaan Step untuk UI Logic
 const STEP_MAP: Record<WizardStep, { id: number, label: string, icon: any }> = {
     IDENTITY: { id: 1, label: "Identitas", icon: User },
     FINANCIAL: { id: 2, label: "Keuangan", icon: Wallet },
@@ -65,7 +64,6 @@ export interface CheckupWizardProps {
 }
 
 export function CheckupWizard({ onComplete, onBack, isLoading = false }: CheckupWizardProps) {
-    // --- STATE MANAGEMENT ---
     const [currentStep, setCurrentStep] = useState<WizardStep>("IDENTITY");
     const [internalLoading, setInternalLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,14 +74,13 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
 
     const [generatedFiles, setGeneratedFiles] = useState<{
         pdfBlob: Blob | null;
-        mgcToken: string | null;
+        mgcBlob: Blob | null;
         filenameMgc: string | null;
         filenamePdf: string | null;
     } | null>(null);
 
     const isProcessing = isLoading || internalLoading;
 
-    // --- FULL PERSISTENCE INTEGRATION ---
     const { isHydrated, clearStorage } = useSimulationPersistence<
         any,
         FinancialFormState,
@@ -99,18 +96,13 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         (restoredClient, restoredInput, restoredStep, restoredResult) => {
             if (restoredClient) setClientData(restoredClient);
             if (restoredInput) setFinancialRecord(restoredInput);
-
-            if (restoredResult) {
-                setSimulationData(restoredResult);
-            }
-
+            if (restoredResult) setSimulationData(restoredResult);
             if (restoredStep === 2 && restoredResult) setCurrentStep("RESULT");
             else if (restoredStep === 1 && restoredClient) setCurrentStep("FINANCIAL");
             else setCurrentStep("IDENTITY");
         }
     );
 
-    // --- ACTION HANDLERS ---
     const handleFinancialUpdate = (field: keyof FinancialFormState, value: number) => {
         setFinancialRecord(prev => ({ ...prev, [field]: value }));
     };
@@ -137,18 +129,14 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                 try {
                     const decoded = await financialService.decodeSimulationToken(tokenString);
 
-                    // [CRITICAL FIX] Membungkus ulang properti 'client' dan 'spouse' agar struktur JSON
-                    // tidak bocor/flat saat dikirim ulang ke Backend (Mencegah Bad Request 400).
                     if (decoded.client) {
                         setClientData({
                             client: decoded.client,
                             spouse: decoded.spouse || undefined
                         });
                     }
-
                     if (decoded.financial) setFinancialRecord(decoded.financial);
 
-                    // Menyusun ulang Standardized Response Contract secara absolut (tanpa result)
                     const standardizedData: CheckupSimulationResponse = {
                         ...decoded,
                         data: decoded,
@@ -156,16 +144,17 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                         filename: file.name,
                     };
 
+                    // Menyiapkan Memory Blob yang efisien untuk Export
+                    const memoryMgcBlob = new Blob([tokenString], { type: 'text/plain' });
+
                     setGeneratedFiles({
                         pdfBlob: null,
-                        mgcToken: tokenString,
+                        mgcBlob: memoryMgcBlob,
                         filenameMgc: file.name,
                         filenamePdf: file.name.replace('.mgc', '.pdf')
                     });
 
                     setSimulationData(standardizedData);
-
-                    // Arahkan ke FINANCIAL. User tinggal klik "Diagnosa Sekarang" untuk merender ulang hasil.
                     setCurrentStep("FINANCIAL");
                     toast.success("Import Berhasil!", { id: toastId, description: "Klik 'Diagnosa Sekarang' untuk memuat laporan." });
                 } catch (err: any) {
@@ -173,7 +162,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                     let finalMessage = "Token MGC rusak atau tidak valid.";
                     if (Array.isArray(beMessage)) finalMessage = beMessage[0];
                     else if (typeof beMessage === "string") finalMessage = beMessage;
-
                     toast.error("Dekripsi Gagal", { id: toastId, description: finalMessage });
                 } finally {
                     setInternalLoading(false);
@@ -230,50 +218,54 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         const toastId = toast.loading("Memproses Kalkulasi...", { description: "Menganalisis matriks kesehatan finansial..." });
 
         try {
-            // 1. Tembak Endpoint Single-Pass yang me-return AxiosResponse<Blob>
             const response = await financialService.simulateAgentCheckup(payload);
 
-            // 2. Ekstrak Header untuk mencari Magic Token
-            const token = response.headers['x-mgc-token'];
-            const disposition = response.headers['content-disposition'];
+            const token = response.mgcToken;
+            const pdfBase64 = response.pdfBase64;
+            const filename = response.filename;
+            const analysisData = response.analysisResult;
 
             if (!token) throw new Error("Server gagal mengembalikan Token MGC.");
 
-            // 3. Tentukan nama file
-            let pdfFilename = `Checkup_${clientData.client?.name || "Klien"}.pdf`;
-            if (disposition) {
-                const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-                if (match && match[1]) pdfFilename = match[1].replace(/['"]/g, "");
+            const byteCharacters = atob(pdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
             }
+            const byteArray = new Uint8Array(byteNumbers);
 
-            // 4. Decode Token MGC untuk mendapatkan JSON data.
-            const payloadBase64 = token.split('.')[0];
-            const decodedData = JSON.parse(atob(payloadBase64));
+            const memoryPdfBlob = new Blob([byteArray], { type: 'application/pdf' });
+            // Gunakan text/plain agar iOS lebih ramah menerimanya
+            const memoryMgcBlob = new Blob([token], { type: 'text/plain' });
 
-            // Set Data JSON
-            setSimulationData(decodedData);
-
-            // 5. Simpan Data Blob (Binary PDF) agar bisa di-download kapanpun oleh User
-            setGeneratedFiles({
-                pdfBlob: new Blob([response.data], { type: 'application/pdf' }),
+            setSimulationData({
                 mgcToken: token,
-                filenameMgc: pdfFilename.replace('.pdf', '.mgc'),
-                filenamePdf: pdfFilename
+                filename: filename,
+                data: {
+                    client: clientData.client,
+                    spouse: clientData.spouse,
+                    financial: payload,
+                    result: analysisData
+                }
+            } as any);
+
+            setGeneratedFiles({
+                pdfBlob: memoryPdfBlob,
+                mgcBlob: memoryMgcBlob,
+                filenameMgc: filename ? filename.replace('.pdf', '.mgc') : "Checkup.mgc",
+                filenamePdf: filename || "Checkup.pdf"
             });
 
             setCurrentStep("RESULT");
             toast.success("Analisis Selesai", { id: toastId, description: "Laporan rasio kesehatan siap dicetak." });
         } catch (error: any) {
             let finalMessage = "Gagal memproses kalkulasi mesin.";
-
-            if (!error.response) {
-                finalMessage = "Koneksi ke peladen terputus. Periksa jaringan Anda.";
-            } else {
+            if (!error.response) finalMessage = "Koneksi ke peladen terputus. Periksa jaringan Anda.";
+            else {
                 const beMessage = error.response?.data?.message;
                 if (Array.isArray(beMessage)) finalMessage = beMessage[0];
                 else if (typeof beMessage === "string") finalMessage = beMessage;
             }
-
             toast.error("Kalkulasi Gagal", { id: toastId, description: finalMessage });
         } finally {
             setInternalLoading(false);
@@ -292,12 +284,8 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                 const exportStatus = await executeUniversalExport(generatedFiles.pdfBlob, generatedFiles.filenamePdf);
                 if (exportStatus === 'SHARED') toast.success("Dokumen PDF siap dibagikan.");
                 else if (exportStatus === 'DOWNLOADED') toast.success("Dokumen PDF berhasil diunduh.");
-            } else if (type === 'MGC' && generatedFiles.mgcToken) {
-                // Transformasi Token String menjadi Blob Biner
-                const mgcBlob = new Blob([generatedFiles.mgcToken], { type: 'application/octet-stream' });
-                const filename = generatedFiles.filenameMgc || "Backup_Checkup.mgc";
-
-                const exportStatus = await executeUniversalExport(mgcBlob, filename);
+            } else if (type === 'MGC' && generatedFiles.mgcBlob && generatedFiles.filenameMgc) {
+                const exportStatus = await executeUniversalExport(generatedFiles.mgcBlob, generatedFiles.filenameMgc);
                 if (exportStatus === 'SHARED') toast.success("File Backup (.mgc) siap dibagikan.");
                 else if (exportStatus === 'DOWNLOADED') toast.success("File Backup (.mgc) berhasil disimpan.");
             }
@@ -322,13 +310,8 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
         <div className="w-full flex flex-col gap-6 md:gap-8 pb-10">
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".mgc" className="hidden" />
 
-            {/* ========================================================
-                1. FLOATING DYNAMIC ISLAND STEPPER
-                ======================================================== */}
             <div className="sticky top-16 md:top-20 z-30 mx-auto w-full max-w-sm">
                 <div className="bg-white/80 backdrop-blur-2xl rounded-full p-1.5 shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] border border-white/40 flex items-center justify-between relative overflow-hidden">
-
-                    {/* Animated Active Background Pill */}
                     <div
                         className="absolute top-1.5 bottom-1.5 rounded-full bg-slate-900 transition-all duration-500"
                         style={{
@@ -337,7 +320,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                         }}
                     />
 
-                    {/* Step Items */}
                     {(Object.keys(STEP_MAP) as WizardStep[]).map((stepKey) => {
                         const step = STEP_MAP[stepKey];
                         const isActive = currentStep === stepKey;
@@ -361,13 +343,8 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                 </div>
             </div>
 
-            {/* ========================================================
-                2. MAIN CONTENT AREA (Framer Motion Wrapper)
-                ======================================================== */}
             <div className="w-full relative min-h-[60vh]">
                 <AnimatePresence mode="wait">
-
-                    {/* STEP 1: IDENTITY & IMPORT */}
                     {currentStep === "IDENTITY" && (
                         <motion.div key="identity" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col gap-6">
 
@@ -398,7 +375,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                 </Button>
                             </div>
 
-                            {/* Form Render */}
                             <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-1">
                                 <ClientIdentityForm
                                     initialData={getInitialIdentityData()}
@@ -408,7 +384,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                         </motion.div>
                     )}
 
-                    {/* STEP 2: FINANCIAL DATA */}
                     {currentStep === "FINANCIAL" && (
                         <motion.div key="financial" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-1 overflow-hidden">
@@ -425,7 +400,6 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                         </motion.div>
                     )}
 
-                    {/* STEP 3: RESULT DASHBOARD */}
                     {currentStep === "RESULT" && simulationData && !onComplete && (
                         <motion.div key="result" variants={pageVariants} initial="initial" animate="animate" exit="exit">
                             <div className="bg-white rounded-[2rem] shadow-2xl shadow-indigo-900/5 border border-slate-100 overflow-hidden">

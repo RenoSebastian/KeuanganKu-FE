@@ -24,7 +24,8 @@ interface CheckupResultProps {
     rawData?: FinancialRecord;
     generatedFiles?: {
         pdfBlob: Blob | null;
-        mgcToken: string | null;
+        mgcToken?: string | null; // Jadikan opsional
+        mgcBlob?: Blob | null;    // [FIXED] Tambahkan mgcBlob agar sinkron dengan Wizard PWA
         filenameMgc: string | null;
         filenamePdf: string | null;
     } | null;
@@ -112,7 +113,10 @@ export function CheckupResult({
     // --- DATA NORMALIZATION (Safe Parsing) ---
     let payload: CheckupSimulationResult | HealthAnalysisResult | null = null;
     let clientInfo: any = null;
+
+    // [FIXED] Deteksi apakah ada token string atau file blob native
     const mgcToken = data?.mgcToken || data?.data?.mgcToken || generatedFiles?.mgcToken;
+    const hasMgcReady = !!mgcToken || !!generatedFiles?.mgcBlob;
 
     if (data?.data?.result) {
         payload = data.data.result;
@@ -131,7 +135,6 @@ export function CheckupResult({
         return map[status] || status || "-";
     };
 
-    // [FIXED] Helper untuk mengkalkulasi umur dari Date of Birth jika 'age' tidak ada dari backend
     const calculateAge = (dob?: string) => {
         if (!dob) return null;
         const birthDate = new Date(dob);
@@ -175,8 +178,8 @@ export function CheckupResult({
 
     const theme = getThemeConfig(score);
     const StatusIcon = theme.icon;
-    const healthyCount = safeRatios?.filter((r) => r?.statusColor === "GREEN_DARK" || r?.statusColor === "GREEN_LIGHT").length || 0;
-    const priorityFix = safeRatios?.find((r) => r?.statusColor === "RED" || r?.statusColor === "YELLOW")?.label || "Pertumbuhan Aset";
+    const healthyCount = safeRatios?.filter((r) => r?.statusColor?.includes("GREEN")).length || 0;
+    const priorityFix = safeRatios?.find((r) => r?.statusColor?.includes("RED") || r?.statusColor?.includes("YELLOW"))?.label || "Pertumbuhan Aset";
 
     return (
         <>
@@ -265,7 +268,6 @@ export function CheckupResult({
                             <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><Calendar className="w-4 h-4 text-slate-400" /></div>
                             <div>
                                 <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Usia</p>
-                                {/* [FIXED] Menampilkan hasil kalkulasi fungsi calculateAge */}
                                 <p className="text-sm font-bold text-slate-700">{displayAge} Tahun</p>
                             </div>
                         </div>
@@ -314,29 +316,35 @@ export function CheckupResult({
                         {safeRatios.map((ratio: any, index: number) => {
                             const isExpanded = expandedCard === ratio.id;
 
+                            // Default Theme
                             let statusBadgeColor = "bg-slate-100 text-slate-600";
                             let statusIcon = <Info className="w-3 h-3" />;
                             let glowEffect = "";
+                            let statusText = "Info";
 
-                            if (ratio.statusColor === "GREEN_DARK" || ratio.statusColor === "GREEN_LIGHT") {
+                            const statusColor = ratio.statusColor || "";
+
+                            if (statusColor.includes("GREEN")) {
                                 statusBadgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
                                 statusIcon = <CheckCircle2 className="w-3 h-3" />;
                                 glowEffect = "hover:shadow-emerald-500/10 hover:border-emerald-200";
-                            } else if (ratio.statusColor === "YELLOW") {
+                                statusText = "Sehat";
+                            } else if (statusColor.includes("YELLOW")) {
                                 statusBadgeColor = "bg-amber-50 text-amber-700 border-amber-200";
                                 statusIcon = <AlertTriangle className="w-3 h-3" />;
                                 glowEffect = "hover:shadow-amber-500/10 hover:border-amber-200";
-                            } else if (ratio.statusColor === "RED") {
+                                statusText = "Waspada";
+                            } else if (statusColor.includes("RED")) {
                                 statusBadgeColor = "bg-rose-50 text-rose-700 border-rose-200";
                                 statusIcon = <XCircle className="w-3 h-3" />;
                                 glowEffect = "hover:shadow-rose-500/10 hover:border-rose-200";
+                                statusText = "Bahaya";
                             }
 
-                            // [FIXED] Ekstraksi Kuat untuk mengatasi perbedaan Schema Backend Lama & Baru
                             const safeRatioValue = Number(ratio.value ?? ratio.ratioValue) || 0;
                             const idealText = ratio.benchmark || ratio.idealCondition || "-";
                             const analysisText = ratio.recommendation || ratio.analysis || "Detail analisa tidak tersedia.";
-                            const isPercentage = ratio.type === "PERCENTAGE" || idealText.includes("%");
+                            const isPercentage = ratio.type === "PERCENTAGE" || idealText.includes("%") || ratio.id?.includes("ratio") || ratio.id?.includes("worth") || ratio.id?.includes("service") || ratio.id?.includes("solvency");
                             const typeSymbol = isPercentage ? "%" : "x";
 
                             return (
@@ -355,7 +363,7 @@ export function CheckupResult({
                                                 <Activity className="w-5 h-5 text-slate-400" />
                                             </div>
                                             <Badge variant="outline" className={cn("text-[10px] uppercase font-black tracking-wider px-2 py-0.5 gap-1", statusBadgeColor)}>
-                                                {statusIcon} {ratio.statusLabel || ratio.statusColor.replace("_", " ")}
+                                                {statusIcon} {ratio.statusLabel || statusText}
                                             </Badge>
                                         </div>
 
@@ -407,7 +415,6 @@ export function CheckupResult({
                         </p>
                     </div>
 
-                    {/* Action Buttons: Memanggil fungsi delegasi onDownloadFile dari CheckupWizard */}
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
                         {onReset && !isReadOnly && (
                             <Button
@@ -435,7 +442,7 @@ export function CheckupResult({
                             <Button
                                 variant="outline"
                                 onClick={() => onDownloadFile?.('MGC')}
-                                disabled={isDownloading || !mgcToken}
+                                disabled={isDownloading || !hasMgcReady}
                                 className="w-full sm:w-auto h-12 rounded-xl border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all px-6 font-bold"
                             >
                                 <FileJson className="w-4 h-4 mr-2" />
