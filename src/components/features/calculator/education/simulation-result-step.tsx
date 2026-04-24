@@ -30,6 +30,22 @@ interface SimulationResultStepProps {
     onBack: () => void;
 }
 
+// ============================================================================
+// HACK NATIVE BLOB (Untuk mengatasi PWA Share Permission Denied)
+// ============================================================================
+const stabilizeBlobForShare = async (blob: Blob): Promise<Blob> => {
+    try {
+        const url = URL.createObjectURL(blob);
+        const res = await fetch(url);
+        const nativeBlob = await res.blob();
+        URL.revokeObjectURL(url);
+        return nativeBlob;
+    } catch (e) {
+        console.warn("Gagal menstabilkan blob, fallback ke memory blob", e);
+        return blob;
+    }
+};
+
 export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ result, onReset, onBack }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
@@ -70,9 +86,11 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
             const clientName = simulationData?.clientName || "Klien";
             const filename = generateSimulationFilename("Education Plan", clientName, "mgc");
 
-            // Transformasi string ke Blob Biner untuk Universal Engine
-            const mgcBlob = new Blob([result.mgcToken], { type: 'application/octet-stream' });
-            const exportStatus = await executeUniversalExport(mgcBlob, filename);
+            // Transformasi string ke Memory Blob, lalu Stabilkan jadi Native Blob (Untuk PWA)
+            const memoryMgcBlob = new Blob([result.mgcToken], { type: 'text/plain' });
+            const nativeMgcBlob = await stabilizeBlobForShare(memoryMgcBlob);
+
+            const exportStatus = await executeUniversalExport(nativeMgcBlob, filename);
 
             if (exportStatus === 'SHARED') toast.success("File Backup (.mgc) siap dibagikan.");
             else if (exportStatus === 'DOWNLOADED') toast.success("File Backup (.mgc) berhasil disimpan.");
@@ -96,13 +114,24 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
             const clientName = simulationData?.clientName || "Klien";
             const filename = generateSimulationFilename("Education Plan", clientName, "pdf");
 
-            // Panggil service untuk mencetak PDF
+            // [CRITICAL FIX] 
+            // Panggil service untuk mencetak PDF.
+            // PERHATIKAN: downloadEducationSimulationPdf me-return sebuah objek (DownloadResultData), 
+            // BUKAN blob mentah. Strukturnya: { file: File(Blob), url: string, filename: string }
             const responseData = await financialService.downloadEducationSimulationPdf(result.simulationId, clientName);
             toast.dismiss();
 
-            // Eksekusi Blob PDF via Engine
-            const pdfBlob = new Blob([(responseData as any).data || responseData], { type: 'application/pdf' });
-            const exportStatus = await executeUniversalExport(pdfBlob, filename);
+            // Kita harus mengambil properti 'file' (yang merupakan File/Blob) dari objek responseData tersebut.
+            const rawPdfBlob = responseData.file;
+
+            // Jika entah kenapa datanya tidak ada, lempar error.
+            if (!rawPdfBlob) throw new Error("Blob PDF tidak diterima dari layanan.");
+
+            // Stabilkan Blob untuk WebView PWA (Mencegah Permission Denied)
+            const nativePdfBlob = await stabilizeBlobForShare(rawPdfBlob);
+
+            // Eksekusi Native Blob PDF via Engine Universal
+            const exportStatus = await executeUniversalExport(nativePdfBlob, filename);
 
             if (exportStatus === 'SHARED') toast.success("Dokumen PDF siap dibagikan.");
             else if (exportStatus === 'DOWNLOADED') toast.success("Dokumen PDF berhasil diunduh.");
@@ -326,7 +355,6 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
                     </p>
                 </div>
             </div>
-            {/* [CLEANUP] Komponen PostDownloadAction dihapus dari DOM (Karena Universal Export Engine). */}
         </>
     );
 };
