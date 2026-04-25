@@ -380,19 +380,19 @@ export const financialService = {
   },
 
   // ===========================================================================
-  // AGENT EDUCATION SIMULATION (SCENARIO B: DECOUPLED I/O)
+  // 13. AGENT EDUCATION SIMULATION (SINGLE ENDPOINT - BASE64 JSON PIPELINE)
   // ===========================================================================
 
   /**
-   * Langkah 1: Kalkulasi Data (Menerima balasan JSON)
+   * Kalkulasi Data & Extract PDF Base64 dalam satu payload
    */
-  simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<EducationSimulationResponse> => {
-    // Tembak endpoint kalkulasi, TANPA responseType: 'blob'
-    const response = await api.post<EducationSimulationResponse>("/financial/simulation/education/calculate", data);
+  simulateAgentEducation: async (data: EducationSimulationPayload & { sessionId: string }): Promise<any> => {
+    // Tembak endpoint JSON standar (tanpa blob stream)
+    const response = await api.post("/financial/simulation/education", data);
 
-    const responseData = response.data as any;
+    const responseData = response.data;
 
-    // Normalisasi token MGC jika struktur kembalian bersarang
+    // Normalisasi token MGC jika struktur kembalian bersarang (Edge Case Guard)
     if (responseData && responseData.data && responseData.data.mgcToken && !responseData.mgcToken) {
       responseData.mgcToken = responseData.data.mgcToken;
     }
@@ -401,16 +401,12 @@ export const financialService = {
   },
 
   /**
-   * Langkah 2: Ambil PDF (Menerima balasan Binary Stream)
+   * [CRITICAL FIX] Endpoint Stateless untuk me-render ulang PDF dari sesi Import MGC
    */
-  downloadEducationSimulationPdf: async (simulationId: string, clientName: string = "Klien"): Promise<DownloadResultData> => {
-    // Tembak endpoint PDF, WAJIB menggunakan responseType: 'blob'
-    const response = await api.get(`/financial/simulation/education/${simulationId}/pdf`, {
-      responseType: 'blob',
-      timeout: 60000,
-    });
-
-    return prepareFileForPwa(response, "Education Plan", clientName);
+  exportEducationPdfStateless: async (data: any): Promise<string> => {
+    const response = await api.post("/financial/simulation/education/export-pdf", data);
+    // Mengembalikan string base64 secara langsung sesuai kontrak data
+    return response.data.pdfBase64;
   },
 
   /**

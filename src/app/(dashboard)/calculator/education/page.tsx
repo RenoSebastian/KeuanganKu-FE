@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from "react"; // [FIX] Import useRef
+import React, { useState, useRef } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { v4 as uuidv4 } from 'uuid'; // [FIX] Import UUID
+import { v4 as uuidv4 } from 'uuid';
 import {
   GraduationCap,
   User,
@@ -40,7 +40,7 @@ export default function EducationCalculatorPage() {
   const { isPro, quota, refreshUser, isLoading: isAuthLoading } = useAuthUser();
   const hasAccess = isPro || quota > 0;
 
-  // [FIX] Session ID untuk Idempotency (Mencegah pemotongan kuota ganda)
+  // Session ID untuk Idempotency (Mencegah pemotongan kuota ganda)
   const sessionId = useRef(uuidv4());
 
   const [step, setStep] = useState(1);
@@ -57,7 +57,6 @@ export default function EducationCalculatorPage() {
 
   // --- HANDLER STEP 1: CLIENT DATA ---
   const handleClientNext = (data: Partial<EducationSimulationForm>) => {
-    // Cek akses di awal
     if (!hasAccess && !isAuthLoading) {
       toast.error("Akses Dibatasi", {
         description: "Kuota simulasi Anda telah habis. Silakan upgrade ke PRO."
@@ -81,7 +80,6 @@ export default function EducationCalculatorPage() {
 
   // --- HANDLER STEP 2: CHILDREN & CALCULATION ---
   const handleChildrenSubmit = async (data: EducationSimulationForm) => {
-    // Double Check Access sebelum hit ke API
     if (!hasAccess) {
       toast.error("Kuota Habis", { description: "Silakan upgrade akun Anda." });
       return;
@@ -95,7 +93,7 @@ export default function EducationCalculatorPage() {
       const inflationRate = finalFormData.inflationRate || 10;
       const returnRate = finalFormData.returnRate || 12;
 
-      // 1. Client Side Calculation (Preview)
+      // 1. Client Side Calculation (Preview & Data Sanitization)
       const childrenPlansPayload = finalFormData.childrenPlans.map(child => {
         const calc = calculateEducationInvestment({
           inflationRate,
@@ -120,7 +118,6 @@ export default function EducationCalculatorPage() {
         };
       });
 
-      // [FIX] Update Payload dengan sessionId
       const payload: EducationSimulationPayload & { sessionId: string } = {
         clientName: finalFormData.clientName,
         clientDob: finalFormData.clientDob || "",
@@ -130,17 +127,14 @@ export default function EducationCalculatorPage() {
         inflationRate,
         returnRate,
         childrenPlans: childrenPlansPayload,
-        sessionId: sessionId.current // [FIX] Sertakan Session ID
+        sessionId: sessionId.current
       };
 
-      // 2. Server Side Processing (Generate PDF & Token)
-      const response: EducationSimulationResponse = await financialService.simulateAgentEducation(payload);
+      // 2. Server Side Processing (Single Endpoint JSON Pipeline)
+      const response: any = await financialService.simulateAgentEducation(payload);
 
-      // [UPDATE: REALTIME SYNC]
-      // Update state di hook halaman ini
+      // Realtime Sync
       await refreshUser();
-
-      // Kirim sinyal ke Sidebar
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('refresh_user_data'));
       }
@@ -154,7 +148,6 @@ export default function EducationCalculatorPage() {
 
     } catch (error: any) {
       console.error(error);
-      // Handle Quota Error
       if (error.response?.status === 403) {
         toast.error("Akses Ditolak", { description: "Kuota simulasi habis." });
         await refreshUser();
@@ -169,7 +162,7 @@ export default function EducationCalculatorPage() {
     }
   };
 
-  // --- HANDLER IMPORT FILE (FIXED) ---
+  // --- HANDLER IMPORT FILE ---
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -187,7 +180,6 @@ export default function EducationCalculatorPage() {
       const response = await financialService.decodeSimulationToken(fileContent);
 
       const importedData = response.data || response;
-      const metaData = response.meta || {};
 
       if (!importedData || !importedData.clientName) {
         throw new Error("Struktur data file tidak valid atau kosong.");
@@ -196,7 +188,7 @@ export default function EducationCalculatorPage() {
       const inflationRate = Number(importedData.inflationRate) || 10;
       const returnRate = Number(importedData.returnRate) || 12;
 
-      // RE-CALCULATE Logic
+      // Memetakan ulang format child dan stage untuk Form Input (Step 2)
       const recalculatedChildrenPlans = Array.isArray(importedData.childrenPlans)
         ? importedData.childrenPlans.map((child: any) => {
           const rawStages = Array.isArray(child.stages) ? child.stages.map((s: any) => ({
@@ -209,21 +201,10 @@ export default function EducationCalculatorPage() {
             costFull: Number(s.costFull || 0),
           })) : [];
 
-          const calculation = calculateEducationInvestment({
-            inflationRate,
-            returnRate,
-            childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
-            stages: rawStages
-          });
-
           return {
             childName: child.childName || "",
             childDob: child.childDob ? String(child.childDob).split('T')[0] : "",
-            stages: rawStages.map((stage: any, idx: number) => ({
-              ...stage,
-              calculatedFutureValue: calculation.stageResults[idx]?.totalFv || 0,
-              calculatedMonthlySaving: calculation.stageResults[idx]?.totalPmt || 0,
-            }))
+            stages: rawStages
           };
         })
         : [];
@@ -240,52 +221,13 @@ export default function EducationCalculatorPage() {
       };
 
       setFormData(mappedForm);
+      sessionId.current = uuidv4(); // Reset UUID untuk proses kalkulasi yang baru
 
-      let totalFutureCost = 0;
-      let totalMonthlySaving = 0;
-
-      mappedForm.childrenPlans.forEach(child => {
-        child.stages.forEach(stage => {
-          totalMonthlySaving += (stage as any).calculatedMonthlySaving || 0;
-          totalFutureCost += (stage as any).calculatedFutureValue || 0;
-        });
+      // [UX IMPROVEMENT]: Langsung arahkan ke Step 2 agar Klien me-review data
+      setStep(2);
+      toast.success("Sesi berhasil dimuat!", {
+        description: "Silakan periksa kembali data rencana pendidikan, lalu klik 'Simpan & Hitung'."
       });
-
-      // [FIX] Reset session ID on Import
-      sessionId.current = uuidv4();
-
-      if (totalFutureCost > 0) {
-        const reconstructedResult: EducationSimulationResponse = {
-          status: "success",
-          simulationId: metaData.simulationId || "imported-session",
-          mgcToken: fileContent,
-          filename: `imported-${metaData.generatedAt || 'session'}.pdf`,
-          data: {
-            ...mappedForm,
-            totalMonthlySaving,
-            totalFutureCost,
-            childrenPlans: mappedForm.childrenPlans.map(child => ({
-              ...child,
-              totalFutureCost: child.stages.reduce((acc, s: any) => acc + (s.calculatedFutureValue || 0), 0),
-              monthlySaving: child.stages.reduce((acc, s: any) => acc + (s.calculatedMonthlySaving || 0), 0),
-              stages: child.stages.map((s: any) => ({
-                ...s,
-                costType: s.costEntry > 0 ? "ENTRY" : "MONTHLY",
-                futureCost: s.calculatedFutureValue,
-                monthlySaving: s.calculatedMonthlySaving,
-                yearsToStart: s.startYear - new Date().getFullYear()
-              }))
-            })) as any
-          }
-        };
-
-        setResult(reconstructedResult);
-        setStep(3);
-        toast.success("Sesi berhasil dipulihkan!");
-      } else {
-        setStep(2);
-        toast.success("Draft berhasil dimuat. Silakan lengkapi biaya.");
-      }
 
     } catch (err: any) {
       console.error("Import error FULL:", err);
@@ -303,7 +245,6 @@ export default function EducationCalculatorPage() {
     setStep(1);
     setFormData({});
     setResult(null);
-    // [FIX] Reset session ID for new session
     sessionId.current = uuidv4();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -361,7 +302,7 @@ export default function EducationCalculatorPage() {
         )}
       </div>
 
-      {/* [NEW] QUOTA ALERT CARD */}
+      {/* QUOTA ALERT CARD */}
       {!hasAccess && !isAuthLoading && step === 1 && (
         <Card className="p-5 rounded-2xl bg-red-50 border border-red-200 shadow-sm animate-pulse max-w-3xl mx-auto">
           <div className="flex items-start gap-4">
@@ -414,7 +355,6 @@ export default function EducationCalculatorPage() {
 
       {/* MAIN CONTENT CARD */}
       <Card className="border-none shadow-2xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl ring-1 ring-white/50 rounded-3xl overflow-hidden relative">
-        {/* Overlay Lock jika tidak ada akses */}
         {!hasAccess && !isAuthLoading && (
           <div className="absolute inset-0 bg-white/50 z-50 cursor-not-allowed" />
         )}
