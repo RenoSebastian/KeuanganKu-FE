@@ -97,7 +97,7 @@ export type FinancialApiPayload = FinancialMonthlyPayload;
 export interface RatioDetail {
     id: string;
     label: string;
-    value: number;
+    value: number; // [VERIFIED] Tipe data number ini adalah Information Expert untuk kalkulasi FE
     benchmark: string;
     // [MERGE] Digabung dengan Raksasa yang menggunakan 'string' biasa
     statusColor: 'GREEN_DARK' | 'GREEN_LIGHT' | 'YELLOW' | 'RED' | string;

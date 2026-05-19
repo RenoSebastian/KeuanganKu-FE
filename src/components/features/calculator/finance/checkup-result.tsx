@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { FinancialRecord, HealthAnalysisResult, CheckupSimulationResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatSmartDecimal } from "@/lib/formatters"; // [INJEKSI] Impor utilitas Smart Rounding
 import { PdfLoadingModal } from "./pdf-loading-modal";
 
 type ViewMode = "USER_VIEW" | "DIRECTOR_VIEW" | "AGENT_SIMULATION";
@@ -371,7 +372,8 @@ export function CheckupResult({
                                             <h4 className="font-bold text-slate-800 text-sm leading-tight line-clamp-2">{ratio.label}</h4>
                                             <div className="mt-3 flex items-baseline gap-1">
                                                 <span className="text-2xl font-black tracking-tight text-slate-900">
-                                                    {safeRatioValue.toFixed(2)}
+                                                    {/* [FIXED] Implementasi Smart Rounding tanpa limitasi kaku .toFixed */}
+                                                    {formatSmartDecimal(safeRatioValue)}
                                                 </span>
                                                 <span className="text-xs font-bold text-slate-400">
                                                     {typeSymbol}

@@ -195,3 +195,21 @@ export function formatDateTime(dateInput?: string | number | Date | any | null):
 
     return formatter.format(dateObj).replace(/\./g, ':');
 }
+
+/**
+ * @description Memformat nilai rasio/desimal dengan "Smart Rounding".
+ * Membatasi desimal maksimal (default 2) tetapi memotong angka nol yang tidak perlu di belakang koma.
+ * Contoh: 5 -> "5", 1.5 -> "1,5", 3.456 -> "3,46"
+ * @param value - Angka mentah yang akan diformat
+ * @param maxDecimals - Batas maksimal angka di belakang koma (default: 2)
+ */
+export function formatSmartDecimal(value: any, maxDecimals: number = 2): string {
+    const num = parseDecimal(value);
+
+    // Menggunakan locale 'id-ID' agar konsisten dengan format currency dan number aplikasi
+    return new Intl.NumberFormat('id-ID', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: maxDecimals,
+        useGrouping: false // Dimatikan karena ini biasanya digunakan untuk rasio/multiplier kecil
+    }).format(num);
+}
