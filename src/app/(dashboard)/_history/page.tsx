@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { financialService } from "@/services/financial.service";
 import { CheckupDetailResponse } from "@/lib/types";
+import { formatSmartDecimal } from "@/lib/formatters";
 import { PdfLoadingModal } from "@/components/features/calculator/finance/pdf-loading-modal"; // [NEW]
 
 // --- HELPER FORMATTER ---
@@ -277,7 +278,9 @@ export default function HistoryPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="font-bold text-slate-800 text-sm bg-slate-100 px-2 py-1 rounded-md">
-                              {typeof ratio.value === 'number' ? ratio.value.toFixed(1) + '%' : ratio.value}
+                              {typeof ratio.value === 'number'
+                                ? formatSmartDecimal(ratio.value) + (ratio.id === 'emergency_fund' || ratio.type === 'MULTIPLIER' ? 'x' : '%')
+                                : ratio.value}
                             </span>
                             <div className={cn(
                               "w-3 h-3 rounded-full shadow-sm ring-2 ring-white",
