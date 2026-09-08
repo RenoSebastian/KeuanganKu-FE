@@ -5,6 +5,7 @@ import {
   FinancialRecord,
   HealthAnalysisResult
 } from "./types";
+import { formatSmartDecimal } from "./formatters";
 import { DownloadResultData } from "@/components/features/shared/post-download-action";
 
 // --- KONFIGURASI WARNA & FONT ---
@@ -202,8 +203,8 @@ export const generateCheckupPDF = (
   if (ratios.length > 0) {
     const ratioRows: RowInput[] = ratios.map((r: any) => [
       r.label,
-      r.benchmark,
-      r.value + (r.id === "emergency_fund" ? "x" : "%"),
+      r.benchmark || r.idealCondition || "-",
+      formatSmartDecimal(r.value) + (r.id === "emergency_fund" ? "x" : "%"),
       {
         content: r.status === "PASS" ? "SEHAT" : r.status === "WARN" ? "WASPADA" : "BAHAYA",
         styles: {

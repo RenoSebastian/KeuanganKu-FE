@@ -66,6 +66,45 @@ export default function PensionPage() {
   const parseMoney = (val: string) => parseInt(val.replace(/\./g, "")) || 0;
   const parseNum = (val: string) => parseInt(val) || 0;
 
+  const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setClientData(prev => ({ ...prev, [name]: value }));
+    if (result) {
+      setResult(null);
+      setGeneratedFiles(null);
+    }
+
+    // Auto-sync currentAge when clientDob is selected
+    if (name === "clientDob" && value) {
+      const dob = new Date(value);
+      if (!isNaN(dob.getTime())) {
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+        if (age > 0 && age < 120) {
+          setCurrentAge(String(age));
+        }
+      }
+    }
+  };
+
+  const handleCurrentAgeChange = (val: string) => {
+    setCurrentAge(val);
+    if (result) {
+      setResult(null);
+      setGeneratedFiles(null);
+    }
+    const num = parseInt(val);
+    if (num > 0 && num < 120 && !clientData.clientDob) {
+      const currentYear = new Date().getFullYear();
+      const birthYear = currentYear - num;
+      setClientData(prev => ({ ...prev, clientDob: `${birthYear}-01-01` }));
+    }
+  };
+
   const handleMoneyInput = (val: string, setter: (v: string) => void) => {
     let num = val.replace(/\D/g, "");
     if (num.length > 1 && num.startsWith("0")) num = num.substring(1);
@@ -74,12 +113,60 @@ export default function PensionPage() {
   };
 
   const handleSimulate = async () => {
-    if (!hasAccess) return toast.error("Kuota Habis");
-    if (!clientData.clientName || !currentExpense) return toast.error("Data Belum Lengkap");
+    if (!hasAccess) {
+      toast.error("Kuota Habis", { description: "Silakan upgrade akun Anda untuk melanjutkan simulasi." });
+      return;
+    }
 
-    const cAge = parseNum(currentAge);
-    const rAge = parseNum(retirementAge);
-    if (cAge >= rAge) return toast.error("Logika Usia Salah");
+    if (!clientData.clientName?.trim()) {
+      toast.error("Data Belum Lengkap", { description: "Nama Lengkap klien wajib diisi." });
+      return;
+    }
+
+    let cAge = parseNum(currentAge);
+    // Jika currentAge belum terisi tapi clientDob ada, hitung otomatis
+    if ((!cAge || cAge <= 0) && clientData.clientDob) {
+      const dob = new Date(clientData.clientDob);
+      if (!isNaN(dob.getTime())) {
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+        if (age > 0) {
+          cAge = age;
+          setCurrentAge(String(age));
+        }
+      }
+    }
+
+    if (!cAge || cAge <= 0) {
+      toast.error("Data Belum Lengkap", { description: "Usia Kini wajib diisi (minimal 1 tahun)." });
+      return;
+    }
+
+    const rAge = parseNum(retirementAge) || 55;
+    if (cAge >= rAge) {
+      toast.error("Logika Usia Salah", { description: "Target usia pensiun harus lebih besar dari usia saat ini." });
+      return;
+    }
+
+    const lifeExp = Math.max(50, parseNum(lifeExpectancy) || 85);
+    if (lifeExp <= rAge) {
+      toast.error("Logika Usia Salah", { description: "Harapan hidup harus lebih besar dari usia pensiun." });
+      return;
+    }
+
+    const expense = parseMoney(currentExpense);
+    if (!expense || expense <= 0) {
+      toast.error("Data Belum Lengkap", { description: "Biaya Hidup Bulanan saat ini wajib diisi." });
+      return;
+    }
+
+    // Auto-generate DOB dan City jika belum diisi agar validasi backend selalu terpenuhi
+    const dob = clientData.clientDob?.trim() || `${new Date().getFullYear() - cAge}-01-01`;
+    const city = clientData.clientCity?.trim() || "Indonesia";
 
     setIsLoading(true);
     setShowPdfModal(true);
@@ -87,10 +174,15 @@ export default function PensionPage() {
     try {
       const payload = {
         ...clientData,
+        clientName: clientData.clientName.trim(),
+        clientDob: dob,
+        clientCity: city,
+        clientJob: clientData.clientJob?.trim() || "-",
+        clientPhone: clientData.clientPhone?.trim() || "",
         currentAge: cAge,
         retirementAge: rAge,
-        lifeExpectancy: parseNum(lifeExpectancy),
-        currentExpense: parseMoney(currentExpense),
+        lifeExpectancy: lifeExp,
+        currentExpense: expense,
         currentSaving: parseMoney(currentSaving),
         inflationRate: inflation,
         returnRate: returnRate,
@@ -106,9 +198,24 @@ export default function PensionPage() {
       const token = response.headers['x-mgc-token'];
       const disposition = response.headers['content-disposition'];
 
-      if (!token) throw new Error("Token tidak ditemukan");
+      if (!token) throw new Error("Token data simulasi tidak ditemukan pada response server.");
 
-      const decodedData = JSON.parse(atob(token.split('.')[0]));
+      // Safe base64 decoding dengan dukungan karakter UTF-8
+      let decodedData: any;
+      try {
+        const payloadBase64 = token.split('.')[0];
+        const binary = atob(payloadBase64);
+        const bytes = Uint8Array.from(binary, (m) => m.charCodeAt(0));
+        const jsonStr = new TextDecoder().decode(bytes);
+        decodedData = JSON.parse(jsonStr);
+      } catch {
+        decodedData = JSON.parse(atob(token.split('.')[0]));
+      }
+
+      if (!decodedData?.result) {
+        throw new Error("Hasil analisa simulasi tidak ditemukan di dalam token respon.");
+      }
+
       setResult(decodedData.result);
 
       // Ekstraksi Nama File Secara Akurat dari Header
@@ -126,10 +233,38 @@ export default function PensionPage() {
         filenamePdf: pdfFilename
       });
 
-      toast.success("Analisa Selesai");
+      toast.success("Analisa Selesai", { description: "Hasil simulasi pensiun berhasil dihitung." });
 
     } catch (error: any) {
-      toast.error("Gagal Simulasi");
+      console.error("Pension Simulation Error:", error);
+      let errorDescription = "Terjadi kesalahan sistem saat memproses simulasi.";
+
+      // Periksa apakah respon error berupa Blob (karena responseType: 'blob')
+      if (error?.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed.message)) {
+            errorDescription = parsed.message.join(", ");
+          } else if (parsed.message) {
+            errorDescription = parsed.message;
+          }
+        } catch {
+          // Abaikan jika bukan format JSON
+        }
+      } else if (error?.response?.data?.message) {
+        errorDescription = Array.isArray(error.response.data.message)
+          ? error.response.data.message.join(", ")
+          : error.response.data.message;
+      } else if (error?.message) {
+        errorDescription = error.message;
+      }
+
+      if (error?.response?.status === 403) {
+        errorDescription = "Kuota simulasi telah habis. Silakan upgrade paket Anda.";
+      }
+
+      toast.error("Gagal Simulasi", { description: errorDescription });
     } finally {
       setIsLoading(false);
       setShowPdfModal(false);
@@ -198,7 +333,18 @@ export default function PensionPage() {
         setReturnRate(data.financial.returnRate || 10);
 
         sessionId.current = uuidv4();
-        setResult(null); setGeneratedFiles(null);
+        if (data.result) {
+          setResult(data.result);
+          setGeneratedFiles({
+            pdfBlob: null,
+            mgcToken: content,
+            filenameMgc: generateSimulationFilename("Rencana Dana Hari Tua", data.client?.name || "Klien", "mgc"),
+            filenamePdf: null
+          });
+        } else {
+          setResult(null);
+          setGeneratedFiles(null);
+        }
         toast.success("Data Berhasil Dimuat");
       } catch (err: any) {
         toast.error("Gagal Import");
@@ -239,9 +385,9 @@ export default function PensionPage() {
 
             <PensionFormSection
               clientData={clientData}
-              onClientChange={(e) => setClientData({ ...clientData, [e.target.name]: e.target.value })}
+              onClientChange={handleClientChange}
               currentAge={currentAge}
-              setCurrentAge={setCurrentAge}
+              setCurrentAge={handleCurrentAgeChange}
               retirementAge={retirementAge}
               setRetirementAge={setRetirementAge}
               lifeExpectancy={lifeExpectancy}

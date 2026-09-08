@@ -2,7 +2,8 @@ import api from "@/lib/axios";
 import {
     RiskProfilePayload,
     RiskProfileServiceResponse,
-    RiskProfileSimulationResult
+    RiskProfileSimulationResult,
+    RiskProfileExportPayload
 } from "@/lib/types/risk-profile";
 
 // [NEW] Injeksi Pure Fabrication untuk standardisasi penamaan file
@@ -51,12 +52,13 @@ export const riskProfileService = {
                 throw new Error("Gagal membaca data hasil simulasi dari token.");
             }
 
-            // 3. Buat URL Blob untuk PDF
+            // 3. Buat URL Blob dan simpan Binary Blob untuk PDF
             const blob = new Blob([response.data], { type: "application/pdf" });
             const pdfUrl = window.URL.createObjectURL(blob);
 
             return {
                 pdfUrl,
+                pdfBlob: blob,
                 token: mgcToken,
                 data: decodedData
             };
@@ -137,6 +139,40 @@ export const riskProfileService = {
             const msg = error.response?.data?.message || error.message;
             // Jika backend mengembalikan array error message, ambil yang pertama
             throw new Error(Array.isArray(msg) ? msg[0] : msg);
+        }
+    },
+
+    /**
+     * Endpoint stateless untuk generate PDF laporan profil risiko berdasarkan data kalkulasi.
+     * Digunakan saat memulihkan draft atau mengimpor file .mgc di mana binary Blob belum tersedia di memori.
+     * Endpoint: POST /financial/export/risk-profile-pdf
+     */
+    exportRiskProfilePdf: async (data: RiskProfileExportPayload): Promise<Blob> => {
+        try {
+            const response = await api.post(
+                "/financial/export/risk-profile-pdf",
+                data,
+                {
+                    responseType: "blob",
+                    headers: {
+                        "Accept": "application/pdf",
+                    },
+                }
+            );
+            return new Blob([response.data], { type: "application/pdf" });
+        } catch (error: any) {
+            console.error("Export Risk Profile PDF Error:", error);
+            if (error.response?.data instanceof Blob) {
+                const errorBlob = error.response.data;
+                const errorText = await errorBlob.text();
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(errorJson.message || "Gagal membuat dokumen PDF.");
+                } catch {
+                    throw new Error("Terjadi kesalahan sistem saat memproses PDF.");
+                }
+            }
+            throw new Error(error.response?.data?.message || error.message || "Gagal menghubungi server.");
         }
     },
 

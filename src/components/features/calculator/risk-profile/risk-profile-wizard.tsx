@@ -29,7 +29,6 @@ import {
     RiskProfileSimulationResult
 } from "@/lib/types/risk-profile";
 import { riskProfileService } from "@/services/risk-profile.service";
-import api from "@/lib/axios"; // [ADDED] Untuk fetch Blob langsung dari pdfUrl
 
 // Hooks
 import { useSimulationPersistence, SIMULATION_STORAGE_KEYS } from "@/hooks/use-simulation-persistence";
@@ -74,6 +73,7 @@ export function RiskProfileWizard() {
     // Hasil Simulasi
     const [simulationResult, setSimulationResult] = useState<RiskProfileSimulationResult | null>(null);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
     const [mgcToken, setMgcToken] = useState<string | null>(null);
 
     // --- PERSISTENCE HOOK ---
@@ -92,7 +92,16 @@ export function RiskProfileWizard() {
         stepIndex,
         simulationResult,
         pdfUrl,
-        mgcToken
+        mgcToken,
+        (restoredClient, restoredInput, restoredStep, restoredResult, _restoredPdfUrl, restoredToken) => {
+            if (restoredClient) setClientData(restoredClient);
+            if (restoredInput) setAnswers(restoredInput);
+            if (restoredResult) setSimulationResult(restoredResult);
+            if (restoredToken) setMgcToken(restoredToken);
+            if (restoredStep === 2 && restoredResult) setCurrentStep("RESULT");
+            else if (restoredStep === 1 && restoredClient) setCurrentStep("QUIZ");
+            else setCurrentStep("IDENTITY");
+        }
     );
 
     const savedDraftName = (draftData as any)?.clientData?.name || "Klien";
@@ -100,27 +109,55 @@ export function RiskProfileWizard() {
     // --- REFACTORED UNIVERSAL EXPORT HANDLERS ---
 
     const handleDownloadPdf = async () => {
-        if (!pdfUrl) {
-            toast.error("Laporan PDF belum tersedia.");
-            return;
-        }
-
         setIsDownloading(true);
         try {
             const clientName = clientData?.name || "Klien";
             const filename = generateSimulationFilename("Profil Risiko", clientName, "pdf");
 
-            // [FIXED] Tarik data blob secara langsung menggunakan axios, karena URL PDF sudah ada.
-            const response = await api.get(pdfUrl, { responseType: 'blob' });
+            let targetBlob = pdfBlob;
 
-            // Eksekusi Blob PDF via Engine
-            const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
-            const exportStatus = await executeUniversalExport(pdfBlob, filename);
+            // Fallback 1: Jika targetBlob belum ada tetapi pdfUrl ada (object URL lokal)
+            if (!targetBlob && pdfUrl && pdfUrl.startsWith("blob:")) {
+                try {
+                    const blobRes = await fetch(pdfUrl);
+                    if (blobRes.ok) {
+                        targetBlob = await blobRes.blob();
+                        setPdfBlob(targetBlob);
+                    }
+                } catch (err) {
+                    console.warn("Gagal membaca blob dari object URL:", err);
+                }
+            }
+
+            // Fallback 2: Jika targetBlob belum ada (misal dari import .mgc atau draft restore),
+            // lakukan ekspor PDF secara stateless melalui endpoint backend
+            if (!targetBlob && simulationResult?.result && clientData) {
+                const exportPayload = {
+                    calculatedAt: simulationResult.meta?.generatedAt || new Date().toISOString(),
+                    clientName: clientData.name,
+                    clientDob: clientData.dob,
+                    totalScore: simulationResult.result.totalScore,
+                    riskProfile: simulationResult.result.profile,
+                    riskDescription: simulationResult.result.description,
+                    allocation: simulationResult.result.allocation,
+                };
+                targetBlob = await riskProfileService.exportRiskProfilePdf(exportPayload);
+                setPdfBlob(targetBlob);
+            }
+
+            if (!targetBlob) {
+                toast.error("Laporan PDF belum tersedia.");
+                return;
+            }
+
+            // Eksekusi Blob PDF via Engine Universal (Desktop direct download / Mobile PWA Web Share)
+            const exportStatus = await executeUniversalExport(targetBlob, filename);
 
             if (exportStatus === 'SHARED') toast.success("Dokumen PDF siap dibagikan.");
             else if (exportStatus === 'DOWNLOADED') toast.success("Dokumen PDF berhasil diunduh.");
 
         } catch (error) {
+            console.error("Download PDF Error:", error);
             toast.error("Gagal mengunduh dokumen PDF.");
         } finally {
             setIsDownloading(false);
@@ -202,6 +239,7 @@ export function RiskProfileWizard() {
 
                 setMgcToken(tokenString);
                 setPdfUrl(null);
+                setPdfBlob(null);
 
                 toast.success("Import Berhasil!", { id: toastId, description: `Data simulasi ${decoded.client.name} berhasil dimuat.` });
 
@@ -263,6 +301,7 @@ export function RiskProfileWizard() {
 
             setSimulationResult(response.data);
             setPdfUrl(response.pdfUrl);
+            setPdfBlob(response.pdfBlob || null);
             setMgcToken(response.token);
 
             setCurrentStep("RESULT");
@@ -282,6 +321,7 @@ export function RiskProfileWizard() {
             setAnswers([]);
             setSimulationResult(null);
             setPdfUrl(null);
+            setPdfBlob(null);
             setMgcToken(null);
             setCurrentStep("IDENTITY");
             window.scrollTo({ top: 0, behavior: "smooth" });

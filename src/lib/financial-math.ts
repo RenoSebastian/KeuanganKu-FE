@@ -38,7 +38,7 @@ export const STAGES_DB: EducationStage[] = [
 // --- BASIC HELPERS ---
 
 export const formatRupiah = (val: number | undefined | null) => {
-  if (val === undefined || val === null) return "Rp 0";
+  if (val === undefined || val === null || isNaN(val)) return "Rp 0";
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
 };
 

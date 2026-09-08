@@ -196,8 +196,16 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
         const fetchGold = async () => {
             try {
                 const res = await financialService.getLatestGoldPrice();
-                if (res.success && res.data) setCurrentGoldPrice(Number(res.data.buyPrice));
-            } catch (e) { console.error("Gold price fetch failed", e); }
+                const price = Number(res?.data?.buyPrice);
+                if (!isNaN(price) && price > 0) {
+                    setCurrentGoldPrice(price);
+                } else {
+                    setCurrentGoldPrice(1350000);
+                }
+            } catch (e) {
+                console.error("Gold price fetch failed, using fallback", e);
+                setCurrentGoldPrice((prev) => (prev > 0 ? prev : 1350000));
+            }
         };
         fetchGold();
     }, []);
@@ -230,11 +238,12 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
     const applyGoldCalculation = () => {
         const cleanWeight = goldWeight.replace(/[^0-9,.]/g, "").replace(",", ".");
         const weight = parseFloat(cleanWeight) || 0;
-        if (!currentGoldPrice || currentGoldPrice <= 0) {
-            toast.error("Harga emas belum tersedia. Periksa koneksi internet Anda.");
+        const validPrice = !isNaN(currentGoldPrice) && currentGoldPrice > 0 ? currentGoldPrice : 1350000;
+        if (weight <= 0) {
+            toast.error("Masukkan jumlah gram emas yang valid.");
             return;
         }
-        const totalPrice = Math.round(weight * currentGoldPrice);
+        const totalPrice = Math.round(weight * validPrice);
         if (!isNaN(totalPrice)) {
             onUpdate("assetGold", totalPrice);
             setShowGoldModal(false);
@@ -334,7 +343,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                                 </button>
                                             </div>
                                             <InputGroupNoLabel value={num(data.assetGold)} onChange={(v) => handleLocalChange("assetGold", v)} icon={<Coins className="w-4 h-4 text-amber-500" />} />
-                                            {currentGoldPrice > 0 && <p className="text-[9px] text-amber-600/70 italic ml-1 font-medium">*Ref harga: {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(currentGoldPrice)}/gr</p>}
+                                            {currentGoldPrice > 0 && !isNaN(currentGoldPrice) && <p className="text-[9px] text-amber-600/70 italic ml-1 font-medium">*Ref harga: {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(currentGoldPrice)}/gr</p>}
                                         </div>
 
                                         <InputGroup label="Saham" value={num(data.assetStocks)} onChange={(v) => handleLocalChange("assetStocks", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetStocks} />
@@ -756,7 +765,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
                                 <div>
                                     <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Harga Server Hari Ini</p>
-                                    <p className="text-lg font-black text-slate-700">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(currentGoldPrice)}</p>
+                                    <p className="text-lg font-black text-slate-700">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(!isNaN(currentGoldPrice) && currentGoldPrice > 0 ? currentGoldPrice : 1350000)}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Satuan</p>
@@ -772,11 +781,11 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                             </div>
                             <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex justify-between items-center">
                                 <p className="text-[10px] font-black text-amber-600/70 uppercase">Estimasi Nilai Harta</p>
-                                <p className="text-xl font-black text-amber-700">{formatRupiah(Math.round((parseFloat(goldWeight.replace(",", ".")) || 0) * currentGoldPrice))}</p>
+                                <p className="text-xl font-black text-amber-700">{formatRupiah(Math.round((parseFloat(goldWeight.replace(",", ".")) || 0) * (!isNaN(currentGoldPrice) && currentGoldPrice > 0 ? currentGoldPrice : 1350000)))}</p>
                             </div>
                             <div className="pt-2 flex gap-3">
                                 <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold border-slate-200" onClick={() => setShowGoldModal(false)}>Batal</Button>
-                                <Button className="flex-2 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black shadow-lg shadow-amber-500/20" onClick={applyGoldCalculation} disabled={!currentGoldPrice}>Terapkan Aset</Button>
+                                <Button className="flex-2 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black shadow-lg shadow-amber-500/20" onClick={applyGoldCalculation} disabled={isNaN(currentGoldPrice) || currentGoldPrice <= 0}>Terapkan Aset</Button>
                             </div>
                         </div>
                     </motion.div>

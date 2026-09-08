@@ -83,10 +83,24 @@ export interface RiskProfileSimulationResult {
 }
 
 /**
+ * DTO untuk request export PDF stateless
+ */
+export interface RiskProfileExportPayload {
+    calculatedAt: string;
+    clientName: string;
+    clientDob?: string;
+    totalScore: number;
+    riskProfile: RiskProfileCategory;
+    riskDescription: string;
+    allocation: RiskAllocation;
+}
+
+/**
  * Return Value dari Service Frontend ke UI Component.
  */
 export interface RiskProfileServiceResponse {
     pdfUrl: string;
+    pdfBlob?: Blob;
     token: string;
     data: RiskProfileSimulationResult;
 }

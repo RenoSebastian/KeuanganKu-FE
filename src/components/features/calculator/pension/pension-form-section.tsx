@@ -43,12 +43,12 @@ export function PensionFormSection({
                 </h3>
                 <div className="space-y-4">
                     <div>
-                        <Label className="text-xs font-semibold text-slate-500">Nama Lengkap</Label>
+                        <Label className="text-xs font-semibold text-slate-500">Nama Lengkap <span className="text-rose-500">*</span></Label>
                         <Input name="clientName" placeholder="Contoh: Budi Santoso" value={clientData.clientName} onChange={onClientChange} className="mt-1" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label className="text-xs font-semibold text-slate-500">Tanggal Lahir</Label>
+                            <Label className="text-xs font-semibold text-slate-500">Tanggal Lahir <span className="text-rose-500">*</span></Label>
                             <div className="relative mt-1">
                                 <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                 <Input type="date" name="clientDob" value={clientData.clientDob} onChange={onClientChange} className="pl-9" />
@@ -79,15 +79,15 @@ export function PensionFormSection({
                 </h3>
                 <div className="grid grid-cols-3 gap-4 mb-6">
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Usia Kini</Label>
+                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Usia Kini <span className="text-rose-500">*</span></Label>
                         <Input type="number" value={currentAge} onChange={e => { setCurrentAge(e.target.value); onDataChange(); }} className="h-12 bg-slate-50 text-center font-bold" />
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-indigo-500 uppercase">Usia Pensiun</Label>
+                        <Label className="text-[10px] font-bold text-indigo-500 uppercase">Usia Pensiun <span className="text-rose-500">*</span></Label>
                         <Input type="number" value={retirementAge} onChange={e => { setRetirementAge(e.target.value); onDataChange(); }} className="h-12 bg-indigo-50 text-center font-bold text-indigo-700" />
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Harapan Hidup</Label>
+                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Harapan Hidup <span className="text-rose-500">*</span></Label>
                         <Input type="number" value={lifeExpectancy} onChange={e => { setLifeExpectancy(e.target.value); onDataChange(); }} className="h-12 bg-slate-50 text-center font-bold" />
                     </div>
                 </div>
@@ -97,7 +97,7 @@ export function PensionFormSection({
                 </h3>
                 <div className="space-y-4">
                     <div className="space-y-1">
-                        <Label className="text-xs font-bold text-slate-500 uppercase">Biaya Hidup Bulanan (Saat Ini)</Label>
+                        <Label className="text-xs font-bold text-slate-500 uppercase">Biaya Hidup Bulanan (Saat Ini) <span className="text-rose-500">*</span></Label>
                         <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rp</span>
                             <Input value={currentExpense} onChange={e => onMoneyInput(e.target.value, setCurrentExpense)} className="pl-12 h-12 font-bold text-lg" placeholder="0" />
