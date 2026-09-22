@@ -19,11 +19,11 @@ export const OtherCostsForm = ({
     return (
         <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
-                <Landmark className="w-5 h-5 text-brand-600" /> 3. Biaya Duka & Asuransi Existing
+                <Landmark className="w-5 h-5 text-brand-600" /> 3. Biaya Segera & Asuransi yang Dimiliki
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Biaya Pemakaman & RS</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Biaya Pemakaman & Rumah Sakit</label>
                     <InputGroup
                         value={finalExpense}
                         onChange={onFinalExpenseChange}
@@ -31,7 +31,7 @@ export const OtherCostsForm = ({
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-emerald-600 uppercase">Asuransi Jiwa yg Sudah Punya</label>
+                    <label className="text-[10px] font-bold text-emerald-600 uppercase">Asuransi yang Sudah Dimiliki</label>
                     <InputGroup
                         value={existingInsurance}
                         onChange={onExistingInsuranceChange}

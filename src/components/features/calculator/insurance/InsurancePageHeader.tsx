@@ -59,7 +59,7 @@ export const InsurancePageHeader = ({
                         Insurance Planner
                     </h1>
                     <p className="text-brand-100 text-sm md:text-base max-w-lg leading-relaxed opacity-90 drop-shadow-md">
-                        Hitung kebutuhan Uang Pertanggungan (UP) ideal klien Anda secara profesional dan akurat.
+                        Hitung kebutuhan Uang Pertanggungan ideal klien Anda secara profesional dan akurat.
                     </p>
                 </div>
 

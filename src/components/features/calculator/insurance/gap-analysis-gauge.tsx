@@ -26,7 +26,7 @@ export function GapAnalysisGauge({ totalNeeded, existingCoverage, coverageGap }:
                 <div>
                     <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
                         <ShieldCheck className="w-5 h-5 text-brand-600" />
-                        Analisa Kecukupan UP
+                        Analisa Kecukupan Uang Pertanggungan
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">
                         Indikator kesehatan proteksi asuransi klien.
@@ -111,7 +111,7 @@ export function GapAnalysisGauge({ totalNeeded, existingCoverage, coverageGap }:
                                     {isSafe ? "SURPLUS (AMAN)" : "KEKURANGAN (GAP)"}
                                 </p>
                                 <p className={cn("text-sm opacity-80 font-medium", isSafe ? "text-emerald-800" : "text-rose-800")}>
-                                    {isSafe ? "Klien memiliki kelebihan proteksi sebesar:" : "Wajib menambah UP minimal:"}
+                                    {isSafe ? "Klien memiliki kelebihan proteksi sebesar:" : "Wajib menambah Uang Pertanggungan minimal:"}
                                 </p>
                             </div>
                         </div>

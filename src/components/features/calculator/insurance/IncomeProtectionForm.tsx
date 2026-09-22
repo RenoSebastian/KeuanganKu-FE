@@ -39,7 +39,7 @@ export const IncomeProtectionForm = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-1 md:col-span-2">
                         <div className="flex justify-between items-center ml-1">
-                            <label className="text-[10px] font-bold text-brand-600 uppercase">Gaji Bersih Setahun</label>
+                            <label className="text-[10px] font-bold text-brand-600 uppercase">Biaya Hidup Keluarga Setahun</label>
                             <button
                                 type="button"
                                 onClick={onShowIncomeModal}
@@ -52,16 +52,16 @@ export const IncomeProtectionForm = ({
                             value={annualIncome}
                             onChange={onAnnualIncomeChange}
                         />
-                        <p className="text-[9px] text-slate-400 ml-1 mt-1">*Total gaji 12 bulan (Take Home Pay)</p>
+                        <p className="text-[9px] text-slate-400 ml-1 mt-1">*Total biaya hidup keluarga 12 bulan</p>
                     </div>
 
                     <div className="space-y-1">
                         <div className="flex items-center gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Lama Ditanggung</label>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Tanggungan Terlama</label>
                             <InfoPopover content={{
-                                title: "Lama Ditanggung",
+                                title: "Tanggungan Terlama",
                                 definition: "Jangka waktu terlama untuk menanggung biaya hidup anggota keluarga (tahun).",
-                                example: "Misal: Anak bungsu usia 5 tahun, mandiri usia 22 tahun. Maka lama ditanggung = 17 tahun."
+                                example: "Misal: Anak bungsu usia 5 tahun, mandiri usia 22 tahun. Maka tanggungan terlama = 17 tahun."
                             }} />
                         </div>
                         <div className="relative group">

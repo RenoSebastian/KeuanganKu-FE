@@ -45,11 +45,11 @@ export const HelperCalculatorModal = ({
                     </div>
                     <div>
                         <h3 className="text-xl font-black text-slate-800">
-                            {isIncome ? "Kalkulator Gaji Tahunan" : "Asisten Kalkulator Utang"}
+                            {isIncome ? "Kalkulator Biaya Hidup Tahunan" : "Asisten Kalkulator Utang"}
                         </h3>
                         <p className="text-xs text-slate-500">
                             {isIncome
-                                ? "Hitung total gaji setahun dari gaji bulanan."
+                                ? "Hitung total biaya hidup setahun dari biaya bulanan."
                                 : "Hitung sisa utang dari cicilan rutin."}
                         </p>
                     </div>
@@ -58,7 +58,7 @@ export const HelperCalculatorModal = ({
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                            {isIncome ? "Gaji Bersih Per Bulan" : "Cicilan Per Bulan"}
+                            {isIncome ? "Biaya Hidup Per Bulan" : "Cicilan Per Bulan"}
                         </label>
                         <InputGroup
                             value={tempMonthly}
@@ -77,11 +77,11 @@ export const HelperCalculatorModal = ({
                                     type="number"
                                     value={tempTenor}
                                     onChange={(e) => onTenorChange(e.target.value)}
-                                    className="h-12 rounded-xl font-bold bg-slate-50 border-slate-200 focus:border-brand-500 pr-12"
+                                    className="h-12 rounded-xl font-bold bg-slate-50 border-slate-200 focus:border-brand-500 pr-16"
                                     placeholder="Contoh: 120"
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">
-                                    Bln
+                                    Bulan
                                 </span>
                             </div>
                         </div>

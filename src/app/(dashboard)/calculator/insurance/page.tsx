@@ -117,7 +117,7 @@ export default function InsurancePage() {
     }
 
     if (!clientData.clientName || !annualIncome) {
-      toast.error("Data Belum Lengkap", { description: "Nama Klien, Tanggal Lahir, dan Gaji wajib diisi." });
+      toast.error("Data Belum Lengkap", { description: "Nama Klien, Tanggal Lahir, dan Biaya Hidup wajib diisi." });
       return;
     }
 

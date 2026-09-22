@@ -48,7 +48,7 @@ export function InsuranceResultCard({
                             <div>
                                 <h4 className="text-lg font-black text-slate-800">Dana Kehidupan</h4>
                                 <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-cyan-100 text-cyan-700 text-[10px] font-bold uppercase tracking-wide mt-1">
-                                    Pilar A - Income Replacement
+                                    Pilar A - Pengganti Biaya Keluarga
                                 </div>
                             </div>
                         </div>
@@ -58,7 +58,7 @@ export function InsuranceResultCard({
                     </div>
                     <div className="text-left sm:text-right w-full sm:w-auto bg-white/60 sm:bg-transparent p-4 sm:p-0 rounded-xl border border-white sm:border-0">
                         <p className="text-[10px] uppercase font-bold text-cyan-600 tracking-widest mb-1">
-                            Total Biaya Pengganti Penghasilan
+                            Total Biaya Kebutuhan Keluarga
                         </p>
                         <p className="text-3xl font-black text-slate-800 tracking-tight">
                             {formatRupiah(incomeReplacement)}
@@ -91,7 +91,7 @@ export function InsuranceResultCard({
                     {/* Footer Note */}
                     <p className="text-[10px] text-slate-400 mt-3 italic text-right flex justify-end gap-1 items-center">
                         <ShieldAlert className="w-3 h-3" />
-                        *Dana diinvestasikan (SBN/Deposito) agar bunganya menggantikan gaji bulanan.
+                        *Dana diinvestasikan (SBN/Deposito) agar bunganya menggantikan biaya hidup bulanan.
                     </p>
                 </div>
             </Card>
@@ -110,9 +110,9 @@ export function InsuranceResultCard({
                                 <Landmark className="w-7 h-7" />
                             </div>
                             <div>
-                                <h4 className="text-lg font-black text-slate-800">Dana Pelunasan</h4>
+                                <h4 className="text-lg font-black text-slate-800">Dana Pelunasan dan Biaya Segera</h4>
                                 <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 text-[10px] font-bold uppercase tracking-wide mt-1">
-                                    Pilar B - Debt Clearance
+                                    Pilar B - Pelunasan Utang & Biaya Segera
                                 </div>
                             </div>
                         </div>
@@ -133,7 +133,7 @@ export function InsuranceResultCard({
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-500 flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-rose-400" />
-                                Total Sisa Hutang
+                                Total Sisa Utang
                             </span>
                             <span className="font-bold text-slate-700">{formatRupiah(existingDebt)}</span>
                         </div>
