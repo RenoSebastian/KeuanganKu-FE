@@ -68,6 +68,8 @@ typescript: {
   outputFileTracingRoot: path.join(__dirname, "./"),
   
   images: {
+    unoptimized: true, // Melayani static file langsung tanpa optimizer yang memicu header Content-Disposition: attachment
+    contentDispositionType: 'inline',
     remotePatterns: [
       {
         protocol: "https",
