@@ -298,7 +298,7 @@ export default function AdminVouchersPage() {
                             </label>
                             <input
                                 type="text"
-                                placeholder="Contoh: ENGINE50"
+                                placeholder="Contoh: DISKON2026"
                                 value={formCode}
                                 onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                                 required

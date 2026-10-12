@@ -8,12 +8,30 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "KeuanganKu",
   description: "Sistem Perencanaan Keuangan untuk Agen Profesional",
-  // Penambahan konfigurasi icons
   icons: {
-    icon: "/icons/icon.png",
-    shortcut: "/icons/icon.png",
-    // Menambahkan apple-touch-icon meningkatkan kompatibilitas PWA jika diakses via perangkat iOS
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
     apple: "/icons/icon-192x192.png",
+  },
+  openGraph: {
+    title: "KeuanganKu",
+    description: "Sistem Perencanaan Keuangan untuk Agen Profesional",
+    url: "https://keuanganku.id",
+    siteName: "KeuanganKu",
+    images: [
+      {
+        url: "/images/logokeuanganku.png",
+        width: 800,
+        height: 600,
+        alt: "Logo KeuanganKu",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
   },
   appleWebApp: {
     capable: true,

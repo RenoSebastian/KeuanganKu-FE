@@ -203,7 +203,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                             <div className="flex items-center gap-2">
                                 <input
                                     type="text"
-                                    placeholder="Contoh: ENGINE50"
+                                    placeholder="Contoh: DISKON2026"
                                     value={voucherCodeInput}
                                     onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
                                     onKeyDown={(e) => {
