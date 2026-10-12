@@ -7,7 +7,8 @@ import {
     ShieldCheck, Zap,
     Loader2, ArrowRight, Wallet, Check, RefreshCw,
     Sparkles,
-    TrendingDown
+    TrendingDown,
+    Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,19 +31,63 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
     const [fileObj, setFileObj] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // State Voucher
+    const [voucherCodeInput, setVoucherCodeInput] = useState("");
+    const [appliedVoucher, setAppliedVoucher] = useState<{
+        code: string;
+        name: string;
+        discountAmount: number;
+        finalPrice: number;
+    } | null>(null);
+    const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
+
     // Safety Guard
     if (!plan) return null;
 
     // --- LOGIC PERHITUNGAN HARGA (UPDATED) ---
     // 1. Base Price: Mengambil harga mutlak dari DB (sudah merupakan harga bundling)
     const basePrice = plan.price;
+    const discountVoucherAmount = appliedVoucher ? appliedVoucher.discountAmount : 0;
+    const effectiveSubtotal = appliedVoucher ? appliedVoucher.finalPrice : basePrice;
 
-    // 2. Total Transfer (Base Price + Kode Unik)
-    const totalTransfer = basePrice + uniqueCode;
+    // 2. Total Transfer (Subtotal Efektif setelah Diskon + Kode Unik)
+    const totalTransfer = effectiveSubtotal + uniqueCode;
 
     // 3. Logic Diskon & Ekuivalensi Bulanan (Dinamis dari Master Data)
     const discountLabel = plan.discountNote;
-    const monthlyEquivalent = plan.durationMonths > 0 ? plan.price / plan.durationMonths : plan.price;
+    const monthlyEquivalent = plan.durationMonths > 0 ? effectiveSubtotal / plan.durationMonths : effectiveSubtotal;
+
+    const handleApplyVoucher = async () => {
+        if (!voucherCodeInput.trim()) {
+            toast.error("Masukkan kode voucher terlebih dahulu");
+            return;
+        }
+        setIsValidatingVoucher(true);
+        try {
+            const result = await subscriptionService.validateVoucher(voucherCodeInput, plan.id);
+            setAppliedVoucher({
+                code: result.voucher.code,
+                name: result.voucher.name,
+                discountAmount: result.discountAmount,
+                finalPrice: result.finalPrice,
+            });
+            toast.success(`Voucher ${result.voucher.code} berhasil digunakan!`, {
+                description: `Hemat ${formatCurrency(result.discountAmount)}`,
+            });
+        } catch (error: any) {
+            toast.error("Voucher tidak valid", {
+                description: error.response?.data?.message || "Gagal menerapkan kode voucher.",
+            });
+        } finally {
+            setIsValidatingVoucher(false);
+        }
+    };
+
+    const handleRemoveVoucher = () => {
+        setAppliedVoucher(null);
+        setVoucherCodeInput("");
+        toast.info("Voucher dihapus");
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -73,7 +118,7 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
 
         setIsSubmitting(true);
         try {
-            await subscriptionService.createOrder(plan.id, uniqueCode, fileObj);
+            await subscriptionService.createOrder(plan.id, uniqueCode, fileObj, appliedVoucher?.code);
             toast.success("Bukti transfer terkirim!", {
                 description: "Status akun Anda akan segera aktif setelah verifikasi otomatis."
             });
@@ -140,6 +185,79 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                 {/* SCROLLABLE BODY */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
 
+                    {/* VOUCHER / PROMO INPUT CARD */}
+                    <div className="bg-white border border-slate-200 rounded-[1.8rem] p-5 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <Tag size={14} className="text-indigo-600" />
+                                Kode Voucher Diskon
+                            </label>
+                            {appliedVoucher && (
+                                <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px] font-bold">
+                                    ✓ Aktif
+                                </Badge>
+                            )}
+                        </div>
+
+                        {!appliedVoucher ? (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Contoh: ENGINE50"
+                                    value={voucherCodeInput}
+                                    onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            handleApplyVoucher();
+                                        }
+                                    }}
+                                    disabled={isValidatingVoucher || isSubmitting}
+                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold tracking-wider uppercase text-slate-800 placeholder:text-slate-400 placeholder:normal-case placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                />
+                                <Button
+                                    type="button"
+                                    onClick={handleApplyVoucher}
+                                    disabled={!voucherCodeInput.trim() || isValidatingVoucher || isSubmitting}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-4 py-2.5 text-xs shrink-0 shadow-sm transition-all"
+                                >
+                                    {isValidatingVoucher ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                    ) : (
+                                        "Gunakan"
+                                    )}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                                        <Check size={16} strokeWidth={3} />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-mono font-black text-xs text-emerald-800 tracking-wider">
+                                                {appliedVoucher.code}
+                                            </span>
+                                            <span className="text-[10px] text-emerald-600 font-bold">
+                                                (-{formatCurrency(appliedVoucher.discountAmount)})
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500">{appliedVoucher.name}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveVoucher}
+                                    className="text-slate-400 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                                    title="Hapus Voucher"
+                                >
+                                    <XCircle size={16} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     {/* INVOICE SUMMARY CARD */}
                     <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm">
                         {/* Top Section: Plan Info */}
@@ -183,6 +301,16 @@ export function PaymentModal({ plan, uniqueCode, onClose, onSuccess }: PaymentMo
                                 <span className="text-slate-500 font-medium">Subtotal (Paket {plan.durationMonths > 0 ? `${plan.durationMonths} Bulan` : 'Lifetime'})</span>
                                 <span className="font-bold text-slate-700">{formatCurrency(basePrice)}</span>
                             </div>
+                            {appliedVoucher && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                        <Tag size={13} /> Diskon Voucher ({appliedVoucher.code})
+                                    </span>
+                                    <span className="font-bold text-emerald-600">
+                                        - {formatCurrency(appliedVoucher.discountAmount)}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-emerald-600 font-bold flex items-center gap-1">
                                     <Sparkles size={12} fill="currentColor" /> Kode Unik

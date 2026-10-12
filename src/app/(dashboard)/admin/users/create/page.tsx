@@ -25,7 +25,7 @@ export default function CreateUserPage() {
       nip: "",
       email: "",
       password: "Maxipro123!",
-      role: "USER" as "USER" | "ADMIN" | "DIRECTOR",
+      role: "USER" as "USER" | "ADMIN",
       agentLevel: "",
       dateOfBirth: "",
       phoneNumber: "",
@@ -193,8 +193,8 @@ export default function CreateUserPage() {
                      <div className="grid grid-cols-1 gap-8">
                         <div className="space-y-3">
                            <Label>Role Aplikasi</Label>
-                           <div className="grid grid-cols-3 gap-2 max-w-lg">
-                              {["USER", "DIRECTOR", "ADMIN"].map((role) => (
+                           <div className="grid grid-cols-2 gap-2 max-w-sm">
+                              {["USER", "ADMIN"].map((role) => (
                                  <button
                                     key={role}
                                     type="button"

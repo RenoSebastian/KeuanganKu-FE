@@ -38,7 +38,6 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
 
   // Derived State
   const isAdmin = user?.role === 'ADMIN';
-  const isDirector = user?.role === 'DIRECTOR';
 
   // Helper Initials
   const getInitials = (name: string) => {
@@ -173,7 +172,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   // --- COMPONENT: QUOTA WIDGET ---
   const QuotaWidget = () => {
     if (isLoading) return <div className="mx-4 h-16 bg-slate-50 animate-pulse rounded-xl mb-4" />;
-    if (isAdmin || isDirector) return null;
+    if (isAdmin) return null;
 
     // Hitung persentase kuota untuk progress bar (Base visual max 10 Token)
     const maxQuota = 10;
@@ -358,20 +357,6 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
           </div>
         )}
 
-        {isDirector && NAVIGATION_CONFIG.director.length > 0 && (
-          <div>
-            {!internalCollapse ? (
-              <p className="px-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2 whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-800 shrink-0"></span> Executive
-              </p>
-            ) : (
-              <div className="w-full flex justify-center mb-3 mt-6"><div className="w-2 h-2 rounded-full bg-slate-800"></div></div>
-            )}
-            <div className="space-y-1.5 flex flex-col">
-              {NAVIGATION_CONFIG.director.map((item: any) => <NavLink key={item.href} item={item} variant="exec" />)}
-            </div>
-          </div>
-        )}
 
         {isAdmin && NAVIGATION_CONFIG.admin.length > 0 && (
           <div>
@@ -421,7 +406,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
               <div className="relative">
                 <div className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 shrink-0 border-2 border-white shadow-sm",
-                  isAdmin ? "bg-teal-100 text-teal-700" : isDirector ? "bg-slate-200 text-slate-700" : isPro ? "bg-linear-to-tr from-amber-100 to-amber-50 text-amber-700" : "bg-blue-100 text-blue-700",
+                  isAdmin ? "bg-teal-100 text-teal-700" : isPro ? "bg-linear-to-tr from-amber-100 to-amber-50 text-amber-700" : "bg-blue-100 text-blue-700",
                   "group-hover:bg-white group-hover:shadow-sm"
                 )}>
                   {isLoading ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : userInitials}

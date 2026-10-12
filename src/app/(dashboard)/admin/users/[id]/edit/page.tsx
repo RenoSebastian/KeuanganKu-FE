@@ -278,12 +278,12 @@ export default function EditUserPage({ params }: PageProps) {
               <div className="grid grid-cols-1 gap-8">
                 <div className="space-y-3">
                   <Label>Role Aplikasi</Label>
-                  <div className="grid grid-cols-3 gap-2 max-w-lg">
-                    {["USER", "DIRECTOR", "ADMIN"].map((role) => (
+                  <div className="grid grid-cols-2 gap-2 max-w-sm">
+                    {["USER", "ADMIN"].map((role) => (
                       <button
                         key={role}
                         type="button"
-                        onClick={() => setFormData({ ...formData, role })}
+                        onClick={() => setFormData({ ...formData, role: role as any })}
                         className={cn(
                           "text-xs font-bold py-3 px-2 rounded-xl border transition-all",
                           formData.role === role ? "bg-slate-900 text-white shadow-md border-slate-900" : "bg-white text-slate-500 hover:bg-slate-50"

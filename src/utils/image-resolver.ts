@@ -8,20 +8,29 @@ export const getImageUrl = (path: string | undefined | null): string => {
     return '/images/placeholder-image.png';
   }
 
-  // 2. Apabila path sudah berupa URL absolut (External seperti AWS S3, atau Backend Interceptor)
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
+  const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+  const baseUrl = rawApiUrl.replace(/\/api\/?$/, '');
+
+  // 2. Normalisasi jika backend membubuhkan host internal localhost / 127.0.0.1
+  let cleanPath = path;
+  if (cleanPath.includes('localhost:4000') || cleanPath.includes('127.0.0.1:4000')) {
+    cleanPath = cleanPath.replace(/^https?:\/\/(localhost|127\.0\.0\.1):4000/, '');
   }
 
-  // 3. Apabila path adalah relative local environment Frontend (misal aset di public folder Next.js)
-  // Biasa dimulai dengan /images/, /assets/, dll.
-  // Tapi jika dia spesifik dari uploads backend (contoh: /uploads/...), kita arahkan ke API_URL
-  if (path.startsWith('/uploads/')) {
-    const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-    const baseUrl = rawApiUrl.replace(/\/api\/?$/, '');
-    return `${baseUrl}${path}`;
+  // 3. Jika setelah dinormalisasi masih merupakan URL eksternal valid (misal AWS S3 / Cloudinary)
+  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+    return cleanPath;
   }
 
-  // Fallback terakhir: Kembalikan path original apa adanya
-  return path;
+  // 4. Jika path mengarah ke file statis uploads backend
+  if (cleanPath.startsWith('/uploads/')) {
+    return `${baseUrl}${cleanPath}`;
+  }
+
+  if (cleanPath.startsWith('uploads/')) {
+    return `${baseUrl}/${cleanPath}`;
+  }
+
+  // 5. Fallback untuk aset publik frontend Next.js (/images/...) atau path relatif lainnya
+  return cleanPath;
 };

@@ -104,16 +104,10 @@ export function ExportControl({
         }
 
         // 3. Eksekusi Export & Tangkap Hasil (Integrasi Fase 1 ke Fase 2)
-        const result = await triggerExport({
+        await triggerExport({
             entityType,
             cutoffDate,
         });
-
-        // 4. Buka Modal Interaksi jika berhasil
-        if (result) {
-            setDownloadData(result);
-            setIsModalOpen(true);
-        }
     };
 
     /**

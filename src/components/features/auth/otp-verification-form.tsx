@@ -38,11 +38,15 @@ export function OtpVerificationForm({ email, onBack }: OtpVerificationFormProps)
 
         setIsLoading(true);
         try {
-            await authService.verifyOtp({ email, otpCode });
+            const result = await authService.verifyOtp({ email, otpCode });
             toast.success("Verifikasi Berhasil", {
                 description: "Akun Anda telah aktif. Mengalihkan ke dashboard...",
             });
-            router.push("/dashboard");
+            if (result.user?.role === 'ADMIN') {
+                router.push("/admin/dashboard");
+            } else {
+                router.push("/dashboard");
+            }
             router.refresh();
         } catch (error: any) {
             const message = error.response?.data?.message || "Kode OTP tidak valid.";

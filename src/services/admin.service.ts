@@ -18,7 +18,7 @@ export interface CreateUserPayload {
     fullName: string;
     email: string;
     password: string;
-    role: 'USER' | 'ADMIN' | 'DIRECTOR';
+    role: 'USER' | 'ADMIN';
 
     nip?: string;
     // [NEW] Fase 1: Membuka gerbang agar Admin bisa input nomor HP saat Create User
@@ -164,6 +164,16 @@ export const adminService = {
         // Hanya mengirimkan sinyal POST tanpa body rahasia ke backend.
         // Semua logika hashing, validasi email, dan pengiriman berada di Backend.
         const response = await api.post<{ message: string }>(`/admin/users/${userId}/trigger-reset`);
+        return response.data;
+    },
+
+    manualOverride: async (payload: {
+        userId: string;
+        planId: string;
+        durationMonths?: number;
+        reason?: string;
+    }) => {
+        const response = await api.post('/admin/subscription/override', payload);
         return response.data;
     },
 

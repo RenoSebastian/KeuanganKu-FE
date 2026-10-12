@@ -1,6 +1,6 @@
 import { HealthStatus } from "./common"; // Pastikan file common.ts sudah ada
 
-export type UserRole = "USER" | "ADMIN" | "DIRECTOR" | "UNIT_HEAD";
+export type UserRole = "USER" | "ADMIN";
 
 // ============================================================================
 // DTOs (DATA TRANSFER OBJECTS)

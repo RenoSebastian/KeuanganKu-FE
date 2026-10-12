@@ -46,15 +46,9 @@ export default function SubscriptionPage() {
 
     /**
      * LOGIKA KODE UNIK
-     * Digenerate di tingkat Page agar konsisten saat modal dibuka/tutup
-     * jika user belum berpindah halaman.
+     * Diambil dari backend API agar tidak bentrok dengan antrean transaksi lain (100-999).
      */
-    // Logic:
-    // Math.random() * 199  -> menghasilkan angka 0 s/d 198.xxx
-    // Math.floor(...)      -> membulatkan ke bawah (0 s/d 198)
-    // + 1                  -> menggeser range menjadi (1 s/d 199)
-
-    const uniqueCode = useMemo(() => Math.floor(Math.random() * 199) + 1, []);
+    const [uniqueCode, setUniqueCode] = useState<number>(() => Math.floor(Math.random() * 899) + 100);
 
     // 1. HARDCODED FREE PLAN (Fallback)
     const freePlan: SubscriptionPlan = {
@@ -72,15 +66,19 @@ export default function SubscriptionPage() {
 
     const fetchData = async () => {
         try {
-            const [plansData, ordersData, profileData] = await Promise.all([
+            const [plansData, ordersData, profileData, codeData] = await Promise.all([
                 subscriptionService.getPlans(),
                 subscriptionService.getMyOrders(),
-                api.get("/users/me")
+                api.get("/users/me"),
+                subscriptionService.getUniqueCode().catch(() => ({ uniqueCode: Math.floor(Math.random() * 899) + 100 })),
             ]);
 
             setPlans([freePlan, ...plansData]);
             setOrders(ordersData);
             setCurrentUser(profileData.data);
+            if (codeData?.uniqueCode) {
+                setUniqueCode(codeData.uniqueCode);
+            }
         } catch (error) {
             console.error(error);
             toast.error("Gagal memuat data langganan", {

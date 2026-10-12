@@ -37,14 +37,18 @@ export function LoginOtpForm({ email, onBack }: LoginOtpFormProps) {
         setIsLoading(true);
         try {
             // [API CALL] Menggunakan endpoint Verify spesifik Login (Phase 3)
-            await authService.verifyLoginOtp({ email, otpCode });
+            const result = await authService.verifyLoginOtp({ email, otpCode });
 
             toast.success("Otentikasi Berhasil", {
                 description: "Sesi aman terbentuk. Mengalihkan ke portal...",
             });
 
-            // Redirect ke dashboard setelah cookies & local storage tersimpan di Service
-            router.push("/dashboard");
+            // Redirect ke dashboard admin jika role ADMIN, atau dashboard user jika regular user
+            if (result.user?.role === 'ADMIN') {
+                router.push("/admin/dashboard");
+            } else {
+                router.push("/dashboard");
+            }
             router.refresh();
 
         } catch (error: any) {

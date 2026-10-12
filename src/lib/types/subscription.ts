@@ -23,6 +23,23 @@ export interface SubscriptionPlan {
     updatedAt: string;
 }
 
+export interface Voucher {
+    id: string;
+    code: string;
+    name: string;
+    discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+    discountValue: number;
+    maxDiscountAmount?: number;
+    minPurchaseAmount?: number;
+    isActive: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+    _count?: {
+        usages: number;
+        orders: number;
+    };
+}
+
 export interface SubscriptionOrder {
     id: string;
     userId: string;
@@ -33,6 +50,10 @@ export interface SubscriptionOrder {
     uniqueCode: number;
     // Nilai aktual transaksi setelah (price * duration) dari Master Data
     snapshotPrice: number;
+    voucherId?: string;
+    discountAmount?: number;
+    voucher?: Voucher;
+    plan?: SubscriptionPlan;
     createdAt: string;
     updatedAt: string;
 }
@@ -46,6 +67,7 @@ export interface PendingOrder extends SubscriptionOrder {
         agency?: { name: string };
     };
     plan: SubscriptionPlan;
+    voucher?: Voucher;
 }
 
 // Wrapper paginasi untuk kebutuhan tabel / widget

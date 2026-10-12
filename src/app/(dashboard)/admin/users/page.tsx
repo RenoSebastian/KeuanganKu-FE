@@ -36,6 +36,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { toast } from "sonner";
 import { adminService } from "@/services/admin.service";
+import { subscriptionService } from "@/services/subscription.service";
+import { SubscriptionPlan } from "@/lib/types/subscription";
 import api from "@/lib/axios";
 import { cn } from "@/lib/utils";
 
@@ -95,6 +97,28 @@ export default function AdminUsersPage() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [selectedUserForReset, setSelectedUserForReset] = useState<AgentUser | null>(null);
 
+  // [NEW] State untuk Aktivasi PRO Langsung (Manual Override)
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const [selectedUserForPro, setSelectedUserForPro] = useState<AgentUser | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [proDuration, setProDuration] = useState<number>(1);
+  const [proReason, setProReason] = useState("Akses Khusus Leader / Tim Sales");
+  const [isGrantingPro, setIsGrantingPro] = useState(false);
+
+  const fetchPlans = async () => {
+    try {
+      const data = await subscriptionService.getPlans();
+      setPlans(data);
+      if (data.length > 0) {
+        setSelectedPlanId((prev) => prev || data[0].id);
+        setProDuration((prev) => prev || data[0].durationMonths || 1);
+      }
+    } catch (err) {
+      console.error("Failed to load plans", err);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(timer);
@@ -149,6 +173,34 @@ export default function AdminUsersPage() {
       // [NEW] Memicu modal reset sandi
       setSelectedUserForReset(user);
       setIsResetModalOpen(true);
+    } else if (action === "grant_pro") {
+      setSelectedUserForPro(user);
+      fetchPlans();
+      setProReason("Akses Khusus Leader / Tim Sales");
+      setIsProModalOpen(true);
+    }
+  };
+
+  const handleGrantProSubmit = async () => {
+    if (!selectedUserForPro || !selectedPlanId) {
+      toast.error("Pilih paket langganan terlebih dahulu");
+      return;
+    }
+    setIsGrantingPro(true);
+    try {
+      await adminService.manualOverride({
+        userId: selectedUserForPro.id,
+        planId: selectedPlanId,
+        durationMonths: Number(proDuration) || undefined,
+        reason: proReason,
+      });
+      toast.success(`Akses PRO berhasil diaktifkan untuk ${selectedUserForPro.fullName}!`);
+      setIsProModalOpen(false);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal mengaktifkan akses PRO");
+    } finally {
+      setIsGrantingPro(false);
     }
   };
 
@@ -215,7 +267,7 @@ export default function AdminUsersPage() {
             />
           </div>
           <div className="flex gap-2 p-1 overflow-x-auto">
-            {["ALL", "USER", "ADMIN", "DIRECTOR"].map((role) => (
+            {["ALL", "USER", "ADMIN"].map((role) => (
               <button
                 key={role}
                 onClick={() => setFilterRole(role)}
@@ -339,6 +391,9 @@ export default function AdminUsersPage() {
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuLabel>Aksi Cepat</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-violet-600 font-bold focus:bg-violet-50" onClick={() => handleAction('grant_pro', user)}>
+                              <Crown className="w-4 h-4 mr-2 text-violet-500" /> Aktivasi PRO Langsung
+                            </DropdownMenuItem>
                             {(!isPro || remainingDays <= 7) && (
                               <DropdownMenuItem className="text-emerald-600 font-bold focus:bg-emerald-50" onClick={() => handleWhatsAppBilling(user)}>
                                 <MessageCircle className="mr-2 h-4 w-4" /> Tagih Pembayaran
@@ -396,19 +451,129 @@ export default function AdminUsersPage() {
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase" onClick={() => handleWhatsAppBilling(user)}>
-                  <MessageCircle className="w-3 h-3 mr-2" /> Hubungi
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase text-violet-600 border-violet-200 hover:bg-violet-50" onClick={() => handleAction('grant_pro', user)}>
+                  <Crown className="w-3 h-3 mr-1 text-violet-500" /> PRO
                 </Button>
-                {/* [REFACTORED] Mobile Trigger Magic Link */}
+                <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase" onClick={() => handleWhatsAppBilling(user)}>
+                  <MessageCircle className="w-3 h-3 mr-1" /> Hubungi
+                </Button>
                 <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-[10px] font-black uppercase text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => handleAction('reset_password', user)}>
-                  <LinkIcon className="w-3 h-3 mr-2" /> Kirim Tautan
+                  <LinkIcon className="w-3 h-3 mr-1" /> Sandi
                 </Button>
               </div>
             </Card>
           ))}
         </div>
       </div>
+
+      {/* --- MODAL AKTIVASI PRO LANGSUNG (MANUAL OVERRIDE) --- */}
+      <Dialog open={isProModalOpen} onOpenChange={setIsProModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2rem] border-violet-100 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-violet-950 font-black">
+              <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
+                <Crown className="w-5 h-5 fill-violet-500" />
+              </div>
+              Aktivasi Akses PRO Langsung
+            </DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Berikan akses paket PRO secara instan kepada <strong className="text-slate-800">{selectedUserForPro?.fullName}</strong> ({selectedUserForPro?.email}) tanpa perlu pembayaran / struk transfer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            {/* Pilihan Paket */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-700">Pilih Paket Langganan</Label>
+              <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto pr-1">
+                {plans.length === 0 ? (
+                  <div className="p-3 bg-slate-50 text-xs text-slate-400 rounded-xl">Memuat daftar paket...</div>
+                ) : (
+                  plans.map((p) => {
+                    const isSelected = selectedPlanId === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setSelectedPlanId(p.id);
+                          setProDuration(p.durationMonths || 1);
+                        }}
+                        className={cn(
+                          "p-3 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between",
+                          isSelected
+                            ? "border-violet-500 bg-violet-50/60 shadow-xs"
+                            : "border-slate-200 hover:border-slate-300 bg-white"
+                        )}
+                      >
+                        <div>
+                          <div className="font-black text-slate-900">{p.name}</div>
+                          <div className="text-[10px] text-slate-500">
+                            Durasi {p.durationMonths || 1} Bulan &bull; Bonus {p.bonusQuota || 50} Token
+                          </div>
+                        </div>
+                        <div className={cn(
+                          "w-4 h-4 rounded-full border flex items-center justify-center",
+                          isSelected ? "border-violet-600 bg-violet-600" : "border-slate-300"
+                        )}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Durasi Tambahan (Opsional) */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-700">Durasi Akses (Bulan)</Label>
+              <Input
+                type="number"
+                min="1"
+                max="120"
+                value={proDuration}
+                onChange={(e) => setProDuration(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="rounded-xl h-11"
+              />
+              <p className="text-[10px] text-slate-400">Default mengikuti durasi paket yang dipilih.</p>
+            </div>
+
+            {/* Alasan Audit */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-700">Alasan Pemberian Akses (Audit Log)</Label>
+              <Textarea
+                value={proReason}
+                onChange={(e) => setProReason(e.target.value)}
+                placeholder="Contoh: Leader Asuransi / Tim Sales Internal / Free Pass"
+                className="rounded-xl resize-none text-xs"
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="rounded-xl" onClick={() => setIsProModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl px-6 shadow-lg shadow-violet-500/20"
+              onClick={handleGrantProSubmit}
+              disabled={isGrantingPro || !selectedPlanId}
+            >
+              {isGrantingPro ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" /> Mengaktifkan...
+                </>
+              ) : (
+                <>
+                  <Crown className="w-4 h-4 mr-2" /> Aktifkan PRO Sekarang
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* --- INJECT MODAL --- */}
       <Dialog open={isInjectModalOpen} onOpenChange={setIsInjectModalOpen}>

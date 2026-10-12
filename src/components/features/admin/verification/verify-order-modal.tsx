@@ -144,8 +144,18 @@ export function VerifyOrderModal({ isOpen, onClose, order, onSuccess }: VerifyOr
                                 </div>
                                 <div className="flex justify-between border-b pb-2">
                                     <span className="text-slate-500">Total Harga Tier ({duration} bln)</span>
-                                    <span className="font-medium text-indigo-700">Rp {trueCalculatedPrice.toLocaleString('id-ID')}</span>
+                                    <span className="font-medium text-indigo-700">Rp {(trueCalculatedPrice + Number(order.discountAmount || 0)).toLocaleString('id-ID')}</span>
                                 </div>
+                                {(order.voucher || Number(order.discountAmount || 0) > 0) && (
+                                    <div className="flex justify-between border-b pb-2 bg-emerald-50/70 -mx-2 px-2 py-1 rounded">
+                                        <span className="text-emerald-700 font-bold flex items-center gap-1 text-xs">
+                                            Voucher {order.voucher ? `(${order.voucher.code})` : ''}
+                                        </span>
+                                        <span className="font-bold text-emerald-700 text-xs">
+                                            - Rp {Number(order.discountAmount || 0).toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between border-b pb-2">
                                     <span className="text-slate-500">Kode Unik</span>
                                     <span className="font-medium text-orange-600">+{order.uniqueCode || 0}</span>
