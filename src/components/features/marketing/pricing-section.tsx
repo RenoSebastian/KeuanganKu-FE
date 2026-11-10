@@ -23,9 +23,9 @@ const PricingSection = () => {
         },
         {
             duration: "1 Bulan",
-            price: 150000,
+            price: 25000,
             originalPrice: null,
-            monthlyBreakdown: 150000,
+            monthlyBreakdown: 25000,
             savings: null,
             isPopular: false,
             tag: "⚡ FLEKSIBEL",
@@ -34,24 +34,24 @@ const PricingSection = () => {
         },
         {
             duration: "6 Bulan",
-            price: 750000,
-            originalPrice: 900000, // 150.000 x 6
-            monthlyBreakdown: 125000, // 750.000 / 6
-            savings: "Hemat Rp 150.000",
+            price: 99000,
+            originalPrice: 150000, // 25.000 x 6
+            monthlyBreakdown: 16500, // 99.000 / 6
+            savings: "Hemat Rp 51.000",
             isPopular: false,
             tag: "🚀 SEMESTERAN",
-            description: "Bayar 5 bulan dapat 6 bulan. Solusi tepat perencanaan menengah.",
+            description: "Bayar 4 bulan dapat 6 bulan. Solusi tepat perencanaan menengah.",
             billingText: "Per 6 Bulan"
         },
         {
             duration: "12 Bulan",
-            price: 1350000,
-            originalPrice: 1800000, // 150.000 x 12
-            monthlyBreakdown: 112500, // 1.350.000 / 12
-            savings: "🔥 Hemat Rp 450.000",
+            price: 199000,
+            originalPrice: 300000, // 25.000 x 12
+            monthlyBreakdown: 16583, // 199.000 / 12
+            savings: "🔥 Hemat Rp 101.000",
             isPopular: true,
             tag: "💎 INVESTASI CERDAS",
-            description: "Bayar 9 bulan dapat 12 bulan. Pilihan paling hemat akses setahun.",
+            description: "Bayar 8 bulan dapat 12 bulan. Pilihan paling hemat akses setahun.",
             billingText: "Per 12 Bulan"
         }
     ];
@@ -76,10 +76,11 @@ const PricingSection = () => {
             <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
                 <div className="mb-16">
                     <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter mb-6">
-                        Pilih Paket <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600 drop-shadow-sm">Kesuksesan Anda.</span>
+                        Pilih Paket <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600 drop-shadow-sm">Rencana Keuanganku</span>
                     </h2>
                     <p className="text-slate-600 text-lg max-w-3xl mx-auto font-medium">
-                        Investasi cerdas untuk produktivitas tanpa batas. Upgrade sekarang untuk performa agensi yang tak terbendung.
+                        Investasi cerdas untuk rancang keuangan tanpa batas. <br className="hidden md:inline" />
+                        Upgrade sekarang untuk merencanakan keuangan pribadi & keluarga yang lebih baik.
                     </p>
                 </div>
 

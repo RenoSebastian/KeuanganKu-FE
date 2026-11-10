@@ -24,19 +24,19 @@ const SupportSection = () => {
                     <div className="text-left space-y-8">
                         {/* Glassmorphism Badge */}
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-400/20 text-blue-300 text-[10px] font-black uppercase tracking-[0.3em] backdrop-blur-md shadow-lg shadow-blue-900/20">
-                            <Sparkles className="w-3 h-3 animate-pulse" /> Strategic Partnership
+                            <Sparkles className="w-3 h-3 animate-pulse" /> YOUR FINANCIAL JOURNEY STARTS HERE
                         </div>
 
                         <h2 className="text-4xl md:text-6xl font-black mb-8 leading-[1.1] tracking-tighter">
-                            Ingin Bergabung Sebagai <br />
-                            {/* Diperbaiki: bg-linear-to-* menjadi bg-gradient-to-* */}
+                            Saatnya Lebih Mengenal <br />
                             <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-cyan-300 drop-shadow-sm">
-                                Early Adopter?
+                                Keuanganmu!
                             </span>
+                            <span className="block text-2xl md:text-3xl font-bold text-slate-300 mt-2">Mulai dari Dirimu Sendiri.</span>
                         </h2>
 
                         <p className="text-slate-300 text-lg leading-relaxed max-w-xl font-medium">
-                            Kami sedang melakukan uji coba eksklusif untuk <span className="text-white font-bold underline decoration-blue-500/50 underline-offset-8">30 agen aktif pertama</span>. Jadilah pionir dalam transformasi agen asuransi berbasis data di Indonesia.
+                            Tidak perlu menjadi ahli keuangan untuk bisa merencanakan masa depan. Mulailah dengan memahami kondisi keuanganmu, menghitung kebutuhan, dan menemukan langkah yang tepat untuk mencapai tujuan hidupmu.
                         </p>
 
                         <div className="pt-4">
@@ -63,36 +63,56 @@ const SupportSection = () => {
                         {/* 3. Card Utama diubah menjadi White Glassmorphism Card */}
                         <div className="relative bg-white/90 backdrop-blur-2xl text-slate-900 p-10 md:p-14 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border border-white/60">
 
-                            <div className="flex items-center gap-3 mb-10">
+                            <div className="flex items-center gap-3 mb-8">
                                 <div className="h-1 w-12 bg-blue-600 rounded-full" />
                                 <h3 className="text-2xl font-black tracking-tight">
-                                    Keunggulan <span className="text-blue-600">Pro-Agent</span>
+                                    Keunggulan <span className="text-blue-600">KeuanganKu</span>
                                 </h3>
                             </div>
 
-                            <ul className="grid grid-cols-1 gap-6 mb-12">
+                            <ul className="grid grid-cols-1 gap-5 mb-10">
                                 {[
-                                    "Visualisasi kebutuhan & manajemen risiko berbasis data riil klien",
-                                    "Akses fleksibel kapan saja dengan UI/UX yang user-friendly",
-                                    "Sistem agnostik: Dapat digunakan oleh seluruh agen asuransi",
-                                    "Enkripsi data tingkat tinggi yang aman dan dapat dipercaya"
+                                    {
+                                        title: "Financial Health Check-Up",
+                                        desc: "Kenali dan evaluasi kondisi kesehatan keuanganmu melalui perhitungan rasio finansial."
+                                    },
+                                    {
+                                        title: "Personal Financial Calculator",
+                                        desc: "Hitung kebutuhan dana darurat, proteksi, pendidikan, pensiun, dan berbagai tujuan finansial."
+                                    },
+                                    {
+                                        title: "Easy to Use & Understand",
+                                        desc: "Nikmati pengalaman perencanaan keuangan digital yang praktis dan mudah dipahami."
+                                    },
+                                    {
+                                        title: "Personalized Financial Insights",
+                                        desc: "Dapatkan gambaran kebutuhan dan pertimbangan finansial berdasarkan data serta kondisi keuanganmu."
+                                    },
+                                    {
+                                        title: "Keamanan Terjamin",
+                                        desc: "Enkripsi data tingkat tinggi yang aman dan dapat dipercaya."
+                                    }
                                 ].map((item, idx) => (
-                                    <li key={idx} className="group/list flex items-start gap-4">
-                                        <div className="mt-1 bg-blue-500/10 p-1 rounded-full group-hover/list:bg-blue-600 transition-colors duration-300 border border-blue-500/20">
+                                    <li key={idx} className="group/list flex items-start gap-3.5">
+                                        <div className="mt-1 bg-blue-500/10 p-1 rounded-full group-hover/list:bg-blue-600 transition-colors duration-300 border border-blue-500/20 shrink-0">
                                             <CheckCircle2 className="w-4 h-4 text-blue-600 group-hover/list:text-white transition-colors" />
                                         </div>
-                                        <span className="text-slate-700 font-bold text-[15px] leading-snug group-hover/list:text-slate-900 transition-colors">
-                                            {item}
-                                        </span>
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-900 font-bold text-[15px] leading-snug">
+                                                {item.title}
+                                            </span>
+                                            <span className="text-slate-600 text-xs font-medium leading-relaxed mt-0.5">
+                                                {item.desc}
+                                            </span>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
 
-                            <div className="pt-10 border-t border-slate-200/60 space-y-4">
+                            <div className="pt-8 border-t border-slate-200/60 space-y-4">
                                 <Link href="/login" className="block">
-                                    {/* Tombol dimodifikasi agar menyatu dengan Glass Theme */}
                                     <Button size="lg" className="w-full bg-slate-900/95 text-white hover:bg-blue-600 rounded-2xl h-18 text-xl font-black shadow-[0_10px_30px_rgba(0,0,0,0.1)] transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 group/btn border border-slate-800 hover:border-blue-500">
-                                        Login Dashboard <ArrowRight className="w-6 h-6 group-hover/btn:translate-x-2 transition-transform" />
+                                        Mulai Perencanaan Keuanganku <ArrowRight className="w-6 h-6 group-hover/btn:translate-x-2 transition-transform" />
                                     </Button>
                                 </Link>
                                 <div className="flex items-center justify-center gap-2 pt-2">

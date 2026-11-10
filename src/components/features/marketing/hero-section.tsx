@@ -47,7 +47,7 @@ const HeroSection = () => {
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.3em] mb-8 shadow-xl shadow-blue-500/20 border border-blue-400/30"
                     >
                         <Sparkles className="w-3 h-3" />
-                        Professional Agent Toolkit
+                        PERSONAL FINANCIAL PLANNING PLATFORM
                     </motion.div>
 
                     {/* MAIN TITLE */}
@@ -57,11 +57,11 @@ const HeroSection = () => {
                         transition={{ duration: 0.7, delay: 0.2 }}
                         className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-slate-900 tracking-tighter mb-8 leading-[0.95] md:leading-none"
                     >
-                        Bantu Klien <span className="text-blue-600">Menjelaskan,</span> <br />
+                        Kenali Keuanganmu <br />
                         <span className="relative inline-block mt-2">
                             {/* Diperbaiki: bg-linear-to-r menjadi bg-gradient-to-r */}
                             <span className="relative z-10 text-transparent bg-clip-text bg-linear-to-r from-blue-700 via-blue-600 to-indigo-500">
-                                Bukan Meyakinkan.
+                                Rencanakan Masa Depanmu
                             </span>
                             <motion.div
                                 initial={{ width: 0 }}
@@ -80,10 +80,8 @@ const HeroSection = () => {
                         className="relative max-w-2xl mb-12"
                     >
                         <div className="absolute -left-4 top-0 bottom-0 w-1 bg-blue-600 rounded-full" />
-                        <p className="pl-6 text-lg md:text-2xl text-slate-700 leading-relaxed font-medium italic">
-                            <span className="text-slate-900 font-bold">Alat bantu visual profesional</span> untuk agen asuransi.
-                            Memetakan kondisi keuangan klien secara transparan dan
-                            <span className="text-blue-600 font-bold"> mengubah skema proteksi menjadi kebutuhan nyata.</span>
+                        <p className="pl-6 text-lg md:text-2xl text-slate-700 leading-relaxed font-medium">
+                            Keuangan yang sehat dimulai dari pemahaman yang tepat. Kenali kondisi finansialmu, hitung kebutuhan masa depan, dan temukan langkah terbaik untuk mencapai tujuan hidupmu.
                         </p>
                     </motion.div>
 
@@ -96,7 +94,7 @@ const HeroSection = () => {
                     >
                         <Link href="/login" className="w-full sm:w-auto">
                             <Button size="lg" className="w-full h-18 px-12 text-xl rounded-2xl bg-slate-900 hover:bg-blue-600 shadow-2xl shadow-slate-900/30 transition-all duration-300 font-black group">
-                                Mulai Konsultasi <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                                Mulai Rencanaku <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-2 transition-transform" />
                             </Button>
                         </Link>
 

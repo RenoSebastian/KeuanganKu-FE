@@ -40,7 +40,7 @@ const PartnershipSection = () => {
                                 {/* Badge Kaca Tipis dengan border yang juga disesuaikan */}
                                 <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-blue-800 bg-white/60 backdrop-blur-md border border-slate-300/80 px-6 py-3 rounded-full shadow-sm">
                                     <Sparkles size={12} className="text-blue-600 animate-pulse" />
-                                    Verified Ecosystem
+                                    TRUSTED COLABORATION
                                 </span>
 
                                 <div className="flex flex-col md:flex-row items-center justify-center gap-12 w-full">
@@ -70,7 +70,7 @@ const PartnershipSection = () => {
 
                                 <div className="space-y-2">
                                     <p className="text-slate-800 text-sm font-black italic text-center tracking-tight drop-shadow-sm">
-                                        "Bersama membangun standar baru industri asuransi"
+                                        "Building a Better Financial Planning Experience"
                                     </p>
                                     <div className="h-1.5 w-12 bg-blue-600/30 mx-auto rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]" />
                                 </div>
@@ -99,14 +99,14 @@ const PartnershipSection = () => {
                     >
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black mb-8 uppercase tracking-[0.3em] shadow-xl">
                             <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_8px_#60a5fa]" />
-                            Strategic Partnership
+                            STRATEGIC FINANCIAL PLANNING
                         </div>
 
                         <h2 className="text-4xl md:text-6xl font-[1000] text-slate-900 mb-8 leading-[1.05] tracking-tighter">
-                            Membangun Kepercayaan <br />
+                            Membantu Individu menemukan solusi <br />
                             <span className="relative inline-block mt-3">
                                 <span className="relative z-10 text-transparent bg-clip-text bg-linear-to-r from-blue-700 via-blue-600 to-cyan-500 drop-shadow-sm">
-                                    Berbasis Data Akurat
+                                    Keuangan Cerdas & Terintegrasi
                                 </span>
                                 <svg className="absolute -bottom-2 left-0 w-full h-3 text-blue-200/80 -z-10" viewBox="0 0 100 10" preserveAspectRatio="none">
                                     <path d="M0 5 Q 25 0 50 5 T 100 5" stroke="currentColor" strokeWidth="8" fill="transparent" />
@@ -116,7 +116,7 @@ const PartnershipSection = () => {
 
                         <div className="space-y-10 relative">
                             <p className="text-xl text-slate-600 leading-relaxed font-medium">
-                                <strong className="text-blue-700 font-black">KeuanganKu</strong> adalah ekosistem konsultasi digital yang dirancang untuk mendukung profesionalisme agen asuransi.
+                                <strong className="text-blue-700 font-black">KeuanganKu</strong>: Melalui perpaduan teknologi dan pendekatan perencanaan keuangan, kami membantu masyarakat mengelola berbagai aspek finansial dalam satu platform yang praktis, terstruktur, dan mudah dipahami.
                             </p>
 
                             {/* THE QUOTE BOX: Border juga diselaraskan menjadi slate-400/60 */}
@@ -127,7 +127,7 @@ const PartnershipSection = () => {
                                 {/* Kaca Quote Box */}
                                 <div className="relative bg-white/20 backdrop-blur-3xl p-8 rounded-[2.5rem] border-2 border-slate-400/60 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)]">
                                     <p className="text-lg text-slate-800 leading-relaxed font-bold italic drop-shadow-sm">
-                                        "Aplikasi ini membantu Anda beralih dari <span className="text-slate-900 font-black uppercase tracking-tighter underline decoration-blue-300 decoration-4">selling</span> ke <span className="text-blue-700 font-black uppercase tracking-tighter underline decoration-blue-200 decoration-4">consulting</span>."
+                                        "Dibangun secara profesional, menggunakan perhitungan yang terstruktur, tetapi mudah digunakan oleh siapa saja."
                                     </p>
                                 </div>
                             </div>

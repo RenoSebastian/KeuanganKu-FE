@@ -25,18 +25,18 @@ export default function PricingPage() {
                 <div className="max-w-7xl mx-auto px-4 relative z-10 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-bold uppercase tracking-wider mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <Sparkles size={12} />
-                        <span>Upgrade Karir Agen Anda</span>
+                        <span>Rencanakan Masa Depan Anda</span>
                     </div>
 
                     <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-6 tracking-tight leading-[1.1] animate-in fade-in slide-in-from-bottom-6 duration-1000">
-                        Tingkatkan Closing Rate <br />
+                        Rancang Keuangan Tanpa Batas, <br />
                         <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-600 to-blue-500">
-                            Secara Signifikan.
+                            Capai Tujuan Hidup.
                         </span>
                     </h1>
 
                     <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
-                        Platform all-in-one untuk agen asuransi modern. Buat simulasi keuangan akurat, kelola prospek, dan cetak laporan profesional dalam hitungan detik.
+                        Platform perencanaan keuangan komprehensif untuk Anda dan keluarga. Hitung dana pensiun, pendidikan, proteksi, dan cetak laporan finansial secara instan.
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in zoom-in duration-1000 delay-200">
@@ -53,14 +53,14 @@ export default function PricingPage() {
                             className="h-14 px-8 rounded-full border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-lg"
                             onClick={() => setIsContactOpen(true)}
                         >
-                            Hubungi Sales
+                            Bantuan / Kontak
                         </Button>
                     </div>
 
                     {/* Social Proof */}
                     <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col items-center animate-in fade-in duration-1000 delay-300">
                         <p className="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-widest">
-                            Dipercaya oleh agen dari perusahaan terkemuka
+                            Dipercaya oleh ratusan keluarga & perencana keuangan di Indonesia
                         </p>
                         <div className="flex -space-x-3 overflow-hidden">
                             {[1, 2, 3, 4, 5].map((i) => (
@@ -91,10 +91,10 @@ export default function PricingPage() {
                         <div className="max-w-2xl">
                             <Badge variant="outline" className="mb-4 text-indigo-300 border-indigo-500/30">PRO FEATURES</Badge>
                             <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 leading-tight">
-                                Kenapa Agen Top Memilih <br />Paket <span className="text-indigo-400">Professional?</span>
+                                Kenapa Memilih Paket <br />Akses Penuh <span className="text-indigo-400">KeuanganKu?</span>
                             </h2>
                             <p className="text-slate-400 text-lg leading-relaxed">
-                                Investasi kecil untuk hasil yang masif. Fitur Pro membuka potensi penuh dari setiap interaksi dengan calon nasabah Anda.
+                                Investasi kecil untuk ketenangan masa depan. Akses seluruh fitur kalkulator finansial, unduh laporan PDF resmi, dan simpan seluruh simulasi Anda.
                             </p>
                         </div>
                     </div>
@@ -109,10 +109,10 @@ export default function PricingPage() {
                                     </div>
                                     <h3 className="text-2xl font-bold">PDF Report Generator</h3>
                                     <p className="text-slate-400 leading-relaxed">
-                                        Kirim proposal keuangan yang cantik dan mudah dipahami langsung ke WhatsApp nasabah. Tanpa watermark, terlihat profesional.
+                                        Cetak laporan keuangan pribadi & keluarga yang rapi, komprehensif, dan mudah dipahami. Simpan sebagai arsip atau bagikan dengan pasangan.
                                     </p>
                                     <ul className="space-y-2 mt-4">
-                                        <li className="flex items-center text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 mr-2 text-indigo-500" /> Branding Personal</li>
+                                        <li className="flex items-center text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 mr-2 text-indigo-500" /> Ringkasan Analisis Akurat</li>
                                         <li className="flex items-center text-sm text-slate-300"><CheckCircle2 className="w-4 h-4 mr-2 text-indigo-500" /> Visualisasi Grafik Premium</li>
                                     </ul>
                                 </div>
@@ -133,7 +133,7 @@ export default function PricingPage() {
                                 </div>
                                 <h3 className="text-2xl font-bold text-white mb-2">Unlimited Access</h3>
                                 <p className="text-indigo-100 text-sm leading-relaxed">
-                                    Lupakan batasan kuota harian. Lakukan simulasi sebanyak apapun yang Anda butuhkan untuk prospek.
+                                    Lupakan batasan kuota harian. Lakukan simulasi kalkulator finansial sebanyak apapun sesuai kebutuhan Anda.
                                 </p>
                             </div>
                             <div className="mt-8 flex items-center text-xs font-bold tracking-widest text-indigo-200 uppercase">
@@ -141,15 +141,15 @@ export default function PricingPage() {
                             </div>
                         </div>
 
-                        {/* Card 3: Lead Management */}
+                        {/* Card 3: Lead Management / Personal Tracking */}
                         <div className="md:col-span-3 p-8 md:p-10 bg-slate-800/50 border border-slate-700/50 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-10 hover:border-indigo-500/50 transition-all duration-500">
                             <div className="flex-1 space-y-4">
                                 <div className="h-12 w-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-2">
                                     <Users className="text-indigo-400 w-6 h-6" />
                                 </div>
-                                <h3 className="text-2xl font-bold">Smart Lead Database</h3>
+                                <h3 className="text-2xl font-bold">Personal Financial Tracking</h3>
                                 <p className="text-slate-400 leading-relaxed max-w-xl">
-                                    Simpan data klien dengan aman. Dapatkan notifikasi kapan waktu terbaik untuk follow-up berdasarkan hasil checkup finansial mereka.
+                                    Pantau riwayat simulasi dan progres tujuan keuangan Anda secara terstruktur dalam satu dashboard yang aman dan terenkripsi.
                                 </p>
                             </div>
 
@@ -181,10 +181,10 @@ export default function PricingPage() {
             <section className="py-24 md:py-32 bg-white relative overflow-hidden">
                 <div className="max-w-5xl mx-auto px-4 relative z-10 text-center">
                     <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">
-                        Mulai Perjalanan Sukses Anda.
+                        Mulai Perjalanan Keuangan Anda.
                     </h2>
                     <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto">
-                        Jangan biarkan keraguan menghambat potensi closing Anda. Coba sekarang dan rasakan perbedaannya dalam 30 hari.
+                        Keputusan finansial yang bijak dimulai hari ini. Coba sekarang dan temukan arah masa depan yang lebih pasti.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Button

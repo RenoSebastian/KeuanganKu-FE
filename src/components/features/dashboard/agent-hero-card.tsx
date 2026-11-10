@@ -34,7 +34,7 @@ export function AgentHeroCard({ userData, loadingUser, quote }: AgentHeroCardPro
                     <div className="h-1.5 w-6 bg-linear-to-r from-blue-600 to-indigo-600 rounded-full" />
                     <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-full border border-blue-100/50 flex items-center gap-1.5">
                         <Award className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                        {agencyName}
+                        YOUR FINANCIAL JOURNEY
                     </span>
                 </div>
 
@@ -49,8 +49,8 @@ export function AgentHeroCard({ userData, loadingUser, quote }: AgentHeroCardPro
                         <Quote className="w-4 h-4 fill-indigo-400/20" />
                     </div>
                     <div>
-                        <p className="text-xs md:text-sm font-bold text-slate-700">Daily Motivation</p>
-                        <p className="text-[10px] font-medium text-slate-400 mt-0.5">Semangat melayani nasabah hari ini</p>
+                        <p className="text-xs md:text-sm font-bold text-slate-700">Daily Financial Insight</p>
+                        <p className="text-[10px] font-medium text-slate-400 mt-0.5">Satu langkah kecil untuk keputusan finansial yang lebih baik.</p>
                     </div>
                 </div>
             </div>

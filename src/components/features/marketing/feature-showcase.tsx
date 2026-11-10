@@ -29,7 +29,7 @@ const features: FeatureItem[] = [
         title: "Dana Pendidikan",
         icon: GraduationCap,
         heading: "Ubah Kekhawatiran Orang Tua Menjadi Kepastian",
-        desc: "Bukan sekadar hitung-hitungan sekolah. Bantu klien memvisualisasikan masa depan anak mereka dengan data inflasi pendidikan yang riil. Jadikan proteksi Anda sebagai satu-satunya solusi logis untuk masa depan buah hati mereka.",
+        desc: "Bukan sekadar hitung-hitungan sekolah. Visualisasikan masa depan pendidikan anak dengan data inflasi pendidikan yang riil. Siapkan tabungan terencana sejak dini agar impian masa depan buah hati terjamin.",
         image: "/images/pendidikan.gif",
         color: "text-blue-600",
         bgColor: "bg-blue-50"
@@ -39,7 +39,7 @@ const features: FeatureItem[] = [
         title: "Dana Hari Tua",
         icon: Umbrella,
         heading: "Pensiun dengan Martabat & Kebebasan Finansial",
-        desc: "Buka mata klien tentang gap dana pensiun mereka sebelum terlambat. Tunjukkan grafik proyeksi kekayaan yang membuat mereka sadar bahwa menunda proteksi hari ini adalah kerugian besar di masa depan.",
+        desc: "Ketahui estimasi kebutuhan dana pensiun Anda sebelum terlambat. Lihat grafik proyeksi kekayaan yang membantu Anda menyiapkan masa tua mandiri dengan tenang dan sejahtera.",
         image: "/images/hari_tua.gif",
         color: "text-indigo-600",
         bgColor: "bg-indigo-50"
@@ -49,7 +49,7 @@ const features: FeatureItem[] = [
         title: "Simulasi Proteksi",
         icon: ShieldCheck,
         heading: "Nilai Uang Pertanggungan yang Tidak Terbantahkan",
-        desc: "Gunakan metode 'Human Life Value' untuk menghitung kebutuhan proteksi secara akurat. Klien tidak akan lagi berargumen tentang premi, karena angka yang Anda sajikan didasarkan pada data pengeluaran riil mereka.",
+        desc: "Gunakan metode 'Human Life Value' untuk menghitung kebutuhan proteksi secara akurat. Dapatkan angka perlindungan yang presisi sesuai pengeluaran nyata keluarga tanpa perlu menebak-nebak.",
         image: "/images/asuransi.jpeg",
         color: "text-sky-600",
         bgColor: "bg-sky-50"
@@ -58,8 +58,8 @@ const features: FeatureItem[] = [
         id: 4,
         title: "Analisa Arus Kas",
         icon: LineChart,
-        heading: "Temukan 'Kebocoran' Halus di Dompet Klien",
-        desc: "Visualisasikan arus kas klien secara transparan. Bantu mereka mengalokasikan pengeluaran yang kurang penting menjadi premi asuransi yang berharga. Ubah 'Saya tidak punya uang' menjadi 'Mari kita atur kembali'.",
+        heading: "Evaluasi Arus Kas & Sehatkan Anggaran",
+        desc: "Visualisasikan arus kas bulanan secara transparan. Kenali pola pengeluaran, eliminasi kebocoran anggaran, dan alokasikan lebih banyak dana untuk masa depan yang produktif.",
         image: "https://images.unsplash.com/photo-1543286386-713bdd548da4?q=80&w=1000",
         color: "text-slate-700",
         bgColor: "bg-slate-50"
@@ -68,28 +68,28 @@ const features: FeatureItem[] = [
         id: 5,
         title: "Roadmap Aset",
         icon: TrendingUp,
-        heading: "Rancang Mimpi, Lindungi Pencapaian",
-        desc: "Bantu klien merencanakan pembelian rumah atau kendaraan dengan pendampingan asuransi sebagai pengaman aset. Jadikan asuransi sebagai jaring pengaman agar mimpi mereka tidak hancur saat risiko datang.",
+        heading: "Rancang Mimpi, Wujudkan Kepemilikan Aset",
+        desc: "Rencanakan pembelian rumah, kendaraan, atau tujuan finansial jangka panjang lainnya dengan simulasi tabungan dan proteksi aset yang terukur.",
         image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1000",
         color: "text-cyan-600",
         bgColor: "bg-cyan-50"
     },
     {
         id: 6,
-        title: "Dashboard Multi-Agent",
+        title: "Dashboard Finansial",
         icon: Activity,
-        heading: "Manajemen Klien Dalam Satu Genggaman",
-        desc: "Pantau semua prospek dan diskusi keuangan tanpa tercecer. Tingkatkan profesionalisme Anda di depan klien dengan menunjukkan ringkasan data yang rapi dan terorganisir lewat tablet atau smartphone.",
+        heading: "Semua Rencana dalam Satu Genggaman",
+        desc: "Pantau seluruh hasil simulasi, histori perhitungan, dan status keuangan pribadi Anda dalam satu dasbor yang rapi, elegan, dan mudah dipahami.",
         image: "/images/multiklien.jpeg",
         color: "text-teal-600",
         bgColor: "bg-teal-50"
     },
     {
         id: 7,
-        title: "PWA & Offline Mode",
+        title: "PWA & Fleksibilitas",
         icon: Smartphone,
-        heading: "Siap Closing Dimana Saja, Kapan Saja",
-        desc: "Akses kalkulator dan data klien meskipun tanpa koneksi internet yang stabil. Kecepatan adalah kunci. Jangan biarkan momentum closing hilang hanya karena masalah sinyal saat sedang meeting di coffee shop.",
+        heading: "Akses Praktis Kapan Saja, Di Mana Saja",
+        desc: "Instal aplikasi langsung di ponsel Anda dengan teknologi PWA. Akses kalkulator dan simulasi finansial dengan cepat dan mudah kapan pun Anda butuhkan.",
         image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=1000",
         color: "text-rose-600",
         bgColor: "bg-rose-50"
@@ -121,9 +121,9 @@ const FeatureShowcase = () => {
                         <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-900">Core Features</span>
                     </div>
                     <h2 className="text-4xl md:text-5xl lg:text-6xl font-[1000] text-slate-900 mb-4 tracking-tighter leading-[1.1]">
-                        7 Senjata Utama <br className="md:hidden" />
+                        Tools Perencanaan <br className="md:hidden" />
                         <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600 drop-shadow-sm">
-                            Agen Pro
+                            Keuanganku
                         </span>
                     </h2>
                 </div>

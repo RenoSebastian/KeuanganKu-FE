@@ -51,16 +51,16 @@ const FAQSection = () => {
                 <div className="text-center mb-20 relative z-10">
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-300/40 backdrop-blur-3xl border-2 border-slate-400/50 mb-6 shadow-sm">
                         <HelpCircle className="w-4 h-4 text-blue-800" />
-                        <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-900">Common Queries</span>
+                        <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-900">COMMON QUERIES</span>
                     </div>
                     <h2 className="text-4xl md:text-5xl font-[1000] text-slate-900 tracking-tighter mb-6 leading-tight">
-                        Ada yang Masih <br />
+                        Rubrik <br />
                         <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-800 to-indigo-700 drop-shadow-sm">
-                            Mengganjal di Pikiran?
+                            Tanya Jawab
                         </span>
                     </h2>
                     <p className="text-lg text-slate-700 font-medium max-w-xl mx-auto leading-relaxed">
-                        Kami merangkum segala hal yang sering ditanyakan para agen profesional sebelum memutuskan untuk upgrade ke ekosistem Pro.
+                        Kami merangkum segala hal yang sering ditanyakan para pengguna sebelum memutuskan untuk upgrade ke ekosistem Pro.
                     </p>
                 </div>
 

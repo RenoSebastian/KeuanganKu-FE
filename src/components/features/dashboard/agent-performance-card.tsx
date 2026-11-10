@@ -23,7 +23,7 @@ export function AgentPerformanceCard({ userData }: { userData: UserType | null }
                     <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-md">
                         <Sparkles className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-sm font-bold text-slate-700">Performance</span>
+                    <span className="text-sm font-bold text-slate-700">Financial Overview</span>
                 </div>
                 {/* Status Badge Kecil */}
                 <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -73,7 +73,7 @@ export function AgentPerformanceCard({ userData }: { userData: UserType | null }
                                 <Target className="w-4 h-4 text-emerald-400" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-[10px] text-slate-400 font-medium uppercase mb-0.5">Target Utama</p>
+                                <p className="text-[10px] text-slate-400 font-medium uppercase mb-0.5">MY LIFE'S GOAL</p>
                                 <p className="text-xs text-slate-100 italic leading-relaxed line-clamp-2">
                                     "{userData?.goals}"
                                 </p>
@@ -92,10 +92,10 @@ export function AgentPerformanceCard({ userData }: { userData: UserType | null }
                             onClick={() => router.push('/profile')}
                             className="w-full py-3 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-slate-50 hover:border-slate-400 transition-all group"
                         >
-                            <span className="text-xs font-medium text-slate-500 group-hover:text-slate-700">Belum ada target</span>
+                            <span className="text-xs font-medium text-slate-500 group-hover:text-slate-700">Personal Finance & Personal Development Educator</span>
                             <div className="flex items-center text-[10px] text-blue-600 font-bold">
                                 <Pencil className="w-3 h-3 mr-1" />
-                                Set Target Sekarang
+                                Tentukan Life's Goal
                             </div>
                         </button>
                     )}

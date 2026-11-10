@@ -6,8 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "KeuanganKu",
-  description: "Sistem Perencanaan Keuangan untuk Agen Profesional",
+  title: "KeuanganKu - Personal Financial Planning Platform",
+  description: "Platform Perencanaan Keuangan Pribadi & Keluarga. Kenali Keuanganmu, Rencanakan Masa Depanmu.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     apple: "/icons/icon-192x192.png",
   },
   openGraph: {
-    title: "KeuanganKu",
-    description: "Sistem Perencanaan Keuangan untuk Agen Profesional",
+    title: "KeuanganKu - Personal Financial Planning Platform",
+    description: "Platform Perencanaan Keuangan Pribadi & Keluarga. Kenali Keuanganmu, Rencanakan Masa Depanmu.",
     url: "https://keuanganku.id",
     siteName: "KeuanganKu",
     images: [

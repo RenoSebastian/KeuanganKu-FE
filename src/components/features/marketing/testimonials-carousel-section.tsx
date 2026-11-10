@@ -22,67 +22,67 @@ import { cn } from "@/lib/utils";
 // Total ada 8 Card (Best Practice maksimal untuk Carousel edukasi)
 const insights = [
     {
-        category: "INTEGRITAS",
+        category: "KESEHATAN FINANSIAL",
         icon: ShieldCheck,
-        title: "Agen sebagai Financial Consultant",
-        content: "Sebagai financial konsultan, agen mengubah data menjadi kebutuhan. Keputusan financial yang terjadi, akan meningkatkan kualitas polis menjadi Big Case yang sesuai",
-        footerTip: "⭐ Kepercayaan nasabah adalah aset jangka panjang Anda.",
+        title: "Fondasi Finansial yang Sehat",
+        content: "Memahami kondisi keuangan saat ini adalah langkah pertama menuju kebebasan finansial. Evaluasi rasio keuanganmu untuk membangun fondasi keluarga yang kokoh.",
+        footerTip: "⭐ Kejelasan finansial adalah kunci ketenangan masa depan.",
         image: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "MINDSET",
         icon: Lightbulb,
-        title: "Kompetensi vs Penampilan",
-        content: "Penampilan (appearance) yang diikuti dengan kompetensi akan meningkatkan kredibilitas. Akurasi perhitungan dan validitas data akan memenangkan emosi dan logis dari klien Anda",
-        footerTip: "💡 Profesionalisme sejati diukur dari ketepatan solusi.",
+        title: "Perencanaan vs Harapan",
+        content: "Rencana keuangan yang terukur dan berbasis data nyata mengalahkan sekadar harapan. Hitung kebutuhan masa depan secara presisi agar tujuan hidup tercapai.",
+        footerTip: "💡 Keputusan finansial yang bijak dimulai dari data yang tepat.",
         image: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "EDUKASI",
         icon: GraduationCap,
-        title: "Needs Approach",
-        content: "Sesuai standar CFP, pendekatan kebutuhan merupakan metode yang paling sesuai untuk melindungi pengeluaran keluarga yang berkelanjutan setelah kepastian tiba.",
-        footerTip: "📚 Edukasi nasabah dengan perhitungan yang transparan.",
+        title: "Investasi Pendidikan Anak",
+        content: "Biaya pendidikan terus meningkat seiring inflasi. Menghitung kebutuhan riil sejak dini memastikan buah hati mendapatkan pendidikan terbaik tanpa beban utang.",
+        footerTip: "📚 Mulai rencanakan dana pendidikan anak sedini mungkin.",
         image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=800&auto=format&fit=crop",
     },
     {
-        category: "PROSPEKTING",
+        category: "LIFE'S GOAL",
         icon: Target,
-        title: "Life's Goal",
-        content: "Setiap orang memiliki tujuan hidup / life's goal . Berbicara mengenai hal ini akan membuka percakapan sekaligus fact finding mengenai skala prioritas nasabah",
-        footerTip: "🎯 Jadikan kalkulator sebagai alat ice breaking yang elegan.",
+        title: "Tujuan Hidup yang Terukur",
+        content: "Setiap keluarga memiliki tujuan hidup—membeli rumah, ibadah, atau pensiun nyaman. Mengetahui angka pastinya membuat langkah pencapaian menjadi nyata.",
+        footerTip: "🎯 Ubah impian menjadi rencana aksi yang terstruktur.",
         image: "https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "STRATEGI",
         icon: HeartHandshake,
-        title: "Menjual Kepastian Likuiditas",
-        content: "UP 1 M adalah sebuah angka yang menjamin keluarga nasabah Anda memiliki likuiditas untuk melanjutkan hidup dan mencapai tujuan walaupun terjadi risiko",
-        footerTip: "🗣️ Ubah bahasa nominal menjadi bahasa perlindungan keluarga.",
+        title: "Menjamin Kepastian Keluarga",
+        content: "Dana proteksi memastikan keluarga memiliki likuiditas untuk melanjutkan hidup dan meraih impian meski risiko kehidupan yang tidak terduga terjadi.",
+        footerTip: "🛡️ Proteksi adalah jaring pengaman bagi impian keluarga Anda.",
         image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "OBJECTION",
         icon: TrendingUp,
         title: "Patahkan Mitos dengan Fakta",
-        content: "'Asuransi itu rugi' adalah mitos dari ketidaktahuan. Saat Anda menyajikan proyeksi inflasi medis dan pendidikan yang presisi, keraguan itu akan gugur dengan sendirinya.",
-        footerTip: "🛡️ Data yang valid adalah perisai dari penolakan (objection).",
+        content: "Banyak mitos seputar keuangan yang membuat ragu. Saat melihat angka inflasi dan proyeksi kebutuhan nyata secara transparan, keraguan berganti keyakinan.",
+        footerTip: "📊 Angka yang valid memberi kejelasan dalam mengambil keputusan.",
         image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "VISUALISASI",
         icon: PieChart,
-        title: "Melihat Berarti Percaya",
-        content: "Otak manusia memproses visual jauh lebih cepat daripada deretan angka. Tampilkan grafik proteksi secara langsung di depan nasabah untuk efek 'Aha!' yang instan.",
-        footerTip: "👁️ Visualisasi yang baik mempercepat keputusan pembelian.",
+        title: "Melihat Berarti Memahami",
+        content: "Visualisasi grafik keuangan membuat alokasi anggaran dan pertumbuhan dana masa depan jauh lebih mudah dipahami oleh siapa saja secara seketika.",
+        footerTip: "👁️ Visual yang jelas mempermudah pengambilan keputusan finansial.",
         image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop",
     },
     {
         category: "EFISIENSI",
         icon: Zap,
-        title: "Biarkan Sistem Bekerja",
-        content: "Menghitung rumus finansial secara manual sangat menyita waktu. Gunakan energi Anda untuk berempati pada nasabah, biarkan aplikasi yang menyelesaikan angkanya.",
-        footerTip: "⚡ Waktu Anda terlalu berharga untuk sekadar menghitung manual.",
+        title: "Kalkulator Cerdas Otomatis",
+        content: "Tidak perlu pusing dengan rumus keuangan yang rumit. Gunakan kalkulator finansial digital untuk menghitung seluruh kebutuhan hanya dalam beberapa klik.",
+        footerTip: "⚡ Perencanaan keuangan praktis dan akurat di genggaman Anda.",
         image: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=800&auto=format&fit=crop",
     }
 ];
@@ -125,13 +125,13 @@ const ProInsightsCarouselSection = () => {
                         variant="outline"
                         className="mb-2 border-blue-400/30 text-blue-600 bg-blue-500/10 px-4 py-1.5 uppercase tracking-[0.3em] text-[10px] font-black backdrop-blur-md shadow-sm"
                     >
-                        Pro Insights
+                        PRO INSIGHTS
                     </Badge>
 
                     <h2 className="text-4xl lg:text-5xl font-[1000] text-slate-900 tracking-tighter leading-[1.1]">
-                        Inspirasi Agen <br className="hidden md:block" />
+                        Inspirasi Tentang <br className="hidden md:block" />
                         <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-700 to-indigo-600">
-                            Profesional
+                            Keuangan Pribadi & Keluarga
                         </span>
                     </h2>
 

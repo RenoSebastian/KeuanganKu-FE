@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'KeuanganKu',
     short_name: 'KeuanganKu',
-    description: 'Platform Perencanaan Keuangan & Simulasi Finansial Profesional untuk Agen',
+    description: 'Personal Financial Planning Platform - Kenali Keuanganmu Rencanakan Masa Depanmu',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',

@@ -37,7 +37,7 @@ export function SalesTipsWidget() {
                                 Insight Harian
                             </h4>
                             <p className="text-[9px] md:text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-0.5">
-                                Sales Hacks
+                                Financial Hacks
                             </p>
                         </div>
                     </div>
@@ -48,7 +48,7 @@ export function SalesTipsWidget() {
                 {/* The Tip / Quote Section */}
                 <div className="relative pl-4 border-l-[3px] border-yellow-400/30 transition-colors duration-500 group-hover:border-yellow-400">
                     <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-medium">
-                        "Fokuslah pada masalah yang dihadapi klien, bukan produk yang Anda jual. <span className="text-white font-bold drop-shadow-sm">Solusi</span> adalah kunci closing."
+                        "Masa depan finansial yang lebih baik dimulai dari pemahaman dan keputusan yang tepat hari ini. <span className="text-white font-bold drop-shadow-sm">Konsistensi</span> adalah kuncinya."
                     </p>
                 </div>
 

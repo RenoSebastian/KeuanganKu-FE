@@ -112,7 +112,7 @@ export default function LandingPage() {
             {/* 2. PRIMARY ACTION (Login) - The Bold Sibling */}
             <Link href="/login">
               <button className="group flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-bold text-white transition-all duration-300 bg-slate-900 rounded-full hover:bg-blue-600 hover:shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:-translate-y-0.5">
-                Login Pro-Agent
+                Login
                 <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </button>
             </Link>
@@ -151,7 +151,7 @@ export default function LandingPage() {
                 variant="default"
                 className="w-full rounded-2xl h-14 shadow-lg shadow-blue-600/25 bg-blue-600 hover:bg-blue-700 border-none font-black text-lg flex items-center justify-center gap-2"
               >
-                Login Pro-Agent
+                Login
               </Button>
             </Link>
           </div>

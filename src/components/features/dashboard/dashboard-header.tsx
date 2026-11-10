@@ -85,7 +85,7 @@ export function DashboardHeader({ userData, currentDate, onAddClient }: Dashboar
                         {displayName}
                     </h2>
                     <p className="text-[11px] font-medium text-slate-500 mt-1">
-                        Siap mendampingi nasabah mencapai tujuannya hari ini?
+                        Mari mulai perjalanan financial-mu hari ini.
                     </p>
                 </div>
 
@@ -95,7 +95,7 @@ export function DashboardHeader({ userData, currentDate, onAddClient }: Dashboar
                     className="mt-5 w-full bg-linear-to-r from-slate-900 to-slate-800 text-white rounded-xl h-12 shadow-[0_8px_20px_-4px_rgba(0,0,0,0.2)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                     <Plus className="w-5 h-5" />
-                    <span className="font-bold">Klien Baru</span>
+                    <span className="font-bold">Rencana Keuanganku</span>
                 </Button>
             </div>
 
@@ -117,11 +117,11 @@ export function DashboardHeader({ userData, currentDate, onAddClient }: Dashboar
 
                     {/* Gradient Headline */}
                     <h1 className="text-4xl lg:text-5xl font-black tracking-tighter mb-2 text-transparent bg-clip-text bg-linear-to-br from-slate-900 via-slate-800 to-slate-500">
-                        Agent Workspace
+                        Dashboard Keuanganku
                     </h1>
 
                     <p className="text-base lg:text-lg text-slate-500 font-medium">
-                        {greeting}, <span className="font-bold text-indigo-600">{displayName}</span>. Mari dampingi nasabah hari ini.
+                        {greeting}, <span className="font-bold text-indigo-600">{displayName}</span>. Mari mulai perjalanan financial-mu.
                     </p>
                 </div>
 
@@ -145,9 +145,9 @@ export function DashboardHeader({ userData, currentDate, onAddClient }: Dashboar
                         <div className="absolute inset-0 w-full h-full bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
 
                         <div className="bg-white/10 p-1.5 rounded-lg backdrop-blur-sm">
-                            <Users className="w-4 h-4" />
+                            <Plus className="w-4 h-4" />
                         </div>
-                        <span className="font-bold tracking-wide">Tambah Klien Baru</span>
+                        <span className="font-bold tracking-wide">Rencana Keuanganku</span>
                     </Button>
                 </div>
             </div>

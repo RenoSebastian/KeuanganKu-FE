@@ -12,17 +12,17 @@ import { AgentWorkstation } from "@/components/features/dashboard/agent-workstat
 import { AgentPerformanceCard } from "@/components/features/dashboard/agent-performance-card";
 import { SalesTipsWidget } from "@/components/features/dashboard/sales-tips-widget";
 
-const AGENT_QUOTES = [
-  "Perlindungan hari ini adalah ketenangan masa depan bagi klien Anda.",
-  "Setiap penolakan mendekatkan Anda pada satu persetujuan besar.",
-  "Anda tidak hanya menjual kertas, Anda menjual kepastian hidup.",
-  "Jadilah pendengar yang baik sebelum menjadi pembicara yang hebat.",
-  "Trust adalah mata uang paling berharga dalam bisnis ini.",
-  "Bantu orang lain mencapai impian mereka, dan Anda akan mencapai impian Anda.",
-  "Edukasi, bukan intimidasi. Beri solusi, bukan sekadar janji.",
-  "Klien membeli karena mereka percaya pada Anda, bukan hanya produknya.",
-  "Kesuksesan agen diukur dari berapa banyak keluarga yang berhasil diamankan.",
-  "Konsistensi adalah kunci. Teruslah bergerak, teruslah melayani."
+const FINANCIAL_JOURNEY_QUOTES = [
+  "Masa depan finansial yang lebih baik dimulai dari pemahaman dan keputusan yang tepat hari ini.",
+  "Keuangan yang sehat dimulai dari kesadaran mencatat dan merencanakan arus kas.",
+  "Rencana finansial yang baik bukan tentang berapa banyak penghasilanmu, tapi bagaimana mengelolanya.",
+  "Investasi terbaik adalah investasi pada pemahaman diri dan literasi keuangan keluarga.",
+  "Dana darurat dan proteksi adalah perisai kokoh bagi impian masa depan Anda.",
+  "Masa pensiun yang nyaman bukan sebuah kebetulan, melainkan hasil perencanaan terstruktur.",
+  "Pendidikan terbaik untuk anak dimulai dari persiapan dana yang matang sedini mungkin.",
+  "Kendalikan keuangan Anda sebelum keuangan yang mengendalikan hidup Anda.",
+  "Ubah impian finansial menjadi target nyata dengan langkah terukur setiap hari.",
+  "Konsistensi dalam menabung dan mengelola risiko adalah kunci kebebasan finansial sejati."
 ];
 
 export default function DashboardPage() {
@@ -37,7 +37,7 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    setQuote(AGENT_QUOTES[Math.floor(Math.random() * AGENT_QUOTES.length)]);
+    setQuote(FINANCIAL_JOURNEY_QUOTES[Math.floor(Math.random() * FINANCIAL_JOURNEY_QUOTES.length)]);
 
     const fetchUser = async () => {
       try {

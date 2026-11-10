@@ -155,8 +155,8 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                             <ShieldCheck className="w-5 h-5 text-indigo-400" />
                             <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Tahap 1: Data Dasar</span>
                         </div>
-                        <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-1">Profil Klien</h2>
-                        <p className="text-xs md:text-sm text-slate-400 font-medium">Informasi ini dijaga kerahasiaannya dan digunakan murni untuk kalkulasi rasio.</p>
+                        <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-1">Profil Finansial</h2>
+                        <p className="text-xs md:text-sm text-slate-400 font-medium">Informasi ini dijaga kerahasiaannya dan digunakan murni untuk kalkulasi rasio keuangan Anda.</p>
                     </div>
                 </div>
             </div>
