@@ -65,7 +65,7 @@ export function BudgetResults({
                 </div>
                 <h3 className="text-xl font-black text-slate-700 tracking-tight">Kalkulator Standby</h3>
                 <p className="text-slate-500 text-sm mt-2 max-w-sm font-medium leading-relaxed">
-                    Silakan isi profil dan angka keuangan klien di panel kiri, lalu tekan <strong>Jalankan Kalkulasi</strong>.
+                    Silakan isi profil dan angka keuangan Anda di panel kiri, lalu tekan <strong>Hitung Alokasi Anggaran</strong>.
                 </p>
             </div>
         );

@@ -113,7 +113,7 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
         }
 
         if (age < 17) {
-            setError("Maaf, klien minimal harus berusia 17 tahun.");
+            setError("Maaf, usia minimal adalah 17 tahun.");
             return;
         }
         if (age > 100) {
@@ -170,8 +170,8 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                 </div>
                                 <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">Tahap 1: Identifikasi</span>
                             </div>
-                            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter mb-2">Profil Nasabah</h2>
-                            <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">Masukkan detail identitas klien untuk mengaktifkan mesin analisis profil risiko investasi.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter mb-2">Profil Saya</h2>
+                            <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">Masukkan detail identitas Anda untuk mengaktifkan mesin analisis profil risiko investasi.</p>
                         </div>
                     </div>
                 </motion.div>
@@ -348,7 +348,7 @@ export function IdentityForm({ initialData, onSubmit }: IdentityFormProps) {
                                     <div className="w-1 h-1 bg-slate-400 rounded-full" />
                                     <div className="flex items-center gap-1.5">
                                         <Heart className="w-3 h-3 text-rose-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.15em]">Financial Advisor Tool</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em]">Personal Finance Tool</span>
                                     </div>
                                 </div>
                             </div>

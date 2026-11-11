@@ -90,12 +90,12 @@ export default function RiskProfilePage() {
                     </div>
                 ) : (
                     <>
-                        {/* --- INSTRUKSI AGEN --- */}
+                        {/* --- PANDUAN PENGISIAN --- */}
                         <div className="animate-in fade-in duration-700 delay-150 flex items-start md:items-center gap-3 px-5 py-3 bg-slate-800 rounded-2xl text-[11px] md:text-xs text-slate-300 font-medium shadow-md max-w-5xl mx-auto">
                             <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
                             <p className="leading-relaxed">
-                                <span className="font-bold text-white uppercase tracking-wider mr-1">Instruksi Agen:</span>
-                                Berikan perangkat ini kepada klien untuk pengisian mandiri, atau pandu secara lisan untuk membangun keakraban (*engagement*).
+                                <span className="font-bold text-white uppercase tracking-wider mr-1">Panduan Pengisian:</span>
+                                Jawab setiap pertanyaan kuesioner dengan jujur sesuai preferensi dan kenyamanan Anda dalam menghadapi risiko finansial.
                             </p>
                         </div>
 

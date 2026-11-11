@@ -380,7 +380,7 @@ export default function ProfilePage() {
                   <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                     Informasi Kredibilitas <ShieldCheck className="text-blue-500 w-5 h-5" />
                   </h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Data ini akan tampil pada laporan klien</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Data ini akan tampil pada ringkasan laporan finansial</p>
                 </div>
                 {!isEditing ? (
                   <Button onClick={() => setIsEditing(true)} className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-6 h-12 font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-95">
@@ -473,14 +473,14 @@ export default function ProfilePage() {
                     rows={3}
                     disabled={!isEditing}
                     value={formData.goals}
-                    placeholder="Contoh: Membantu 100 keluarga mencapai kebebasan finansial di tahun 2024."
+                    placeholder="Contoh: Mencapai financial freedom dan kemandirian finansial keluarga di tahun 2030."
                     onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
                     className={cn(
                       "w-full px-6 py-4 rounded-[1.5rem] font-bold transition-all outline-none border resize-none leading-relaxed text-slate-700",
                       isEditing ? "bg-white border-blue-200 ring-4 ring-blue-50 focus:border-blue-500" : "bg-slate-50 border-slate-100"
                     )}
                   />
-                  <p className="text-[10px] text-slate-400 font-medium italic">*Visi ini akan muncul sebagai quote pembuka di setiap PDF laporan kesehatan keuangan klien.</p>
+                  <p className="text-[10px] text-slate-400 font-medium italic">*Visi ini akan muncul sebagai quote motivasi di setiap PDF laporan kesehatan keuangan Anda.</p>
                 </div>
               </div>
             </div>

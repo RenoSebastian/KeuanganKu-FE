@@ -46,8 +46,8 @@ export function BudgetForm({
                 <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
                     <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl shadow-inner"><User className="w-5 h-5" /></div>
                     <div>
-                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Profil Klien</h3>
-                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Identitas Dasar</p>
+                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Profil Saya</h3>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Data Diri</p>
                     </div>
                 </div>
 
@@ -108,7 +108,7 @@ export function BudgetForm({
                 <div className="space-y-6">
                     <div className="group space-y-2 flex flex-col justify-end">
                         <div className="flex justify-between items-end mb-1">
-                            <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Gaji Tetap <span className="text-rose-500">*</span></Label>
+                            <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Penghasilan Tetap <span className="text-rose-500">*</span></Label>
                             <button onClick={() => onOpenHelper("fixedIncome")} className="text-[9px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 transition-all shadow-sm">
                                 <Calculator className="w-3 h-3" /> Konversi Bulan
                             </button>
@@ -149,7 +149,7 @@ export function BudgetForm({
                             )}
                         >
                             {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : hasAccess ? <Play className="w-5 h-5 mr-2 fill-white" /> : <Lock className="w-5 h-5 mr-2" />}
-                            {hasAccess ? "Jalankan Kalkulasi" : "Kuota Habis"}
+                            {hasAccess ? "Hitung Alokasi Anggaran" : "Kuota Habis"}
                         </Button>
                     </div>
                 </div>

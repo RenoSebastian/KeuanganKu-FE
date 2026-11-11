@@ -90,11 +90,11 @@ export const generateCheckupPDF = (
 
   // --- START PDF CONTENT ---
 
-  // 2. Section: Profil Klien
+  // 2. Section: Profil Finansial
   doc.setFontSize(12);
   doc.setTextColor(...COLORS.primary);
   doc.setFont("helvetica", "bold");
-  doc.text("1. Profil Klien", 14, finalY);
+  doc.text("1. Profil Finansial", 14, finalY);
   finalY += 5;
 
   const profileRows: RowInput[] = [

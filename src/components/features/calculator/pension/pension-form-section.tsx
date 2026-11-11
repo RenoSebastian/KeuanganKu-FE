@@ -36,10 +36,10 @@ export function PensionFormSection({
 
     return (
         <div className="space-y-6">
-            {/* 1. DATA KLIEN */}
+            {/* 1. DATA PRIBADI */}
             <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
                 <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <User className="w-4 h-4 text-brand-600" /> Profil Klien
+                    <User className="w-4 h-4 text-brand-600" /> Data Pribadi
                 </h3>
                 <div className="space-y-4">
                     <div>
@@ -72,40 +72,42 @@ export function PensionFormSection({
                 </div>
             </Card>
 
-            {/* 2. PARAMETER PENSIUN */}
+            {/* 2. TARGET USIA PENSIUN */}
             <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
                 <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <Hourglass className="w-4 h-4 text-brand-600" /> Target Waktu
+                    <Hourglass className="w-4 h-4 text-brand-600" /> Target Usia Pensiun
                 </h3>
                 <div className="grid grid-cols-3 gap-4 mb-6">
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Usia Kini <span className="text-rose-500">*</span></Label>
+                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Usia Saat Ini <span className="text-rose-500">*</span></Label>
                         <Input type="number" value={currentAge} onChange={e => { setCurrentAge(e.target.value); onDataChange(); }} className="h-12 bg-slate-50 text-center font-bold" />
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-indigo-500 uppercase">Usia Pensiun <span className="text-rose-500">*</span></Label>
+                        <Label className="text-[10px] font-bold text-indigo-500 uppercase">Usia Saat Pensiun <span className="text-rose-500">*</span></Label>
                         <Input type="number" value={retirementAge} onChange={e => { setRetirementAge(e.target.value); onDataChange(); }} className="h-12 bg-indigo-50 text-center font-bold text-indigo-700" />
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Harapan Hidup <span className="text-rose-500">*</span></Label>
+                        <Label className="text-[10px] font-bold text-slate-500 uppercase">Usia Harapan Hidup <span className="text-rose-500">*</span></Label>
                         <Input type="number" value={lifeExpectancy} onChange={e => { setLifeExpectancy(e.target.value); onDataChange(); }} className="h-12 bg-slate-50 text-center font-bold" />
                     </div>
                 </div>
 
-                <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2 pt-2 border-t border-slate-50">
-                    <PiggyBank className="w-4 h-4 text-brand-600" /> Kondisi Keuangan
+                <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2 pt-4 border-t border-slate-100">
+                    <PiggyBank className="w-4 h-4 text-brand-600" /> Kondisi Keuangan Saat Ini
                 </h3>
                 <div className="space-y-4">
-                    <div className="space-y-1">
-                        <Label className="text-xs font-bold text-slate-500 uppercase">Biaya Hidup Bulanan (Saat Ini) <span className="text-rose-500">*</span></Label>
-                        <div className="relative">
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700 uppercase">Estimasi Pengeluaran Bulanan Saat Ini <span className="text-rose-500">*</span></Label>
+                        <p className="text-[11px] text-slate-400 font-medium">Masukkan rata-rata pengeluaran bulanan untuk memenuhi kebutuhan hidup saat ini.</p>
+                        <div className="relative mt-1">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rp</span>
                             <Input value={currentExpense} onChange={e => onMoneyInput(e.target.value, setCurrentExpense)} className="pl-12 h-12 font-bold text-lg" placeholder="0" />
                         </div>
                     </div>
-                    <div className="space-y-1">
-                        <Label className="text-xs font-bold text-emerald-600 uppercase">Aset Pensiun Yang Sudah Ada</Label>
-                        <div className="relative">
+                    <div className="space-y-1.5 pt-2">
+                        <Label className="text-xs font-bold text-emerald-700 uppercase">Dana dan Aset yang Disiapkan untuk Pensiun</Label>
+                        <p className="text-[11px] text-slate-400 font-medium">Masukkan total dana atau aset yang telah tersedia untuk kebutuhan pensiun.</p>
+                        <div className="relative mt-1">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-emerald-500">Rp</span>
                             <Input value={currentSaving} onChange={e => onMoneyInput(e.target.value, setCurrentSaving)} className="pl-12 h-12 font-bold text-lg border-emerald-200 bg-emerald-50/30 text-emerald-800" placeholder="0" />
                         </div>
@@ -113,22 +115,22 @@ export function PensionFormSection({
                 </div>
             </Card>
 
-            {/* 3. ASUMSI EKONOMI */}
+            {/* 3. ASUMSI EKONOMI DAN INVESTASI */}
             <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
                 <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-brand-600" /> Asumsi Ekonomi
+                    <TrendingUp className="w-4 h-4 text-brand-600" /> Asumsi Ekonomi dan Investasi
                 </h3>
                 <div className="space-y-6">
                     <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
-                            <span>Inflasi Tahunan</span>
+                            <span>Asumsi Tingkat Inflasi Tahunan</span>
                             <span>{inflation}%</span>
                         </div>
                         <Slider value={inflation} onChange={(v) => { setInflation(v); onDataChange(); }} min={0} max={15} step={0.5} />
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
-                            <span>Return Investasi</span>
+                            <span>Asumsi Hasil Investasi Tahunan</span>
                             <span>{returnRate}%</span>
                         </div>
                         <Slider value={returnRate} onChange={(v) => { setReturnRate(v); onDataChange(); }} min={0} max={20} step={0.5} />

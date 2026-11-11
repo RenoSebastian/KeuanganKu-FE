@@ -119,7 +119,7 @@ export default function PensionPage() {
     }
 
     if (!clientData.clientName?.trim()) {
-      toast.error("Data Belum Lengkap", { description: "Nama Lengkap klien wajib diisi." });
+      toast.error("Data Belum Lengkap", { description: "Nama Lengkap wajib diisi." });
       return;
     }
 
@@ -338,7 +338,7 @@ export default function PensionPage() {
           setGeneratedFiles({
             pdfBlob: null,
             mgcToken: content,
-            filenameMgc: generateSimulationFilename("Rencana Dana Hari Tua", data.client?.name || "Klien", "mgc"),
+            filenameMgc: generateSimulationFilename("Rencana Dana Hari Tua", data.client?.name || "Pengguna", "mgc"),
             filenamePdf: null
           });
         } else {
@@ -414,7 +414,7 @@ export default function PensionPage() {
                 className={cn("flex-2 h-12 font-bold text-lg shadow-lg rounded-xl text-white", hasAccess ? "bg-brand-600 hover:bg-brand-700 shadow-brand-500/20" : "bg-slate-400")}
               >
                 {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Play className="w-5 h-5 mr-2" />}
-                {hasAccess ? "Lihat Analisa" : "Kuota Habis"}
+                {hasAccess ? "Lihat Hasil Proyeksi" : "Kuota Habis"}
               </Button>
             </div>
             <PensionGuide />
@@ -426,8 +426,10 @@ export default function PensionPage() {
                 <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                   <Hourglass className="w-10 h-10 text-slate-300" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-700">Area Hasil Simulasi</h3>
-                <p className="text-slate-500 text-sm mt-2 max-w-xs leading-relaxed">Klik <strong>"Lihat Analisa"</strong> untuk menampilkan strategi pensiun.</p>
+                <h3 className="text-xl font-bold text-slate-800">Hasil Proyeksi Dana Pensiun</h3>
+                <p className="text-slate-500 text-sm mt-2 max-w-sm leading-relaxed">
+                  Lengkapi data pribadi, target usia pensiun, dan kondisi keuangan Anda. Selanjutnya, tampilkan hasil proyeksi untuk mengetahui estimasi kebutuhan dana dan kesiapan finansial di masa pensiun.
+                </p>
               </div>
             ) : (
               <PensionResultSection

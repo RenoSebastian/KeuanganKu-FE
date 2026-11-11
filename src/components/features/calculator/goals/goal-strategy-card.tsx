@@ -90,7 +90,7 @@ export function GoalStrategyCard({
                     </div>
                     {/* Teks ditempatkan di bawah agar rata */}
                     <p className="text-[11px] text-slate-500 leading-relaxed mt-4 font-medium">
-                        Hasil akhir dari modal awal klien yang didiamkan dan bertumbuh <strong className="text-slate-700">{returnRate}%</strong> per tahun.
+                        Hasil akhir dari modal awal Anda yang didiamkan dan bertumbuh <strong className="text-slate-700">{returnRate}%</strong> per tahun.
                     </p>
                 </div>
 
@@ -112,8 +112,8 @@ export function GoalStrategyCard({
                     {/* Teks ditempatkan di bawah agar rata */}
                     <p className="text-[11px] text-slate-500 leading-relaxed mt-4 font-medium">
                         {isSurplus
-                            ? "Modal awal klien sudah sangat kuat, tidak perlu tambahan investasi rutin untuk tujuan ini."
-                            : "Jumlah nominal yang masih kurang dan wajib dikejar klien melalui rutinitas menabung."
+                            ? "Modal awal Anda sudah sangat kuat, tidak perlu tambahan investasi rutin untuk tujuan ini."
+                            : "Jumlah nominal yang masih kurang dan perlu dicapai melalui rutinitas menabung."
                         }
                     </p>
                 </div>

@@ -53,8 +53,7 @@ export default function AgentCheckupPage() {
                 <div className="mt-12 pt-6 border-t border-slate-200 text-center">
                     <p className="text-xs text-slate-400 max-w-2xl mx-auto leading-relaxed">
                         <strong>Disclaimer:</strong> Hasil simulasi ini adalah indikasi awal kesehatan finansial berdasarkan data yang diinput saat ini.
-                        Hasil ini bukan merupakan saran investasi final. Keputusan finansial tetap berada di tangan klien.
-                        Sebagai Agen, Anda wajib menjelaskan asumsi yang digunakan dalam perhitungan ini.
+                        Hasil kalkulasi ini merupakan proyeksi dan panduan edukasi finansial, bukan merupakan saran investasi final. Keputusan finansial sepenuhnya berada di tangan Anda.
                     </p>
                 </div>
 

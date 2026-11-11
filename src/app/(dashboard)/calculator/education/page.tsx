@@ -260,10 +260,10 @@ export default function EducationCalculatorPage() {
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-800">
-              Kalkulator Pendidikan
+              Kalkulator Dana Pendidikan
             </h1>
             <p className="text-slate-500 font-medium mt-1">
-              Rencanakan masa depan pendidikan buah hati dengan presisi.
+              Rencanakan masa depan buah hati dengan tepat mulai dari sekarang.
             </p>
           </div>
         </div>
@@ -327,7 +327,7 @@ export default function EducationCalculatorPage() {
       {/* PROGRESS INDICATOR */}
       <div className="max-w-3xl mx-auto">
         <div className="flex justify-between mb-4 px-2">
-          {['Klien', 'Rencana', 'Hasil'].map((label, index) => {
+          {['Data Diri', 'Rencana', 'Hasil'].map((label, index) => {
             const stepNum = index + 1;
             const isActive = step >= stepNum;
             const isCurrent = step === stepNum;
@@ -392,7 +392,7 @@ export default function EducationCalculatorPage() {
           <InfoCard
             icon={User}
             title="Personalisasi Laporan"
-            desc="Identitas klien akan ditampilkan di header laporan PDF untuk memberikan kesan profesional."
+            desc="Identitas Anda akan ditampilkan di header laporan PDF rencana dana pendidikan."
           />
           <InfoCard
             icon={Baby}

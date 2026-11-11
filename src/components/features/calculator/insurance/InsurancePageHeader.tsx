@@ -53,13 +53,13 @@ export const InsurancePageHeader = ({
                 <div className="text-center md:text-left">
                     <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
                         <ShieldCheck className="w-4 h-4 text-cyan-300" />
-                        <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Agent Tools</span>
+                        <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Financial Planning Tool</span>
                     </div>
                     <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
                         Insurance Planner
                     </h1>
-                    <p className="text-brand-100 text-sm md:text-base max-w-lg leading-relaxed opacity-90 drop-shadow-md">
-                        Hitung kebutuhan Uang Pertanggungan ideal klien Anda secara profesional dan akurat.
+                    <p className="text-brand-100 text-sm md:text-base max-w-xl leading-relaxed opacity-90 drop-shadow-md">
+                        Analisis kebutuhan Uang Pertanggungan berdasarkan kewajiban finansial, kebutuhan hidup keluarga, dan kondisi keuangan saat ini untuk membantu menentukan perlindungan jiwa yang memadai.
                     </p>
                 </div>
 

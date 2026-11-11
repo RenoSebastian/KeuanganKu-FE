@@ -120,7 +120,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
 
         clearStorage();
         setInternalLoading(true);
-        const toastId = toast.loading("Dekripsi Token MGC...", { description: "Mengekstrak profil klien..." });
+        const toastId = toast.loading("Dekripsi Token MGC...", { description: "Mengekstrak data finansial..." });
 
         try {
             const reader = new FileReader();
@@ -195,7 +195,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
 
     const onFinancialSubmit = async (latestFinancialData?: FinancialFormState) => {
         if (!clientData) {
-            toast.error("Integritas Data Hilang", { description: "Profil klien tidak ditemukan. Harap isi identitas." });
+            toast.error("Integritas Data Hilang", { description: "Data profil tidak ditemukan. Harap isi identitas." });
             setCurrentStep("IDENTITY");
             return;
         }
@@ -357,7 +357,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                     </div>
                                     <div>
                                         <h4 className="text-white font-bold text-sm flex items-center gap-2">
-                                            Restore Sesi Klien <Sparkles className="w-3 h-3 text-yellow-300" />
+                                            Restore Sesi (.mgc) <Sparkles className="w-3 h-3 text-yellow-300" />
                                         </h4>
                                         <p className="text-indigo-100/80 text-[11px] font-medium mt-0.5">
                                             Lanjutkan simulasi dari file <code className="bg-indigo-900/50 px-1 py-0.5 rounded text-cyan-200">.mgc</code>

@@ -46,13 +46,16 @@ export function PensionHeader({ isImporting, onImportClick, fileInputRef, onFile
                 <div className="text-center md:text-left">
                     <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 mb-4 shadow-lg">
                         <Calculator className="w-4 h-4 text-cyan-300" />
-                        <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">Pension Planner</span>
+                        <span className="text-[10px] font-bold text-cyan-100 tracking-widest uppercase">RETIREMENT PLANNING</span>
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 drop-shadow-xl">
-                        Dana Pensiun
+                    <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-2 drop-shadow-xl">
+                        Perencanaan Dana Pensiun
                     </h1>
-                    <p className="text-brand-100 text-sm md:text-base max-w-lg leading-relaxed opacity-90 drop-shadow-md">
-                        Rencanakan masa depan sejahtera dengan kekuatan dana Anda saat ini bersama kami.
+                    <p className="text-white/90 text-sm md:text-base italic font-semibold mb-2 drop-shadow-md">
+                        Persiapkan Hari Tua dengan Perencanaan yang Matang.
+                    </p>
+                    <p className="text-brand-100 text-xs md:text-sm max-w-xl leading-relaxed opacity-90 drop-shadow-md">
+                        Proyeksikan kebutuhan finansial di masa pensiun berdasarkan usia, biaya hidup, aset yang tersedia, serta asumsi inflasi dan imbal hasil investasi. Ketahui estimasi dana yang perlu dipersiapkan untuk menjaga keberlangsungan finansial di masa pensiun.
                     </p>
                 </div>
 
@@ -65,7 +68,7 @@ export function PensionHeader({ isImporting, onImportClick, fileInputRef, onFile
                     </div>
                     <div className="text-left">
                         <h4 className="text-sm font-bold text-white">Import File .mgc</h4>
-                        <p className="text-xs text-brand-200">Load data simulasi sebelumnya</p>
+                        <p className="text-xs text-brand-200">Muat kembali data sebelumnya</p>
                     </div>
                     <input type="file" ref={fileInputRef} accept=".mgc" className="hidden" onChange={onFileUpload} />
                 </Card>

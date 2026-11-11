@@ -29,7 +29,7 @@ export function GapAnalysisGauge({ totalNeeded, existingCoverage, coverageGap }:
                         Analisa Kecukupan Uang Pertanggungan
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">
-                        Indikator kesehatan proteksi asuransi klien.
+                        Indikator kesehatan proteksi asuransi keluarga Anda.
                     </p>
                 </div>
 
@@ -111,7 +111,7 @@ export function GapAnalysisGauge({ totalNeeded, existingCoverage, coverageGap }:
                                     {isSafe ? "SURPLUS (AMAN)" : "KEKURANGAN (GAP)"}
                                 </p>
                                 <p className={cn("text-sm opacity-80 font-medium", isSafe ? "text-emerald-800" : "text-rose-800")}>
-                                    {isSafe ? "Klien memiliki kelebihan proteksi sebesar:" : "Wajib menambah Uang Pertanggungan minimal:"}
+                                    {isSafe ? "Keluarga Anda memiliki kelebihan proteksi sebesar:" : "Perlu menambah Uang Pertanggungan minimal:"}
                                 </p>
                             </div>
                         </div>

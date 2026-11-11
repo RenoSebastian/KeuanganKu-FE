@@ -24,7 +24,7 @@ export function InsuranceGuide() {
           {/* STEP 1: LOGIKA DASAR */}
           <AccordionItem value="item-1" className="border-b-blue-200">
             <AccordionTrigger className="text-sm font-medium hover:text-blue-600">
-              Mengapa saya butuh simulasi ini?
+              Mengapa Analisis Proteksi Jiwa Penting?
             </AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground leading-relaxed">
               Kalkulator ini menggunakan metode <strong>Needs Approach</strong>. 
@@ -62,7 +62,7 @@ export function InsuranceGuide() {
           <AccordionItem value="item-3" className="border-b-blue-200">
             <AccordionTrigger className="text-sm font-medium hover:text-blue-600 flex gap-2">
               <Banknote className="h-4 w-4 text-green-500" />
-              Bagian B: Dana Kehidupan Keluarga
+              Bagian B: Kebutuhan Finansial Keluarga
             </AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-3">
               <div className="grid gap-2 pl-2 border-l-2 border-green-200">
@@ -71,9 +71,9 @@ export function InsuranceGuide() {
                   <br/>Total pengeluaran dan kebutuhan hidup keluarga selama setahun yang ingin dipertahankan.
                 </div>
                 <div>
-                  <span className="font-semibold text-foreground">Tanggungan Terlama (Tahun):</span>
-                  <br/>Jangka waktu terlama untuk menanggung biaya hidup anggota keluarga. <br/>
-                  <em>Contoh: Anak bungsu usia 5 tahun, mandiri usia 22 tahun. Maka tanggungan terlama = 17 tahun.</em>
+                  <span className="font-semibold text-foreground">Periode Kebutuhan Finansial:</span>
+                  <br/>Jangka waktu untuk menanggung biaya hidup anggota keluarga hingga mandiri. <br/>
+                  <em>Contoh: Anak bungsu usia 5 tahun, mandiri usia 22 tahun. Maka periode = 17 tahun.</em>
                 </div>
               </div>
             </AccordionContent>
@@ -83,7 +83,7 @@ export function InsuranceGuide() {
           <AccordionItem value="item-4" className="border-none">
              <AccordionTrigger className="text-sm font-medium hover:text-blue-600 flex gap-2">
               <ShieldCheck className="h-4 w-4 text-blue-500" />
-              Cara Membaca Hasil (Output)
+              Memahami Hasil Analisis
             </AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-2">
               <p>

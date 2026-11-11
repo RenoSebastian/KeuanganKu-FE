@@ -104,14 +104,14 @@ export function RiskProfileWizard() {
         }
     );
 
-    const savedDraftName = (draftData as any)?.clientData?.name || "Klien";
+    const savedDraftName = (draftData as any)?.clientData?.name || "Pengguna";
 
     // --- REFACTORED UNIVERSAL EXPORT HANDLERS ---
 
     const handleDownloadPdf = async () => {
         setIsDownloading(true);
         try {
-            const clientName = clientData?.name || "Klien";
+            const clientName = clientData?.name || "Pengguna";
             const filename = generateSimulationFilename("Profil Risiko", clientName, "pdf");
 
             let targetBlob = pdfBlob;
@@ -170,7 +170,7 @@ export function RiskProfileWizard() {
             return;
         }
         try {
-            const clientName = clientData?.name || "Klien";
+            const clientName = clientData?.name || "Pengguna";
             const filename = generateSimulationFilename("Profil Risiko", clientName, "mgc");
 
             // Transformasi string ke Blob Biner untuk Universal Engine
@@ -272,7 +272,7 @@ export function RiskProfileWizard() {
         }
 
         if (!clientData) {
-            toast.error("Integritas Data Hilang", { description: "Data profil klien tidak ditemukan. Silakan mulai dari awal." });
+            toast.error("Integritas Data Hilang", { description: "Data profil tidak ditemukan. Silakan mulai dari awal." });
             setCurrentStep("IDENTITY");
             return;
         }
@@ -315,7 +315,7 @@ export function RiskProfileWizard() {
     };
 
     const handleReset = () => {
-        if (confirm("Mulai sesi baru? Semua data klien dan kuesioner akan di-reset.")) {
+        if (confirm("Mulai sesi baru? Semua data profil dan kuesioner akan di-reset.")) {
             clearStorage();
             setClientData(null);
             setAnswers([]);
@@ -397,7 +397,7 @@ export function RiskProfileWizard() {
                                         <FileSearch className="w-6 h-6 text-cyan-300" />
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-bold text-sm flex items-center gap-2">Restore Sesi Klien <Sparkles className="w-3 h-3 text-yellow-300" /></h4>
+                                        <h4 className="text-white font-bold text-sm flex items-center gap-2">Restore Sesi (.mgc) <Sparkles className="w-3 h-3 text-yellow-300" /></h4>
                                         <p className="text-indigo-100/80 text-[11px] font-medium mt-0.5">Lanjutkan simulasi dari file <code className="bg-indigo-900/50 px-1 py-0.5 rounded text-cyan-200">.mgc</code></p>
                                     </div>
                                 </div>

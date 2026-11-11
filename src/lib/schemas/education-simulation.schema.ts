@@ -108,8 +108,8 @@ export const educationChildSchema = z.object({
 // ============================================================================
 
 export const educationSimulationSchema = z.object({
-    // --- A. IDENTITAS KLIEN (ORANG TUA) ---
-    clientName: z.string().min(1, { message: "Nama klien wajib diisi" }),
+    // --- A. IDENTITAS PENGGUNA (ORANG TUA) ---
+    clientName: z.string().min(1, { message: "Nama lengkap wajib diisi" }),
 
     clientDob: z.string().optional(), // Opsional agar tidak blocking sales flow
 

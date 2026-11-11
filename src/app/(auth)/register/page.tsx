@@ -106,31 +106,31 @@ export default function RegisterPage() {
           </div>
 
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em]">
-            Enterprise Agent Portal
+            Personal Financial Platform
           </div>
         </div>
 
         <div className="z-10 relative space-y-8">
           <h2 className="text-4xl lg:text-6xl font-black leading-[1.1] tracking-tighter">
-            Berikan Masa Depan <br />
+            Wujudkan Masa Depan <br />
             <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 via-cyan-400 to-indigo-400">
-              Terukur Untuk Klien
+              Finansial yang Terarah
             </span>
           </h2>
           <p className="text-lg text-slate-400 max-w-md font-medium leading-relaxed">
-            Gabung dengan komunitas agen cerdas yang beralih dari sekadar jualan ke solusi berbasis data finansial yang akurat.
+            Kenali kondisi keuanganmu dan rencanakan masa depan finansial secara mandiri, akurat, dan terarah.
           </p>
 
           <div className="flex flex-col gap-6 pt-4">
             <FeatureItem
               icon={<BarChart3 className="text-blue-400" />}
-              title="Dashboard Wealth Management"
-              desc="Kelola portofolio klien secara terpusat dan realtime."
+              title="Perencanaan Komprehensif"
+              desc="Kelola arus kas, aset, dan tujuan finansial secara terpusat."
             />
             <FeatureItem
               icon={<ShieldCheck className="text-cyan-400" />}
               title="Enkripsi Level Korporasi"
-              desc="Keamanan data klien adalah prioritas nomor satu kami."
+              desc="Keamanan dan privasi data finansial Anda adalah prioritas nomor satu kami."
             />
           </div>
         </div>

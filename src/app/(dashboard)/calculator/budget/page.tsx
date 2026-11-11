@@ -242,10 +242,10 @@ export default function AgentBudgetPage() {
         <div className="relative z-20 max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mt-4">
           <div className="text-left animate-in fade-in slide-in-from-left-8 duration-700">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 mb-4 shadow-lg">
-              <Sparkles className="w-4 h-4 text-cyan-400" /><span className="text-[10px] font-black text-cyan-100 uppercase tracking-[0.2em]">Agent Tool</span>
+              <Sparkles className="w-4 h-4 text-cyan-400" /><span className="text-[10px] font-black text-cyan-100 uppercase tracking-[0.2em]">Financial Planning Tool</span>
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-3 tracking-tighter drop-shadow-md">Budget <span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-emerald-400">Simulator</span></h1>
-            <p className="text-slate-300 text-sm md:text-base max-w-lg font-medium leading-relaxed">Rancang proporsi keuangan klien secara logis (Aturan 45-20-15-10-10).</p>
+            <p className="text-slate-300 text-sm md:text-base max-w-lg font-medium leading-relaxed">Rancang proporsi keuangan Anda secara terstruktur dan terencana (Aturan 45-20-15-10-10).</p>
           </div>
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-[1.5rem] flex items-center gap-5 max-w-sm w-full cursor-pointer group shadow-2xl" onClick={() => fileInputRef.current?.click()}>
             <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-inner group-hover:rotate-12 transition-all duration-300 shrink-0">

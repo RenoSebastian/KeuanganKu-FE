@@ -171,7 +171,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                         <SectionTitle
                             icon={User}
                             title="Identitas Utama"
-                            desc="Informasi pribadi klien yang akan dianalisa."
+                            desc="Informasi pribadi Anda yang akan dianalisa."
                             colorClass="text-indigo-600 bg-indigo-50 border-indigo-100"
                         />
 

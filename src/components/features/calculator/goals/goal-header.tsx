@@ -30,10 +30,10 @@ export function GoalHeader({ backgroundImages, currentImageIndex, isImporting, o
                         <span className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em]">Goal Simulator</span>
                     </div>
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-3 tracking-tighter drop-shadow-md">
-                        Rencana <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-300 to-cyan-300">Masa Depan</span>
+                        Rencanakan <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-300 to-cyan-300">Masa Depanmu</span>
                     </h1>
                     <p className="text-slate-300 text-sm md:text-base max-w-lg font-medium leading-relaxed drop-shadow-sm">
-                        Kalkulasi strategis berbasis inflasi untuk mewujudkan impian klien Anda secara pasti.
+                        Proyeksikan kebutuhan dana berdasarkan tujuan finansial, jangka waktu, dan asumsi inflasi untuk menyusun rencana keuangan yang lebih terarah.
                     </p>
                 </div>
 
@@ -47,8 +47,8 @@ export function GoalHeader({ backgroundImages, currentImageIndex, isImporting, o
                         {isImporting ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
                     </div>
                     <div className="text-left flex-1">
-                        <h4 className="text-base font-black text-white tracking-tight">Restore Sesi (.mgc)</h4>
-                        <p className="text-[11px] text-slate-300 font-medium">Muat ulang data kalkulasi klien.</p>
+                        <h4 className="text-base font-black text-white tracking-tight">Restore Session (.mgc)</h4>
+                        <p className="text-[11px] text-slate-300 font-medium">Muat kembali data perhitungan yang telah disimpan sebelumnya.</p>
                     </div>
                 </motion.div>
             </div>

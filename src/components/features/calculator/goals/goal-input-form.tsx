@@ -88,8 +88,8 @@ export function GoalInputForm(props: GoalInputFormProps) {
                 <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
                     <div className="p-2.5 bg-slate-900 text-white rounded-xl shadow-inner"><Target className="w-5 h-5" /></div>
                     <div>
-                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Pilih Impian</h3>
-                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Kategori Tujuan Finansial</p>
+                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Goals Selection</h3>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">PILIH TUJUAN FINANSIAL</p>
                     </div>
                 </div>
 
@@ -123,7 +123,7 @@ export function GoalInputForm(props: GoalInputFormProps) {
                     {selectedGoal === "LAINNYA" && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mt-4">
                             <div className="group space-y-1.5 pt-2">
-                                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Nama Impian Spesifik <span className="text-rose-500">*</span></Label>
+                                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Tujuan Saya <span className="text-rose-500">*</span></Label>
                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                     <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                                     <Input value={goalNameCustom} onChange={e => setGoalNameCustom(e.target.value)} placeholder="Misal: Beli Mobil SUV" className="pl-11 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400" />
@@ -134,11 +134,11 @@ export function GoalInputForm(props: GoalInputFormProps) {
                 </AnimatePresence>
             </Card>
 
-            {/* 2. DATA KLIEN */}
+            {/* 2. DATA DIRI */}
             <Card className="p-6 md:p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border-0 bg-white/95 backdrop-blur-xl">
                 <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
                     <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl shadow-inner"><User className="w-5 h-5" /></div>
-                    <div><h3 className="text-lg font-black text-slate-800 tracking-tight">Profil Klien</h3></div>
+                    <div><h3 className="text-lg font-black text-slate-800 tracking-tight">Profil Saya</h3></div>
                 </div>
 
                 <div className="space-y-5">
@@ -190,7 +190,7 @@ export function GoalInputForm(props: GoalInputFormProps) {
             <Card className="p-6 md:p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border-0 bg-white/95 backdrop-blur-xl flex-1 flex flex-col">
                 <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
                     <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl shadow-inner"><Wallet className="w-5 h-5" /></div>
-                    <div><h3 className="text-lg font-black text-slate-800 tracking-tight">Kalkulasi Finansial</h3></div>
+                    <div><h3 className="text-lg font-black text-slate-800 tracking-tight">Parameter Perhitungan</h3></div>
                 </div>
 
                 <div className="space-y-6 flex-1 flex flex-col justify-between">
@@ -208,15 +208,14 @@ export function GoalInputForm(props: GoalInputFormProps) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                             <div className="group space-y-1.5">
-                                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Target Tercapai <span className="text-rose-500">*</span></Label>
+                                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Target Waktu Pencapaian <span className="text-rose-500">*</span></Label>
                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                     <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
-                                    {/* PERBAIKAN LOGICAL BUG: Menggunakan minDate yang sudah dikalkulasi, bukan tanggal hari ini */}
                                     <Input type="date" value={targetDate} onChange={e => { setTargetDate(e.target.value); resetResult(); }} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm block w-full focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" min={minDate} />
                                 </div>
                             </div>
                             <div className="group space-y-1.5">
-                                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Tabungan Awal <span className="text-[9px] font-normal lowercase text-slate-400">(Opsional)</span></Label>
+                                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 group-focus-within:text-indigo-600 transition-colors">Dana yang Telah Tersedia <span className="text-[9px] font-normal lowercase text-slate-400">(opsional)</span></Label>
                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-[10px] group-focus-within:text-indigo-600 transition-colors">Rp</div>
                                     <Input value={currentSaving} onChange={e => handleMoneyInput(e.target.value, setCurrentSaving)} className="pl-10 h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-sm text-slate-800 transition-all shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white" placeholder="0" inputMode="numeric" />
@@ -227,15 +226,14 @@ export function GoalInputForm(props: GoalInputFormProps) {
                         <div className="mt-6 space-y-6 pt-6 border-t border-slate-100">
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                                    <span>Asumsi Inflasi Tahunan</span>
+                                    <span>Asumsi Tingkat Inflasi Tahunan</span>
                                     <span className="text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm">{inflation}%</span>
                                 </div>
-                                {/* Asumsi Slider Anda mengkonsumsi single number. Jika ini komponen shadcn asli, perhatikan dokumentasinya terkadang meminta array [inflation] */}
                                 <Slider value={inflation as any} onChange={(v: any) => { setInflation(v); resetResult(); }} min={0} max={15} step={0.5} className="py-2" />
                             </div>
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                                    <span>Return Investasi Tahunan</span>
+                                    <span>Asumsi Hasil Investasi Tahunan</span>
                                     <span className="text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm">{returnRate}%</span>
                                 </div>
                                 <Slider value={returnRate as any} onChange={(v: any) => { setReturnRate(v); resetResult(); }} min={0} max={20} step={0.5} className="py-2" />
@@ -253,7 +251,7 @@ export function GoalInputForm(props: GoalInputFormProps) {
                             className="h-14 flex-1 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:opacity-50"
                         >
                             {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Play className="w-5 h-5 mr-2 fill-white" />}
-                            Jalankan Kalkulasi
+                            Hitung Kebutuhan Dana
                         </Button>
                     </div>
                 </div>

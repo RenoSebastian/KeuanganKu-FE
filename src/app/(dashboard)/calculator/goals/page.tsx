@@ -29,7 +29,7 @@ const GOAL_OPTIONS = [
     { id: "IBADAH", label: "Ibadah", icon: Star, desc: "Haji, Umrah, Ziarah" },
     { id: "LIBURAN", label: "Liburan", icon: Plane, desc: "Traveling & Wisata" },
     { id: "PERNIKAHAN", label: "Pernikahan", icon: Heart, desc: "Resepsi & Acara" },
-    { id: "LAINNYA", label: "Custom", icon: Target, desc: "Gadget, Rumah, Kendaraan" },
+    { id: "LAINNYA", label: "Tujuan lain", icon: Target, desc: "Gadget, Rumah, Kendaraan" },
 ];
 
 export default function GoalsPage() {
@@ -156,7 +156,7 @@ export default function GoalsPage() {
                 filenamePdf: pdfFilename
             });
 
-            toast.success("Analisa Selesai", { description: "Sistem telah menemukan strategi terbaik untuk klien Anda." });
+            toast.success("Analisa Selesai", { description: "Sistem telah menemukan proyeksi dan strategi terbaik untuk tujuan finansial Anda." });
 
         } catch (error: any) {
             console.error(error);

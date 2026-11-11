@@ -311,7 +311,7 @@ export function AnalysisResult({
                                 </div>
                                 <div>
                                     <h4 className="text-slate-900 font-black text-lg tracking-tight">Review Rekam Jawaban</h4>
-                                    <p className="text-slate-500 text-xs font-medium mt-0.5">Lihat kembali rincian tanggapan klien pada kuesioner.</p>
+                                    <p className="text-slate-500 text-xs font-medium mt-0.5">Lihat kembali rincian tanggapan Anda pada kuesioner.</p>
                                 </div>
                             </div>
                         </AccordionTrigger>
@@ -357,7 +357,7 @@ export function AnalysisResult({
                         <AlertCircle className="w-5 h-5 text-indigo-600" />
                     </div>
                     <p className="text-xs leading-relaxed font-medium">
-                        Cetak laporan PDF atau cadangkan file .MGC klien ini sebagai referensi. Jika ada perubahan profil, gunakan fitur Edit Jawaban.
+                        Cetak laporan PDF atau cadangkan file .MGC ini sebagai referensi. Jika ada perubahan profil, gunakan fitur Edit Jawaban.
                     </p>
                 </div>
 

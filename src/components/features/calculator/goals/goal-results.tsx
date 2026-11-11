@@ -42,9 +42,9 @@ export function GoalResults({ result, targetAmount, inflation, returnRate, gener
                     <div className="w-28 h-28 rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-100 bg-white">
                         <Calculator className="w-12 h-12 text-slate-300" />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">Kalkulator Siap Beraksi</h3>
+                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">Siap Merencanakan Tujuanmu?</h3>
                     <p className="text-slate-500 text-sm mt-2 max-w-sm font-medium leading-relaxed">
-                        Silakan isi data klien dan parameter target di panel kiri, lalu tekan <strong>Jalankan Kalkulasi</strong> untuk melihat rekomendasi sistem.
+                        Lengkapi informasi keuangan dan target dana pada panel sebelah kiri. Selanjutnya, jalankan kalkulasi untuk mengetahui estimasi kebutuhan dana dan rencana persiapannya.
                     </p>
                 </div>
             ) : (

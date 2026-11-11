@@ -85,7 +85,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         }
 
         try {
-            const clientName = simulationData?.clientName || "Klien";
+            const clientName = simulationData?.clientName || "Pengguna";
             const filename = generateSimulationFilename("Education Plan", clientName, "mgc");
 
             // [CRITICAL FIX]: PWA Share Sheet tidak mengizinkan Memory-Backed Blob.
@@ -118,7 +118,7 @@ export const SimulationResultStep: React.FC<SimulationResultStepProps> = ({ resu
         const toastId = toast.loading("Menyiapkan dokumen laporan PDF...");
 
         try {
-            const clientName = simulationData?.clientName || "Klien";
+            const clientName = simulationData?.clientName || "Pengguna";
             const filename = generateSimulationFilename("Education Plan", clientName, "pdf");
 
             // 1. [DECODE BASE64] Konversi string Base64 dari JSON Backend ke Uint8Array

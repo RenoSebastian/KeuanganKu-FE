@@ -117,7 +117,7 @@ export default function InsurancePage() {
     }
 
     if (!clientData.clientName || !annualIncome) {
-      toast.error("Data Belum Lengkap", { description: "Nama Klien, Tanggal Lahir, dan Biaya Hidup wajib diisi." });
+      toast.error("Data Belum Lengkap", { description: "Nama Lengkap, Tanggal Lahir, dan Biaya Hidup wajib diisi." });
       return;
     }
 
@@ -372,7 +372,7 @@ export default function InsurancePage() {
                 className={cn("flex-2 h-12 font-bold text-lg shadow-lg rounded-xl text-white", hasAccess ? "bg-brand-600 hover:bg-brand-700 shadow-brand-500/20" : "bg-slate-400 cursor-not-allowed")}
               >
                 {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Play className="w-5 h-5 mr-2" />}
-                {hasAccess ? "Lihat Analisa" : "Kuota Habis"}
+                {hasAccess ? "Hitung Kebutuhan Proteksi" : "Kuota Habis"}
               </Button>
             </div>
           </div>
@@ -384,8 +384,10 @@ export default function InsurancePage() {
                 <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                   <HeartPulse className="w-10 h-10 text-slate-300" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-700">Area Hasil Simulasi</h3>
-                <p className="text-slate-500 text-sm mt-2 max-w-xs leading-relaxed">Klik <strong>"Lihat Analisa"</strong> untuk menampilkan perhitungan.</p>
+                <h3 className="text-xl font-bold text-slate-800">Hasil Analisis Proteksi</h3>
+                <p className="text-slate-500 text-sm mt-2 max-w-sm leading-relaxed">
+                  Lengkapi data yang diperlukan untuk memperoleh estimasi kebutuhan Uang Pertanggungan berdasarkan kondisi finansial dan tanggung jawab keluarga.
+                </p>
               </div>
             ) : (
               <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">

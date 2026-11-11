@@ -29,7 +29,7 @@ export const ClientProfileForm = ({
     return (
         <Card className="p-6 rounded-[2rem] shadow-xl border-white/60 bg-white">
             <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <User className="w-4 h-4 text-brand-600" /> Profil Klien
+                <User className="w-4 h-4 text-brand-600" /> Data Pribadi
             </h3>
             <div className="space-y-4">
                 <div>
@@ -101,7 +101,7 @@ export const ClientProfileForm = ({
                         Jumlah Tanggungan
                         <InfoPopover content={{
                             title: "Jumlah Tanggungan",
-                            definition: "Orang yang biaya hidupnya bergantung pada penghasilan klien (Istri, Anak, Orang Tua).",
+                            definition: "Orang yang biaya hidupnya bergantung pada penghasilan Anda (Pasangan, Anak, Orang Tua).",
                             example: "Misal: Istri tidak bekerja + 2 anak = 3 Tanggungan."
                         }} />
                     </Label>

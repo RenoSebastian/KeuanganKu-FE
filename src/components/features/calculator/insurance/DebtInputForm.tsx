@@ -29,7 +29,7 @@ export const DebtInputForm = ({
                 <BadgeDollarSign className="w-5 h-5 text-brand-600" /> 1. Sisa Utang Keluarga
             </h3>
             <p className="text-xs text-slate-500 mb-6 -mt-2">
-                Masukkan sisa pokok utang (outstanding) agar keluarga tidak terbebani cicilan jika terjadi risiko.
+                Masukkan seluruh kewajiban finansial yang masih berjalan agar dapat diperhitungkan dalam kebutuhan perlindungan keluarga.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -109,7 +109,7 @@ export function GoalRealityCard({
                     <AlertTriangle className="w-4 h-4 text-amber-600" />
                 </div>
                 <p className="text-[11px] md:text-xs leading-relaxed font-medium">
-                    Jika ditunda, klien harus mencari uang tambahan sebesar <strong className="font-black text-amber-700 bg-amber-100/50 px-1 rounded">{formatRupiah(priceIncrease)}</strong> <span className="underline decoration-amber-300 underline-offset-2">hanya untuk mengejar laju inflasi</span>, di luar dari harga asli barang tersebut saat ini.
+                    Jika ditunda, Anda harus mencari uang tambahan sebesar <strong className="font-black text-amber-700 bg-amber-100/50 px-1 rounded">{formatRupiah(priceIncrease)}</strong> <span className="underline decoration-amber-300 underline-offset-2">hanya untuk mengejar laju inflasi</span>, di luar dari harga asli barang tersebut saat ini.
                 </p>
             </div>
         </Card>

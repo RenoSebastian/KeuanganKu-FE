@@ -261,7 +261,7 @@ export function CheckupResult({
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><User className="w-4 h-4 text-slate-400" /></div>
                             <div>
-                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Klien</p>
+                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Profil</p>
                                 <p className="text-sm font-bold text-slate-700">{clientInfo.name}</p>
                             </div>
                         </div>
@@ -412,7 +412,7 @@ export function CheckupResult({
                             <Sparkles className="w-5 h-5 text-indigo-600" />
                         </div>
                         <p className="text-xs leading-relaxed font-medium">
-                            Klien memiliki <strong className="text-emerald-600">{healthyCount}</strong> rasio sehat.
+                            Anda memiliki <strong className="text-emerald-600">{healthyCount}</strong> rasio sehat.
                             Fokus perbaikan utama adalah pada <strong className="text-rose-500">{priorityFix}</strong>.
                         </p>
                     </div>

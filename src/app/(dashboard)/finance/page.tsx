@@ -14,7 +14,7 @@ const FINANCE_MENUS = [
         label: "Rancang Anggaran",
         emoji: "🧮",
         href: "/calculator/budget",
-        desc: "Kelola cashflow bulanan",
+        desc: "Susun anggaran bulanan dan evaluasi arus kas.",
         color: "blue",
         gradient: "from-blue-500/20 to-blue-600/5",
         text: "text-blue-600",
@@ -24,17 +24,17 @@ const FINANCE_MENUS = [
         label: "Rencana Dana Pendidikan",
         emoji: "🎓",
         href: "/calculator/education",
-        desc: "Simulasi biaya sekolah anak",
+        desc: "Simulasi biaya pendidikan dan kebutuhan dana yg perlu dipersiapkan.",
         color: "orange",
         gradient: "from-orange-500/20 to-orange-600/5",
         text: "text-orange-600",
         border: "group-hover:border-orange-500/50"
       },
       {
-        label: "Rencana Khusus",
+        label: "Rencana Tujuan Khusus",
         emoji: "🎯",
         href: "/calculator/goals",
-        desc: "Ibadah, gadget, travel",
+        desc: "Rencanakan kebutuhan dana untuk ibadah, gadget, travelling, dan lainnya",
         color: "emerald",
         gradient: "from-emerald-500/20 to-emerald-600/5",
         text: "text-emerald-600",
@@ -44,7 +44,7 @@ const FINANCE_MENUS = [
         label: "Rencana Dana Hari Tua",
         emoji: "☂️",
         href: "/calculator/pension",
-        desc: "Kemerdekaan finansial",
+        desc: "Proyeksikan kebutuhan dana pensiun & hitung persiapannya untuk hari tua.",
         color: "purple",
         gradient: "from-purple-500/20 to-purple-600/5",
         text: "text-purple-600",
@@ -54,17 +54,17 @@ const FINANCE_MENUS = [
         label: "Rancang Proteksi",
         emoji: "🛡️",
         href: "/calculator/insurance",
-        desc: "Hitung uang pertanggungan",
+        desc: "Hitung kebutuhan UP Jiwa untuk membantu melindungi kondisi finansial keluarga",
         color: "rose",
         gradient: "from-rose-500/20 to-rose-600/5",
         text: "text-rose-600",
         border: "group-hover:border-rose-500/50"
       },
       {
-        label: "Financial Checkup",
+        label: "Finansial Health Check-up",
         emoji: "📝",
         href: "/calculator/checkup",
-        desc: "Diagnosa kesehatan dompet",
+        desc: "Evaluasi kesehatan keuangan untuk mengetahui area yang perlu diperbaiki.",
         color: "cyan",
         gradient: "from-cyan-500/20 to-cyan-600/5",
         text: "text-cyan-600",
@@ -72,10 +72,10 @@ const FINANCE_MENUS = [
       },
       // [NEW ITEM]: Risk Profile
       {
-        label: "Cek Profil Risiko",
+        label: "Kenali Profil Risiko",
         emoji: "⚖️",
         href: "/risk-profile",
-        desc: "Toleransi investasi Anda",
+        desc: "Pahami tingkat toleransi risiko Anda sebagai dasar menentukan strategi investasi.",
         color: "indigo",
         gradient: "from-indigo-500/20 to-indigo-600/5",
         text: "text-indigo-600",
@@ -137,19 +137,19 @@ export default function FinancePage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
               <span className="text-xs font-bold text-slate-700 tracking-wide uppercase">
-                Financial Hub
+                FINANCIAL PLANNING TOOLS
               </span>
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-6">
-              Kelola Uang <br />
+              Pahami Kondisi Keuangan, <br />
               <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600">
-                Secara Cerdas
+                Wujudkan Masa Depan
               </span>
             </h1>
 
             <p className="text-lg text-slate-600 leading-relaxed font-medium mb-8 max-w-md mx-auto lg:mx-0">
-              Akses rangkaian alat bantu profesional untuk merencanakan masa depan, menganalisa kesehatan finansial, hingga memitigasi risiko.
+              Gunakan tools yang ada untuk mengetahui kondisi keuangan Anda secara menyeluruh. Setiap perhitungan memberikan gambaran yang lebih jelas sebagai dasar pengambilan keputusan keuangan, mulai dari mengelola arus kas, menyusun anggaran, menganalisis kebutuhan keluarga, dan merencanakan berbagai tujuan finansial.
             </p>
 
             {/* Quote / Stat Card Kecil */}

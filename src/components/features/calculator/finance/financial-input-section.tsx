@@ -289,7 +289,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         </div>
                         <div>
                             <h2 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-none mb-1">
-                                {step === 0 ? "Neraca Klien" : step === 1 ? "Arus Kas Tahunan" : "Verifikasi Data"}
+                                {step === 0 ? "Neraca Finansial" : step === 1 ? "Arus Kas Tahunan" : "Verifikasi Data"}
                             </h2>
                             <p className="text-[11px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">
                                 Tahap {step + 1} dari 3
@@ -410,13 +410,13 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <h4 className="font-black text-emerald-800 tracking-tight text-sm md:text-base">MENGGUNAKAN MODE TAHUNAN</h4>
                                         <p className="text-xs md:text-sm text-emerald-700/80 mt-1 font-medium leading-relaxed">
                                             Masukkan seluruh total pemasukan & pengeluaran untuk jangka waktu <strong>1 Tahun</strong>.
-                                            Jika klien hanya hafal pengeluaran bulanan, klik tombol <strong className="bg-white px-1.5 py-0.5 rounded text-indigo-600 shadow-sm"><Calculator className="w-3 h-3 inline mr-1" />Bantu Hitung</strong>.
+                                            Jika Anda hanya mengingat pengeluaran bulanan, klik tombol <strong className="bg-white px-1.5 py-0.5 rounded text-indigo-600 shadow-sm"><Calculator className="w-3 h-3 inline mr-1" />Bantu Hitung</strong>.
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="bg-slate-50/40 p-5 md:p-6 rounded-3xl border border-slate-100 space-y-6 overflow-hidden">
-                                    <SectionHeader icon={DollarSign} color="emerald" title="I. Total Pemasukan" desc="Pendapatan bruto klien selama setahun terakhir." />
+                                    <SectionHeader icon={DollarSign} color="emerald" title="I. Total Pemasukan" desc="Pendapatan bruto Anda selama setahun terakhir." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         <InputGroup label="1. Pendapatan Tetap" value={num(data.incomeFixed)} onChange={(v) => handleLocalChange("incomeFixed", v)} icon={<DollarSign className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeFixed} onMonthlyClick={() => setMonthlyHelperTarget("incomeFixed")} showCalculator />
                                         <InputGroup label="2. Pendapatan Variabel" value={num(data.incomeVariable)} onChange={(v) => handleLocalChange("incomeVariable", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeVariable} onMonthlyClick={() => setMonthlyHelperTarget("incomeVariable")} showCalculator />
@@ -519,7 +519,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                     </div>
                                     <h3 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Verifikasi Akhir</h3>
                                     <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed px-4">
-                                        Pastikan rincian kalkulasi sistem di bawah ini sudah merepresentasikan realitas kondisi keuangan klien Anda.
+                                        Pastikan rincian kalkulasi sistem di bawah ini sudah merepresentasikan realitas kondisi keuangan Anda.
                                     </p>
                                 </div>
 

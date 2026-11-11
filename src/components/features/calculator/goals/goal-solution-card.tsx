@@ -56,8 +56,8 @@ export function GoalSolutionCard({
                         </h3>
                         <p className="text-[11px] sm:text-xs md:text-sm text-white/80 font-medium mt-1 md:mt-1.5 leading-relaxed">
                             {isSurplus
-                                ? "Modal awal klien diproyeksikan sudah melebihi target."
-                                : "Langkah konkret menabung rutin yang harus dilakukan klien."}
+                                ? "Modal awal Anda diproyeksikan sudah mencukupi target."
+                                : "Langkah konkret menabung rutin yang perlu Anda lakukan."}
                         </p>
                     </div>
                 </div>
@@ -116,7 +116,7 @@ export function GoalSolutionCard({
                     {/* FOOTER DISCLAIMER */}
                     {!isSurplus && (
                         <p className="text-[9px] sm:text-[10px] text-white/40 mt-5 sm:mt-6 text-center italic font-medium leading-relaxed px-2">
-                            *Disiplin adalah kunci. Menunda investasi akan memaksa klien menyisihkan nominal bulanan yang jauh lebih besar akibat hilangnya efek bunga majemuk (compounding interest).
+                            *Disiplin adalah kunci. Menunda investasi akan memaksa Anda menyisihkan nominal bulanan yang jauh lebih besar akibat hilangnya efek bunga majemuk (compounding interest).
                         </p>
                     )}
                 </div>

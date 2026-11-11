@@ -23,7 +23,7 @@ export const OtherCostsForm = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Biaya Pemakaman & Rumah Sakit</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Estimasi Biaya Akhir dan Kebutuhan Medis</label>
                     <InputGroup
                         value={finalExpense}
                         onChange={onFinalExpenseChange}
@@ -31,7 +31,7 @@ export const OtherCostsForm = ({
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-emerald-600 uppercase">Asuransi yang Sudah Dimiliki</label>
+                    <label className="text-[10px] font-bold text-emerald-600 uppercase">Manfaat Asuransi Jiwa yang Dimiliki</label>
                     <InputGroup
                         value={existingInsurance}
                         onChange={onExistingInsuranceChange}

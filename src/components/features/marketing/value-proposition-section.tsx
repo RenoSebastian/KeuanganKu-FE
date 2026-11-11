@@ -7,15 +7,15 @@ const values = [
     {
         icon: <BarChart3 className="w-8 h-8" />,
         title: "Visualisasi Arus Kas",
-        desc: "Tampilkan grafik kebocoran keuangan klien secara instan dan logis.",
+        desc: "Identifikasi kebocoran anggaran dan evaluasi kesehatan arus kas secara instan dan logis.",
         color: "text-blue-600",
         bgColor: "bg-blue-50",
         hoverBg: "group-hover:bg-blue-600"
     },
     {
         icon: <Users2 className="w-8 h-8" />,
-        title: "Multi-Klien Profiling",
-        desc: "Kelola database prospek dan ringkasan diskusi keuangan dalam satu dashboard.",
+        title: "Perencanaan Komprehensif",
+        desc: "Kelola tujuan masa depan, proteksi keluarga, dan evaluasi dana pensiun dalam satu dashboard.",
         color: "text-cyan-600",
         bgColor: "bg-cyan-50",
         hoverBg: "group-hover:bg-cyan-600",
@@ -24,7 +24,7 @@ const values = [
     {
         icon: <ShieldCheck className="w-8 h-8" />,
         title: "Simulasi Risiko Nyata",
-        desc: "Ubah risiko abstrak menjadi angka nyata yang dipahami klien kurang dari 10 menit.",
+        desc: "Ubah ketidakpastian masa depan menjadi angka nyata dan proyeksi terarah dalam hitungan menit.",
         color: "text-indigo-600",
         bgColor: "bg-indigo-50",
         hoverBg: "group-hover:bg-indigo-600"
