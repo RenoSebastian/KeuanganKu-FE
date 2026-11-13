@@ -333,7 +333,7 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                     isActive ? "text-white" : isDone ? "text-emerald-500" : "text-slate-400"
                                 )}>
                                     {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
-                                    <span className="text-[11px] font-black uppercase tracking-wider hidden md:block">
+                                    <span className="text-[11px] font-bold tracking-wide hidden md:block">
                                         {step.label}
                                     </span>
                                 </div>
@@ -357,10 +357,10 @@ export function CheckupWizard({ onComplete, onBack, isLoading = false }: Checkup
                                     </div>
                                     <div>
                                         <h4 className="text-white font-bold text-sm flex items-center gap-2">
-                                            Restore Sesi (.mgc) <Sparkles className="w-3 h-3 text-yellow-300" />
+                                            Muat Sesi Sebelumnya (.mgc)
                                         </h4>
                                         <p className="text-indigo-100/80 text-[11px] font-medium mt-0.5">
-                                            Lanjutkan simulasi dari file <code className="bg-indigo-900/50 px-1 py-0.5 rounded text-cyan-200">.mgc</code>
+                                            Lanjutkan perhitungan dari file cadangan <code className="bg-indigo-900/50 px-1 py-0.5 rounded text-cyan-200">.mgc</code>
                                         </p>
                                     </div>
                                 </div>

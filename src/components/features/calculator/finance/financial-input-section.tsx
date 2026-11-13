@@ -72,7 +72,7 @@ function ReviewRow({ label, value, isTotal, color }: { label: string, value: num
     if (isTotal) {
         return (
             <div className="flex flex-col md:flex-row md:justify-between md:items-center py-3 px-2 gap-1.5 md:gap-4 transition-all hover:bg-slate-50/50 rounded-lg -mx-2">
-                <span className="text-xs md:text-sm text-slate-800 uppercase tracking-widest md:tracking-wide font-black shrink-0">
+                <span className="text-xs md:text-sm text-slate-800 tracking-wide font-black shrink-0">
                     {label}
                 </span>
                 <span className={cn(
@@ -87,7 +87,7 @@ function ReviewRow({ label, value, isTotal, color }: { label: string, value: num
 
     return (
         <div className="flex justify-between items-center py-2.5 transition-all hover:bg-slate-50/50 px-2 rounded-lg -mx-2 gap-3">
-            <span className="text-xs md:text-sm text-slate-500 font-medium leading-tight">{label}</span>
+            <span className="text-xs md:text-sm text-slate-600 font-semibold leading-tight">{label}</span>
             <span className={cn(
                 "font-mono font-bold text-slate-700 text-right text-sm md:text-base shrink-0",
                 color === "emerald" && "text-emerald-600",
@@ -117,7 +117,7 @@ function InputGroup({ icon, label, desc, value, onChange, helpContent, onMonthly
         <div className="group space-y-1.5 flex flex-col justify-end">
             <div className="flex justify-between items-end mb-1">
                 <div className="flex items-center">
-                    <Label className="text-[11px] md:text-xs font-black text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-600 transition-colors">
+                    <Label className="text-[11px] md:text-xs font-bold text-slate-700 tracking-wide group-focus-within:text-indigo-600 transition-colors">
                         {label}
                     </Label>
                     {helpContent && <InfoPopover content={helpContent} />}
@@ -289,9 +289,16 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         </div>
                         <div>
                             <h2 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-none mb-1">
-                                {step === 0 ? "Neraca Finansial" : step === 1 ? "Arus Kas Tahunan" : "Verifikasi Data"}
+                                {step === 0 ? "Neraca Keuangan" : step === 1 ? "Arus Kas Tahunan" : "Verifikasi Data"}
                             </h2>
-                            <p className="text-[11px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">
+                            <p className="text-xs text-slate-500 font-medium mt-1">
+                                {step === 0 
+                                    ? "Identifikasi seluruh aset dan kewajiban untuk mengetahui posisi keuangan Anda saat ini." 
+                                    : step === 1 
+                                    ? "Gambaran pendapatan, kewajiban, alokasi tabungan, dan pengeluaran keluarga dalam satu tahun." 
+                                    : "Periksa kembali kelengkapan dan kesesuaian data sebelum analisis dijalankan."}
+                            </p>
+                            <p className="text-[10px] md:text-[11px] text-slate-500 font-bold tracking-wider mt-1">
                                 Tahap {step + 1} dari 3
                             </p>
                         </div>
@@ -309,25 +316,25 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
                                 {/* A. DAFTAR ASET (Bento Container) */}
                                 <div className="bg-slate-50/40 p-5 md:p-6 rounded-3xl border border-slate-100 space-y-6 overflow-hidden">
-                                    <SectionHeader icon={Wallet} color="indigo" title="Aset Likuid (Kas & Setara Kas)" desc="Harta yang sangat mudah dicairkan saat darurat." />
+                                    <SectionHeader icon={Wallet} color="indigo" title="Aset Likuid (Kas & Setara Kas)" desc="Dana dan simpanan yang dapat diakses atau dicairkan dalam waktu relatif singkat untuk memenuhi kebutuhan keuangan." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         <InputGroup label="Kas / Tabungan / Deposito" value={num(data.assetCash)} onChange={(v) => handleLocalChange("assetCash", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetCash} />
                                     </div>
 
                                     <div className="border-t border-slate-200/60 my-6" />
 
-                                    <SectionHeader icon={Home} color="emerald" title="Aset Personal" desc="Aset guna pakai (rumah tinggal, mobil pribadi)." />
+                                    <SectionHeader icon={Home} color="emerald" title="Aset Personal" desc="Aset yang dimiliki dan digunakan untuk menunjang kebutuhan pribadi maupun keluarga, bukan untuk tujuan investasi." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                                        <InputGroup label="Rumah / Tanah (Ditempati)" value={num(data.assetHome)} onChange={(v) => handleLocalChange("assetHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetHome} />
+                                        <InputGroup label="Rumah / Tanah untuk Tempat Tinggal" value={num(data.assetHome)} onChange={(v) => handleLocalChange("assetHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetHome} />
                                         <InputGroup label="Kendaraan Pribadi" value={num(data.assetVehicle)} onChange={(v) => handleLocalChange("assetVehicle", v)} icon={<Car className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetVehicle} />
                                         <InputGroup label="Emas Perhiasan" value={num(data.assetJewelry)} onChange={(v) => handleLocalChange("assetJewelry", v)} icon={<Gem className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetJewelry} />
-                                        <InputGroup label="Barang Antik / Koleksi" value={num(data.assetAntique)} onChange={(v) => handleLocalChange("assetAntique", v)} icon={<Coins className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetAntique} />
+                                        <InputGroup label="Barang Antik & Koleksi Bernilai" value={num(data.assetAntique)} onChange={(v) => handleLocalChange("assetAntique", v)} icon={<Coins className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetAntique} />
                                         <InputGroup label="Aset Personal Lain" value={num(data.assetPersonalOther)} onChange={(v) => handleLocalChange("assetPersonalOther", v)} icon={<Wallet className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetPersonalOther} />
                                     </div>
 
                                     <div className="border-t border-slate-200/60 my-6" />
 
-                                    <SectionHeader icon={TrendingUp} color="amber" title="Aset Investasi" desc="Aset yang diharapkan terus bertumbuh nilainya." />
+                                    <SectionHeader icon={TrendingUp} color="amber" title="Aset Investasi" desc="Aset yang dimiliki dengan tujuan memperoleh pertumbuhan nilai atau menghasilkan pendapatan di masa mendatang." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         <InputGroup label="Rumah / Tanah Investasi" value={num(data.assetInvHome)} onChange={(v) => handleLocalChange("assetInvHome", v)} icon={<Home className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.assetInvHome} />
 
@@ -335,7 +342,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <div className="group space-y-1.5 flex flex-col justify-end bg-amber-50/50 p-3 md:p-4 rounded-2xl border border-amber-100">
                                             <div className="flex justify-between items-end mb-1">
                                                 <div className="flex items-center">
-                                                    <Label className="text-[11px] md:text-xs font-black text-amber-700 uppercase tracking-wider">Logam Mulia</Label>
+                                                    <Label className="text-[11px] md:text-xs font-bold text-amber-800 tracking-wide">Logam Mulia</Label>
                                                     <InfoPopover content={FINANCIAL_HELP_DATA.assetGold} />
                                                 </div>
                                                 <button type="button" onClick={() => setShowGoldModal(true)} className="text-[9px] font-bold text-amber-600 bg-white shadow-sm hover:text-amber-700 hover:bg-amber-100 px-2 py-1 rounded-md transition-all flex items-center gap-1 active:scale-95">
@@ -355,14 +362,14 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
                                 {/* B. DAFTAR UTANG */}
                                 <div className="bg-rose-50/30 p-5 md:p-6 rounded-3xl border border-rose-100 space-y-6 overflow-hidden">
-                                    <SectionHeader icon={CreditCard} color="rose" title="Utang Konsumtif" desc="Sisa pokok utang berjalan (bukan cicilan bulanannya)." />
+                                    <SectionHeader icon={CreditCard} color="rose" title="Utang Konsumtif" desc="Masukkan saldo pokok kewajiban yang masih harus dilunasi, bukan jumlah angsuran bulanan." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
 
                                         {/* KPR (Special Component) */}
                                         <div className="group space-y-1.5 flex flex-col justify-end bg-white p-3 md:p-4 rounded-2xl border border-rose-100 shadow-sm">
                                             <div className="flex justify-between items-end mb-1">
                                                 <div className="flex items-center">
-                                                    <Label className="text-[11px] md:text-xs font-black text-rose-700 uppercase tracking-wider">KPR (Rumah)</Label>
+                                                    <Label className="text-[11px] md:text-xs font-bold text-rose-800 tracking-wide">KPR (Kredit Pemilikan Rumah)</Label>
                                                 </div>
                                                 <button type="button" onClick={() => setShowDebtModal({ show: true, target: 'debtKPR' })} className="text-[9px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded-md transition-all flex items-center gap-1 active:scale-95">
                                                     <Calculator className="w-3 h-3" /> Hitung Sisa
@@ -375,7 +382,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <div className="group space-y-1.5 flex flex-col justify-end bg-white p-3 md:p-4 rounded-2xl border border-rose-100 shadow-sm">
                                             <div className="flex justify-between items-end mb-1">
                                                 <div className="flex items-center">
-                                                    <Label className="text-[11px] md:text-xs font-black text-rose-700 uppercase tracking-wider">KPM (Kendaraan)</Label>
+                                                    <Label className="text-[11px] md:text-xs font-bold text-rose-800 tracking-wide">Kredit Kendaraan Bermotor</Label>
                                                 </div>
                                                 <button type="button" onClick={() => setShowDebtModal({ show: true, target: 'debtKPM' })} className="text-[9px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded-md transition-all flex items-center gap-1 active:scale-95">
                                                     <Calculator className="w-3 h-3" /> Hitung Sisa
@@ -385,12 +392,12 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         </div>
 
                                         <InputGroup label="Kartu Kredit" value={num(data.debtCC)} onChange={(v) => handleLocalChange("debtCC", v)} icon={<CreditCard className="w-4 h-4 text-rose-400" />} helpContent={FINANCIAL_HELP_DATA.debtCC} />
-                                        <InputGroup label="Koperasi / Pinjol" value={num(data.debtCoop)} onChange={(v) => handleLocalChange("debtCoop", v)} icon={<Users className="w-4 h-4 text-rose-400" />} helpContent={FINANCIAL_HELP_DATA.debtCoop} />
+                                        <InputGroup label="Pinjaman Koperasi / Pinjaman Online" value={num(data.debtCoop)} onChange={(v) => handleLocalChange("debtCoop", v)} icon={<Users className="w-4 h-4 text-rose-400" />} helpContent={FINANCIAL_HELP_DATA.debtCoop} />
                                     </div>
 
                                     <div className="border-t border-rose-200/60 my-6" />
 
-                                    <SectionHeader icon={Briefcase} color="rose" title="Utang Usaha" desc="Utang untuk kepentingan modal bisnis." />
+                                    <SectionHeader icon={Briefcase} color="rose" title="Utang Usaha" desc="Kewajiban finansial yang timbul dari kegiatan usaha atau pembiayaan bisnis." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         <InputGroup label="Utang Usaha / UMKM" value={num(data.debtBusiness)} onChange={(v) => handleLocalChange("debtBusiness", v)} icon={<Briefcase className="w-4 h-4 text-rose-400" />} helpContent={FINANCIAL_HELP_DATA.debtBusiness} />
                                     </div>
@@ -407,30 +414,29 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                 <div className="bg-linear-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-4 md:p-5 rounded-2xl flex items-start gap-4 shadow-sm">
                                     <div className="bg-white p-2 rounded-xl shadow-sm text-emerald-600 shrink-0"><AlertCircle className="w-6 h-6" /></div>
                                     <div>
-                                        <h4 className="font-black text-emerald-800 tracking-tight text-sm md:text-base">MENGGUNAKAN MODE TAHUNAN</h4>
+                                        <h4 className="font-bold text-emerald-900 tracking-tight text-sm md:text-base">Petunjuk Pengisian</h4>
                                         <p className="text-xs md:text-sm text-emerald-700/80 mt-1 font-medium leading-relaxed">
-                                            Masukkan seluruh total pemasukan & pengeluaran untuk jangka waktu <strong>1 Tahun</strong>.
-                                            Jika Anda hanya mengingat pengeluaran bulanan, klik tombol <strong className="bg-white px-1.5 py-0.5 rounded text-indigo-600 shadow-sm"><Calculator className="w-3 h-3 inline mr-1" />Bantu Hitung</strong>.
+                                            Masukkan estimasi total pendapatan dan pengeluaran dalam periode 12 bulan. Seluruh nilai harus menggunakan basis tahunan agar analisis arus kas dapat memberikan gambaran kondisi keuangan yang konsisten. Jika Anda hanya hafal pengeluaran bulanan, klik tombol <strong className="bg-white px-1.5 py-0.5 rounded text-indigo-600 shadow-sm"><Calculator className="w-3 h-3 inline mr-1" />Bantu Hitung</strong> untuk mengonversinya menjadi nilai tahunan.
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="bg-slate-50/40 p-5 md:p-6 rounded-3xl border border-slate-100 space-y-6 overflow-hidden">
-                                    <SectionHeader icon={DollarSign} color="emerald" title="I. Total Pemasukan" desc="Pendapatan bruto Anda selama setahun terakhir." />
+                                    <SectionHeader icon={DollarSign} color="emerald" title="I. Total Pemasukan" desc="Total pendapatan yang Anda terima dari seluruh sumber penghasilan dalam satu tahun." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                                        <InputGroup label="1. Pendapatan Tetap" value={num(data.incomeFixed)} onChange={(v) => handleLocalChange("incomeFixed", v)} icon={<DollarSign className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeFixed} onMonthlyClick={() => setMonthlyHelperTarget("incomeFixed")} showCalculator />
-                                        <InputGroup label="2. Pendapatan Variabel" value={num(data.incomeVariable)} onChange={(v) => handleLocalChange("incomeVariable", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeVariable} onMonthlyClick={() => setMonthlyHelperTarget("incomeVariable")} showCalculator />
+                                        <InputGroup label="1. Pendapatan Tetap" desc="Penghasilan rutin yang diterima secara berkala, seperti gaji, tunjangan tetap, atau pendapatan rutin lainnya." value={num(data.incomeFixed)} onChange={(v) => handleLocalChange("incomeFixed", v)} icon={<DollarSign className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeFixed} onMonthlyClick={() => setMonthlyHelperTarget("incomeFixed")} showCalculator />
+                                        <InputGroup label="2. Pendapatan Variabel / Tidak Tetap" desc="Penghasilan yang jumlahnya dapat berubah, seperti bonus, komisi, insentif, dan pendapatan usaha." value={num(data.incomeVariable)} onChange={(v) => handleLocalChange("incomeVariable", v)} icon={<TrendingUp className="w-4 h-4" />} helpContent={FINANCIAL_HELP_DATA.incomeVariable} onMonthlyClick={() => setMonthlyHelperTarget("incomeVariable")} showCalculator />
                                     </div>
 
                                     <div className="border-t border-slate-200/60 my-6" />
 
-                                    <SectionHeader icon={CreditCard} color="rose" title="1. Cicilan Utang" desc="Total uang yang dibayarkan untuk angsuran selama setahun." />
+                                    <SectionHeader icon={CreditCard} color="rose" title="1. Pembayaran Cicilan Utang" desc="Total pembayaran angsuran dan kewajiban utang yang harus dibayarkan selama satu tahun." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         {[
-                                            { k: 'installmentKPR', l: 'Cicilan KPR', i: <Home className="w-4 h-4" /> },
-                                            { k: 'installmentKPM', l: 'Cicilan KPM', i: <Car className="w-4 h-4" /> },
-                                            { k: 'installmentCC', l: 'Cicilan Kartu Kredit', i: <CreditCard className="w-4 h-4" /> },
-                                            { k: 'installmentBusiness', l: 'Cicilan Usaha', i: <Briefcase className="w-4 h-4" /> }
+                                            { k: 'installmentKPR', l: 'Angsuran KPR', i: <Home className="w-4 h-4" /> },
+                                            { k: 'installmentKPM', l: 'Angsuran Kredit Kendaraan', i: <Car className="w-4 h-4" /> },
+                                            { k: 'installmentCC', l: 'Pembayaran Kartu Kredit', i: <CreditCard className="w-4 h-4" /> },
+                                            { k: 'installmentBusiness', l: 'Angsuran Pinjaman Usaha', i: <Briefcase className="w-4 h-4" /> }
                                         ].map((item) => (
                                             <InputGroup
                                                 key={item.k} label={item.l} value={num(data[item.k as keyof FinancialAnnualState])}
@@ -443,15 +449,15 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
                                     <div className="border-t border-slate-200/60 my-6" />
 
-                                    <SectionHeader icon={Umbrella} color="indigo" title="2. Premi Asuransi" desc="Uang yang disisihkan untuk proteksi setahun." />
+                                    <SectionHeader icon={Umbrella} color="indigo" title="2. Premi Asuransi" desc="Total premi yang dibayarkan untuk mempertahankan perlindungan asuransi selama satu tahun." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         {[
-                                            { k: 'insuranceLife', l: 'Asuransi Jiwa', i: <Umbrella className="w-4 h-4" /> },
-                                            { k: 'insuranceHealth', l: 'Asuransi Kesehatan', i: <Activity className="w-4 h-4" /> },
-                                            { k: 'insuranceHome', l: 'Asuransi Rumah', i: <Home className="w-4 h-4" /> },
-                                            { k: 'insuranceVehicle', l: 'Asuransi Kendaraan', i: <Car className="w-4 h-4" /> },
-                                            { k: 'insuranceBPJS', l: 'BPJS Kes / TK', i: <ShieldCheck className="w-4 h-4" /> },
-                                            { k: 'insuranceOther', l: 'Asuransi Lainnya', i: <Briefcase className="w-4 h-4" /> }
+                                            { k: 'insuranceLife', l: 'Premi Asuransi Jiwa', i: <Umbrella className="w-4 h-4" /> },
+                                            { k: 'insuranceHealth', l: 'Premi Asuransi Kesehatan', i: <Activity className="w-4 h-4" /> },
+                                            { k: 'insuranceHome', l: 'Premi Asuransi Rumah', i: <Home className="w-4 h-4" /> },
+                                            { k: 'insuranceVehicle', l: 'Premi Asuransi Kendaraan', i: <Car className="w-4 h-4" /> },
+                                            { k: 'insuranceBPJS', l: 'BPJS Kesehatan / Ketenagakerjaan', i: <ShieldCheck className="w-4 h-4" /> },
+                                            { k: 'insuranceOther', l: 'Premi Asuransi Lainnya', i: <Briefcase className="w-4 h-4" /> }
                                         ].map((item) => (
                                             <InputGroup
                                                 key={item.k} label={item.l} value={num(data[item.k as keyof FinancialAnnualState])}
@@ -464,7 +470,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
                                     <div className="border-t border-slate-200/60 my-6" />
 
-                                    <SectionHeader icon={PiggyBank} color="amber" title="3. Tabungan & Investasi" desc="Uang yang berhasil disisihkan selama setahun." />
+                                    <SectionHeader icon={PiggyBank} color="amber" title="3. Alokasi Tabungan & Investasi" desc="Total dana yang dialokasikan untuk tabungan dan investasi guna memenuhi kebutuhan serta tujuan keuangan di masa depan." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         {[
                                             { k: 'savingEducation', l: 'Dana Pendidikan', i: <PiggyBank className="w-4 h-4" /> },
@@ -485,16 +491,16 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
                                     <div className="border-t border-slate-200/60 my-6" />
 
-                                    <SectionHeader icon={ShoppingBag} color="slate" title="4. Biaya Hidup (Living Cost)" desc="Total konsumsi keluarga dalam setahun." />
+                                    <SectionHeader icon={ShoppingBag} color="slate" title="4. Pengeluaran Rumah Tangga" desc="Total pengeluaran rutin dan non-rutin yang dibutuhkan untuk memenuhi kebutuhan hidup keluarga selama satu tahun." />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                         {[
-                                            { k: 'expenseFood', l: 'Makan / Dapur', i: <ShoppingBag className="w-4 h-4" /> },
-                                            { k: 'expenseSchool', l: 'Uang Sekolah Anak', i: <User className="w-4 h-4" /> },
-                                            { k: 'expenseTransport', l: 'Transportasi', i: <Car className="w-4 h-4" /> },
-                                            { k: 'expenseCommunication', l: 'Listrik & Internet', i: <Phone className="w-4 h-4" /> },
-                                            { k: 'expenseHelpers', l: 'Asisten RT / Driver', i: <Users className="w-4 h-4" /> },
+                                            { k: 'expenseFood', l: 'Kebutuhan Makan & Rumah Tangga', i: <ShoppingBag className="w-4 h-4" /> },
+                                            { k: 'expenseSchool', l: 'Biaya Pendidikan Anak', i: <User className="w-4 h-4" /> },
+                                            { k: 'expenseTransport', l: 'Biaya Transportasi', i: <Car className="w-4 h-4" /> },
+                                            { k: 'expenseCommunication', l: 'Utilitas (Listrik, Air & Internet)', i: <Phone className="w-4 h-4" /> },
+                                            { k: 'expenseHelpers', l: 'Gaji Asisten Rumah Tangga / Pengemudi', i: <Users className="w-4 h-4" /> },
                                             { k: 'expenseTax', l: 'Pajak & Retribusi', i: <Landmark className="w-4 h-4" /> },
-                                            { k: 'expenseLifestyle', l: 'Gaya Hidup & Lainnya', i: <ShoppingBag className="w-4 h-4" /> }
+                                            { k: 'expenseLifestyle', l: 'Gaya Hidup & Pengeluaran Lainnya', i: <ShoppingBag className="w-4 h-4" /> }
                                         ].map((item) => (
                                             <InputGroup
                                                 key={item.k} label={item.l} value={num(data[item.k as keyof FinancialAnnualState])}
@@ -518,8 +524,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <Activity className="w-10 h-10" />
                                     </div>
                                     <h3 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Verifikasi Akhir</h3>
-                                    <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed px-4">
-                                        Pastikan rincian kalkulasi sistem di bawah ini sudah merepresentasikan realitas kondisi keuangan Anda.
+                                    <p className="text-xs md:text-sm text-slate-500 max-w-xl mx-auto mt-2 leading-relaxed px-4 font-medium">
+                                        Pastikan seluruh data yang Anda masukkan telah sesuai dengan kondisi keuangan Anda saat ini. Ketepatan data akan membantu menghasilkan analisis kesehatan keuangan yang lebih akurat dan memberikan gambaran yang lebih jelas tentang kondisi finansial Anda.
                                     </p>
                                 </div>
 
@@ -530,8 +536,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-6">
                                             <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0"><Wallet className="w-6 h-6" /></div>
                                             <div>
-                                                <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Postur Neraca</h4>
-                                                <p className="text-[10px] md:text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Harta & Beban Utang</p>
+                                                <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Posisi Neraca Keuangan</h4>
+                                                <p className="text-[10px] md:text-[11px] font-bold tracking-wide text-slate-400">Gambaran Catatan Aset dan Kewajiban</p>
                                             </div>
                                         </div>
 
@@ -539,8 +545,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-4">
                                             {/* Kiri: ASET */}
                                             <div className="space-y-2">
-                                                <h5 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                    <TrendingUp className="w-4 h-4" /> Distribusi Aset
+                                                <h5 className="text-xs font-bold text-emerald-700 tracking-wide mb-3 flex items-center gap-2">
+                                                    <TrendingUp className="w-4 h-4" /> Komposisi Aset
                                                 </h5>
                                                 <ReviewRow label="Aset Likuid" value={num(data.assetCash)} />
                                                 <ReviewRow label="Aset Personal" value={num(data.assetHome) + num(data.assetVehicle) + num(data.assetJewelry) + num(data.assetAntique) + num(data.assetPersonalOther)} />
@@ -549,8 +555,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
                                             {/* Kanan: UTANG */}
                                             <div className="space-y-2">
-                                                <h5 className="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                    <CreditCard className="w-4 h-4" /> Distribusi Utang
+                                                <h5 className="text-xs font-bold text-rose-700 tracking-wide mb-3 flex items-center gap-2">
+                                                    <CreditCard className="w-4 h-4" /> Komposisi Kewajiban
                                                 </h5>
                                                 <ReviewRow label="Utang Konsumtif" value={num(data.debtKPR) + num(data.debtKPM) + num(data.debtCC) + num(data.debtCoop) + num(data.debtConsumptiveOther)} />
                                                 <ReviewRow label="Utang Usaha" value={num(data.debtBusiness)} />
@@ -563,15 +569,15 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                                 <ReviewRow label="Total Aset" value={totalAssets} color="emerald" isTotal />
                                             </div>
                                             <div className="bg-rose-50/50 p-2 md:p-3 rounded-xl border border-rose-100/50 shadow-sm">
-                                                <ReviewRow label="Total Utang" value={totalDebt} color="rose" isTotal />
+                                                <ReviewRow label="Total Kewajiban" value={totalDebt} color="rose" isTotal />
                                             </div>
                                         </div>
 
                                         {/* Result Bottom Indicator */}
                                         <div className="border-t-2 border-dashed border-indigo-100 bg-indigo-50/50 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                                             <div className="shrink-0">
-                                                <p className="text-xs md:text-sm font-black text-indigo-500 uppercase tracking-widest">Kekayaan Bersih</p>
-                                                <p className="text-[10px] md:text-xs text-indigo-600/70 font-bold mt-0.5">(Total Aset - Total Utang)</p>
+                                                <p className="text-xs md:text-sm font-bold text-indigo-700 tracking-wide">Kekayaan Bersih (Net Worth)</p>
+                                                <p className="text-[10px] md:text-xs text-indigo-600/70 font-bold mt-0.5">(Total Aset - Total Kewajiban)</p>
                                             </div>
                                             <span className={cn("text-2xl sm:text-3xl md:text-4xl font-black wrap-break-word w-full sm:w-auto sm:text-right leading-none", netWorth >= 0 ? "text-indigo-700" : "text-rose-600")}>
                                                 {formatRupiah(netWorth)}
@@ -584,8 +590,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4 mb-6">
                                             <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0"><Banknote className="w-6 h-6" /></div>
                                             <div>
-                                                <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Postur Arus Kas</h4>
-                                                <p className="text-[10px] md:text-[11px] uppercase font-bold tracking-widest text-slate-400">Rincian Pemasukan & Pengeluaran</p>
+                                                <h4 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Posisi Arus Kas Tahunan</h4>
+                                                <p className="text-[10px] md:text-[11px] font-bold tracking-wide text-slate-400">Ringkasan Pendapatan dan Alokasi Pengeluaran</p>
                                             </div>
                                         </div>
 
@@ -593,8 +599,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-4">
                                             {/* Kiri: PEMASUKAN */}
                                             <div className="space-y-2">
-                                                <h5 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                    <DollarSign className="w-4 h-4" /> Sumber Pemasukan
+                                                <h5 className="text-xs font-bold text-emerald-700 tracking-wide mb-3 flex items-center gap-2">
+                                                    <DollarSign className="w-4 h-4" /> Sumber Pendapatan
                                                 </h5>
                                                 <ReviewRow label="Pendapatan Tetap" value={num(data.incomeFixed)} />
                                                 <ReviewRow label="Pendapatan Variabel" value={num(data.incomeVariable)} />
@@ -602,8 +608,8 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
 
                                             {/* Kanan: PENGELUARAN */}
                                             <div className="space-y-2">
-                                                <h5 className="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                    <ShoppingBag className="w-4 h-4" /> Pos Pengeluaran
+                                                <h5 className="text-xs font-bold text-rose-700 tracking-wide mb-3 flex items-center gap-2">
+                                                    <ShoppingBag className="w-4 h-4" /> Alokasi Pengeluaran
                                                 </h5>
                                                 <ReviewRow label="Cicilan Utang" value={totalInstallmentsAnnual} />
                                                 <ReviewRow label="Premi Asuransi" value={totalInsuranceAnnual} />
@@ -615,7 +621,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         {/* Total Section - Dikunci Susun Kolom di HP, Berjajar di Tablet */}
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 border-t border-slate-200 pt-5 mb-6">
                                             <div className="bg-emerald-50/50 p-2 md:p-3 rounded-xl border border-emerald-100/50 shadow-sm">
-                                                <ReviewRow label="Total Pemasukan" value={totalIncomeAnnual} color="emerald" isTotal />
+                                                <ReviewRow label="Total Pendapatan" value={totalIncomeAnnual} color="emerald" isTotal />
                                             </div>
                                             <div className="bg-rose-50/50 p-2 md:p-3 rounded-xl border border-rose-100/50 shadow-sm">
                                                 <ReviewRow label="Total Pengeluaran" value={totalExpenseAnnual} color="rose" isTotal />
@@ -625,9 +631,9 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                                         {/* Result Bottom Indicator */}
                                         <div className={cn("border-t-2 border-dashed rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3", surplusDeficitAnnual >= 0 ? "border-emerald-100 bg-emerald-50/50" : "border-rose-100 bg-rose-50/50")}>
                                             <div className="shrink-0">
-                                                <p className={cn("text-xs md:text-sm font-black uppercase tracking-widest", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>Surplus / Defisit</p>
+                                                <p className={cn("text-xs md:text-sm font-bold tracking-wide", surplusDeficitAnnual >= 0 ? "text-emerald-700" : "text-rose-700")}>Surplus / Defisit</p>
                                                 <p className={cn("text-[10px] md:text-xs font-bold mt-0.5", surplusDeficitAnnual >= 0 ? "text-emerald-600/70" : "text-rose-600/70")}>
-                                                    (Total Pemasukan - Total Pengeluaran)
+                                                    (Total Pendapatan - Total Pengeluaran)
                                                 </p>
                                             </div>
                                             <span className={cn("text-2xl sm:text-3xl md:text-4xl font-black wrap-break-word w-full sm:w-auto sm:text-right leading-none", surplusDeficitAnnual >= 0 ? "text-emerald-600" : "text-rose-600")}>
@@ -673,7 +679,7 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                             {isLoading ? (
                                 <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menganalisa...</>
                             ) : (
-                                <><Calculator className="w-5 h-5 mr-2" /> Diagnosa Sekarang</>
+                                <><Calculator className="w-5 h-5 mr-2" /> Mulai Analisis Kesehatan Keuangan</>
                             )}
                         </Button>
                     )}
@@ -723,14 +729,14 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         </div>
                         <div className="space-y-5">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cicilan Per Bulan</label>
+                                <label className="text-xs font-bold text-slate-600 ml-1">Cicilan Per Bulan</label>
                                 <InputGroupNoLabel autoFocus value={tempMonthly ? parseInt(tempMonthly.replace(/\./g, "")) : 0} onChange={(v: SetStateAction<string>) => setTempMonthly(v)} icon={<Banknote className="w-4 h-4 text-slate-400" />} />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sisa Tenor (Bulan)</label>
+                                <label className="text-xs font-bold text-slate-600 ml-1">Sisa Tenor (Bulan)</label>
                                 <div className="relative">
                                     <Input type="number" inputMode="numeric" value={tempTenor} onChange={(e) => setTempTenor(e.target.value)} className="h-14 pl-4 rounded-xl font-black text-base md:text-lg bg-slate-50 border-slate-200 focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 focus:bg-white pr-16 transition-all" placeholder="Contoh: 12" />
-                                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 uppercase">Bulan</span>
+                                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Bulan</span>
                                 </div>
                             </div>
                             <div className="pt-4 flex gap-3">
@@ -764,23 +770,23 @@ export function FinancialInputSection({ data, onUpdate, onComplete, onBack, isLo
                         <div className="space-y-5">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
                                 <div>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Harga Server Hari Ini</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mb-0.5">Harga Acuan Hari Ini</p>
                                     <p className="text-lg font-black text-slate-700">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(!isNaN(currentGoldPrice) && currentGoldPrice > 0 ? currentGoldPrice : 1350000)}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Satuan</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mb-0.5">Satuan</p>
                                     <p className="text-sm font-bold text-slate-500">Per Gram</p>
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Jumlah Emas Anda</label>
+                                <label className="text-xs font-bold text-slate-600 ml-1">Jumlah Emas Anda</label>
                                 <div className="relative group">
                                     <Input autoFocus type="text" inputMode="decimal" value={goldWeight} onChange={(e) => setGoldWeight(e.target.value)} className="h-14 pl-4 rounded-xl font-black text-base md:text-lg bg-white border-slate-200 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 pr-14 transition-all shadow-sm" placeholder="Misal: 5.5" />
-                                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-amber-600">GR</span>
+                                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-bold text-amber-700">Gram</span>
                                 </div>
                             </div>
                             <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex justify-between items-center">
-                                <p className="text-[10px] font-black text-amber-600/70 uppercase">Estimasi Nilai Harta</p>
+                                <p className="text-[11px] font-bold text-amber-800">Estimasi Nilai Harta</p>
                                 <p className="text-xl font-black text-amber-700">{formatRupiah(Math.round((parseFloat(goldWeight.replace(",", ".")) || 0) * (!isNaN(currentGoldPrice) && currentGoldPrice > 0 ? currentGoldPrice : 1350000)))}</p>
                             </div>
                             <div className="pt-2 flex gap-3">

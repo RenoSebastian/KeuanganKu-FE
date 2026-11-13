@@ -199,7 +199,7 @@ export function CheckupResult({
                                 {isReadOnly ? <Lock className={cn("w-6 h-6", theme.accent)} /> : <StatusIcon className={cn("w-6 h-6", theme.accent)} />}
                             </div>
                             <div>
-                                <p className="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-widest mb-0.5">Status Finansial</p>
+                                <p className="text-[10px] md:text-xs font-bold text-white/70 tracking-wider mb-0.5">Status Kesehatan Keuangan</p>
                                 <h2 className={cn("text-lg md:text-xl font-black tracking-wide", theme.accent)}>{theme.label}</h2>
                             </div>
                         </div>
@@ -213,8 +213,8 @@ export function CheckupResult({
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 relative z-10">
                         <div className="md:col-span-5 flex flex-col justify-end">
                             <div className="mb-2">
-                                <p className="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                    <Scale className="w-3.5 h-3.5" /> Skor Kesehatan
+                                <p className="text-[10px] md:text-xs font-bold text-white/70 tracking-wider mb-1.5 flex items-center gap-1.5">
+                                    <Scale className="w-3.5 h-3.5" /> Skor Kesehatan Keuangan
                                 </p>
                                 <div className="flex items-baseline gap-2">
                                     <h1 className="text-6xl md:text-7xl lg:text-[80px] font-black text-white tracking-tighter leading-none">
@@ -229,26 +229,26 @@ export function CheckupResult({
                             <div className="bg-black/20 p-5 md:p-6 rounded-3xl border border-white/10 backdrop-blur-md shadow-inner flex flex-col justify-between">
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className="p-1.5 bg-white/10 rounded-lg"><Wallet className="w-4 h-4 text-white" /></div>
-                                    <h3 className="text-xs font-bold text-white/70 uppercase tracking-widest">Net Worth</h3>
+                                    <h3 className="text-xs font-bold text-white/80 tracking-wider">Kekayaan Bersih</h3>
                                 </div>
                                 <div>
                                     <p className="text-xl md:text-2xl lg:text-3xl font-black text-white tracking-tight break-all">
                                         <AnimatedNumber value={netWorth} />
                                     </p>
-                                    <p className="text-[10px] text-white/50 font-medium mt-1">Total Harta Bersih</p>
+                                    <p className="text-[10px] text-white/50 font-medium mt-1">Total Kekayaan Bersih</p>
                                 </div>
                             </div>
 
                             <div className="bg-black/20 p-5 md:p-6 rounded-3xl border border-white/10 backdrop-blur-md shadow-inner flex flex-col justify-between">
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className="p-1.5 bg-white/10 rounded-lg"><Target className="w-4 h-4 text-white" /></div>
-                                    <h3 className="text-xs font-bold text-white/70 uppercase tracking-widest">Surplus</h3>
+                                    <h3 className="text-xs font-bold text-white/80 tracking-wider">Surplus Keuangan</h3>
                                 </div>
                                 <div>
                                     <p className={cn("text-xl md:text-2xl lg:text-3xl font-black tracking-tight break-all", displaySurplus >= 0 ? "text-white" : "text-rose-400")}>
                                         <AnimatedNumber value={displaySurplus} isSurplus />
                                     </p>
-                                    <p className="text-[10px] text-white/50 font-medium mt-1">Sisa Dana ({viewMode === "MONTHLY" ? "Per Bulan" : "Per Tahun"})</p>
+                                    <p className="text-[10px] text-white/50 font-medium mt-1">{viewMode === "MONTHLY" ? "Sisa Dana Bulanan" : "Sisa Dana Tahunan"}</p>
                                 </div>
                             </div>
                         </div>
@@ -261,21 +261,21 @@ export function CheckupResult({
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><User className="w-4 h-4 text-slate-400" /></div>
                             <div>
-                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Profil</p>
+                                <p className="text-[10px] font-bold text-slate-400 tracking-wider">Profil Pengguna</p>
                                 <p className="text-sm font-bold text-slate-700">{clientInfo.name}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><Calendar className="w-4 h-4 text-slate-400" /></div>
                             <div>
-                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Usia</p>
+                                <p className="text-[10px] font-bold text-slate-400 tracking-wider">Usia</p>
                                 <p className="text-sm font-bold text-slate-700">{displayAge} Tahun</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><Heart className="w-4 h-4 text-slate-400" /></div>
                             <div>
-                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Status</p>
+                                <p className="text-[10px] font-bold text-slate-400 tracking-wider">Status Pernikahan</p>
                                 <p className="text-sm font-bold text-slate-700">{getMaritalStatusLabel(clientInfo.maritalStatus)}</p>
                             </div>
                         </div>
@@ -283,7 +283,7 @@ export function CheckupResult({
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><Briefcase className="w-4 h-4 text-slate-400" /></div>
                                 <div>
-                                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pekerjaan</p>
+                                    <p className="text-[10px] font-bold text-slate-400 tracking-wider">Pekerjaan</p>
                                     <p className="text-sm font-bold text-slate-700">{clientInfo.job}</p>
                                 </div>
                             </div>
@@ -292,7 +292,7 @@ export function CheckupResult({
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100"><MapPin className="w-4 h-4 text-slate-400" /></div>
                                 <div>
-                                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Kota</p>
+                                    <p className="text-[10px] font-bold text-slate-400 tracking-wider">Domisili</p>
                                     <p className="text-sm font-bold text-slate-700">{clientInfo.city}</p>
                                 </div>
                             </div>
@@ -305,7 +305,7 @@ export function CheckupResult({
                     <div className="flex items-center justify-between mb-4 px-1">
                         <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
                             <div className="w-1 h-6 bg-indigo-500 rounded-full" />
-                            Detail 8 Indikator Rasio
+                            8 Indikator Kesehatan Keuangan
                         </div>
                         <div className="text-xs font-bold text-slate-400 flex items-center gap-2">
                             <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Sehat: {healthyCount}</span>
@@ -363,7 +363,7 @@ export function CheckupResult({
                                             <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
                                                 <Activity className="w-5 h-5 text-slate-400" />
                                             </div>
-                                            <Badge variant="outline" className={cn("text-[10px] uppercase font-black tracking-wider px-2 py-0.5 gap-1", statusBadgeColor)}>
+                                            <Badge variant="outline" className={cn("text-[10px] font-bold tracking-wide px-2.5 py-0.5 gap-1", statusBadgeColor)}>
                                                 {statusIcon} {ratio.statusLabel || statusText}
                                             </Badge>
                                         </div>
@@ -409,11 +409,10 @@ export function CheckupResult({
                     {/* Quick Insight */}
                     <div className="flex items-start md:items-center gap-3 text-slate-500 max-w-md">
                         <div className="p-2 bg-indigo-50 rounded-xl shrink-0 border border-indigo-100">
-                            <Sparkles className="w-5 h-5 text-indigo-600" />
+                            <Activity className="w-5 h-5 text-indigo-600" />
                         </div>
                         <p className="text-xs leading-relaxed font-medium">
-                            Anda memiliki <strong className="text-emerald-600">{healthyCount}</strong> rasio sehat.
-                            Fokus perbaikan utama adalah pada <strong className="text-rose-500">{priorityFix}</strong>.
+                            Dari 8 indikator kesehatan keuangan yang dianalisis, terdapat <strong className="text-emerald-600">{healthyCount}</strong> indikator yang sudah berada dalam kondisi sehat. Beberapa indikator lainnya masih memerlukan perhatian. Prioritas perbaikan Anda adalah <strong className="text-rose-500">{priorityFix}</strong>. Mulailah dengan mengevaluasi pengeluaran dan menentukan alokasi dana yang dapat disisihkan secara konsisten.
                         </p>
                     </div>
 
@@ -425,7 +424,7 @@ export function CheckupResult({
                                 disabled={isDownloading}
                                 className="w-full sm:w-auto h-12 rounded-xl border-slate-300 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all px-6"
                             >
-                                <RefreshCcw className="w-4 h-4 mr-2" /> Mulai Baru
+                                <RefreshCcw className="w-4 h-4 mr-2" /> Buat Analisis Baru
                             </Button>
                         )}
 
@@ -436,26 +435,24 @@ export function CheckupResult({
                                 disabled={isDownloading}
                                 className="w-full sm:w-auto h-12 rounded-xl bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 font-bold active:scale-95 transition-all px-6"
                             >
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Revisi Angka
-                            </Button>
-                        )}
-
-                        {isAgentMode && (
-                            <Button
-                                variant="outline"
-                                onClick={() => onDownloadFile?.('MGC')}
-                                disabled={isDownloading || !hasMgcReady}
-                                className="w-full sm:w-auto h-12 rounded-xl border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all px-6 font-bold"
-                            >
-                                <FileJson className="w-4 h-4 mr-2" />
-                                Cadangkan .MGC
+                                <ArrowLeft className="w-4 h-4 mr-2" /> Perbarui Data Keuangan
                             </Button>
                         )}
 
                         <Button
+                            variant="outline"
+                            onClick={() => onDownloadFile?.('MGC')}
+                            disabled={isDownloading || !hasMgcReady}
+                            className="w-full sm:w-auto h-12 rounded-xl border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all px-6 font-bold"
+                        >
+                            <FileJson className="w-4 h-4 mr-2" />
+                            Simpan File (.mgc)
+                        </Button>
+
+                        <Button
                             onClick={() => onDownloadFile?.('PDF')}
                             disabled={isDownloading}
-                            className="w-full sm:w-auto h-12 rounded-xl font-black shadow-lg shadow-indigo-600/30 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white px-8"
+                            className="w-full sm:w-auto h-12 rounded-xl font-bold shadow-lg shadow-indigo-600/30 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white px-8"
                         >
                             {isDownloading ? (
                                 <><RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> Memproses...</>

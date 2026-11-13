@@ -153,10 +153,10 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <ShieldCheck className="w-5 h-5 text-indigo-400" />
-                            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Tahap 1: Data Dasar</span>
+                            <span className="text-[10px] font-bold text-indigo-300 tracking-wider">Tahap 1: Data Dasar</span>
                         </div>
                         <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-1">Profil Finansial</h2>
-                        <p className="text-xs md:text-sm text-slate-400 font-medium">Informasi ini dijaga kerahasiaannya dan digunakan murni untuk kalkulasi rasio keuangan Anda.</p>
+                        <p className="text-xs md:text-sm text-slate-400 font-medium">Lengkapi informasi pribadi dan keluarga sebagai dasar analisis kondisi keuangan serta evaluasi kesehatan finansial Anda.</p>
                     </div>
                 </div>
             </div>
@@ -171,7 +171,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                         <SectionTitle
                             icon={User}
                             title="Identitas Utama"
-                            desc="Informasi pribadi Anda yang akan dianalisa."
+                            desc="Data identitas pribadi sebagai dasar penyusunan profil dan analisis keuangan Anda."
                             colorClass="text-indigo-600 bg-indigo-50 border-indigo-100"
                         />
 
@@ -181,7 +181,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 name="name"
                                 render={({ field }) => (
                                     <FormItem className="group">
-                                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-600 transition-colors">Nama Lengkap</FormLabel>
+                                        <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-indigo-600 transition-colors">Nama Lengkap</FormLabel>
                                         <FormControl>
                                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -199,7 +199,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     name="dob"
                                     render={({ field }) => (
                                         <FormItem className="group">
-                                            <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-600 transition-colors">Tanggal Lahir</FormLabel>
+                                            <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-indigo-600 transition-colors">Tanggal Lahir</FormLabel>
                                             <FormControl>
                                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                     <Input type="date" className="h-12 md:h-14 rounded-xl bg-slate-50 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white font-bold text-slate-800 transition-all shadow-sm block w-full" {...field} />
@@ -214,12 +214,12 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     name="gender"
                                     render={({ field }) => (
                                         <FormItem className="group">
-                                            <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-600 transition-colors">Gender</FormLabel>
+                                            <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-indigo-600 transition-colors">Jenis Kelamin</FormLabel>
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                     <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                         <SelectTrigger className="h-12 md:h-14 rounded-xl bg-slate-50 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 focus:bg-white font-bold text-slate-800 transition-all shadow-sm">
-                                                            <SelectValue placeholder="Pilih" />
+                                                            <SelectValue placeholder="Pilih Jenis Kelamin" />
                                                         </SelectTrigger>
                                                     </div>
                                                 </FormControl>
@@ -239,7 +239,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 name="occupation"
                                 render={({ field }) => (
                                     <FormItem className="group">
-                                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-600 transition-colors">Profesi / Pekerjaan</FormLabel>
+                                        <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-indigo-600 transition-colors">Profesi / Pekerjaan</FormLabel>
                                         <FormControl>
                                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                 <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -256,7 +256,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 name="religion"
                                 render={({ field }) => (
                                     <FormItem className="group">
-                                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-600 transition-colors">Agama</FormLabel>
+                                        <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-indigo-600 transition-colors">Agama</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
@@ -285,7 +285,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                         <SectionTitle
                             icon={MapPin}
                             title="Kontak & Domisili"
-                            desc="Alamat dan nomor yang bisa dihubungi."
+                            desc="Informasi kontak dan domisili untuk melengkapi profil pribadi Anda."
                             colorClass="text-emerald-600 bg-emerald-50 border-emerald-100"
                         />
 
@@ -295,7 +295,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 name="phone"
                                 render={({ field }) => (
                                     <FormItem className="group">
-                                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-emerald-600 transition-colors">Nomor Telepon (WhatsApp)</FormLabel>
+                                        <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-emerald-600 transition-colors">Nomor Telepon (WhatsApp)</FormLabel>
                                         <FormControl>
                                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
@@ -312,7 +312,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 name="email"
                                 render={({ field }) => (
                                     <FormItem className="group">
-                                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-emerald-600 transition-colors">Alamat Email <span className="text-[10px] font-normal lowercase tracking-normal">(Opsional)</span></FormLabel>
+                                        <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-emerald-600 transition-colors">Alamat Email <span className="text-[10px] font-normal lowercase tracking-normal text-slate-400">(Opsional)</span></FormLabel>
                                         <FormControl>
                                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
@@ -329,7 +329,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 name="city"
                                 render={({ field }) => (
                                     <FormItem className="group">
-                                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-emerald-600 transition-colors">Kota Domisili</FormLabel>
+                                        <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-emerald-600 transition-colors">Kota Domisili</FormLabel>
                                         <FormControl>
                                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                 <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
@@ -346,7 +346,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                 name="address"
                                 render={({ field }) => (
                                     <FormItem className="group md:col-span-2">
-                                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-emerald-600 transition-colors">Alamat Lengkap</FormLabel>
+                                        <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-emerald-600 transition-colors">Alamat Lengkap</FormLabel>
                                         <FormControl>
                                             <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.01]">
                                                 <MapPin className="absolute left-4 top-4.5 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
@@ -372,7 +372,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                             <SectionTitle
                                 icon={Users}
                                 title="Tanggungan Keluarga"
-                                desc="Informasi status pernikahan dan tanggungan."
+                                desc="Informasi status pernikahan dan jumlah anggota keluarga yang menjadi tanggungan finansial Anda."
                                 colorClass="text-brand-600 bg-brand-50 border-brand-100"
                             />
 
@@ -383,7 +383,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     name="maritalStatus"
                                     render={({ field }) => (
                                         <FormItem className="group">
-                                            <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-brand-600 transition-colors">Status Pernikahan</FormLabel>
+                                            <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-brand-600 transition-colors">Status Pernikahan</FormLabel>
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                     <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
@@ -408,7 +408,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     name="childrenCount"
                                     render={({ field }) => (
                                         <FormItem className="group">
-                                            <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-brand-600 transition-colors">Jumlah Anak</FormLabel>
+                                            <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-brand-600 transition-colors">Jumlah Anak</FormLabel>
                                             <FormControl>
                                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                     <Input
@@ -439,7 +439,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                     name="dependentParents"
                                     render={({ field }) => (
                                         <FormItem className="group">
-                                            <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-brand-600 transition-colors">Tanggungan Lain / Ortu</FormLabel>
+                                            <FormLabel className="text-xs font-bold text-slate-600 tracking-wide group-focus-within:text-brand-600 transition-colors">Tanggungan Lainnya (Termasuk Orang Tua)</FormLabel>
                                             <FormControl>
                                                 <div className="relative transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                     <Input
@@ -479,7 +479,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                         <div className="pt-6 border-t-2 border-dashed border-rose-100">
                                             <div className="flex items-center gap-2 mb-5">
                                                 <div className="p-1.5 bg-rose-100 rounded-lg shadow-inner"><Heart className="w-4 h-4 text-rose-500" /></div>
-                                                <h4 className="font-black text-rose-900 text-sm md:text-base uppercase tracking-widest">Profil Pasangan</h4>
+                                                <h4 className="font-black text-rose-900 text-sm md:text-base tracking-wide">Profil Pasangan</h4>
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 bg-rose-50/50 p-4 rounded-2xl border border-rose-100/50">
@@ -488,9 +488,9 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                                     name="spouseName"
                                                     render={({ field }) => (
                                                         <FormItem className="group">
-                                                            <FormLabel className="text-[11px] font-bold text-rose-600/80 uppercase tracking-wider group-focus-within:text-rose-700 transition-colors">Nama Lengkap</FormLabel>
+                                                            <FormLabel className="text-[11px] font-bold text-rose-700 tracking-wide group-focus-within:text-rose-700 transition-colors">Nama Lengkap</FormLabel>
                                                             <FormControl>
-                                                                <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
+                                                                 <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                                     <Input className="h-12 rounded-xl bg-white border-rose-200 focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 font-bold text-slate-800 transition-all shadow-sm" placeholder="Nama Suami/Istri" {...field} />
                                                                 </div>
                                                             </FormControl>
@@ -502,7 +502,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                                     name="spouseDob"
                                                     render={({ field }) => (
                                                         <FormItem className="group">
-                                                            <FormLabel className="text-[11px] font-bold text-rose-600/80 uppercase tracking-wider group-focus-within:text-rose-700 transition-colors">Tanggal Lahir</FormLabel>
+                                                            <FormLabel className="text-[11px] font-bold text-rose-700 tracking-wide group-focus-within:text-rose-700 transition-colors">Tanggal Lahir</FormLabel>
                                                             <FormControl>
                                                                 <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                                     <Input type="date" className="h-12 rounded-xl bg-white border-rose-200 focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 font-bold text-slate-800 transition-all shadow-sm block w-full" {...field} />
@@ -516,7 +516,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                                                     name="spouseOccupation"
                                                     render={({ field }) => (
                                                         <FormItem className="group">
-                                                            <FormLabel className="text-[11px] font-bold text-rose-600/80 uppercase tracking-wider group-focus-within:text-rose-700 transition-colors">Pekerjaan</FormLabel>
+                                                            <FormLabel className="text-[11px] font-bold text-rose-700 tracking-wide group-focus-within:text-rose-700 transition-colors">Pekerjaan</FormLabel>
                                                             <FormControl>
                                                                 <div className="transition-all duration-300 transform group-focus-within:scale-[1.02]">
                                                                     <Input className="h-12 rounded-xl bg-white border-rose-200 focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 font-bold text-slate-800 transition-all shadow-sm" placeholder="Ibu Rumah Tangga / Karyawan" {...field} />
@@ -541,7 +541,7 @@ export function ClientIdentityForm({ initialData, onComplete }: ClientIdentityFo
                             type="submit"
                             className="w-full h-14 md:h-16 text-base md:text-lg bg-indigo-600 hover:bg-indigo-700 font-black tracking-wide rounded-2xl shadow-[0_8px_30px_-4px_rgba(79,70,229,0.3)] hover:-translate-y-1 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                         >
-                            Lanjut ke Data Finansial <ArrowRight className="w-5 h-5" />
+                            Lanjutkan ke Informasi Keuangan <ArrowRight className="w-5 h-5" />
                         </Button>
                     </div>
 

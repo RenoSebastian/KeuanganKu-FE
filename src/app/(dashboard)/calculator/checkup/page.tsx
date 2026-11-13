@@ -25,10 +25,10 @@ export default function AgentCheckupPage() {
                         </div>
                         <div>
                             <h1 className="text-lg font-black text-slate-800 leading-none tracking-tight">
-                                Agent Simulator
+                                Financial Health Check Up
                             </h1>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                                Financial Checkup v2.0
+                            <p className="text-[11px] font-bold text-slate-500 tracking-wide mt-1">
+                                Evaluasi Mandiri Kesehatan Finansial
                             </p>
                         </div>
                     </div>
